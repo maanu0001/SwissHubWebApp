@@ -5,7 +5,6 @@ import { getCoreSettings, searchMembers } from '@swisshub/modules';
 import { sanitizeText, toAppError } from '@swisshub/shared';
 import { Input } from '@/components/ui/input';
 import { buttonVariants } from '@/components/ui/button';
-import { PageHeader } from '@/components/shared/page-header';
 import { MemberCard } from '@/components/shared/member-card';
 import { EmptyState, ErrorState } from '@/components/shared/states';
 import { requirePagePermission } from '@/server/auth';
@@ -44,11 +43,6 @@ export default async function MembersPage({
 
   return (
     <>
-      <PageHeader
-        title="Mitglieder"
-        description="Mitglieder des SwissHub Discord-Servers suchen und einsehen."
-      />
-
       <form role="search" className="flex flex-col gap-2 sm:flex-row sm:items-center">
         <div className="relative flex-1">
           <Search
@@ -69,13 +63,13 @@ export default async function MembersPage({
       </form>
 
       {error ? (
-        <ErrorState title="Suche nicht moeglich" description={error} />
+        <ErrorState title="Suche nicht möglich" description={error} />
       ) : members.length === 0 ? (
         <EmptyState
           title={params.q ? 'Keine Treffer' : 'Keine Mitglieder gefunden'}
           description={
             params.q
-              ? 'Fuer diese Suche wurden keine Mitglieder gefunden.'
+              ? 'Für diese Suche wurden keine Mitglieder gefunden.'
               : 'Gib einen Suchbegriff ein, um Mitglieder zu finden.'
           }
         />

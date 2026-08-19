@@ -17,13 +17,13 @@ export default function DiscordUnavailablePage(): React.JSX.Element {
           </span>
           <CardTitle className="text-xl">Discord derzeit nicht erreichbar</CardTitle>
           <CardDescription>
-            Die Verbindung zu Discord ist momentan gestoert. Bereits gespeicherte Daten bleiben sichtbar,
-            Discord-Aktionen sind voruebergehend nicht moeglich.
+            Die Verbindung zu Discord ist momentan gestört. Bereits gespeicherte Daten bleiben sichtbar,
+            Discord-Aktionen sind vorübergehend nicht möglich.
           </CardDescription>
         </CardHeader>
         <CardContent>
           <Link href="/dashboard" className={cn(buttonVariants({ variant: 'outline' }))}>
-            Zurueck zum Dashboard
+            Zurück zum Dashboard
           </Link>
         </CardContent>
       </Card>

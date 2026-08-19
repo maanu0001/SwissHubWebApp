@@ -20,7 +20,7 @@ export function getDiscord(): DiscordGateway {
  *   discord.roles.add(id, roleId)
  *   discord.channels.send(channelId, payload)
  *
- * Der Proxy verzoegert die Initialisierung, damit das Modul importiert werden
+ * Der Proxy verzögert die Initialisierung, damit das Modul importiert werden
  * kann, bevor die Umgebung validiert wurde (z.B. beim Next.js Build).
  */
 export const discord: DiscordGateway = new Proxy({} as DiscordGateway, {
@@ -29,7 +29,7 @@ export const discord: DiscordGateway = new Proxy({} as DiscordGateway, {
   },
 });
 
-/** Nur fuer Tests: ersetzt die Gateway-Implementierung. */
+/** Nur für Tests: ersetzt die Gateway-Implementierung. */
 export function setDiscordGateway(gateway: DiscordGateway | null): void {
   instance = gateway;
 }

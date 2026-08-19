@@ -3,8 +3,8 @@ import { NextResponse, type NextRequest } from 'next/server';
 /**
  * Content-Security-Policy mit Request-Nonce.
  *
- * Next.js uebernimmt die Nonce automatisch fuer eigene Skripte, sobald sie im
- * CSP-Header des Requests steht. Dadurch braucht es kein `unsafe-inline` fuer
+ * Next.js übernimmt die Nonce automatisch für eigene Skripte, sobald sie im
+ * CSP-Header des Requests steht. Dadurch braucht es kein `unsafe-inline` für
  * Skripte - die wirksamste Massnahme gegen XSS.
  */
 export function middleware(request: NextRequest): NextResponse {

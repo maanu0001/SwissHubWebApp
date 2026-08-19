@@ -17,7 +17,7 @@ afterEach(() => {
 });
 
 describe('Environment-Validierung', () => {
-  it('akzeptiert eine vollstaendige Konfiguration', () => {
+  it('akzeptiert eine vollständige Konfiguration', () => {
     const parsed = serverEnvSchema.parse(VALID);
     expect(parsed.DISCORD_GUILD_ID).toBe('123456789012345678');
     expect(parsed.SESSION_ABSOLUTE_TTL_HOURS).toBe(168);
@@ -31,7 +31,7 @@ describe('Environment-Validierung', () => {
 
     try {
       assertServerEnv(incomplete);
-      throw new Error('Es haette ein Fehler geworfen werden muessen');
+      throw new Error('Es hätte ein Fehler geworfen werden müssen');
     } catch (error) {
       expect(error).toBeInstanceOf(EnvironmentError);
       expect((error as EnvironmentError).message).toContain('DISCORD_BOT_TOKEN');
@@ -44,7 +44,7 @@ describe('Environment-Validierung', () => {
     expect(result.success).toBe(false);
   });
 
-  it('lehnt ungueltige Discord IDs ab', () => {
+  it('lehnt ungültige Discord IDs ab', () => {
     expect(serverEnvSchema.safeParse({ ...VALID, DISCORD_GUILD_ID: 'nicht-numerisch' }).success).toBe(false);
     expect(serverEnvSchema.safeParse({ ...VALID, DISCORD_ADMIN_ROLE_ID: '42' }).success).toBe(false);
     expect(serverEnvSchema.safeParse({ ...VALID, DISCORD_ADMIN_ROLE_ID: '' }).success).toBe(true);

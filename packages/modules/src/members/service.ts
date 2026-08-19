@@ -13,7 +13,7 @@ import { getCoreSettings } from '../settings';
  * Mitglieder-Service.
  *
  * Mitgliederdaten werden bei Discord gelesen und NICHT dauerhaft gespiegelt
- * (Datensparsamkeit). Persistiert wird nur, was fuer Moderation und
+ * (Datensparsamkeit). Persistiert wird nur, was für Moderation und
  * Nachvollziehbarkeit gebraucht wird.
  */
 export interface MemberRoleView {
@@ -89,7 +89,7 @@ async function decorate(members: GuildMember[], gateway: DiscordGateway): Promis
 
 /**
  * Serverseitige Mitgliedersuche nach Username, Anzeigename oder Discord ID.
- * Es wird niemals die vollstaendige Mitgliederliste an den Browser gesendet.
+ * Es wird niemals die vollständige Mitgliederliste an den Browser gesendet.
  */
 export async function searchMembers(
   rawQuery: string,

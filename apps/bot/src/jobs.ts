@@ -14,7 +14,7 @@ export interface JobRunner {
 interface JobDefinition {
   name: string;
   intervalMs: number;
-  /** Direkt beim Start einmal ausfuehren. */
+  /** Direkt beim Start einmal ausführen. */
   runOnStart?: boolean;
   run(): Promise<void>;
 }
@@ -22,8 +22,8 @@ interface JobDefinition {
 /**
  * Wiederkehrende Hintergrundjobs des Bots.
  *
- * Alle Jobs sind idempotent und ueberlappungsfrei: laeuft ein Durchgang noch,
- * wird der naechste Tick uebersprungen. Die Datenbank bleibt Source of Truth,
+ * Alle Jobs sind idempotent und überlappungsfrei: läuft ein Durchgang noch,
+ * wird der nächste Tick übersprungen. Die Datenbank bleibt Source of Truth,
  * damit ein Neustart nichts verliert.
  */
 export function createJobRunner(
@@ -77,7 +77,7 @@ export function createJobRunner(
       async run() {
         const [sessions, keys] = await Promise.all([purgeExpiredSessions(), purgeExpiredIdempotencyKeys()]);
         if (sessions > 0 || keys > 0) {
-          log.info('Aufraeumen abgeschlossen', { sessions, idempotencyKeys: keys });
+          log.info('Aufräumen abgeschlossen', { sessions, idempotencyKeys: keys });
         }
       },
     },
@@ -85,7 +85,7 @@ export function createJobRunner(
 
   async function execute(job: JobDefinition): Promise<void> {
     if (running.has(job.name)) {
-      log.debug('Job laeuft noch - Tick uebersprungen', { job: job.name });
+      log.debug('Job läuft noch - Tick übersprungen', { job: job.name });
       return;
     }
     running.add(job.name);
@@ -104,8 +104,10 @@ export function createJobRunner(
         if (job.runOnStart) {
           void execute(job);
         }
+        // Bewusst ohne `unref()`: die Jobs sind die eigentliche Arbeit des
+        // Bots und müssen den Prozess am Leben halten - auch dann, wenn keine
+        // Gateway-Verbindung besteht (z.B. im Mock-Modus).
         const timer = setInterval(() => void execute(job), job.intervalMs);
-        timer.unref?.();
         timers.push(timer);
         log.info('Job gestartet', { job: job.name, intervalMs: job.intervalMs });
       }
@@ -115,8 +117,8 @@ export function createJobRunner(
         clearInterval(timer);
       }
       timers.length = 0;
-      // Laufende Durchgaenge kurz auslaufen lassen, damit keine Aktion
-      // halb ausgefuehrt zurueckbleibt.
+      // Laufende Durchgänge kurz auslaufen lassen, damit keine Aktion
+      // halb ausgeführt zurückbleibt.
       const deadline = Date.now() + 5000;
       while (running.size > 0 && Date.now() < deadline) {
         await new Promise((resolve) => setTimeout(resolve, 100));

@@ -5,7 +5,7 @@ import { highestRolePosition } from './hierarchy';
  * Zentrale Moderation Policy.
  *
  * Sie beantwortet genau eine Frage: Darf `actor` die Moderationsaktion gegen
- * `target` ausfuehren? Die Pruefung ist rein funktional und damit vollstaendig
+ * `target` ausführen? Die Prüfung ist rein funktional und damit vollständig
  * testbar - jedes Modul verwendet dieselbe Policy.
  */
 export type PolicyDenyCode =
@@ -30,33 +30,33 @@ export interface PolicyEvaluationInput {
   actor: PolicyActor;
   target: GuildMember | null;
   guildRoles: readonly GuildRole[];
-  /** Rollen, deren Traeger nicht moderiert werden duerfen. */
+  /** Rollen, deren Träger nicht moderiert werden dürfen. */
   protectedRoleIds: readonly string[];
   /** Moderationsstufen pro Discord-Rolle. */
   moderationLevels: ReadonlyMap<string, number>;
-  /** Hoechste Rollenposition des Bots. */
+  /** Höchste Rollenposition des Bots. */
   botHighestPosition: number;
   botUserId?: string | null;
-  /** Discord Guild Owner - steht ueber der gesamten Rollenhierarchie. */
+  /** Discord Guild Owner - steht über der gesamten Rollenhierarchie. */
   guildOwnerId?: string | null;
 }
 
 export interface PolicyDecision {
   allowed: boolean;
   code?: PolicyDenyCode;
-  /** Fuer Benutzer verstaendliche Begruendung. */
+  /** Für Benutzer verständliche Begründung. */
   message?: string;
 }
 
 const DENY_MESSAGES: Record<PolicyDenyCode, string> = {
-  SELF_TARGET: 'Du kannst diese Aktion nicht gegen dich selbst ausfuehren.',
-  TARGET_IS_BOT: 'Bots koennen nicht moderiert werden.',
+  SELF_TARGET: 'Du kannst diese Aktion nicht gegen dich selbst ausführen.',
+  TARGET_IS_BOT: 'Bots können nicht moderiert werden.',
   TARGET_IS_OWNER: 'Der Server-Owner kann nicht moderiert werden.',
-  TARGET_PROTECTED_ROLE: 'Dieses Mitglied traegt eine geschuetzte Rolle und kann nicht moderiert werden.',
-  TARGET_HIGHER_OR_EQUAL_ROLE: 'Dieses Mitglied hat eine gleich hohe oder hoehere Discord-Rolle als du.',
-  TARGET_HIGHER_MODERATION_LEVEL: 'Dieses Mitglied besitzt eine gleich hohe oder hoehere Moderationsstufe.',
+  TARGET_PROTECTED_ROLE: 'Dieses Mitglied trägt eine geschützte Rolle und kann nicht moderiert werden.',
+  TARGET_HIGHER_OR_EQUAL_ROLE: 'Dieses Mitglied hat eine gleich hohe oder höhere Discord-Rolle als du.',
+  TARGET_HIGHER_MODERATION_LEVEL: 'Dieses Mitglied besitzt eine gleich hohe oder höhere Moderationsstufe.',
   BOT_ROLE_TOO_LOW:
-    'Die Rolle des Bots liegt nicht hoch genug, um dieses Mitglied zu verwalten. Bitte Rollenreihenfolge auf Discord pruefen.',
+    'Die Rolle des Bots liegt nicht hoch genug, um dieses Mitglied zu verwalten. Bitte Rollenreihenfolge auf Discord prüfen.',
   TARGET_NOT_A_MEMBER: 'Das Mitglied befindet sich nicht (mehr) auf dem SwissHub Discord-Server.',
 };
 
@@ -66,7 +66,7 @@ const deny = (code: PolicyDenyCode): PolicyDecision => ({
   message: DENY_MESSAGES[code],
 });
 
-/** Hoechste Moderationsstufe der uebergebenen Rollen. */
+/** Höchste Moderationsstufe der übergebenen Rollen. */
 export function moderationLevelOf(roleIds: readonly string[], levels: ReadonlyMap<string, number>): number {
   return roleIds.reduce((highest, roleId) => Math.max(highest, levels.get(roleId) ?? 0), 0);
 }
@@ -94,13 +94,13 @@ export function evaluateModerationPolicy(input: PolicyEvaluationInput): PolicyDe
 
   const targetPosition = highestRolePosition(target.roleIds, guildRoles);
 
-  // Der Bot muss ueber dem Ziel stehen, sonst schlaegt die Discord-Aktion ohnehin fehl.
+  // Der Bot muss über dem Ziel stehen, sonst schlägt die Discord-Aktion ohnehin fehl.
   if (targetPosition >= botHighestPosition) {
     return deny('BOT_ROLE_TOO_LOW');
   }
 
   // Der konfigurierte Owner darf oberhalb der Rollenhierarchie handeln, aber die
-  // Schutzregeln oben (Bot, geschuetzte Rollen, Guild Owner) gelten weiterhin.
+  // Schutzregeln oben (Bot, geschützte Rollen, Guild Owner) gelten weiterhin.
   if (actor.isOwner) {
     return { allowed: true };
   }

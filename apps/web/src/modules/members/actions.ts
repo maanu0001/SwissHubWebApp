@@ -16,7 +16,7 @@ const searchSchema = z.object({
 /**
  * Mitgliedersuche.
  *
- * Die Suche laeuft serverseitig gegen Discord - es wird niemals die komplette
+ * Die Suche läuft serverseitig gegen Discord - es wird niemals die komplette
  * Mitgliederliste an den Browser gesendet.
  */
 export const searchMembersAction = defineAction(

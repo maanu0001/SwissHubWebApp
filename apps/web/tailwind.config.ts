@@ -31,7 +31,10 @@ const config: Config = {
           DEFAULT: 'hsl(var(--primary))',
           foreground: 'hsl(var(--primary-foreground))',
           muted: 'hsl(var(--primary-muted))',
+          bright: 'hsl(var(--primary-bright))',
         },
+        sidebar: 'hsl(var(--sidebar))',
+        info: 'hsl(var(--info))',
         secondary: {
           DEFAULT: 'hsl(var(--secondary))',
           foreground: 'hsl(var(--secondary-foreground))',
@@ -70,13 +73,17 @@ const config: Config = {
         mono: ['var(--font-mono)', 'ui-monospace', 'monospace'],
       },
       boxShadow: {
-        glow: '0 0 0 1px hsl(var(--primary) / 0.35), 0 8px 30px -12px hsl(var(--primary) / 0.55)',
-        card: '0 1px 2px 0 rgb(0 0 0 / 0.4), 0 8px 24px -16px rgb(0 0 0 / 0.6)',
+        glow: '0 0 0 1px hsl(var(--primary) / 0.45), 0 10px 40px -14px hsl(var(--primary-bright) / 0.65)',
+        card: '0 1px 2px 0 rgb(0 0 0 / 0.5), 0 10px 30px -20px rgb(0 0 0 / 0.8)',
+        'inner-glow': 'inset 0 0 24px -12px hsl(var(--primary-bright) / 0.8)',
       },
       backgroundImage: {
-        'accent-gradient': 'linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--primary-muted)) 100%)',
+        'accent-gradient':
+          'linear-gradient(135deg, hsl(var(--primary-bright)) 0%, hsl(var(--primary)) 55%, hsl(var(--primary-muted)) 100%)',
         'surface-gradient':
-          'radial-gradient(1200px 600px at 20% -10%, hsl(var(--primary) / 0.10), transparent 60%)',
+          'radial-gradient(900px 500px at 15% -10%, hsl(var(--primary) / 0.12), transparent 60%)',
+        'promo-gradient':
+          'linear-gradient(140deg, hsl(var(--primary) / 0.35) 0%, hsl(var(--card-elevated)) 55%, hsl(var(--card)) 100%)',
       },
       keyframes: {
         'accordion-down': {

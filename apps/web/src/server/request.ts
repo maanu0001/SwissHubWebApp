@@ -3,7 +3,7 @@ import { env } from '@swisshub/config';
 import { hashIp } from '@swisshub/shared/crypto';
 
 /**
- * Request-Metadaten fuer Audit- und Sicherheitsereignisse.
+ * Request-Metadaten für Audit- und Sicherheitsereignisse.
  * IP-Adressen werden ausschliesslich pseudonymisiert (HMAC) gespeichert.
  */
 export interface RequestMetadata {
@@ -22,7 +22,7 @@ export async function getRequestMetadata(): Promise<RequestMetadata> {
   };
 }
 
-/** Client-IP (bzw. ein stabiler Ersatz) fuer Rate-Limit-Buckets. */
+/** Client-IP (bzw. ein stabiler Ersatz) für Rate-Limit-Buckets. */
 export async function getRateLimitIdentity(): Promise<string> {
   const metadata = await getRequestMetadata();
   return metadata.ipHash ?? 'unknown';

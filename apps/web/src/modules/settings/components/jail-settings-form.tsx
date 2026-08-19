@@ -95,7 +95,7 @@ export function JailSettingsForm({
               {roles.map((role) => (
                 <SelectItem key={role.id} value={role.id} disabled={role.position >= botHighestPosition}>
                   {role.name}
-                  {role.position >= botHighestPosition ? ' (ueber der Bot-Rolle)' : ''}
+                  {role.position >= botHighestPosition ? ' (über der Bot-Rolle)' : ''}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -169,7 +169,7 @@ export function JailSettingsForm({
         <div className="flex items-center justify-between gap-4 rounded-md border border-border px-3 py-2">
           <div>
             <Label htmlFor="jail-notify">Hinweis im Jail-Channel</Label>
-            <p className="text-xs text-muted-foreground">Information fuer das betroffene Mitglied.</p>
+            <p className="text-xs text-muted-foreground">Information für das betroffene Mitglied.</p>
           </div>
           <Switch id="jail-notify" checked={notifyJail} onCheckedChange={setNotifyJail} disabled={disabled} />
         </div>

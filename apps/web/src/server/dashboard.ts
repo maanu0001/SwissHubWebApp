@@ -3,46 +3,77 @@ import { prisma } from '@swisshub/database';
 import { discord } from '@swisshub/discord';
 import { jail, readBotStatus, type BotStatusView } from '@swisshub/modules';
 import { createLogger } from '@swisshub/logger';
-import type { ModerationAction } from '@swisshub/database';
+import type { AuditLog, JailEntry } from '@swisshub/database';
 
 const log = createLogger('web:dashboard');
 
 export interface DashboardData {
   bot: BotStatusView;
   memberCount: number | null;
+  onlineCount: number | null;
   discordReachable: boolean;
   jailStats: Awaited<ReturnType<typeof jail.getJailStats>>;
+  /** Die nächsten auslaufenden aktiven Jails. */
+  activeJails: JailEntry[];
   actionsToday: number;
-  recentActions: ModerationAction[];
+  actionsYesterday: number;
+  /** Prozentuale Veränderung gegenüber gestern (gerundet). */
+  actionsTrend: number | null;
+  recentActivity: AuditLog[];
+}
+
+export interface DashboardScope {
+  canViewJails: boolean;
+  canViewAudit: boolean;
 }
 
 /**
  * Kennzahlen des Dashboards.
  *
- * Discord-Ausfaelle duerfen das Dashboard nicht unbenutzbar machen: der
- * Mitgliederzaehler faellt dann einfach weg, alles andere bleibt bedienbar.
+ * Discord-Ausfälle dürfen das Dashboard nicht unbenutzbar machen: der
+ * Mitgliederzähler fällt dann weg, alles andere bleibt bedienbar. Es werden
+ * nur Daten geladen, die der Benutzer auch sehen darf.
  */
-export async function loadDashboardData(): Promise<DashboardData> {
-  const startOfDay = new Date();
-  startOfDay.setHours(0, 0, 0, 0);
+export async function loadDashboardData(scope: DashboardScope): Promise<DashboardData> {
+  const startOfToday = new Date();
+  startOfToday.setHours(0, 0, 0, 0);
+  const startOfYesterday = new Date(startOfToday.getTime() - 24 * 60 * 60 * 1000);
 
-  const [bot, jailStats, actionsToday, recentActions, memberCount] = await Promise.all([
-    readBotStatus(),
-    jail.getJailStats(),
-    prisma.moderationAction.count({ where: { createdAt: { gte: startOfDay } } }),
-    prisma.moderationAction.findMany({ orderBy: { createdAt: 'desc' }, take: 8 }),
-    discord.guild.memberCount().catch((error: unknown) => {
-      log.warn('Mitgliederzahl konnte nicht geladen werden', { error });
-      return null;
-    }),
-  ]);
+  const [bot, jailStats, actionsToday, actionsYesterday, activeJails, recentActivity, guild] =
+    await Promise.all([
+      readBotStatus(),
+      jail.getJailStats(),
+      prisma.moderationAction.count({ where: { createdAt: { gte: startOfToday } } }),
+      prisma.moderationAction.count({
+        where: { createdAt: { gte: startOfYesterday, lt: startOfToday } },
+      }),
+      scope.canViewJails
+        ? prisma.jailEntry.findMany({
+            where: { releasedAt: null, status: { in: ['COMPLETED', 'PARTIAL'] } },
+            orderBy: { endsAt: 'asc' },
+            take: 5,
+          })
+        : Promise.resolve([]),
+      scope.canViewAudit
+        ? prisma.auditLog.findMany({ orderBy: { sequence: 'desc' }, take: 6 })
+        : Promise.resolve([]),
+      discord.guild.get().catch((error: unknown) => {
+        log.warn('Guild-Daten konnten nicht geladen werden', { error });
+        return null;
+      }),
+    ]);
 
   return {
     bot,
-    memberCount: memberCount ?? bot.guildMemberCount,
-    discordReachable: memberCount !== null,
+    memberCount: guild?.approximateMemberCount ?? bot.guildMemberCount,
+    onlineCount: guild?.approximatePresenceCount ?? null,
+    discordReachable: guild !== null,
     jailStats,
+    activeJails,
     actionsToday,
-    recentActions,
+    actionsYesterday,
+    actionsTrend:
+      actionsYesterday > 0 ? Math.round(((actionsToday - actionsYesterday) / actionsYesterday) * 100) : null,
+    recentActivity,
   };
 }

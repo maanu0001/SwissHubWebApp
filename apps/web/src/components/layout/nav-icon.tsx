@@ -1,29 +1,45 @@
 import {
+  Bell,
   Blocks,
+  Gavel,
+  Gift,
+  House,
   LayoutDashboard,
   Lock,
+  MessageSquare,
   ScrollText,
   Settings,
   ShieldAlert,
+  Ticket,
   Users,
+  UserSearch,
+  Volume2,
   type LucideIcon,
 } from 'lucide-react';
 
 /**
- * Erlaubte Navigationssymbole.
+ * Erlaubte Navigations- und Modulsymbole.
  *
  * Bewusst als feste Zuordnung statt dynamischem Import: dadurch landet nur ein
- * kleiner Teil der Icon-Bibliothek im Bundle und Module koennen keine
+ * kleiner Teil der Icon-Bibliothek im Bundle und Module können keine
  * beliebigen Komponenten einschleusen.
  */
 const ICONS: Record<string, LucideIcon> = {
-  LayoutDashboard,
-  Users,
-  Lock,
-  ShieldAlert,
-  ScrollText,
+  Bell,
   Blocks,
+  Gavel,
+  Gift,
+  House,
+  LayoutDashboard,
+  Lock,
+  MessageSquare,
+  ScrollText,
   Settings,
+  ShieldAlert,
+  Ticket,
+  Users,
+  UserSearch,
+  Volume2,
 };
 
 export function NavIcon({ name, className }: { name: string; className?: string }): React.JSX.Element {

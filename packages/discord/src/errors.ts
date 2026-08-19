@@ -33,8 +33,8 @@ export class DiscordApiError extends Error {
 }
 
 /**
- * Uebersetzt einen Discord-Fehler in einen `AppError` mit sicherer,
- * verstaendlicher Meldung. Interne Details bleiben im `internalMessage`.
+ * Übersetzt einen Discord-Fehler in einen `AppError` mit sicherer,
+ * verständlicher Meldung. Interne Details bleiben im `internalMessage`.
  */
 export function mapDiscordError(error: DiscordApiError): AppError {
   const internalMessage = `Discord ${error.status} (code ${error.discordCode ?? '-'}) auf ${error.route}: ${error.message}`;
@@ -69,7 +69,7 @@ export function mapDiscordError(error: DiscordApiError): AppError {
   return new AppError('DISCORD_UNAVAILABLE', { internalMessage });
 }
 
-/** Fehler, die beim Wiederherstellen einzelner Rollen toleriert werden duerfen. */
+/** Fehler, die beim Wiederherstellen einzelner Rollen toleriert werden dürfen. */
 export function isRecoverableRoleError(error: unknown): boolean {
   if (!(error instanceof DiscordApiError)) {
     return false;

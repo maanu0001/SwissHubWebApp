@@ -23,7 +23,7 @@ export function DataTable<TRow>({
   columns,
   rows,
   getRowKey,
-  emptyTitle = 'Keine Eintraege',
+  emptyTitle = 'Keine Einträge',
   emptyDescription,
   caption,
 }: DataTableProps<TRow>): React.JSX.Element {
@@ -32,7 +32,7 @@ export function DataTable<TRow>({
   }
 
   return (
-    <div className="rounded-lg border border-border/80 bg-card">
+    <div className="rounded-xl border border-border bg-card">
       <Table>
         {caption ? <caption className="sr-only">{caption}</caption> : null}
         <TableHeader>

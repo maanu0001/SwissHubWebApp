@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { buttonVariants } from '@/components/ui/button';
-import { PageHeader } from '@/components/shared/page-header';
+import { PageToolbar } from '@/components/shared/page-header';
 import { Pagination } from '@/components/shared/pagination';
 import { AuditEntry, auditActionLabel } from '@/components/shared/audit-entry';
 import { EmptyState } from '@/components/shared/states';
@@ -44,9 +44,7 @@ export default async function AuditPage({
 
   return (
     <>
-      <PageHeader
-        title="Audit Log"
-        description="Manipulationsgeschuetztes Protokoll aller sicherheitsrelevanten Aktionen. Eintraege koennen nicht bearbeitet oder geloescht werden."
+      <PageToolbar
         actions={
           <span
             className={cn(
@@ -62,16 +60,20 @@ export default async function AuditPage({
               <ShieldX className="size-3.5" aria-hidden="true" />
             )}
             {integrity.valid
-              ? `Hash-Chain intakt (${integrity.checked} geprueft)`
-              : 'Hash-Chain verletzt - bitte pruefen'}
+              ? `Hash-Chain intakt (${integrity.checked} geprüft)`
+              : 'Hash-Chain verletzt - bitte prüfen'}
           </span>
         }
-      />
+      >
+        <p className="text-sm text-muted-foreground">
+          Einträge können über die Oberfläche weder bearbeitet noch gelöscht werden.
+        </p>
+      </PageToolbar>
 
       <Card>
         <CardHeader>
           <CardTitle>Filter</CardTitle>
-          <CardDescription>Eintraege nach Benutzer, Aktion, Modul oder Zeitraum eingrenzen.</CardDescription>
+          <CardDescription>Einträge nach Benutzer, Aktion, Modul oder Zeitraum eingrenzen.</CardDescription>
         </CardHeader>
         <CardContent>
           <form className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -151,7 +153,7 @@ export default async function AuditPage({
                 Filtern
               </button>
               <a href="/audit" className={cn(buttonVariants({ variant: 'outline' }))}>
-                Zuruecksetzen
+                Zurücksetzen
               </a>
             </div>
           </form>
@@ -162,8 +164,8 @@ export default async function AuditPage({
         <CardContent className="pt-5">
           {result.items.length === 0 ? (
             <EmptyState
-              title="Keine Eintraege"
-              description="Fuer die gewaehlten Filter gibt es keine Eintraege."
+              title="Keine Einträge"
+              description="Für die gewählten Filter gibt es keine Einträge."
             />
           ) : (
             <ul>

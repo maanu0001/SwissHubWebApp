@@ -15,9 +15,9 @@ import { getRequestMetadata } from './request';
 /**
  * Zugriff auf den Sicherheitskontext innerhalb der WebApp.
  *
- * `cache()` sorgt dafuer, dass pro Request nur einmal validiert wird - die
- * Rollenpruefung selbst bleibt davon unberuehrt, weil sie an die konfigurierte
- * Aktualitaet (TTL) gebunden ist.
+ * `cache()` sorgt dafür, dass pro Request nur einmal validiert wird - die
+ * Rollenprüfung selbst bleibt davon unberührt, weil sie an die konfigurierte
+ * Aktualität (TTL) gebunden ist.
  */
 export const getOptionalAuthContext = cache(async (): Promise<AuthContext | null> => {
   const cookieStore = await cookies();
@@ -26,8 +26,8 @@ export const getOptionalAuthContext = cache(async (): Promise<AuthContext | null
     return null;
   }
 
-  // In Server Components duerfen keine Cookies gesetzt werden - deshalb wird
-  // hier nicht rotiert (das uebernimmt der Login bzw. die Route Handler).
+  // In Server Components dürfen keine Cookies gesetzt werden - deshalb wird
+  // hier nicht rotiert (das übernimmt der Login bzw. die Route Handler).
   const validated = await validateSessionToken(token, { rotate: false });
   if (!validated) {
     return null;
@@ -37,11 +37,11 @@ export const getOptionalAuthContext = cache(async (): Promise<AuthContext | null
 });
 
 /**
- * Kontext fuer Server Actions und Route Handler.
+ * Kontext für Server Actions und Route Handler.
  *
  * Hier - und nur hier - darf das Session-Token rotiert werden, weil in diesen
- * Kontexten Cookies gesetzt werden duerfen. `freshness: 'critical'` erzwingt
- * zusaetzlich aktuelle Discord-Rollen.
+ * Kontexten Cookies gesetzt werden dürfen. `freshness: 'critical'` erzwingt
+ * zusätzlich aktuelle Discord-Rollen.
  */
 export async function getActionAuthContext(freshness: Freshness = 'critical'): Promise<AuthContext | null> {
   const cookieStore = await cookies();
@@ -56,7 +56,7 @@ export async function getActionAuthContext(freshness: Freshness = 'critical'): P
   }
 
   if (validated.rotatedToken) {
-    // Session Rotation: das bisherige Token ist ab sofort ungueltig.
+    // Session Rotation: das bisherige Token ist ab sofort ungültig.
     await setSessionCookie(validated.rotatedToken);
   }
 
@@ -90,7 +90,7 @@ export async function requirePagePermission(permission: string): Promise<AuthCon
   return context;
 }
 
-/** CSRF-Token fuer Formulare und Server Actions. */
+/** CSRF-Token für Formulare und Server Actions. */
 export function csrfTokenFor(context: AuthContext): string {
   return issueCsrfToken(context.sessionId);
 }

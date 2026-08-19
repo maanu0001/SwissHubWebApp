@@ -73,7 +73,7 @@ export async function loadAuditLog(filter: AuditFilter): Promise<Paginated<Audit
   return paginate(items, total, { page: filter.page, pageSize: filter.pageSize });
 }
 
-/** Integritaetspruefung der Hash-Chain fuer die Anzeige im Audit Log. */
+/** Integritätsprüfung der Hash-Chain für die Anzeige im Audit Log. */
 export async function checkAuditIntegrity(): Promise<{ valid: boolean; checked: number }> {
   const result = await verifyAuditChain(500);
   return { valid: result.valid, checked: result.checked };

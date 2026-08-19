@@ -4,20 +4,48 @@ import type { z } from 'zod';
 /**
  * Module Registry.
  *
- * Ein Modul beschreibt sich vollstaendig selbst: Permissions, Navigation,
+ * Ein Modul beschreibt sich vollständig selbst: Permissions, Navigation,
  * Einstellungen. Navigation, Dashboard und die Berechtigungsverwaltung werden
- * daraus generiert - ein neues Modul erfordert deshalb keine Aenderung an der
+ * daraus generiert - ein neues Modul erfordert deshalb keine Änderung an der
  * Kernanwendung (siehe docs/MODULES.md).
  */
+
+/** Abschnitte der Seitenleiste (Reihenfolge = Anzeigereihenfolge). */
+export const NAVIGATION_GROUPS = [
+  { id: 'overview', label: null },
+  { id: 'moderation', label: 'Mitglieder & Moderation' },
+  { id: 'modules', label: 'Bot Module' },
+  { id: 'system', label: 'System' },
+] as const;
+
+export type NavigationGroupId = (typeof NAVIGATION_GROUPS)[number]['id'];
+
 export interface ModuleNavigationItem {
   href: string;
   label: string;
+  /** Kurztext unter dem Seitentitel. */
+  description?: string;
   /** Sichtbar, wenn der Benutzer diese Permission besitzt. */
   permission: string;
-  /** Lucide Icon Name. */
+  /** Lucide Icon Name (siehe `nav-icon.tsx`). */
   icon: string;
+  /** Abschnitt in der Seitenleiste. */
+  group: NavigationGroupId;
   order: number;
+  /** Statisches Label rechts im Navigationseintrag, z.B. `NEU`. */
+  badge?: string;
+  /**
+   * Dynamischer Zähler, den die Seitenleiste anzeigt.
+   * `activeJails` wird serverseitig befüllt.
+   */
+  counter?: 'activeJails';
 }
+
+/**
+ * `available` = nutzbar, `planned` = vorbereitet und in der Navigation
+ * sichtbar, aber noch nicht implementiert (nicht anklickbar).
+ */
+export type ModuleStatus = 'available' | 'planned';
 
 export interface ModuleDefinition {
   id: string;
@@ -25,16 +53,19 @@ export interface ModuleDefinition {
   description: string;
   /** Lucide Icon Name, z.B. `Lock`. */
   icon: string;
-  /** Praefix saemtlicher Permissions dieses Moduls, z.B. `jail`. */
+  /** Präfix sämtlicher Permissions dieses Moduls, z.B. `jail`. */
   permissionPrefix: string;
   permissions: PermissionDefinition[];
   navigation: ModuleNavigationItem[];
-  /** Kernbereiche koennen nicht deaktiviert werden. */
+  /** Kernbereiche können nicht deaktiviert werden. */
   core?: boolean;
   defaultEnabled: boolean;
+  status?: ModuleStatus;
   /** Zod-Schema der Moduleinstellungen (optional). */
   settingsSchema?: z.ZodTypeAny;
-  /** Kurzbeschreibung des Status fuer die Modulkarte. */
+  /** Sehr kurzer Text für Modulkacheln (Dashboard). */
+  tagline?: string;
+  /** Kurzbeschreibung des Status für die Modulkarte. */
   badge?: string;
 }
 
@@ -54,15 +85,43 @@ export function getModuleDefinition(id: string): ModuleDefinition | undefined {
   return modules.get(id);
 }
 
-/** Navigationseintraege aller aktivierten Module, gefiltert nach Permissions. */
+export const isPlanned = (definition: ModuleDefinition): boolean => definition.status === 'planned';
+
+export interface NavigationEntry extends ModuleNavigationItem {
+  moduleId: string;
+  /** Geplante Module werden angezeigt, sind aber nicht verlinkt. */
+  planned: boolean;
+}
+
+/**
+ * Navigationseinträge aller aktivierten Module, gefiltert nach Permissions.
+ * Geplante Module bleiben sichtbar (als Ausblick), sind aber nicht anklickbar.
+ */
 export function buildNavigation(
   permissionKeys: readonly string[],
   enabledModuleIds: ReadonlySet<string>,
-): Array<ModuleNavigationItem & { moduleId: string }> {
+): NavigationEntry[] {
   const owned = new Set(permissionKeys);
   return listModuleDefinitions()
-    .filter((definition) => definition.core || enabledModuleIds.has(definition.id))
-    .flatMap((definition) => definition.navigation.map((item) => ({ ...item, moduleId: definition.id })))
+    .filter((definition) => definition.core || isPlanned(definition) || enabledModuleIds.has(definition.id))
+    .flatMap((definition) =>
+      definition.navigation.map((item) => ({
+        ...item,
+        moduleId: definition.id,
+        planned: isPlanned(definition),
+      })),
+    )
     .filter((item) => owned.has(item.permission))
     .sort((a, b) => a.order - b.order);
+}
+
+/** Gruppiert Navigationseinträge für die Seitenleiste. */
+export function groupNavigation(
+  entries: NavigationEntry[],
+): Array<{ id: NavigationGroupId; label: string | null; items: NavigationEntry[] }> {
+  return NAVIGATION_GROUPS.map((group) => ({
+    id: group.id,
+    label: group.label,
+    items: entries.filter((entry) => entry.group === group.id),
+  })).filter((group) => group.items.length > 0);
 }

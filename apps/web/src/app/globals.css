@@ -4,48 +4,56 @@
 
 /**
  * SwissHub Theme
- * Dark-first, nahe Schwarz/Anthrazit mit #83060a als Akzent.
+ * Dark, hochwertig, Gaming/Tech - mit #83060a als Marken- und einem helleren
+ * Rot als Akzentton fuer Icons, Glows und Statusanzeigen.
  */
 @layer base {
   :root {
-    --background: 240 6% 6%;
+    /* Flaechen: nahezu schwarz, Karten minimal heller. */
+    --background: 240 6% 4%;
     --foreground: 210 20% 96%;
 
-    --card: 240 6% 9%;
-    --card-elevated: 240 6% 12%;
+    --card: 240 6% 7%;
+    --card-elevated: 240 6% 10%;
     --card-foreground: 210 20% 96%;
 
-    --popover: 240 7% 8%;
+    --popover: 240 7% 7%;
     --popover-foreground: 210 20% 96%;
 
-    /* #83060a */
+    /* Markenrot #83060a als Basis ... */
     --primary: 358 91% 27%;
-    --primary-muted: 358 70% 18%;
+    --primary-muted: 358 70% 16%;
     --primary-foreground: 0 0% 100%;
+    /* ... und ein helleres Rot fuer Icons, Glows und Statusakzente. */
+    --primary-bright: 358 79% 52%;
 
-    --secondary: 240 5% 14%;
+    --secondary: 240 5% 12%;
     --secondary-foreground: 210 20% 92%;
 
-    --muted: 240 5% 14%;
-    --muted-foreground: 240 5% 65%;
+    --muted: 240 5% 12%;
+    --muted-foreground: 240 5% 62%;
 
-    --accent: 240 5% 16%;
+    --accent: 240 5% 14%;
     --accent-foreground: 210 20% 96%;
 
-    --destructive: 0 72% 45%;
+    --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
 
-    --success: 142 65% 40%;
+    --success: 142 65% 45%;
     --success-foreground: 0 0% 100%;
 
-    --warning: 38 92% 50%;
+    --warning: 38 92% 55%;
     --warning-foreground: 240 6% 10%;
 
-    --border: 240 5% 18%;
-    --input: 240 5% 18%;
-    --ring: 358 91% 45%;
+    --info: 213 90% 60%;
 
-    --radius: 0.7rem;
+    --border: 240 5% 14%;
+    --input: 240 5% 16%;
+    --ring: 358 79% 52%;
+
+    --sidebar: 240 6% 5%;
+
+    --radius: 0.75rem;
 
     --font-sans:
       ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans',
@@ -79,11 +87,30 @@
 
 @layer components {
   .surface-card {
-    @apply rounded-lg border border-border/80 bg-card shadow-card;
+    @apply rounded-xl border border-border bg-card shadow-card;
   }
 
   .accent-glow {
     box-shadow: theme('boxShadow.glow');
+  }
+
+  /* Icon-Chip wie im SwissHub Design: dunkler Rotton mit feinem Leuchten. */
+  .icon-chip {
+    @apply grid place-items-center rounded-xl border border-primary/25 bg-primary/10 text-[hsl(var(--primary-bright))];
+    box-shadow:
+      inset 0 0 12px hsl(var(--primary) / 0.25),
+      0 0 18px -8px hsl(var(--primary-bright) / 0.6);
+  }
+
+  /* Duenne Akzentlinie unter Abschnitten. */
+  .accent-rule {
+    height: 2px;
+    background: linear-gradient(
+      90deg,
+      hsl(var(--primary-bright)) 0%,
+      hsl(var(--primary) / 0.35) 45%,
+      transparent 100%
+    );
   }
 
   .skeleton-shimmer {

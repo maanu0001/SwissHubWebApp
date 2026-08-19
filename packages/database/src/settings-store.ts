@@ -6,7 +6,7 @@ import { prisma } from './client';
  * Typisierter Zugriff auf `SystemConfig`.
  *
  * Werte werden beim Lesen erneut validiert: eine manuell in der Datenbank
- * veraenderte Einstellung darf die Anwendung nicht in einen undefinierten
+ * veränderte Einstellung darf die Anwendung nicht in einen undefinierten
  * Zustand bringen (Fail Safe -> Default).
  */
 export async function readConfigValue<TSchema extends z.ZodTypeAny>(

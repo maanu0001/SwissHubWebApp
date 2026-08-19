@@ -4,9 +4,9 @@ import { prisma } from '@swisshub/database';
 /**
  * Laufzeitstatus des Bots.
  *
- * Der Bot schreibt regelmaessig einen Heartbeat in die Datenbank; die WebApp
+ * Der Bot schreibt regelmässig einen Heartbeat in die Datenbank; die WebApp
  * liest ihn. Dadurch braucht es keinen direkten Kanal zwischen den Prozessen
- * und der Status ueberlebt Neustarts der WebApp.
+ * und der Status überlebt Neustarts der WebApp.
  */
 export interface BotStatusView {
   online: boolean;
@@ -15,7 +15,7 @@ export interface BotStatusView {
   botUsername: string | null;
   lastHeartbeatAt: Date | null;
   lastConnectedAt: Date | null;
-  /** True, wenn der letzte Heartbeat zu lange zurueckliegt. */
+  /** True, wenn der letzte Heartbeat zu lange zurückliegt. */
   stale: boolean;
 }
 

@@ -4,7 +4,7 @@ import type { Prisma, SecuritySeverity } from '@prisma/client';
 
 const log = createLogger('security');
 
-/** Bekannte Sicherheitsereignisse. Module duerfen weitere Typen ergaenzen. */
+/** Bekannte Sicherheitsereignisse. Module dürfen weitere Typen ergänzen. */
 export const SECURITY_EVENTS = {
   INVALID_SESSION: 'INVALID_SESSION',
   SESSION_REUSE: 'SESSION_REUSE',
@@ -36,7 +36,7 @@ export interface SecurityEventInput {
  * Protokolliert ein Sicherheitsereignis.
  *
  * Bewusst ohne automatische Sperre: die Ereignisse dienen der Beobachtung,
- * damit legitime Administratoren sich nicht selbst aussperren koennen.
+ * damit legitime Administratoren sich nicht selbst aussperren können.
  */
 export async function recordSecurityEvent(input: SecurityEventInput): Promise<void> {
   try {
@@ -56,7 +56,7 @@ export async function recordSecurityEvent(input: SecurityEventInput): Promise<vo
   }
 }
 
-/** Zaehlt Ereignisse eines Typs im angegebenen Zeitfenster (fuer Auffaelligkeiten). */
+/** Zählt Ereignisse eines Typs im angegebenen Zeitfenster (für Auffälligkeiten). */
 export async function countRecentSecurityEvents(
   type: SecurityEventType,
   windowMs: number,

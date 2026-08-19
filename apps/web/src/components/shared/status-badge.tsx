@@ -4,7 +4,7 @@ type Status = 'PENDING' | 'EXECUTING' | 'COMPLETED' | 'PARTIAL' | 'FAILED';
 
 const STATUS_LABEL: Record<Status, string> = {
   PENDING: 'Ausstehend',
-  EXECUTING: 'Wird ausgefuehrt',
+  EXECUTING: 'Wird ausgeführt',
   COMPLETED: 'Abgeschlossen',
   PARTIAL: 'Teilweise',
   FAILED: 'Fehlgeschlagen',

@@ -11,12 +11,12 @@ interface PaginationProps {
   buildHref(page: number): string;
 }
 
-/** Serverseitige Paginierung - es werden nie alle Datensaetze geladen. */
+/** Serverseitige Paginierung - es werden nie alle Datensätze geladen. */
 export function Pagination({ page, totalPages, total, buildHref }: PaginationProps): React.JSX.Element {
   return (
     <nav className="flex items-center justify-between gap-4 pt-2" aria-label="Seitennavigation">
       <p className="text-xs text-muted-foreground">
-        Seite {page} von {totalPages} &middot; {total} Eintraege
+        Seite {page} von {totalPages} &middot; {total} Einträge
       </p>
       <div className="flex items-center gap-2">
         {page > 1 ? (
@@ -26,7 +26,7 @@ export function Pagination({ page, totalPages, total, buildHref }: PaginationPro
             rel="prev"
           >
             <ChevronLeft aria-hidden="true" />
-            Zurueck
+            Zurück
           </Link>
         ) : (
           <span
@@ -36,7 +36,7 @@ export function Pagination({ page, totalPages, total, buildHref }: PaginationPro
             )}
           >
             <ChevronLeft aria-hidden="true" />
-            Zurueck
+            Zurück
           </span>
         )}
         {page < totalPages ? (

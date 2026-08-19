@@ -16,7 +16,7 @@ interface ReleaseJailButtonProps {
   variant?: 'outline' | 'default' | 'ghost';
 }
 
-/** Vorzeitige Freilassung inklusive Bestaetigung und Idempotency Key. */
+/** Vorzeitige Freilassung inklusive Bestätigung und Idempotency Key. */
 export function ReleaseJailButton({
   csrfToken,
   jailId,
@@ -36,7 +36,7 @@ export function ReleaseJailButton({
       toast.success(`${memberLabel} wurde freigelassen.`, {
         description:
           response.data.failedRoles > 0
-            ? `${response.data.restoredRoles} Rollen wiederhergestellt, ${response.data.failedRoles} nicht moeglich.`
+            ? `${response.data.restoredRoles} Rollen wiederhergestellt, ${response.data.failedRoles} nicht möglich.`
             : `${response.data.restoredRoles} Rollen wiederhergestellt.`,
       });
       for (const warning of response.data.warnings) {
@@ -72,7 +72,7 @@ export function ReleaseJailButton({
           <>
             <p className="text-foreground">
               <strong>{memberLabel}</strong> wird sofort freigelassen. Die vorherigen Rollen werden - soweit
-              zulaessig - wiederhergestellt.
+              zulässig - wiederhergestellt.
             </p>
             <p>Diese Aktion betrifft einen echten Discord-Benutzer und wird im Audit Log gespeichert.</p>
           </>

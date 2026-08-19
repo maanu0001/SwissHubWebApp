@@ -6,7 +6,7 @@ import { releaseJail } from './service';
 
 const log = createLogger('jail:scheduler');
 
-/** Als "haengen geblieben" gilt ein Vorgang nach dieser Zeit. */
+/** Als "hängen geblieben" gilt ein Vorgang nach dieser Zeit. */
 const STUCK_AFTER_MS = 5 * 60 * 1000;
 
 export interface SweepResult {
@@ -19,14 +19,14 @@ export interface SweepResult {
  * Gibt abgelaufene Jails frei.
  *
  * Die Datenbank ist Source of Truth: es wird nicht auf `setTimeout` vertraut,
- * sondern regelmaessig nach faelligen Eintraegen gesucht. Dadurch funktionieren
+ * sondern regelmässig nach fälligen Einträgen gesucht. Dadurch funktionieren
  * automatische Freilassungen auch nach Neustart, Deployment oder Crash.
  */
 export async function releaseExpiredJails(
   limit = 25,
   gateway: DiscordGateway = defaultDiscord,
 ): Promise<SweepResult> {
-  const due = await prisma.jailEntry.findMany({
+  const dü = await prisma.jailEntry.findMany({
     where: {
       releasedAt: null,
       endsAt: { lte: new Date() },
@@ -37,7 +37,7 @@ export async function releaseExpiredJails(
     select: { id: true, targetDiscordId: true },
   });
 
-  if (due.length === 0) {
+  if (dü.length === 0) {
     return { processed: 0, released: 0, failed: 0 };
   }
 
@@ -46,7 +46,7 @@ export async function releaseExpiredJails(
   let released = 0;
   let failed = 0;
 
-  for (const entry of due) {
+  for (const entry of dü) {
     try {
       await releaseJail(entry.id, { releaseType: 'AUTOMATIC', gateway, context });
       released += 1;
@@ -60,13 +60,13 @@ export async function releaseExpiredJails(
     }
   }
 
-  log.info('Jail-Sweep abgeschlossen', { processed: due.length, released, failed });
-  return { processed: due.length, released, failed };
+  log.info('Jail-Sweep abgeschlossen', { processed: dü.length, released, failed });
+  return { processed: dü.length, released, failed };
 }
 
 /**
- * Setzt Vorgaenge zurueck, die durch einen Absturz mitten in der Ausfuehrung
- * stehen geblieben sind, damit sie erneut versucht werden koennen.
+ * Setzt Vorgänge zurück, die durch einen Absturz mitten in der Ausführung
+ * stehen geblieben sind, damit sie erneut versucht werden können.
  */
 export async function recoverStuckJails(): Promise<{ stuckCreates: number; stuckReleases: number }> {
   const cutoff = new Date(Date.now() - STUCK_AFTER_MS);
@@ -87,7 +87,7 @@ export async function recoverStuckJails(): Promise<{ stuckCreates: number; stuck
   });
 
   if (stuckCreates.count > 0 || stuckReleases.count > 0) {
-    log.warn('Haengende Jail-Vorgaenge zurueckgesetzt', {
+    log.warn('Hängende Jail-Vorgänge zurückgesetzt', {
       stuckCreates: stuckCreates.count,
       stuckReleases: stuckReleases.count,
     });

@@ -12,12 +12,12 @@ export const metadata: Metadata = { title: 'Anmelden' };
 
 const ERROR_MESSAGES: Record<string, string> = {
   denied: 'Die Anmeldung wurde auf Discord abgebrochen.',
-  state: 'Die Sicherheitspruefung der Anmeldung ist fehlgeschlagen. Bitte erneut versuchen.',
+  state: 'Die Sicherheitsprüfung der Anmeldung ist fehlgeschlagen. Bitte erneut versuchen.',
   oauth: 'Die Discord-Anmeldung konnte nicht abgeschlossen werden. Bitte erneut versuchen.',
   rate_limit: 'Zu viele Anmeldeversuche. Bitte in einigen Minuten erneut versuchen.',
   configuration:
-    'Die Anwendung ist noch nicht vollstaendig konfiguriert. Bitte an einen Administrator wenden.',
-  blocked: 'Dieses Konto wurde fuer die WebApp gesperrt.',
+    'Die Anwendung ist noch nicht vollständig konfiguriert. Bitte an einen Administrator wenden.',
+  blocked: 'Dieses Konto wurde für die WebApp gesperrt.',
 };
 
 export default async function LoginPage({

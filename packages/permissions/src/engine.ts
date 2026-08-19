@@ -28,7 +28,7 @@ export interface PermissionResolution {
   matchedRoleIds: string[];
 }
 
-/** Loest die effektiven Permissions eines Benutzers auf. */
+/** Löst die effektiven Permissions eines Benutzers auf. */
 export function resolvePermissions(
   subject: PermissionSubject,
   mappings: readonly RolePermissionMapping[],
@@ -53,9 +53,9 @@ export function resolvePermissions(
 }
 
 /**
- * Prueft eine einzelne Permission.
+ * Prüft eine einzelne Permission.
  *
- * Unterstuetzt `admin.full` (Vollzugriff) sowie Wildcards pro Praefix
+ * Unterstützt `admin.full` (Vollzugriff) sowie Wildcards pro Präfix
  * (`jail.*` deckt `jail.create`, `jail.release`, ... ab).
  */
 export function hasPermission(resolution: PermissionResolution, permission: string): boolean {
@@ -81,9 +81,9 @@ export function hasAllPermissions(resolution: PermissionResolution, permissions:
 }
 
 /**
- * Erweitert die aufgeloesten Permissions zu einer konkreten Liste.
+ * Erweitert die aufgelösten Permissions zu einer konkreten Liste.
  * Wird ans Frontend gegeben, damit `PermissionGuard` Elemente ausblenden kann.
- * Sicherheitsrelevant ist ausschliesslich die serverseitige Pruefung.
+ * Sicherheitsrelevant ist ausschliesslich die serverseitige Prüfung.
  */
 export function expandPermissions(resolution: PermissionResolution, knownPermissions: string[]): string[] {
   return knownPermissions.filter((permission) => hasPermission(resolution, permission));

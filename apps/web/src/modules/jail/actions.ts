@@ -11,7 +11,7 @@ const MODULE_ID = jail.JAIL_MODULE_ID;
  * Server Actions des Jail-Moduls.
  *
  * Authentifizierung, Mitgliedschaft, CSRF, Rate Limit, Validierung und
- * Autorisierung erledigt `defineAction`; die Moderation Policy prueft der
+ * Autorisierung erledigt `defineAction`; die Moderation Policy prüft der
  * Service selbst nochmals gegen die aktuellen Discord-Rollen.
  */
 export const createJailAction = defineAction(
@@ -31,6 +31,7 @@ export const createJailAction = defineAction(
       {
         discordId: ctx.user.discordId,
         username: ctx.user.username,
+        avatarHash: ctx.user.avatarHash,
         roleIds: ctx.roleIds,
         isOwner: ctx.user.isOwner,
         moderationLevel: ctx.moderationLevel,
@@ -71,6 +72,7 @@ export const releaseJailAction = defineAction(
       actor: {
         discordId: ctx.user.discordId,
         username: ctx.user.username,
+        avatarHash: ctx.user.avatarHash,
         roleIds: ctx.roleIds,
         isOwner: ctx.user.isOwner,
         moderationLevel: ctx.moderationLevel,

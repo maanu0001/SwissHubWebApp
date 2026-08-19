@@ -102,7 +102,7 @@ describe('Jail erstellen', () => {
     expect(state.moderationActions).toHaveLength(1);
   });
 
-  it('behaelt konfigurierte Rollen (Booster) waehrend des Jails', async () => {
+  it('behält konfigurierte Rollen (Booster) während des Jails', async () => {
     state.managedRoles.push({
       discordRoleId: BOOSTER_ROLE,
       label: 'Booster',
@@ -121,7 +121,7 @@ describe('Jail erstellen', () => {
     expect(result.jail.keptRoleIds).toEqual([BOOSTER_ROLE]);
   });
 
-  it('fuehrt denselben Idempotency Key nur einmal aus (Doppelklick-Schutz)', async () => {
+  it('führt denselben Idempotency Key nur einmal aus (Doppelklick-Schutz)', async () => {
     const payload = input();
 
     const first = await jail.createJail(payload, MODERATOR, { gateway });
@@ -151,7 +151,7 @@ describe('Jail erstellen', () => {
     expect(state.jails.filter((entry) => entry.activeKey !== null)).toHaveLength(1);
   });
 
-  it('lehnt geschuetzte Mitglieder ab und protokolliert den Versuch', async () => {
+  it('lehnt geschützte Mitglieder ab und protokolliert den Versuch', async () => {
     state.managedRoles.push({
       discordRoleId: SUPPORTER_ROLE,
       label: 'Supporter',
@@ -236,7 +236,7 @@ describe('Jail freilassen', () => {
     expect(state.audits.some((entry) => entry.action === 'JAIL_RELEASED')).toBe(true);
   });
 
-  it('laesst sich nicht zweimal freilassen', async () => {
+  it('lässt sich nicht zweimal freilassen', async () => {
     const created = await jail.createJail(input(), MODERATOR, { gateway });
     await jail.releaseJail(created.jail.id, { releaseType: 'MANUAL', actor: MODERATOR, gateway });
 
@@ -245,7 +245,7 @@ describe('Jail freilassen', () => {
     ).rejects.toMatchObject({ code: 'CONFLICT' });
   });
 
-  it('ueberspringt zwischenzeitlich geloeschte Rollen, statt den Release scheitern zu lassen', async () => {
+  it('überspringt zwischenzeitlich gelöschte Rollen, statt den Release scheitern zu lassen', async () => {
     const created = await jail.createJail(input(), MODERATOR, { gateway });
     // Snapshot manipulieren: eine Rolle existiert auf Discord nicht mehr.
     const entry = state.jails.find((item) => item.id === created.jail.id);
@@ -298,7 +298,7 @@ describe('Automatisches Jail-Ende', () => {
     expect(member?.roleIds).not.toContain(JAIL_ROLE);
   });
 
-  it('laesst noch laufende Jails unberuehrt', async () => {
+  it('lässt noch laufende Jails unberührt', async () => {
     await jail.createJail(input({ durationSeconds: 3600 }), MODERATOR, { gateway });
 
     const result = await jail.releaseExpiredJails(10, gateway);
@@ -307,7 +307,7 @@ describe('Automatisches Jail-Ende', () => {
     expect(state.jails[0]?.releasedAt).toBeNull();
   });
 
-  it('setzt haengengebliebene Vorgaenge zurueck', async () => {
+  it('setzt hängengebliebene Vorgänge zurück', async () => {
     await jail.createJail(input(), MODERATOR, { gateway });
     const entry = state.jails[0]!;
     entry.status = 'EXECUTING';
@@ -363,7 +363,7 @@ describe('Owner-Schutz', () => {
 });
 
 describe('Rollenhierarchie', () => {
-  it('verweigert Aktionen gegen hoehere Rollen', async () => {
+  it('verweigert Aktionen gegen höhere Rollen', async () => {
     const weakModerator = { ...MODERATOR, roleIds: [MEMBER_ROLE], moderationLevel: 0 };
     state.managedRoles.push({
       discordRoleId: OWNER_ROLE,

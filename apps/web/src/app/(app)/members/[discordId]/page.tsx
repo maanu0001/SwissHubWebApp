@@ -55,7 +55,7 @@ export default async function MemberDetailPage({
           <div className="flex flex-wrap items-center gap-2">
             <Link href="/members" className={cn(buttonVariants({ variant: 'outline', size: 'sm' }))}>
               <ArrowLeft aria-hidden="true" />
-              Zurueck
+              Zurück
             </Link>
             {profile.activeJail && canRelease ? (
               <ReleaseJailButton
@@ -157,7 +157,7 @@ export default async function MemberDetailPage({
         <Card className="lg:col-span-2">
           <CardHeader>
             <CardTitle>Jail-Historie</CardTitle>
-            <CardDescription>Alle Jail-Vorgaenge dieses Mitglieds.</CardDescription>
+            <CardDescription>Alle Jail-Vorgänge dieses Mitglieds.</CardDescription>
           </CardHeader>
           <CardContent>
             {profile.jailHistory.length === 0 ? (

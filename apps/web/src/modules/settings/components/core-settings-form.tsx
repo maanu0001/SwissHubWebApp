@@ -79,7 +79,7 @@ export function CoreSettingsForm({
             </SelectContent>
           </Select>
           <p className="text-xs text-muted-foreground">
-            Standardziel fuer Moderations-Embeds, sofern ein Modul nichts anderes definiert.
+            Standardziel für Moderations-Embeds, sofern ein Modul nichts anderes definiert.
           </p>
         </div>
 

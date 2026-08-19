@@ -29,7 +29,7 @@ const subject = (roleIds: string[], isOwner = false) => ({
 });
 
 describe('Permission Engine', () => {
-  it('loest Permissions aus den Discord-Rollen auf', () => {
+  it('löst Permissions aus den Discord-Rollen auf', () => {
     const resolution = resolvePermissions(subject([MODERATOR_ROLE]), MAPPINGS);
 
     expect(hasPermission(resolution, 'jail.create')).toBe(true);
@@ -61,7 +61,7 @@ describe('Permission Engine', () => {
     expect(hasPermission(resolution, 'irgendwas.neues')).toBe(true);
   });
 
-  it('unterstuetzt Wildcards pro Modul', () => {
+  it('unterstützt Wildcards pro Modul', () => {
     const resolution = resolvePermissions(subject([MODERATOR_ROLE]), [
       { discordRoleId: MODERATOR_ROLE, permission: 'jail.*' },
     ]);
@@ -77,7 +77,7 @@ describe('Permission Engine', () => {
     expect(hasPermission(resolution, 'system.manage')).toBe(true);
   });
 
-  it('unterstuetzt any/all Pruefungen', () => {
+  it('unterstützt any/all Prüfungen', () => {
     const resolution = resolvePermissions(subject([MODERATOR_ROLE]), MAPPINGS);
 
     expect(hasAnyPermission(resolution, ['settings.edit', 'jail.view'])).toBe(true);
@@ -85,7 +85,7 @@ describe('Permission Engine', () => {
     expect(hasAllPermissions(resolution, ['jail.view', 'jail.create'])).toBe(true);
   });
 
-  it('rollt Permissions fuer die UI korrekt aus', () => {
+  it('rollt Permissions für die UI korrekt aus', () => {
     const resolution = resolvePermissions(subject([SUPPORTER_ROLE]), MAPPINGS);
     const expanded = expandPermissions(resolution, ['members.view', 'jail.view', 'audit.view']);
 

@@ -1,10 +1,10 @@
 import { CORE_PERMISSIONS } from '@swisshub/permissions';
-import { registerModule } from './registry';
+import { registerModule, type ModuleDefinition } from './registry';
 
 /**
  * Kernbereiche der Anwendung.
  *
- * Sie werden ueber dieselbe Registry gefuehrt wie Feature-Module, damit
+ * Sie werden über dieselbe Registry geführt wie Feature-Module, damit
  * Navigation und Berechtigungen einheitlich generiert werden. Kernbereiche
  * lassen sich nicht deaktivieren.
  */
@@ -13,7 +13,7 @@ const corePermission = (key: string) => CORE_PERMISSIONS.filter((entry) => entry
 registerModule({
   id: 'dashboard',
   name: 'Dashboard',
-  description: 'Ueberblick ueber Bot-Status, Kennzahlen und die letzten Aktionen.',
+  description: 'Überblick über Bot-Status, Kennzahlen und die letzten Aktionen.',
   icon: 'LayoutDashboard',
   permissionPrefix: 'dashboard',
   core: true,
@@ -23,8 +23,10 @@ registerModule({
     {
       href: '/dashboard',
       label: 'Dashboard',
+      description: 'Übersicht über deinen Server und Bot-Aktivitäten',
       permission: 'dashboard.view',
-      icon: 'LayoutDashboard',
+      icon: 'House',
+      group: 'overview',
       order: 10,
     },
   ],
@@ -40,14 +42,22 @@ registerModule({
   defaultEnabled: true,
   permissions: corePermission('members.view'),
   navigation: [
-    { href: '/members', label: 'Mitglieder', permission: 'members.view', icon: 'Users', order: 20 },
+    {
+      href: '/members',
+      label: 'Mitglieder',
+      description: 'Mitglieder des SwissHub Discord-Servers suchen und einsehen',
+      permission: 'members.view',
+      icon: 'Users',
+      group: 'moderation',
+      order: 20,
+    },
   ],
 });
 
 registerModule({
   id: 'moderation',
   name: 'Moderation',
-  description: 'Modulunabhaengige Moderationshistorie des Servers.',
+  description: 'Modulunabhängige Moderationshistorie des Servers.',
   icon: 'ShieldAlert',
   permissionPrefix: 'moderation',
   core: true,
@@ -59,8 +69,10 @@ registerModule({
     {
       href: '/moderation',
       label: 'Moderation',
+      description: 'Alle Moderationsaktionen des Servers',
       permission: 'moderation.view',
       icon: 'ShieldAlert',
+      group: 'moderation',
       order: 40,
     },
   ],
@@ -69,14 +81,22 @@ registerModule({
 registerModule({
   id: 'audit',
   name: 'Audit Log',
-  description: 'Manipulationsgeschuetztes Protokoll saemtlicher sicherheitsrelevanter Aktionen.',
+  description: 'Manipulationsgeschütztes Protokoll sämtlicher sicherheitsrelevanter Aktionen.',
   icon: 'ScrollText',
   permissionPrefix: 'audit',
   core: true,
   defaultEnabled: true,
   permissions: corePermission('audit.view'),
   navigation: [
-    { href: '/audit', label: 'Audit Log', permission: 'audit.view', icon: 'ScrollText', order: 50 },
+    {
+      href: '/audit',
+      label: 'Audit Log',
+      description: 'Protokoll aller sicherheitsrelevanten Aktionen',
+      permission: 'audit.view',
+      icon: 'ScrollText',
+      group: 'system',
+      order: 80,
+    },
   ],
 });
 
@@ -90,7 +110,15 @@ registerModule({
   defaultEnabled: true,
   permissions: corePermission('modules.manage'),
   navigation: [
-    { href: '/modules', label: 'Module', permission: 'modules.manage', icon: 'Blocks', order: 60 },
+    {
+      href: '/modules',
+      label: 'Module',
+      description: 'SwissHub-Module aktivieren, deaktivieren und einsehen',
+      permission: 'modules.manage',
+      icon: 'Blocks',
+      group: 'system',
+      order: 81,
+    },
   ],
 });
 
@@ -110,6 +138,142 @@ registerModule({
       entry.key === 'admin.full',
   ),
   navigation: [
-    { href: '/settings', label: 'Einstellungen', permission: 'settings.view', icon: 'Settings', order: 70 },
+    {
+      href: '/settings',
+      label: 'Einstellungen',
+      description: 'Discord-Anbindung, Rollen, Berechtigungen und Systemverhalten',
+      permission: 'settings.view',
+      icon: 'Settings',
+      group: 'system',
+      order: 82,
+    },
   ],
 });
+
+/**
+ * Geplante Module.
+ *
+ * Sie erscheinen in der Navigation als Ausblick (markiert mit "Bald"), sind
+ * aber bewusst nicht verlinkt und besitzen noch keine Berechtigungen - es gibt
+ * also keine Schaltfläche ohne Funktion. Sobald ein Modul implementiert wird,
+ * genügt es, hier `status` zu entfernen und die echte Definition zu ergänzen
+ * (siehe docs/MODULES.md).
+ */
+const plannedModules: Array<{
+  id: string;
+  name: string;
+  description: string;
+  icon: string;
+  href: string;
+  group: 'moderation' | 'modules';
+  order: number;
+  permission: string;
+  tagline: string;
+  badge?: string;
+}> = [
+  {
+    id: 'warnings',
+    name: 'Warnungen',
+    description: 'Verwarnungen aussprechen, einsehen und zurücknehmen.',
+    icon: 'Bell',
+    href: '/warnings',
+    group: 'moderation',
+    order: 41,
+    permission: 'moderation.view',
+    tagline: 'Verwarnungen verwalten',
+  },
+  {
+    id: 'reports',
+    name: 'Reports',
+    description: 'Meldungen aus der Community bearbeiten.',
+    icon: 'MessageSquare',
+    href: '/reports',
+    group: 'moderation',
+    order: 42,
+    permission: 'moderation.view',
+    tagline: 'Meldungen bearbeiten',
+  },
+  {
+    id: 'player-search',
+    name: 'Spielersuche',
+    description: 'Spieler zusammenbringen und Sessions finden.',
+    icon: 'UserSearch',
+    href: '/player-search',
+    group: 'modules',
+    order: 50,
+    permission: 'dashboard.view',
+    badge: 'NEU',
+    tagline: 'Spieler zusammenbringen',
+  },
+  {
+    id: 'vote-jail',
+    name: 'Vote Jail',
+    description: 'Community Vote System für Jail-Strafen.',
+    icon: 'Gavel',
+    href: '/vote-jail',
+    group: 'modules',
+    order: 51,
+    permission: 'dashboard.view',
+    tagline: 'Community Vote System',
+  },
+  {
+    id: 'voice-manager',
+    name: 'Voice Manager',
+    description: 'Temporäre Voice Channels verwalten.',
+    icon: 'Volume2',
+    href: '/voice-manager',
+    group: 'modules',
+    order: 52,
+    permission: 'dashboard.view',
+    tagline: 'Temporäre Voice Channels',
+  },
+  {
+    id: 'giveaways',
+    name: 'Giveaways',
+    description: 'Giveaways erstellen und Gewinner ziehen.',
+    icon: 'Gift',
+    href: '/giveaways',
+    group: 'modules',
+    order: 53,
+    permission: 'dashboard.view',
+    tagline: 'Giveaways verwalten',
+  },
+  {
+    id: 'tickets',
+    name: 'Tickets',
+    description: 'Support-Ticketsystem für die Community.',
+    icon: 'Ticket',
+    href: '/tickets',
+    group: 'modules',
+    order: 54,
+    permission: 'dashboard.view',
+    tagline: 'Support-Ticketsystem',
+  },
+];
+
+for (const planned of plannedModules) {
+  const definition: ModuleDefinition = {
+    id: planned.id,
+    name: planned.name,
+    description: planned.description,
+    tagline: planned.tagline,
+    icon: planned.icon,
+    permissionPrefix: planned.id,
+    defaultEnabled: false,
+    status: 'planned',
+    permissions: [],
+    navigation: [
+      {
+        href: planned.href,
+        label: planned.name,
+        description: planned.description,
+        permission: planned.permission,
+        icon: planned.icon,
+        group: planned.group,
+        order: planned.order,
+        badge: planned.badge ?? 'Bald',
+      },
+    ],
+  };
+  registerModule(definition);
+}

@@ -5,7 +5,7 @@ import { formatDuration } from '@swisshub/shared';
 
 /**
  * Live-Anzeige der verbleibenden Zeit.
- * Rein kosmetisch - die tatsaechliche Freilassung steuert der Bot anhand der
+ * Rein kosmetisch - die tatsächliche Freilassung steuert der Bot anhand der
  * Datenbank.
  */
 export function RemainingTime({ endsAt }: { endsAt: string }): React.JSX.Element {
@@ -18,7 +18,7 @@ export function RemainingTime({ endsAt }: { endsAt: string }): React.JSX.Element
   }, [target]);
 
   if (remaining <= 0) {
-    return <span className="text-warning">Faellig</span>;
+    return <span className="text-warning">Fällig</span>;
   }
   return <span className="tabular-nums">{formatDuration(remaining)}</span>;
 }

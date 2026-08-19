@@ -20,9 +20,9 @@ import type { AppRole, User } from '@swisshub/database';
 import { getIdentity, type DiscordIdentity } from './identity';
 
 /**
- * Aufgeloester Sicherheitskontext eines Requests.
+ * Aufgelöster Sicherheitskontext eines Requests.
  *
- * Er buendelt Identitaet, aktuelle Discord-Rollen und effektive Permissions.
+ * Er bündelt Identität, aktuelle Discord-Rollen und effektive Permissions.
  * Jede serverseitige Aktion arbeitet ausschliesslich mit diesem Kontext.
  */
 export interface AuthUser {
@@ -42,9 +42,9 @@ export interface AuthContext {
   identity: DiscordIdentity;
   isMember: boolean;
   permissions: PermissionResolution;
-  /** Ausgerollte Permission-Liste fuer das UI (nur UX, keine Sicherheit). */
+  /** Ausgerollte Permission-Liste für das UI (nur UX, keine Sicherheit). */
   permissionKeys: string[];
-  /** Hoechste Moderationsstufe der aktuellen Rollen. */
+  /** Höchste Moderationsstufe der aktuellen Rollen. */
   moderationLevel: number;
   roleIds: string[];
 }
@@ -104,7 +104,7 @@ export async function buildAuthContext({
 }
 
 /**
- * Grobe Anwendungsgruppe - reine Anzeigeinformation. Massgeblich fuer
+ * Grobe Anwendungsgruppe - reine Anzeigeinformation. Massgeblich für
  * Entscheidungen sind ausschliesslich die Permissions.
  */
 export function deriveAppRole(input: { isOwner: boolean; permissions: PermissionResolution }): AppRole {
@@ -147,7 +147,7 @@ export function assertMembership(context: AuthContext, metadata: GuardMetadata =
 }
 
 /**
- * Zentrale Berechtigungspruefung.
+ * Zentrale Berechtigungsprüfung.
  *
  * Fail closed: fehlt die Permission, wird die Aktion abgebrochen, ein
  * Sicherheitsereignis erfasst und der Versuch im Audit Log vermerkt.
@@ -186,7 +186,7 @@ export async function assertPermission(
   ]);
 
   throw new AppError('FORBIDDEN', {
-    internalMessage: `Permission ${permission} fehlt fuer ${context.user.discordId}`,
+    internalMessage: `Permission ${permission} fehlt für ${context.user.discordId}`,
   });
 }
 

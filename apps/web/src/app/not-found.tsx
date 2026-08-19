@@ -20,7 +20,7 @@ export default function NotFound(): React.JSX.Element {
         </CardHeader>
         <CardContent>
           <Link href="/dashboard" className={cn(buttonVariants({ variant: 'default' }))}>
-            Zurueck zum Dashboard
+            Zurück zum Dashboard
           </Link>
         </CardContent>
       </Card>

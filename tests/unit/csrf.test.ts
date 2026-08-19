@@ -7,11 +7,11 @@ import { safeEqual } from '@swisshub/shared/crypto';
  * Ein fremder oder erfundener Token darf niemals akzeptiert werden.
  */
 describe('CSRF-Schutz', () => {
-  it('erzeugt fuer dieselbe Session denselben Token', () => {
+  it('erzeugt für dieselbe Session denselben Token', () => {
     expect(issueCsrfToken('session-1')).toBe(issueCsrfToken('session-1'));
   });
 
-  it('erzeugt fuer unterschiedliche Sessions unterschiedliche Token', () => {
+  it('erzeugt für unterschiedliche Sessions unterschiedliche Token', () => {
     expect(issueCsrfToken('session-1')).not.toBe(issueCsrfToken('session-2'));
   });
 
@@ -20,12 +20,12 @@ describe('CSRF-Schutz', () => {
 
     expect(verifyCsrfToken('session-1', token)).toBe(true);
     expect(verifyCsrfToken('session-2', token)).toBe(false);
-    expect(verifyCsrfToken('session-1', 'gefaelscht')).toBe(false);
+    expect(verifyCsrfToken('session-1', 'gefälscht')).toBe(false);
     expect(verifyCsrfToken('session-1', null)).toBe(false);
     expect(verifyCsrfToken('session-1', '')).toBe(false);
   });
 
-  it('vergleicht konstant und ohne Laengenfehler', () => {
+  it('vergleicht konstant und ohne Längenfehler', () => {
     expect(safeEqual('abc', 'abc')).toBe(true);
     expect(safeEqual('abc', 'abcd')).toBe(false);
     expect(safeEqual('', '')).toBe(true);

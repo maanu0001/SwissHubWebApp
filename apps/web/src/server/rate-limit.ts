@@ -4,7 +4,7 @@ import { AppError } from '@swisshub/shared';
 /**
  * Serverseitige Rate Limits.
  *
- * Die Limits sind bewusst grosszuegig genug fuer echte Moderationsarbeit, aber
+ * Die Limits sind bewusst grosszügig genug für echte Moderationsarbeit, aber
  * eng genug, um Automatisierung und Missbrauch zu bremsen.
  */
 export const RATE_LIMITS = {
@@ -20,7 +20,7 @@ export const RATE_LIMITS = {
 
 export type RateLimitName = keyof typeof RATE_LIMITS;
 
-/** Verbraucht ein Kontingent und wirft bei Ueberschreitung `RATE_LIMITED`. */
+/** Verbraucht ein Kontingent und wirft bei Überschreitung `RATE_LIMITED`. */
 export async function enforceRateLimit(name: RateLimitName, identity: string): Promise<void> {
   const rule = RATE_LIMITS[name];
   const result = await consumeRateLimit(`${name}:${identity}`, rule);

@@ -3,8 +3,8 @@ import { env } from './env';
 /**
  * OAuth2 scopes requested from Discord.
  *
- * Bewusst minimal: Guild-Mitgliedschaft und Rollen werden ueber den Bot-Token
- * gelesen. Dadurch muessen keine Benutzer-Tokens gespeichert oder erneuert
+ * Bewusst minimal: Guild-Mitgliedschaft und Rollen werden über den Bot-Token
+ * gelesen. Dadurch müssen keine Benutzer-Tokens gespeichert oder erneuert
  * werden und die Rollendaten sind immer aktuell statt "so aktuell wie das
  * letzte Login".
  */

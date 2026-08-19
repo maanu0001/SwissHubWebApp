@@ -7,12 +7,12 @@ import { readConfigValue, writeConfigValue } from '@swisshub/database';
  * Kernkonfiguration der Anwendung (in `SystemConfig` gespeichert).
  *
  * Hochkritische Secrets (Bot Token, Client Secret) sind hier bewusst NICHT
- * enthalten - sie gehoeren ausschliesslich in Environment Variables.
+ * enthalten - sie gehören ausschliesslich in Environment Variables.
  */
 export const coreSettingsSchema = z.object({
   /** Zentrales Moderations-Log auf Discord. */
   moderationLogChannelId: optionalSnowflakeSchema,
-  /** Zeitzone fuer die Darstellung. */
+  /** Zeitzone für die Darstellung. */
   timezone: z.string().min(3).max(64).default(branding.timezone),
   /** Discord IDs in Listen anzeigen. */
   showDiscordIds: z.boolean().default(true),

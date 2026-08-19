@@ -6,7 +6,7 @@ import { createContext, useContext, useMemo } from 'react';
  * PermissionGuard - reine UX-Hilfe.
  *
  * WICHTIG: Das Ausblenden eines Buttons ist KEINE Sicherheitsmassnahme. Jede
- * Aktion prueft die Berechtigung zusaetzlich serverseitig (siehe
+ * Aktion prüft die Berechtigung zusätzlich serverseitig (siehe
  * `src/server/action.ts`).
  */
 interface PermissionContextValue {

@@ -1,6 +1,6 @@
 # Module entwickeln
 
-Diese Anleitung zeigt Schritt fuer Schritt, wie ein neues SwissHub-Modul entsteht.
+Diese Anleitung zeigt Schritt für Schritt, wie ein neues SwissHub-Modul entsteht.
 Als durchgehendes Beispiel dient ein **Warnings-Modul** (Verwarnungen).
 
 Ziel der Architektur: Ein neues Modul soll an **einer** Stelle beschrieben werden und
@@ -9,7 +9,7 @@ Dashboard erscheinen.
 
 ---
 
-## 1. Ueberblick
+## 1. Überblick
 
 | Ort                                      | Inhalt                                                      |
 | ---------------------------------------- | ----------------------------------------------------------- |
@@ -34,7 +34,7 @@ packages/modules/src/warnings/
 
 ## 2. Schritt 1: Datenbankmodell
 
-`packages/database/prisma/schema.prisma` ergaenzen:
+`packages/database/prisma/schema.prisma` ergänzen:
 
 ```prisma
 model Warning {
@@ -59,8 +59,8 @@ Migration erzeugen:
 npm run db:migrate -- --name add_warnings
 ```
 
-Grundsaetze: Zeiten in UTC, Unique-Constraints fuer Idempotenz und fachliche Eindeutigkeit,
-Indizes fuer die Felder, nach denen gefiltert wird.
+Grundsätze: Zeiten in UTC, Unique-Constraints für Idempotenz und fachliche Eindeutigkeit,
+Indizes für die Felder, nach denen gefiltert wird.
 
 ---
 
@@ -92,7 +92,7 @@ export type WarningsSettings = z.infer<typeof warningsSettingsSchema>;
 export const warningsModule: ModuleDefinition = registerModule({
   id: WARNINGS_MODULE_ID,
   name: 'Verwarnungen',
-  description: 'Verwarnungen aussprechen, einsehen und zuruecknehmen.',
+  description: 'Verwarnungen aussprechen, einsehen und zurücknehmen.',
   icon: 'ShieldAlert', // Name aus components/layout/nav-icon.tsx
   permissionPrefix: 'warnings',
   defaultEnabled: true,
@@ -112,13 +112,18 @@ export const warningsModule: ModuleDefinition = registerModule({
       critical: true,
     },
   ],
+  tagline: 'Verwarnungen verwalten', // Kurztext für die Modulkachel
   navigation: [
     {
       href: '/warnings',
       label: 'Verwarnungen',
+      description: 'Verwarnungen einsehen und aussprechen', // Untertitel in der Kopfzeile
       permission: WARNINGS_PERMISSIONS.view,
-      icon: 'ShieldAlert',
+      icon: 'ShieldAlert', // Name aus components/layout/nav-icon.tsx
+      group: 'moderation', // Abschnitt der Seitenleiste
       order: 35,
+      // badge: 'NEU',            // optionales Label rechts im Eintrag
+      // counter: 'activeJails',  // optionaler dynamischer Zähler
     },
   ],
 });
@@ -130,11 +135,32 @@ Danach das Modul in `packages/modules/src/index.ts` importieren:
 import './warnings/config';
 ```
 
-**Das ist die einzige zentrale Aenderung.** Navigation, Permission Registry, Modulverwaltung und
+**Das ist die einzige zentrale Änderung.** Navigation, Permission Registry, Modulverwaltung und
 die Berechtigungszuordnung in den Einstellungen kennen das Modul ab jetzt automatisch.
 
-> Neues Icon noetig? In `apps/web/src/components/layout/nav-icon.tsx` in die `ICONS`-Zuordnung
+> Neues Icon nötig? In `apps/web/src/components/layout/nav-icon.tsx` in die `ICONS`-Zuordnung
 > aufnehmen (bewusst eine feste Liste - so bleibt das Bundle klein).
+
+### Navigationsabschnitte
+
+`group` bestimmt, in welchem Abschnitt der Seitenleiste das Modul erscheint
+(definiert in `packages/modules/src/registry.ts`):
+
+| Gruppe       | Beschriftung            | Beispiele                        |
+| ------------ | ----------------------- | -------------------------------- |
+| `overview`   | (ohne Titel)            | Dashboard                        |
+| `moderation` | Mitglieder & Moderation | Mitglieder, Jail, Moderation     |
+| `modules`    | Bot Module              | Feature-Module                   |
+| `system`     | System                  | Audit Log, Module, Einstellungen |
+
+### Geplante Module
+
+Module mit `status: 'planned'` erscheinen in der Navigation als Ausblick
+(ausgegraut, Label "Bald") und in der Modulverwaltung unter _Geplante Module_ -
+sie sind bewusst **nicht** verlinkt und besitzen keine Berechtigungen. So bleibt
+die Roadmap sichtbar, ohne Schaltflächen ohne Funktion zu erzeugen. Sobald das
+Modul implementiert ist, wird `status` entfernt und die vollständige Definition
+(Permissions, Einstellungen, Seiten) ergänzt.
 
 ---
 
@@ -166,7 +192,7 @@ Regel: **niemals** darauf vertrauen, dass Werte aus dem Frontend korrekt sind.
 
 ## 5. Schritt 4: Service
 
-`packages/modules/src/warnings/service.ts` - hier gehoert die gesamte Fachlogik hin
+`packages/modules/src/warnings/service.ts` - hier gehört die gesamte Fachlogik hin
 (niemals in React-Komponenten oder Route Handler).
 
 ```ts
@@ -192,7 +218,7 @@ export async function createWarning(
 ) {
   const gateway = options.gateway ?? defaultDiscord;
 
-  // 1. Ziel immer frisch laden - Rollen koennen sich geaendert haben.
+  // 1. Ziel immer frisch laden - Rollen können sich geändert haben.
   const target = await gateway.members.get(input.targetDiscordId);
   const configuration = await loadRoleConfiguration();
   const [guildRoles, botHighestPosition, botIdentity, guild] = await Promise.all([
@@ -202,7 +228,7 @@ export async function createWarning(
     gateway.guild.get(),
   ]);
 
-  // 2. Zentrale Moderation Policy verwenden - nicht selbst nachbauen.
+  // 2. Zentrale Moderation Policy verwenden - nicht selbst nachbaün.
   const decision = evaluateModerationPolicy({
     actor,
     target,
@@ -214,7 +240,7 @@ export async function createWarning(
     guildOwnerId: guild.ownerId,
   });
   if (!decision.allowed || !target) {
-    throw policyViolation(decision.message ?? 'Aktion nicht zulaessig.');
+    throw policyViolation(decision.message ?? 'Aktion nicht zulässig.');
   }
 
   // 3. Idempotenz sichern.
@@ -250,9 +276,9 @@ export async function createWarning(
 }
 ```
 
-Fuehrt das Modul echte Discord-Aktionen aus, gilt zusaetzlich das Muster aus
+Führt das Modul echte Discord-Aktionen aus, gilt zusätzlich das Muster aus
 `packages/modules/src/jail/service.ts`: Status `PENDING -> EXECUTING -> COMPLETED/PARTIAL/FAILED`,
-Fehler-Mapping ueber `mapDiscordError`, Benachrichtigungen als "best effort".
+Fehler-Mapping über `mapDiscordError`, Benachrichtigungen als "best effort".
 
 ---
 
@@ -294,11 +320,11 @@ export const createWarningAction = defineAction(
 );
 ```
 
-`defineAction` uebernimmt automatisch: Session, Guild-Mitgliedschaft, CSRF, Rate Limit,
-Zod-Validierung, Permission-Pruefung, einheitliche Fehlerbehandlung und `ActionResult`.
+`defineAction` übernimmt automatisch: Session, Guild-Mitgliedschaft, CSRF, Rate Limit,
+Zod-Validierung, Permission-Prüfung, einheitliche Fehlerbehandlung und `ActionResult`.
 
 Braucht das Modul ein eigenes Rate-Limit-Kontingent, in
-`apps/web/src/server/rate-limit.ts` unter `RATE_LIMITS` ergaenzen.
+`apps/web/src/server/rate-limit.ts` unter `RATE_LIMITS` ergänzen.
 
 ---
 
@@ -325,12 +351,12 @@ Wiederverwendbare Bausteine:
 | `DataTable`                                                                | Tabelle inkl. Leerzustand               |
 | `Pagination`                                                               | serverseitige Seitennavigation          |
 | `MemberCard`, `DiscordAvatar`, `RoleBadge`                                 | Mitgliederdarstellung                   |
-| `ConfirmationDialog`                                                       | Bestaetigung destruktiver Aktionen      |
-| `StatusBadge`, `EmptyState`, `ErrorState`, `LoadingState`, `TableSkeleton` | Zustaende                               |
+| `ConfirmationDialog`                                                       | Bestätigung destruktiver Aktionen       |
+| `StatusBadge`, `EmptyState`, `ErrorState`, `LoadingState`, `TableSkeleton` | Zustände                                |
 | `PermissionGuard`                                                          | UX-Filterung (keine Sicherheitsgrenze!) |
 | `AuditEntry`                                                               | Audit-Eintrag                           |
 
-Formulare in Client-Komponenten uebergeben immer `csrfToken` an die Server Action und melden das
+Formulare in Client-Komponenten übergeben immer `csrfToken` an die Server Action und melden das
 Ergebnis per `toast` (`sonner`).
 
 ---
@@ -338,7 +364,7 @@ Ergebnis per `toast` (`sonner`).
 ## 8. Schritt 7: Hintergrundjobs (optional)
 
 Braucht das Modul zeitgesteuerte Arbeit (Ablauf, Erinnerungen, Abgleich), wird ein Job in
-`apps/bot/src/jobs.ts` ergaenzt:
+`apps/bot/src/jobs.ts` ergänzt:
 
 ```ts
 {
@@ -350,8 +376,8 @@ Braucht das Modul zeitgesteuerte Arbeit (Ablauf, Erinnerungen, Abgleich), wird e
 },
 ```
 
-Regeln: idempotent arbeiten, Datenbank als Source of Truth, kein `setTimeout` fuer Fristen,
-Batchgroessen begrenzen (Discord Rate Limits).
+Regeln: idempotent arbeiten, Datenbank als Source of Truth, kein `setTimeout` für Fristen,
+Batchgrössen begrenzen (Discord Rate Limits).
 
 ---
 
@@ -362,26 +388,26 @@ tests/unit/warnings-validation.test.ts     Schemas und Grenzwerte
 tests/integration/warnings-service.test.ts Service mit Mock-Gateway und Fake-Datenbank
 ```
 
-Discord ist ueber `createMockGateway()` bzw. eigene `DiscordGateway`-Objekte mockbar; fuer die
+Discord ist über `createMockGateway()` bzw. eigene `DiscordGateway`-Objekte mockbar; für die
 Datenbank existiert `tests/helpers/fake-database.ts` (bildet Unique-Constraints nach).
-Mindestens abdecken: Erfolgsfall, fehlende Berechtigung, Policy-Verstoss, doppelte Ausfuehrung,
+Mindestens abdecken: Erfolgsfall, fehlende Berechtigung, Policy-Verstoss, doppelte Ausführung,
 Fehlerfall der Discord-API.
 
 ---
 
-## 10. Checkliste fuer ein neues Modul
+## 10. Checkliste für ein neues Modul
 
 - [ ] Datenbankmodell + Migration
 - [ ] `config.ts` mit `registerModule(...)`, Permissions und Einstellungen
 - [ ] Import in `packages/modules/src/index.ts`
-- [ ] Zod-Schemas fuer alle Eingaben
+- [ ] Zod-Schemas für alle Eingaben
 - [ ] Service mit Moderation Policy, Idempotenz und Audit Log
-- [ ] Server Actions ueber `defineAction`
+- [ ] Server Actions über `defineAction`
 - [ ] Seite unter `apps/web/src/app/(app)/<modul>/`
 - [ ] Icon in `nav-icon.tsx` registriert
-- [ ] Einstellungen im UI (falls noetig)
+- [ ] Einstellungen im UI (falls nötig)
 - [ ] Tests (Unit + Integration)
-- [ ] `npm run check` laeuft fehlerfrei
+- [ ] `npm run check` läuft fehlerfrei
 
 ---
 

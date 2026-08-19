@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Lock } from 'lucide-react';
+import { ChevronRight, Lock } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatDateTime, formatDuration } from '@swisshub/shared';
 import { Button } from '@/components/ui/button';
@@ -26,18 +26,20 @@ interface CreateJailDialogProps {
   csrfToken: string;
   durationPresets: ReadonlyArray<{ label: string; seconds: number }>;
   maxDurationSeconds: number;
-  /** Vorausgewaehltes Mitglied (z.B. aus dem Mitgliederprofil). */
+  /** Vorausgewähltes Mitglied (z.B. aus dem Mitgliederprofil). */
   presetMember?: PickedMember;
   triggerLabel?: string;
+  /** `quick-action` rendert den Auslöser als Zeile der Schnellaktionen. */
+  variant?: 'button' | 'quick-action';
 }
 
 const CUSTOM = 'custom';
 
 /**
- * Jail-Maske inklusive Bestaetigungsschritt.
+ * Jail-Maske inklusive Bestätigungsschritt.
  *
- * Der Idempotency Key wird beim Oeffnen der Bestaetigung erzeugt: ein
- * Doppelklick auf "Jail bestaetigen" fuehrt dadurch nachweislich nur eine
+ * Der Idempotency Key wird beim Öffnen der Bestätigung erzeugt: ein
+ * Doppelklick auf "Jail bestätigen" führt dadurch nachweislich nur eine
  * Aktion aus.
  */
 export function CreateJailDialog({
@@ -46,6 +48,7 @@ export function CreateJailDialog({
   maxDurationSeconds,
   presetMember,
   triggerLabel = 'Jail erstellen',
+  variant = 'button',
 }: CreateJailDialogProps): React.JSX.Element {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -80,7 +83,7 @@ export function CreateJailDialog({
   function handleContinue(): void {
     setFieldError(null);
     if (!member) {
-      setFieldError('Bitte ein Mitglied auswaehlen.');
+      setFieldError('Bitte ein Mitglied auswählen.');
       return;
     }
     if (reason.trim().length < 3) {
@@ -88,11 +91,11 @@ export function CreateJailDialog({
       return;
     }
     if (durationSeconds < 60) {
-      setFieldError('Die Mindestdauer betraegt 1 Minute.');
+      setFieldError('Die Mindestdauer beträgt 1 Minute.');
       return;
     }
     if (durationSeconds > maxDurationSeconds) {
-      setFieldError(`Die maximale Dauer betraegt ${formatDuration(maxDurationSeconds * 1000)}.`);
+      setFieldError(`Die maximale Dauer beträgt ${formatDuration(maxDurationSeconds * 1000)}.`);
       return;
     }
     setIdempotencyKey(crypto.randomUUID());
@@ -114,7 +117,7 @@ export function CreateJailDialog({
 
     if (response.ok) {
       if (response.data.duplicate) {
-        toast.info('Diese Aktion wurde bereits ausgefuehrt.');
+        toast.info('Diese Aktion wurde bereits ausgeführt.');
       } else {
         toast.success(`${member.displayName} wurde erfolgreich gejailt.`, {
           description: `Ende: ${formatDateTime(response.data.endsAt)}`,
@@ -130,7 +133,7 @@ export function CreateJailDialog({
       toast.error(response.error.message);
       setPending(false);
       setConfirming(false);
-      // Neuer Schluessel fuer den naechsten Versuch.
+      // Neuer Schlüssel für den nächsten Versuch.
       setIdempotencyKey(null);
     }
   }
@@ -149,20 +152,36 @@ export function CreateJailDialog({
       }}
     >
       <DialogTrigger asChild>
-        <Button>
-          <Lock aria-hidden="true" />
-          {triggerLabel}
-        </Button>
+        {variant === 'quick-action' ? (
+          <button
+            type="button"
+            className="flex w-full items-center gap-3 rounded-xl border border-border bg-card/60 px-4 py-3 text-left transition-colors hover:border-primary/40 hover:bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <span className="icon-chip size-9 shrink-0 [&_svg]:size-4">
+              <Lock aria-hidden="true" />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-sm font-medium">{triggerLabel}</span>
+              <span className="block truncate text-xs text-muted-foreground">Neuen Jail erstellen</span>
+            </span>
+            <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+          </button>
+        ) : (
+          <Button>
+            <Lock aria-hidden="true" />
+            {triggerLabel}
+          </Button>
+        )}
       </DialogTrigger>
       <DialogContent>
         {confirming && member ? (
           <>
             <DialogHeader>
-              <DialogTitle>Jail bestaetigen</DialogTitle>
+              <DialogTitle>Jail bestätigen</DialogTitle>
               <DialogDescription asChild>
                 <div className="space-y-3 text-sm">
                   <p className="text-foreground">
-                    Du bist dabei, <strong>@{member.username}</strong> fuer{' '}
+                    Du bist dabei, <strong>@{member.username}</strong> für{' '}
                     <strong>{formatDuration(durationSeconds * 1000)}</strong> zu jailen.
                   </p>
                   <div className="rounded-md border border-border bg-secondary/40 p-3">
@@ -181,7 +200,7 @@ export function CreateJailDialog({
                 Abbrechen
               </Button>
               <Button onClick={() => void handleConfirm()} loading={pending}>
-                Jail bestaetigen
+                Jail bestätigen
               </Button>
             </DialogFooter>
           </>
@@ -203,7 +222,7 @@ export function CreateJailDialog({
                 <Label htmlFor="jail-duration">Dauer</Label>
                 <Select value={preset} onValueChange={setPreset}>
                   <SelectTrigger id="jail-duration">
-                    <SelectValue placeholder="Dauer waehlen" />
+                    <SelectValue placeholder="Dauer wählen" />
                   </SelectTrigger>
                   <SelectContent>
                     {durationPresets

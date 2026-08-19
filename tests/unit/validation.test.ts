@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { jail } from '@swisshub/modules';
 import { escapeDiscordMarkdown, sanitizeText, snowflakeSchema, snowflakeToDate } from '@swisshub/shared';
 
-/** Zero-Width-Space, mit dem Massen-Mentions entschaerft werden. */
+/** Zero-Width-Space, mit dem Massen-Mentions entschärft werden. */
 const ZERO_WIDTH = String.fromCharCode(0x200b);
 
 describe('Jail-Eingabevalidierung', () => {
@@ -13,13 +13,13 @@ describe('Jail-Eingabevalidierung', () => {
     idempotencyKey: '2f6a5f7e-2a4b-4c1d-9f3e-8a7b6c5d4e3f',
   };
 
-  it('akzeptiert gueltige Eingaben', () => {
+  it('akzeptiert gültige Eingaben', () => {
     const parsed = jail.createJailSchema.parse(validInput);
     expect(parsed.durationSeconds).toBe(3600);
     expect(parsed.reason).toBe('Spam im Chat');
   });
 
-  it('lehnt ungueltige Discord IDs ab', () => {
+  it('lehnt ungültige Discord IDs ab', () => {
     expect(() => jail.createJailSchema.parse({ ...validInput, targetDiscordId: 'abc' })).toThrow();
     expect(() => jail.createJailSchema.parse({ ...validInput, targetDiscordId: '123' })).toThrow();
     expect(() =>
@@ -35,17 +35,17 @@ describe('Jail-Eingabevalidierung', () => {
     ).toThrow();
   });
 
-  it('erzwingt einen aussagekraeftigen Grund', () => {
+  it('erzwingt einen aussagekräftigen Grund', () => {
     expect(() => jail.createJailSchema.parse({ ...validInput, reason: 'a' })).toThrow();
     expect(() => jail.createJailSchema.parse({ ...validInput, reason: '   ' })).toThrow();
     expect(() => jail.createJailSchema.parse({ ...validInput, reason: 'x'.repeat(501) })).toThrow();
   });
 
-  it('verlangt einen gueltigen Idempotency Key', () => {
+  it('verlangt einen gültigen Idempotency Key', () => {
     expect(() => jail.createJailSchema.parse({ ...validInput, idempotencyKey: 'nicht-uuid' })).toThrow();
   });
 
-  it('prueft die konfigurierte Maximaldauer zusaetzlich', () => {
+  it('prüft die konfigurierte Maximaldauer zusätzlich', () => {
     expect(() => jail.assertDurationWithinLimit(8 * 24 * 3600, 7 * 24 * 3600)).toThrow();
     expect(() => jail.assertDurationWithinLimit(3600, 7 * 24 * 3600)).not.toThrow();
   });
@@ -64,15 +64,15 @@ describe('Eingabe-Sanitisierung', () => {
     expect(sanitizeText(`a${String.fromCharCode(7)}b`)).toBe('ab');
   });
 
-  it('kuerzt zu lange Eingaben', () => {
+  it('kürzt zu lange Eingaben', () => {
     expect(sanitizeText('x'.repeat(100), 10)).toHaveLength(10);
   });
 
-  it('behaelt HTML als reinen Text (keine Interpretation im UI)', () => {
+  it('behält HTML als reinen Text (keine Interpretation im UI)', () => {
     expect(sanitizeText('<script>alert(1)</script>')).toBe('<script>alert(1)</script>');
   });
 
-  it('entschaerft Discord-Markdown und Massen-Mentions', () => {
+  it('entschärft Discord-Markdown und Massen-Mentions', () => {
     expect(escapeDiscordMarkdown('**fett**')).toBe('\\*\\*fett\\*\\*');
     expect(escapeDiscordMarkdown('@everyone')).toBe(`@${ZERO_WIDTH}everyone`);
     expect(escapeDiscordMarkdown('@here')).toBe(`@${ZERO_WIDTH}here`);

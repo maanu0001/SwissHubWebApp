@@ -17,7 +17,7 @@ import {
 } from './types';
 import type { DiscordGateway, DiscordMessagePayload } from './gateway';
 
-/** Kurzlebiger Cache fuer selten aendernde Guild-Metadaten. */
+/** Kurzlebiger Cache für selten ändernde Guild-Metadaten. */
 const CACHE_TTL_MS = 60_000;
 
 interface CacheEntry<T> {
@@ -167,7 +167,7 @@ export function createRestGateway(): DiscordGateway {
         body: {
           content: payload.content,
           embeds: payload.embeds,
-          // Standardmaessig keine Pings ausloesen - Log-Nachrichten sollen
+          // Standardmässig keine Pings auslösen - Log-Nachrichten sollen
           // niemanden benachrichtigen.
           allowed_mentions: payload.allowedMentions ?? { parse: [] },
         },
@@ -187,6 +187,7 @@ export function createRestGateway(): DiscordGateway {
           name: parsed.name,
           iconHash: parsed.icon ?? null,
           approximateMemberCount: parsed.approximate_member_count ?? null,
+          approximatePresenceCount: parsed.approximate_presence_count ?? null,
           ownerId: parsed.owner_id ?? null,
         };
       });

@@ -27,3 +27,8 @@ export function truncate(value: string, max: number): string {
 export function containsInsensitive(haystack: string, needle: string): boolean {
   return haystack.toLocaleLowerCase().includes(needle.toLocaleLowerCase());
 }
+
+/** Einfache Pluralisierung: `plural(1, 'Freilassung', 'Freilassungen')`. */
+export function plural(count: number, singular: string, pluralForm: string): string {
+  return `${count} ${count === 1 ? singular : pluralForm}`;
+}

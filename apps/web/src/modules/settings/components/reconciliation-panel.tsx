@@ -28,7 +28,7 @@ export function ReconciliationPanel({ csrfToken }: { csrfToken: string }): React
 
     if (response.ok) {
       toast.success('Abgleich abgeschlossen.', {
-        description: `${response.data.checked} geprueft · ${response.data.drift} Abweichungen · ${response.data.repaired} korrigiert`,
+        description: `${response.data.checked} geprüft · ${response.data.drift} Abweichungen · ${response.data.repaired} korrigiert`,
       });
       router.refresh();
     } else {
@@ -49,7 +49,7 @@ export function ReconciliationPanel({ csrfToken }: { csrfToken: string }): React
       </div>
       <Button onClick={() => void handleRun()} loading={pending} variant="outline">
         <RefreshCw aria-hidden="true" />
-        Abgleich jetzt ausfuehren
+        Abgleich jetzt ausführen
       </Button>
     </div>
   );

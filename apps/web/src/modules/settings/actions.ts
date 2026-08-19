@@ -17,11 +17,11 @@ import { AppError, sanitizeText, snowflakeSchema } from '@swisshub/shared';
 import { defineAction } from '@/server/action';
 
 /**
- * Einstellungen aendern.
+ * Einstellungen ändern.
  *
- * Jede Aenderung wird validiert, autorisiert, gespeichert und im Audit Log
- * protokolliert. Discord-IDs werden zusaetzlich gegen die Guild geprueft -
- * eine erfundene Rollen-ID laesst sich so nicht speichern.
+ * Jede Änderung wird validiert, autorisiert, gespeichert und im Audit Log
+ * protokolliert. Discord-IDs werden zusätzlich gegen die Guild geprüft -
+ * eine erfundene Rollen-ID lässt sich so nicht speichern.
  */
 async function assertRoleExists(roleId: string | undefined, label: string): Promise<void> {
   if (!roleId) {
@@ -101,7 +101,7 @@ export const updateJailSettingsAction = defineAction(
       if (role && role.position >= botPosition) {
         throw new AppError('VALIDATION_FAILED', {
           userMessage:
-            'Die Jail-Rolle liegt ueber der Rolle des Bots. Bitte die Bot-Rolle auf Discord hoeher einordnen.',
+            'Die Jail-Rolle liegt über der Rolle des Bots. Bitte die Bot-Rolle auf Discord höher einordnen.',
         });
       }
     }
@@ -255,7 +255,7 @@ export const setModuleEnabledAction = defineAction(
       throw new AppError('NOT_FOUND', { userMessage: 'Dieses Modul existiert nicht.' });
     }
     if (definition.core) {
-      throw new AppError('FORBIDDEN', { userMessage: 'Kernbereiche koennen nicht deaktiviert werden.' });
+      throw new AppError('FORBIDDEN', { userMessage: 'Kernbereiche können nicht deaktiviert werden.' });
     }
 
     await setModuleEnabled(input.moduleId, input.enabled, ctx.user.discordId);

@@ -3,7 +3,7 @@ import { Button, type ButtonProps } from '@/components/ui/button';
 
 /**
  * Abmelden per POST inklusive CSRF-Token.
- * Ein einfacher Link wuerde ein CSRF-Risiko darstellen.
+ * Ein einfacher Link würde ein CSRF-Risiko darstellen.
  */
 export function LogoutButton({
   csrfToken,

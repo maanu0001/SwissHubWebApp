@@ -1,9 +1,9 @@
 /**
  * Permission Registry.
  *
- * Berechtigungen werden als `<prefix>.<aktion>` Strings gefuehrt. Module bringen
+ * Berechtigungen werden als `<prefix>.<aktion>` Strings geführt. Module bringen
  * ihre eigenen Permissions mit und registrieren sie beim Laden - die Kernlogik
- * muss dafuer nicht angefasst werden.
+ * muss dafür nicht angefasst werden.
  */
 export interface PermissionDefinition {
   /** z.B. `jail.create` */
@@ -17,7 +17,7 @@ export interface PermissionDefinition {
   critical?: boolean;
 }
 
-/** Sonderberechtigung: schliesst saemtliche anderen Berechtigungen ein. */
+/** Sonderberechtigung: schliesst sämtliche anderen Berechtigungen ein. */
 export const ADMIN_FULL = 'admin.full';
 
 export const CORE_PERMISSIONS: PermissionDefinition[] = [
@@ -41,8 +41,8 @@ export const CORE_PERMISSIONS: PermissionDefinition[] = [
   },
   {
     key: 'moderation.execute',
-    label: 'Moderation ausfuehren',
-    description: 'Moderationsaktionen gegen Mitglieder ausfuehren.',
+    label: 'Moderation ausführen',
+    description: 'Moderationsaktionen gegen Mitglieder ausführen.',
     module: 'core',
     critical: true,
   },
@@ -61,7 +61,7 @@ export const CORE_PERMISSIONS: PermissionDefinition[] = [
   {
     key: 'settings.edit',
     label: 'Einstellungen bearbeiten',
-    description: 'Discord-, Rollen- und Systemeinstellungen aendern.',
+    description: 'Discord-, Rollen- und Systemeinstellungen ändern.',
     module: 'core',
     critical: true,
   },
@@ -89,7 +89,7 @@ export const CORE_PERMISSIONS: PermissionDefinition[] = [
   {
     key: ADMIN_FULL,
     label: 'Vollzugriff',
-    description: 'Schliesst saemtliche Berechtigungen ein. Nur fuer Administratoren.',
+    description: 'Schliesst sämtliche Berechtigungen ein. Nur für Administratoren.',
     module: 'core',
     critical: true,
   },
@@ -118,7 +118,7 @@ export function isKnownPermission(key: string): boolean {
   return registry.has(key);
 }
 
-/** Gruppiert die bekannten Permissions nach Modul (fuer die Einstellungen). */
+/** Gruppiert die bekannten Permissions nach Modul (für die Einstellungen). */
 export function listPermissionsByModule(): Map<string, PermissionDefinition[]> {
   const grouped = new Map<string, PermissionDefinition[]>();
   for (const definition of listPermissions()) {

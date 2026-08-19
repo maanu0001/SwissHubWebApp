@@ -1,10 +1,10 @@
 // SwissHub Bot WebApp - Datenbankschema
 //
-// Grundsaetze:
-//  * Die Datenbank ist Source of Truth fuer alles, was einen Neustart von Bot
-//    oder WebApp ueberleben muss (Jails, Audit Logs, Einstellungen).
+// Grundsätze:
+//  * Die Datenbank ist Source of Truth für alles, was einen Neustart von Bot
+//    oder WebApp überleben muss (Jails, Audit Logs, Einstellungen).
 //  * Datensparsamkeit: Discord-Mitgliederdaten werden nur zwischengespeichert,
-//    wo sie fuer Sicherheitsentscheide oder Nachvollziehbarkeit noetig sind.
+//    wo sie für Sicherheitsentscheide oder Nachvollziehbarkeit nötig sind.
 //  * Alle Zeitstempel werden in UTC gespeichert und erst im UI in Europe/Zurich
 //    dargestellt.
 
@@ -17,7 +17,7 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-/// Grobe Anwendungsgruppe. Sie ist bewusst NICHT die Quelle der Wahrheit fuer
+/// Grobe Anwendungsgruppe. Sie ist bewusst NICHT die Quelle der Wahrheit für
 /// Berechtigungen - massgebend sind Discord-Rollen + Permission Engine.
 enum AppRole {
   USER
@@ -59,7 +59,7 @@ enum ReconciliationMode {
   MANUAL
 }
 
-/// Anwendungskonto, das an eine Discord-Identitaet gebunden ist.
+/// Anwendungskonto, das an eine Discord-Identität gebunden ist.
 model User {
   id           String   @id @default(cuid())
   discordId    String   @unique
@@ -67,7 +67,7 @@ model User {
   globalName   String?
   avatarHash   String?
   appRole      AppRole  @default(USER)
-  /// Anwendungsseitige Sperre (unabhaengig von Discord).
+  /// Anwendungsseitige Sperre (unabhängig von Discord).
   isBlocked    Boolean  @default(false)
   firstLoginAt DateTime @default(now())
   lastLoginAt  DateTime @default(now())
@@ -80,7 +80,7 @@ model User {
   @@index([username])
 }
 
-/// Serverseitige Session. Im Browser liegt ausschliesslich ein zufaelliges
+/// Serverseitige Session. Im Browser liegt ausschliesslich ein zufälliges
 /// Token; gespeichert wird nur dessen SHA-256 Hash.
 model Session {
   id            String    @id @default(cuid())
@@ -90,9 +90,9 @@ model Session {
   createdAt     DateTime  @default(now())
   lastUsedAt    DateTime  @default(now())
   rotatedAt     DateTime  @default(now())
-  /// Absolutes Ablaufdatum - unabhaengig von Aktivitaet.
+  /// Absolutes Ablaufdatum - unabhängig von Aktivität.
   expiresAt     DateTime
-  /// Ablauf bei Inaktivitaet; wird bei jedem Request verlaengert.
+  /// Ablauf bei Inaktivität; wird bei jedem Request verlängert.
   idleExpiresAt DateTime
   revokedAt     DateTime?
   revokedReason String?
@@ -103,7 +103,7 @@ model Session {
   @@index([expiresAt])
 }
 
-/// Zwischenspeicher fuer Guild-Mitgliedschaft und Discord-Rollen.
+/// Zwischenspeicher für Guild-Mitgliedschaft und Discord-Rollen.
 /// Wird nach Ablauf der TTL und vor sicherheitskritischen Aktionen erneuert.
 model DiscordIdentityCache {
   discordId     String    @id
@@ -123,11 +123,11 @@ model ManagedRole {
   id              String   @id @default(cuid())
   discordRoleId   String   @unique
   label           String
-  /// Geschuetzte Rollen koennen nicht moderiert werden.
+  /// Geschützte Rollen können nicht moderiert werden.
   isProtected     Boolean  @default(false)
   /// Rollen, die beim Jail erhalten bleiben (z.B. Booster).
   keepOnJail      Boolean  @default(false)
-  /// Interne Moderationsstufe fuer die Hierarchiepruefung (hoeher = staerker).
+  /// Interne Moderationsstufe für die Hierarchieprüfung (höher = stärker).
   moderationLevel Int      @default(0)
   notes           String?
   createdAt       DateTime @default(now())
@@ -173,6 +173,10 @@ model JailEntry {
   targetDiscordId     String
   targetUsername      String
   targetDisplayName   String?
+  /// Avatar-Hashes zum Zeitpunkt der Aktion - halten die Historie lesbar,
+  /// auch wenn ein Mitglied den Server spaeter verlaesst.
+  targetAvatarHash    String?
+  moderatorAvatarHash String?
   moderatorDiscordId  String
   moderatorUsername   String
   reason              String
@@ -183,13 +187,13 @@ model JailEntry {
   releaseType         JailReleaseType?
   releasedByDiscordId String?
   releasedByUsername  String?
-  /// Rollen vor dem Jail (Snapshot fuer die Wiederherstellung).
+  /// Rollen vor dem Jail (Snapshot für die Wiederherstellung).
   roleSnapshot        String[]         @default([])
-  /// Rollen, die waehrend des Jails erhalten blieben.
+  /// Rollen, die während des Jails erhalten blieben.
   keptRoleIds         String[]         @default([])
   /// Beim Release erfolgreich wiederhergestellte Rollen.
   restoredRoleIds     String[]         @default([])
-  /// Rollen, die nicht wiederhergestellt werden konnten (geloescht, zu hoch, ...).
+  /// Rollen, die nicht wiederhergestellt werden konnten (gelöscht, zu hoch, ...).
   failedRoleIds       String[]         @default([])
   status              ActionStatus     @default(PENDING)
   releaseStatus       ActionStatus?
@@ -197,9 +201,9 @@ model JailEntry {
   errorMessage        String?
   /// Gesetzt solange der Jail aktiv ist (= targetDiscordId). NULL nach dem
   /// Release. Der Unique-Index verhindert dadurch zwei gleichzeitig aktive
-  /// Jails fuer dasselbe Mitglied (Race Condition Schutz).
+  /// Jails für dasselbe Mitglied (Race Condition Schutz).
   activeKey           String?          @unique
-  /// Verhindert doppelte Ausfuehrung bei Doppelklick/Retry.
+  /// Verhindert doppelte Ausführung bei Doppelklick/Retry.
   idempotencyKey      String?          @unique
   createdAt           DateTime         @default(now())
   updatedAt           DateTime         @updatedAt
@@ -210,7 +214,7 @@ model JailEntry {
   @@index([moderatorDiscordId])
 }
 
-/// Modulunabhaengige Moderationshistorie (Basis fuer Statistiken).
+/// Modulunabhängige Moderationshistorie (Basis für Statistiken).
 model ModerationAction {
   id              String               @id @default(cuid())
   type            ModerationActionType
@@ -230,7 +234,7 @@ model ModerationAction {
   @@index([createdAt])
 }
 
-/// Manipulationsgeschuetztes Audit Log (Hash-Chain).
+/// Manipulationsgeschütztes Audit Log (Hash-Chain).
 model AuditLog {
   id              String   @id @default(cuid())
   sequence        BigInt   @unique @default(autoincrement())
@@ -287,7 +291,7 @@ model RateLimitCounter {
   @@index([expiresAt])
 }
 
-/// Idempotenzschluessel fuer kritische Aktionen.
+/// Idempotenzschlüssel für kritische Aktionen.
 model IdempotencyRecord {
   key            String       @id
   scope          String

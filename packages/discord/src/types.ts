@@ -3,7 +3,7 @@ import { z } from 'zod';
 /**
  * Minimale, validierte Sicht auf die Discord API.
  *
- * Antworten von Discord sind fuer uns nicht vertrauenswuerdige Fremddaten und
+ * Antworten von Discord sind für uns nicht vertrauenswürdige Fremddaten und
  * werden deshalb mit Zod geparst, bevor sie in die Anwendung gelangen.
  */
 export const discordUserSchema = z.object({
@@ -48,6 +48,7 @@ export const discordGuildSchema = z.object({
   name: z.string(),
   icon: z.string().nullish(),
   approximate_member_count: z.number().nullish(),
+  approximate_presence_count: z.number().nullish(),
   owner_id: z.string().nullish(),
 });
 
@@ -92,6 +93,8 @@ export interface GuildSummary {
   name: string;
   iconHash: string | null;
   approximateMemberCount: number | null;
+  /** Ungefähre Anzahl aktuell online Mitglieder. */
+  approximatePresenceCount: number | null;
   ownerId: string | null;
 }
 
@@ -101,5 +104,5 @@ export interface BotIdentity {
   avatarHash: string | null;
 }
 
-/** Discord Channel Types, die fuer Log-/Info-Nachrichten in Frage kommen. */
+/** Discord Channel Types, die für Log-/Info-Nachrichten in Frage kommen. */
 export const TEXT_CHANNEL_TYPES = new Set([0, 5, 10, 11, 12, 15]);

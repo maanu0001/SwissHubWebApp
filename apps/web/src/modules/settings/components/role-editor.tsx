@@ -137,7 +137,7 @@ export function RoleEditor({
             title={available.length === 0 ? 'Alle Rollen sind bereits konfiguriert' : undefined}
           >
             <Plus aria-hidden="true" />
-            Rolle hinzufuegen
+            Rolle hinzufügen
           </Button>
         </div>
       ) : null}
@@ -189,7 +189,7 @@ export function RoleEditor({
                   <TableCell className="tabular-nums">{role.moderationLevel}</TableCell>
                   <TableCell>
                     <div className="flex flex-wrap gap-1">
-                      {role.isProtected ? <Badge variant="warning">Geschuetzt</Badge> : null}
+                      {role.isProtected ? <Badge variant="warning">Geschützt</Badge> : null}
                       {role.keepOnJail ? <Badge variant="secondary">Bleibt im Jail</Badge> : null}
                     </div>
                   </TableCell>
@@ -251,7 +251,7 @@ export function RoleEditor({
                       }}
                     >
                       <SelectTrigger id="role-select">
-                        <SelectValue placeholder="Rolle waehlen" />
+                        <SelectValue placeholder="Rolle wählen" />
                       </SelectTrigger>
                       <SelectContent>
                         {available.map((role) => (
@@ -292,7 +292,7 @@ export function RoleEditor({
                       }
                     />
                     <p className="text-xs text-muted-foreground">
-                      Hoehere Stufen koennen nicht von niedrigeren moderiert werden.
+                      Höhere Stufen können nicht von niedrigeren moderiert werden.
                     </p>
                   </div>
                 </div>
@@ -300,8 +300,8 @@ export function RoleEditor({
                 <div className="grid gap-3 sm:grid-cols-2">
                   <div className="flex items-center justify-between gap-4 rounded-md border border-border px-3 py-2">
                     <div>
-                      <Label htmlFor="role-protected">Geschuetzte Rolle</Label>
-                      <p className="text-xs text-muted-foreground">Traeger koennen nicht moderiert werden.</p>
+                      <Label htmlFor="role-protected">Geschützte Rolle</Label>
+                      <p className="text-xs text-muted-foreground">Träger können nicht moderiert werden.</p>
                     </div>
                     <Switch
                       id="role-protected"
@@ -394,7 +394,7 @@ export function RoleEditor({
         description={
           <p>
             Die Berechtigungen der Rolle <strong>{deleting?.label}</strong> werden entfernt. Mitglieder mit
-            dieser Rolle verlieren sofort die zugehoerigen Zugriffe.
+            dieser Rolle verlieren sofort die zugehörigen Zugriffe.
           </p>
         }
         onConfirm={async () => {

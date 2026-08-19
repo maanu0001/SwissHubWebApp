@@ -1,167 +1,360 @@
 import type { Metadata } from 'next';
-import { Activity, Gavel, Lock, Users } from 'lucide-react';
+import Link from 'next/link';
+import { Activity, Blocks, Lock, ScrollText, Search, Settings, TrendingUp, Users } from 'lucide-react';
 import { branding } from '@swisshub/config/client';
-import { formatDateTime, formatTime } from '@swisshub/shared';
-import { enabledModuleIds, listModuleStatus } from '@swisshub/modules';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { PageHeader } from '@/components/shared/page-header';
-import { StatCard } from '@/components/shared/stat-card';
+import { can } from '@swisshub/auth';
+import { enabledModuleIds, getModuleSettings, jail, listModuleStatus } from '@swisshub/modules';
+import { formatDateTime, formatDayTime, formatRemaining, plural } from '@swisshub/shared';
+import { StatCard, StatDelta } from '@/components/shared/stat-card';
+import { Panel } from '@/components/shared/panel';
+import { ActivityItem } from '@/components/shared/activity-item';
+import { QuickAction } from '@/components/shared/quick-action';
 import { ModuleCard } from '@/components/shared/module-card';
+import { BrandBanner } from '@/components/shared/brand-banner';
 import { DiscordAvatar } from '@/components/shared/discord-avatar';
 import { EmptyState } from '@/components/shared/states';
-import { Badge } from '@/components/ui/badge';
-import { requirePagePermission } from '@/server/auth';
+import { JailRowActions } from '@/modules/jail/components/jail-row-actions';
+import { CreateJailDialog } from '@/modules/jail/components/create-jail-dialog';
+import { csrfTokenFor, requirePagePermission } from '@/server/auth';
 import { loadDashboardData } from '@/server/dashboard';
 
 export const metadata: Metadata = { title: 'Dashboard' };
 export const dynamic = 'force-dynamic';
 
-const ACTION_LABEL: Record<string, string> = {
-  JAIL_CREATE: 'hat gejailt',
-  JAIL_RELEASE: 'hat freigelassen',
-  JAIL_EXTEND: 'hat die Dauer angepasst',
-};
+const numberFormat = new Intl.NumberFormat(branding.locale);
 
 export default async function DashboardPage(): Promise<React.JSX.Element> {
   const context = await requirePagePermission('dashboard.view');
-  const [data, moduleStatus, moduleIds] = await Promise.all([
-    loadDashboardData(),
+
+  const canViewJails = can(context, jail.JAIL_PERMISSIONS.view);
+  const canCreateJail = can(context, jail.JAIL_PERMISSIONS.create);
+  const canReleaseJail = can(context, jail.JAIL_PERMISSIONS.release);
+  const canViewAudit = can(context, 'audit.view');
+  const canViewMembers = can(context, 'members.view');
+  const canManageModules = can(context, 'modules.manage');
+  const canViewSettings = can(context, 'settings.view');
+
+  const [data, moduleStatus, moduleIds, jailSettings] = await Promise.all([
+    loadDashboardData({ canViewJails, canViewAudit }),
     listModuleStatus(),
     enabledModuleIds(),
+    getModuleSettings<jail.JailSettings>(jail.JAIL_MODULE_ID),
   ]);
 
-  const visibleModules = moduleStatus.filter(
-    (entry) =>
-      !entry.definition.core &&
-      entry.definition.navigation.some((item) => context.permissionKeys.includes(item.permission)),
-  );
+  const csrfToken = csrfTokenFor(context);
+
+  // Verfügbare Module zuerst, geplante als Ausblick dahinter.
+  const visibleModules = moduleStatus
+    .filter(
+      (entry) =>
+        !entry.definition.core &&
+        entry.definition.navigation.some((item) => context.permissionKeys.includes(item.permission)),
+    )
+    .sort((a, b) => {
+      const rank = (entry: typeof a): number =>
+        entry.definition.status === 'planned' ? 1 : entry.enabled ? 0 : 0.5;
+      return rank(a) - rank(b) || a.definition.name.localeCompare(b.definition.name);
+    });
 
   return (
     <>
-      <PageHeader
-        title={`Willkommen zurueck, ${context.user.displayName}.`}
-        description={`Uebersicht ueber ${branding.name}. Zeiten in ${branding.timezone}.`}
-        actions={
-          <DiscordAvatar
-            discordId={context.user.discordId}
-            avatarHash={context.user.avatarHash}
-            name={context.user.displayName}
-            size={40}
-          />
-        }
-      />
-
       <section aria-label="Kennzahlen" className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
-          label="Bot Status"
-          value={data.bot.online ? 'Online' : 'Offline'}
-          hint={
-            data.bot.online
-              ? `Discord verbunden${data.bot.wsPingMs !== null ? ` \u00b7 Ping: ${data.bot.wsPingMs} ms` : ''}`
-              : data.bot.lastHeartbeatAt
-                ? `Bot derzeit nicht erreichbar \u00b7 letzter Heartbeat: ${formatDateTime(data.bot.lastHeartbeatAt)}${
-                    data.bot.lastConnectedAt
-                      ? ` \u00b7 zuletzt verbunden: ${formatDateTime(data.bot.lastConnectedAt)}`
-                      : ''
-                  }`
-                : 'Noch kein Heartbeat empfangen'
-          }
-          icon={<Activity />}
-          tone={data.bot.online ? 'success' : 'destructive'}
-        />
-        <StatCard
           label="Mitglieder"
-          value={data.memberCount ?? '-'}
-          hint={data.discordReachable ? 'Aktuell auf Discord' : 'Discord derzeit nicht erreichbar'}
+          value={data.memberCount !== null ? numberFormat.format(data.memberCount) : '-'}
+          hint={
+            data.discordReachable ? (
+              data.onlineCount !== null ? (
+                <span className="flex items-center gap-1.5">
+                  online: {numberFormat.format(data.onlineCount)}
+                  <span className="size-1.5 rounded-full bg-success" aria-hidden="true" />
+                </span>
+              ) : (
+                'Aktuell auf Discord'
+              )
+            ) : (
+              'Discord derzeit nicht erreichbar'
+            )
+          }
           icon={<Users />}
         />
+
         <StatCard
           label="Aktive Jails"
           value={data.jailStats.active}
           hint={
             data.jailStats.endingSoon > 0
-              ? `${data.jailStats.endingSoon} enden in der naechsten Stunde`
+              ? `${data.jailStats.endingSoon} enden in der nächsten Stunde`
               : 'Keine bevorstehenden Freilassungen'
           }
           icon={<Lock />}
           tone={data.jailStats.active > 0 ? 'warning' : 'default'}
         />
+
+        <StatCard
+          label="Bot Status"
+          value={data.bot.online ? 'Online' : 'Offline'}
+          tone={data.bot.online ? 'success' : 'destructive'}
+          hint={
+            data.bot.online
+              ? data.bot.wsPingMs !== null
+                ? `Ping: ${data.bot.wsPingMs} ms`
+                : 'Discord verbunden'
+              : data.bot.lastHeartbeatAt
+                ? `Letzter Heartbeat: ${formatDateTime(data.bot.lastHeartbeatAt)}`
+                : 'Noch kein Heartbeat empfangen'
+          }
+          icon={<Activity />}
+        />
+
         <StatCard
           label="Aktionen heute"
           value={data.actionsToday}
-          hint={`${data.jailStats.createdToday} Jails · ${data.jailStats.releasedToday} Freilassungen`}
-          icon={<Gavel />}
+          hint={
+            data.actionsTrend !== null ? (
+              <>
+                <StatDelta value={data.actionsTrend} suffix="%" /> zum Vortag
+              </>
+            ) : (
+              `${plural(data.jailStats.createdToday, 'Jail', 'Jails')} · ${plural(
+                data.jailStats.releasedToday,
+                'Freilassung',
+                'Freilassungen',
+              )}`
+            )
+          }
+          icon={<TrendingUp />}
         />
       </section>
 
-      <div className="grid gap-6 lg:grid-cols-5">
-        <Card className="lg:col-span-3">
-          <CardHeader>
-            <CardTitle>Letzte Aktionen</CardTitle>
-            <CardDescription>Die zuletzt ausgefuehrten Moderationsaktionen.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {data.recentActions.length === 0 ? (
-              <EmptyState
-                title="Noch keine Aktionen"
-                description="Sobald Moderationsaktionen ausgefuehrt werden, erscheinen sie hier."
-              />
-            ) : (
-              <ol className="divide-y divide-border/60">
-                {data.recentActions.map((action) => (
-                  <li key={action.id} className="flex items-start gap-4 py-3 first:pt-0 last:pb-0">
-                    <time
-                      dateTime={action.createdAt.toISOString()}
-                      className="w-14 shrink-0 pt-0.5 text-xs tabular-nums text-muted-foreground"
-                    >
-                      {formatTime(action.createdAt)}
-                    </time>
-                    <p className="text-sm">
-                      <span className="font-medium">{action.actorUsername}</span>{' '}
-                      {ACTION_LABEL[action.type] ?? 'hat eine Aktion ausgefuehrt gegen'}{' '}
-                      <span className="font-medium">{action.targetUsername}</span>
-                      {action.reason ? (
-                        <span className="text-muted-foreground"> &middot; {action.reason}</span>
-                      ) : null}
-                    </p>
-                    {action.status !== 'COMPLETED' ? (
-                      <Badge variant="warning" className="ml-auto shrink-0">
-                        {action.status}
-                      </Badge>
-                    ) : null}
-                  </li>
-                ))}
-              </ol>
-            )}
-          </CardContent>
-        </Card>
+      <div className="grid gap-6 xl:grid-cols-3">
+        <div className="space-y-6 xl:col-span-2">
+          {canViewJails ? (
+            <Panel
+              title="Aktive Jails"
+              icon={<Lock />}
+              action={{ label: 'Alle anzeigen', href: '/jail' }}
+              bodyClassName="p-0"
+            >
+              {data.activeJails.length === 0 ? (
+                <EmptyState
+                  className="border-0"
+                  title="Keine aktiven Jails"
+                  description="Aktuell ist kein Mitglied gejailt."
+                />
+              ) : (
+                <div className="overflow-x-auto scrollbar-slim">
+                  <table className="w-full text-sm">
+                    <caption className="sr-only">Aktive Jail-Strafen</caption>
+                    <thead>
+                      <tr className="border-b border-border/70 text-left text-[0.68rem] uppercase tracking-[0.12em] text-muted-foreground">
+                        <th scope="col" className="px-5 py-3 font-semibold">
+                          Mitglied
+                        </th>
+                        <th scope="col" className="px-5 py-3 font-semibold">
+                          Grund
+                        </th>
+                        <th scope="col" className="px-5 py-3 font-semibold">
+                          Moderator
+                        </th>
+                        <th scope="col" className="px-5 py-3 font-semibold">
+                          Ende
+                        </th>
+                        <th scope="col" className="px-5 py-3 font-semibold">
+                          Verbleibend
+                        </th>
+                        <th scope="col" className="px-5 py-3">
+                          <span className="sr-only">Aktionen</span>
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {data.activeJails.map((entry) => (
+                        <tr
+                          key={entry.id}
+                          className="border-b border-border/50 transition-colors last:border-0 hover:bg-accent/40"
+                        >
+                          <td className="px-5 py-3">
+                            <Link
+                              href={`/members/${entry.targetDiscordId}`}
+                              className="flex items-center gap-3 hover:underline"
+                            >
+                              <DiscordAvatar
+                                discordId={entry.targetDiscordId}
+                                avatarHash={entry.targetAvatarHash}
+                                name={entry.targetUsername}
+                                size={32}
+                              />
+                              <span className="flex min-w-0 flex-col leading-tight">
+                                <span className="truncate font-medium">
+                                  {entry.targetDisplayName ?? entry.targetUsername}
+                                </span>
+                                <span className="truncate text-xs text-muted-foreground">
+                                  @{entry.targetUsername}
+                                </span>
+                              </span>
+                            </Link>
+                          </td>
+                          <td className="max-w-[12rem] px-5 py-3 text-muted-foreground">
+                            <span className="line-clamp-1">{entry.reason}</span>
+                          </td>
+                          <td className="px-5 py-3">
+                            <span className="flex items-center gap-2">
+                              <DiscordAvatar
+                                discordId={entry.moderatorDiscordId}
+                                avatarHash={entry.moderatorAvatarHash}
+                                name={entry.moderatorUsername}
+                                size={24}
+                              />
+                              <span className="truncate font-medium">{entry.moderatorUsername}</span>
+                            </span>
+                          </td>
+                          <td className="whitespace-nowrap px-5 py-3 text-muted-foreground">
+                            {formatDayTime(entry.endsAt)}
+                          </td>
+                          <td className="whitespace-nowrap px-5 py-3 font-medium text-primary-bright">
+                            {formatRemaining(entry.endsAt) ?? 'Fällig'}
+                          </td>
+                          <td className="px-2 py-3 text-right">
+                            <JailRowActions
+                              csrfToken={csrfToken}
+                              jailId={entry.id}
+                              memberLabel={entry.targetDisplayName ?? entry.targetUsername}
+                              canRelease={canReleaseJail}
+                            />
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </Panel>
+          ) : null}
 
-        <Card className="lg:col-span-2">
-          <CardHeader>
-            <CardTitle>Module</CardTitle>
-            <CardDescription>Aktive SwissHub-Module mit deinen Berechtigungen.</CardDescription>
-          </CardHeader>
-          <CardContent className="grid gap-3">
+          <Panel
+            title="Module"
+            icon={<Blocks />}
+            action={canManageModules ? { label: 'Module verwalten', href: '/modules' } : undefined}
+          >
             {visibleModules.length === 0 ? (
               <EmptyState
-                title="Keine Module verfuegbar"
+                className="border-0"
+                title="Keine Module verfügbar"
                 description="Dir sind derzeit keine Module zugewiesen."
               />
             ) : (
-              visibleModules.map((entry) => (
-                <ModuleCard
-                  key={entry.definition.id}
-                  name={entry.definition.name}
-                  description={entry.definition.description}
-                  icon={entry.definition.icon}
-                  enabled={entry.enabled && moduleIds.has(entry.definition.id)}
-                  href={entry.enabled ? (entry.definition.navigation[0]?.href ?? null) : null}
-                />
-              ))
+              <>
+                <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-5">
+                  {visibleModules.map((entry) => (
+                    <ModuleCard
+                      key={entry.definition.id}
+                      name={entry.definition.name}
+                      description={entry.definition.tagline ?? entry.definition.description}
+                      icon={entry.definition.icon}
+                      planned={entry.definition.status === 'planned'}
+                      enabled={entry.enabled && moduleIds.has(entry.definition.id)}
+                      href={entry.enabled ? (entry.definition.navigation[0]?.href ?? null) : null}
+                    />
+                  ))}
+                </div>
+                <div className="accent-rule mt-5 w-40 rounded-full" aria-hidden="true" />
+              </>
             )}
-          </CardContent>
-        </Card>
+          </Panel>
+        </div>
+
+        <div className="space-y-6">
+          {canViewAudit ? (
+            <Panel
+              title="Letzte Aktivitäten"
+              icon={<Activity />}
+              action={{ label: 'Alle', href: '/audit', ariaLabel: 'Alle Aktivitäten anzeigen' }}
+              bodyClassName="px-5 py-1"
+            >
+              {data.recentActivity.length === 0 ? (
+                <EmptyState
+                  className="border-0"
+                  title="Noch keine Aktivitäten"
+                  description="Sobald Aktionen ausgeführt werden, erscheinen sie hier."
+                />
+              ) : (
+                <ul className="divide-y divide-border/50">
+                  {data.recentActivity.map((entry) => (
+                    <ActivityItem
+                      key={entry.id}
+                      entry={{
+                        id: entry.id,
+                        action: entry.action,
+                        createdAt: entry.createdAt,
+                        actorUsername: entry.actorUsername,
+                        targetLabel: entry.targetLabel ?? entry.targetDiscordId,
+                        reason:
+                          typeof entry.metadata === 'object' &&
+                          entry.metadata !== null &&
+                          'reason' in entry.metadata &&
+                          typeof (entry.metadata as { reason?: unknown }).reason === 'string'
+                            ? ((entry.metadata as { reason: string }).reason ?? null)
+                            : null,
+                        success: entry.success,
+                      }}
+                    />
+                  ))}
+                </ul>
+              )}
+            </Panel>
+          ) : null}
+
+          <Panel title="Schnellaktionen" icon={<Lock />} bodyClassName="space-y-2 p-5">
+            {canCreateJail ? (
+              <QuickAction title="Mitglied jailen" description="Neuen Jail erstellen" icon={<Lock />}>
+                <CreateJailDialog
+                  csrfToken={csrfToken}
+                  durationPresets={jail.JAIL_DURATION_PRESETS}
+                  maxDurationSeconds={jailSettings.maxDurationSeconds}
+                  variant="quick-action"
+                  triggerLabel="Mitglied jailen"
+                />
+              </QuickAction>
+            ) : null}
+
+            {canViewMembers ? (
+              <QuickAction
+                title="Mitglied suchen"
+                description="Nach Mitgliedern suchen"
+                icon={<Search />}
+                href="/members"
+              />
+            ) : null}
+
+            {canViewAudit ? (
+              <QuickAction
+                title="Audit Log"
+                description="Logs und Aktivitäten"
+                icon={<ScrollText />}
+                href="/audit"
+              />
+            ) : null}
+
+            {canViewSettings ? (
+              <QuickAction
+                title="Einstellungen"
+                description="Bot und System konfigurieren"
+                icon={<Settings />}
+                href="/settings"
+              />
+            ) : null}
+          </Panel>
+        </div>
       </div>
+
+      <BrandBanner
+        footnote={
+          data.bot.online
+            ? `Bot online${data.bot.wsPingMs !== null ? ` · Ping ${data.bot.wsPingMs} ms` : ''} · Zeitzone ${branding.timezone}`
+            : `Bot derzeit nicht erreichbar · Zeitzone ${branding.timezone}`
+        }
+      />
     </>
   );
 }

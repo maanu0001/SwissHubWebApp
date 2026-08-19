@@ -24,8 +24,8 @@ interface ConfirmationDialogProps {
 }
 
 /**
- * Bestaetigungsdialog fuer destruktive Discord-Aktionen.
- * Der Bestaetigungsbutton bleibt waehrend der Ausfuehrung deaktiviert
+ * Bestätigungsdialog für destruktive Discord-Aktionen.
+ * Der Bestätigungsbutton bleibt während der Ausführung deaktiviert
  * (Schutz gegen Doppelklick).
  */
 export function ConfirmationDialog({
@@ -33,7 +33,7 @@ export function ConfirmationDialog({
   onOpenChange,
   title,
   description,
-  confirmLabel = 'Bestaetigen',
+  confirmLabel = 'Bestätigen',
   cancelLabel = 'Abbrechen',
   destructive = false,
   onConfirm,

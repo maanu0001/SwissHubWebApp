@@ -1,5 +1,5 @@
 /**
- * Wird von Next.js einmalig beim Serverstart ausgefuehrt.
+ * Wird von Next.js einmalig beim Serverstart ausgeführt.
  *
  * Die eigentliche Startlogik liegt in `instrumentation.node.ts` und wird nur
  * in der Node.js-Laufzeit geladen - die Edge-Runtime (Middleware) darf weder

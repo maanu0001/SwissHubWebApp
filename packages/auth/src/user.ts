@@ -5,7 +5,7 @@ import type { DiscordOAuthUser } from './oauth';
 /**
  * Legt das Anwendungskonto an bzw. aktualisiert die Anzeigedaten.
  * Es werden ausschliesslich Felder gespeichert, die die WebApp wirklich
- * benoetigt (Datensparsamkeit).
+ * benötigt (Datensparsamkeit).
  */
 export async function upsertUserFromDiscord(profile: DiscordOAuthUser): Promise<User> {
   return prisma.user.upsert({

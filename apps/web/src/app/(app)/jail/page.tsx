@@ -1,18 +1,19 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { jail, getModuleSettings, isModuleEnabled } from '@swisshub/modules';
-import { formatDateTime, formatDuration } from '@swisshub/shared';
+import { formatDateTime, formatDayTime, formatDuration } from '@swisshub/shared';
 import { can } from '@swisshub/auth';
 import { Badge } from '@/components/ui/badge';
 import { buttonVariants } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { PageHeader } from '@/components/shared/page-header';
+import { PageToolbar } from '@/components/shared/page-header';
+import { DiscordAvatar } from '@/components/shared/discord-avatar';
 import { DataTable } from '@/components/shared/data-table';
 import { Pagination } from '@/components/shared/pagination';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { EmptyState } from '@/components/shared/states';
 import { CreateJailDialog } from '@/modules/jail/components/create-jail-dialog';
-import { ReleaseJailButton } from '@/modules/jail/components/release-jail-button';
+import { JailRowActions } from '@/modules/jail/components/jail-row-actions';
 import { RemainingTime } from '@/modules/jail/components/remaining-time';
 import { csrfTokenFor, requirePagePermission } from '@/server/auth';
 import { cn } from '@/lib/utils';
@@ -59,11 +60,19 @@ export default async function JailPage({ searchParams }: JailPageProps): Promise
   const columns = [
     {
       key: 'member',
-      header: 'Benutzer',
+      header: 'Mitglied',
       render: (entry: JailEntry) => (
-        <Link href={`/members/${entry.targetDiscordId}`} className="font-medium hover:underline">
-          {entry.targetDisplayName ?? entry.targetUsername}
-          <span className="block text-xs font-normal text-muted-foreground">@{entry.targetUsername}</span>
+        <Link href={`/members/${entry.targetDiscordId}`} className="flex items-center gap-3 hover:underline">
+          <DiscordAvatar
+            discordId={entry.targetDiscordId}
+            avatarHash={entry.targetAvatarHash}
+            name={entry.targetUsername}
+            size={32}
+          />
+          <span className="flex min-w-0 flex-col leading-tight">
+            <span className="truncate font-medium">{entry.targetDisplayName ?? entry.targetUsername}</span>
+            <span className="truncate text-xs text-muted-foreground">@{entry.targetUsername}</span>
+          </span>
         </Link>
       ),
     },
@@ -78,13 +87,25 @@ export default async function JailPage({ searchParams }: JailPageProps): Promise
     {
       key: 'moderator',
       header: 'Moderator',
-      render: (entry: JailEntry) => <span>{entry.moderatorUsername}</span>,
+      render: (entry: JailEntry) => (
+        <span className="flex items-center gap-2">
+          <DiscordAvatar
+            discordId={entry.moderatorDiscordId}
+            avatarHash={entry.moderatorAvatarHash}
+            name={entry.moderatorUsername}
+            size={24}
+          />
+          <span className="truncate">{entry.moderatorUsername}</span>
+        </span>
+      ),
     },
     {
       key: 'start',
       header: 'Start',
       render: (entry: JailEntry) => (
-        <span className="whitespace-nowrap text-muted-foreground">{formatDateTime(entry.startedAt)}</span>
+        <span className="whitespace-nowrap text-muted-foreground">
+          {query.tab === 'active' ? formatDayTime(entry.startedAt) : formatDateTime(entry.startedAt)}
+        </span>
       ),
     },
     {
@@ -93,7 +114,7 @@ export default async function JailPage({ searchParams }: JailPageProps): Promise
       render: (entry: JailEntry) => (
         <span className="whitespace-nowrap text-muted-foreground">
           {query.tab === 'active'
-            ? formatDateTime(entry.endsAt)
+            ? formatDayTime(entry.endsAt)
             : entry.releasedAt
               ? formatDateTime(entry.releasedAt)
               : '-'}
@@ -104,7 +125,11 @@ export default async function JailPage({ searchParams }: JailPageProps): Promise
       ? {
           key: 'remaining',
           header: 'Verbleibend',
-          render: (entry: JailEntry) => <RemainingTime endsAt={entry.endsAt.toISOString()} />,
+          render: (entry: JailEntry) => (
+            <span className="whitespace-nowrap font-medium text-primary-bright">
+              <RemainingTime endsAt={entry.endsAt.toISOString()} />
+            </span>
+          ),
         }
       : {
           key: 'duration',
@@ -137,43 +162,28 @@ export default async function JailPage({ searchParams }: JailPageProps): Promise
       key: 'actions',
       header: <span className="sr-only">Aktionen</span>,
       className: 'text-right',
-      render: (entry: JailEntry) => (
-        <div className="flex items-center justify-end gap-2">
+      render: (entry: JailEntry) =>
+        query.tab === 'active' ? (
+          <JailRowActions
+            csrfToken={csrfToken}
+            jailId={entry.id}
+            memberLabel={entry.targetDisplayName ?? entry.targetUsername}
+            canRelease={canRelease}
+          />
+        ) : (
           <Link href={`/jail/${entry.id}`} className={cn(buttonVariants({ variant: 'ghost', size: 'sm' }))}>
             Details
           </Link>
-          {query.tab === 'active' && canRelease ? (
-            <ReleaseJailButton
-              csrfToken={csrfToken}
-              jailId={entry.id}
-              memberLabel={entry.targetDisplayName ?? entry.targetUsername}
-            />
-          ) : null}
-        </div>
-      ),
+        ),
     },
   ];
 
   return (
     <>
-      <PageHeader
-        title="Jail"
-        description="Aktive und vergangene Jail-Strafen des SwissHub Discord-Servers."
-        actions={
-          canCreate && enabled ? (
-            <CreateJailDialog
-              csrfToken={csrfToken}
-              durationPresets={jail.JAIL_DURATION_PRESETS}
-              maxDurationSeconds={settings.maxDurationSeconds}
-            />
-          ) : null
-        }
-      />
-
       {!enabled ? (
         <EmptyState
           title="Modul deaktiviert"
-          description="Das Jail-Modul ist derzeit deaktiviert. Aktive Eintraege bleiben sichtbar, neue Jails sind nicht moeglich."
+          description="Das Jail-Modul ist derzeit deaktiviert. Aktive Einträge bleiben sichtbar, neue Jails sind nicht möglich."
         />
       ) : null}
 
@@ -187,8 +197,18 @@ export default async function JailPage({ searchParams }: JailPageProps): Promise
         </div>
       ) : null}
 
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="inline-flex h-10 items-center gap-1 rounded-lg border border-border/70 bg-card/60 p-1">
+      <PageToolbar
+        actions={
+          canCreate && enabled ? (
+            <CreateJailDialog
+              csrfToken={csrfToken}
+              durationPresets={jail.JAIL_DURATION_PRESETS}
+              maxDurationSeconds={settings.maxDurationSeconds}
+            />
+          ) : null
+        }
+      >
+        <div className="inline-flex h-10 items-center gap-1 rounded-lg border border-border bg-card/60 p-1">
           {(
             [
               { key: 'active', label: 'Aktiv' },
@@ -224,7 +244,7 @@ export default async function JailPage({ searchParams }: JailPageProps): Promise
             Suchen
           </button>
         </form>
-      </div>
+      </PageToolbar>
 
       <DataTable
         columns={columns}
@@ -236,7 +256,7 @@ export default async function JailPage({ searchParams }: JailPageProps): Promise
             ? 'Aktuell ist kein Mitglied gejailt.'
             : 'Es wurden noch keine Jail-Strafen abgeschlossen.'
         }
-        caption="Jail-Uebersicht"
+        caption="Jail-Übersicht"
       />
 
       {result.totalPages > 1 ? (

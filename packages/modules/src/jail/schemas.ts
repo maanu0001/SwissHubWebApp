@@ -22,32 +22,32 @@ export const jailReasonSchema = z
   .min(3, 'Bitte einen Grund mit mindestens 3 Zeichen angeben.')
   .max(500, 'Der Grund darf maximal 500 Zeichen lang sein.')
   .transform((value) => sanitizeText(value, 500))
-  .refine((value) => value.length >= 3, 'Bitte einen aussagekraeftigen Grund angeben.');
+  .refine((value) => value.length >= 3, 'Bitte einen aussagekräftigen Grund angeben.');
 
 export const jailDurationSchema = z
-  .number({ invalid_type_error: 'Bitte eine gueltige Dauer waehlen.' })
+  .number({ invalid_type_error: 'Bitte eine gültige Dauer wählen.' })
   .int()
-  .min(MIN_JAIL_DURATION_SECONDS, 'Die Mindestdauer betraegt 1 Minute.')
-  .max(JAIL_MAX_DURATION_SECONDS, 'Die gewaehlte Dauer ist zu lang.');
+  .min(MIN_JAIL_DURATION_SECONDS, 'Die Mindestdauer beträgt 1 Minute.')
+  .max(JAIL_MAX_DURATION_SECONDS, 'Die gewählte Dauer ist zu lang.');
 
 export const createJailSchema = z.object({
   targetDiscordId: snowflakeSchema,
   durationSeconds: jailDurationSchema,
   reason: jailReasonSchema,
-  /** Verhindert doppelte Ausfuehrung bei Doppelklick oder Retry. */
-  idempotencyKey: z.string().uuid('Ungueltiger Idempotency Key'),
+  /** Verhindert doppelte Ausführung bei Doppelklick oder Retry. */
+  idempotencyKey: z.string().uuid('Ungültiger Idempotency Key'),
 });
 
 export type CreateJailInput = z.infer<typeof createJailSchema>;
 
 export const releaseJailSchema = z.object({
-  jailId: z.string().cuid('Ungueltige Jail-ID'),
+  jailId: z.string().cuid('Ungültige Jail-ID'),
   reason: z
     .string()
     .max(500)
     .optional()
     .transform((value) => (value ? sanitizeText(value, 500) : undefined)),
-  idempotencyKey: z.string().uuid('Ungueltiger Idempotency Key'),
+  idempotencyKey: z.string().uuid('Ungültiger Idempotency Key'),
 });
 
 export type ReleaseJailInput = z.infer<typeof releaseJailSchema>;
@@ -65,7 +65,7 @@ export const jailListQuerySchema = z.object({
 
 export type JailListQuery = z.infer<typeof jailListQuerySchema>;
 
-/** Prueft die Dauer zusaetzlich gegen die konfigurierte Obergrenze. */
+/** Prüft die Dauer zusätzlich gegen die konfigurierte Obergrenze. */
 export function assertDurationWithinLimit(durationSeconds: number, maxDurationSeconds: number): void {
   if (durationSeconds > maxDurationSeconds) {
     throw new z.ZodError([
@@ -75,7 +75,7 @@ export function assertDurationWithinLimit(durationSeconds: number, maxDurationSe
         type: 'number',
         inclusive: true,
         path: ['durationSeconds'],
-        message: `Die maximale Jail-Dauer betraegt ${Math.floor(maxDurationSeconds / 3600)} Stunden.`,
+        message: `Die maximale Jail-Dauer beträgt ${Math.floor(maxDurationSeconds / 3600)} Stunden.`,
       },
     ]);
   }

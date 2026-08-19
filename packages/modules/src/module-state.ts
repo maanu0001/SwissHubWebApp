@@ -7,13 +7,13 @@ const log = createLogger('modules');
 /**
  * Aktivierungszustand und Einstellungen der Module (Datenbank als Source of Truth).
  */
-export interface ModuleStatus {
+export interface ModuleStatusEntry {
   definition: ModuleDefinition;
   enabled: boolean;
   updatedAt: Date | null;
 }
 
-export async function listModuleStatus(): Promise<ModuleStatus[]> {
+export async function listModuleStatus(): Promise<ModuleStatusEntry[]> {
   const rows = await prisma.moduleState.findMany();
   const byId = new Map(rows.map((row) => [row.moduleId, row]));
 
@@ -50,19 +50,19 @@ export async function setModuleEnabled(moduleId: string, enabled: boolean, updat
     throw new Error(`Unbekanntes Modul: ${moduleId}`);
   }
   if (definition.core) {
-    throw new Error('Kernbereiche koennen nicht deaktiviert werden.');
+    throw new Error('Kernbereiche können nicht deaktiviert werden.');
   }
   await prisma.moduleState.upsert({
     where: { moduleId },
     create: { moduleId, enabled, updatedBy },
     update: { enabled, updatedBy },
   });
-  log.info('Modulzustand geaendert', { moduleId, enabled, updatedBy });
+  log.info('Modulzustand geändert', { moduleId, enabled, updatedBy });
 }
 
 /**
  * Liest die Einstellungen eines Moduls und validiert sie gegen das Schema.
- * Ungueltige oder fehlende Werte fallen auf die Defaults zurueck (Fail Safe).
+ * Ungültige oder fehlende Werte fallen auf die Defaults zurück (Fail Safe).
  */
 export async function getModuleSettings<T>(moduleId: string): Promise<T> {
   const definition = getModuleDefinition(moduleId);
@@ -72,7 +72,7 @@ export async function getModuleSettings<T>(moduleId: string): Promise<T> {
   const row = await prisma.moduleState.findUnique({ where: { moduleId } });
   const parsed = definition.settingsSchema.safeParse(row?.settings ?? {});
   if (!parsed.success) {
-    log.warn('Ungueltige Moduleinstellungen - Defaults werden verwendet', {
+    log.warn('Ungültige Moduleinstellungen - Defaults werden verwendet', {
       moduleId,
       issues: parsed.error.issues.map((issue) => issue.path.join('.')),
     });

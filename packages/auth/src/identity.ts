@@ -9,8 +9,8 @@ const log = createLogger('auth:identity');
 /**
  * Guild-Mitgliedschaft und Discord-Rollen aktuell halten.
  *
- * Rollen koennen sich jederzeit aendern. Deshalb gilt:
- *  - normale Seitenaufrufe duerfen den Cache (TTL) verwenden,
+ * Rollen können sich jederzeit ändern. Deshalb gilt:
+ *  - normale Seitenaufrufe dürfen den Cache (TTL) verwenden,
  *  - sicherheitskritische Aktionen erzwingen einen frischen Abruf.
  */
 export interface DiscordIdentity {
@@ -57,15 +57,15 @@ export async function getIdentity(
   return refreshIdentity(discordId);
 }
 
-/** Laedt Mitgliedschaft und Rollen frisch von Discord und aktualisiert den Cache. */
+/** Lädt Mitgliedschaft und Rollen frisch von Discord und aktualisiert den Cache. */
 export async function refreshIdentity(discordId: string): Promise<DiscordIdentity> {
   let member: GuildMember | null = null;
   try {
     member = await discord.members.get(discordId);
   } catch (error) {
-    log.error('Discord-Identitaet konnte nicht geladen werden', { error, discordId });
-    // Fail closed: ohne verlaessliche Rolleninformationen gilt der Benutzer als
-    // nicht berechtigt. Der Cache wird dabei bewusst nicht ueberschrieben.
+    log.error('Discord-Identität konnte nicht geladen werden', { error, discordId });
+    // Fail closed: ohne verlässliche Rolleninformationen gilt der Benutzer als
+    // nicht berechtigt. Der Cache wird dabei bewusst nicht überschrieben.
     const cached = await prisma.discordIdentityCache.findUnique({ where: { discordId } });
     return {
       discordId,
@@ -93,7 +93,7 @@ export async function refreshIdentity(discordId: string): Promise<DiscordIdentit
     .catch((error: unknown) => log.warn('Identity-Cache konnte nicht geschrieben werden', { error }));
 
   if (member) {
-    // Anzeigedaten des Kontos aktuell halten (Username-Aenderungen auf Discord).
+    // Anzeigedaten des Kontos aktuell halten (Username-Änderungen auf Discord).
     await prisma.user
       .updateMany({
         where: { discordId },
@@ -118,7 +118,7 @@ export async function refreshIdentity(discordId: string): Promise<DiscordIdentit
   };
 }
 
-/** Verwirft den Cache-Eintrag, z.B. nach einer Rollenaenderung durch den Bot. */
+/** Verwirft den Cache-Eintrag, z.B. nach einer Rollenänderung durch den Bot. */
 export async function invalidateIdentity(discordId: string): Promise<void> {
   await prisma.discordIdentityCache
     .updateMany({ where: { discordId }, data: { fetchedAt: new Date(0) } })

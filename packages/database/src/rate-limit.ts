@@ -3,14 +3,14 @@ import { prisma } from './client';
 /**
  * Serverseitiges Rate Limiting (Fixed Window) auf Basis der Datenbank.
  *
- * Bewusst ohne In-Memory-Zaehler: die WebApp kann in mehreren Instanzen laufen,
- * und ein Limit, das sich durch einen Prozessneustart zuruecksetzen laesst, ist
+ * Bewusst ohne In-Memory-Zähler: die WebApp kann in mehreren Instanzen laufen,
+ * und ein Limit, das sich durch einen Prozessneustart zurücksetzen lässt, ist
  * kein Limit.
  */
 export interface RateLimitRule {
   /** Erlaubte Anzahl Treffer pro Fenster. */
   limit: number;
-  /** Fenstergroesse in Millisekunden. */
+  /** Fenstergrösse in Millisekunden. */
   windowMs: number;
 }
 
@@ -52,7 +52,7 @@ export async function consumeRateLimit(bucket: string, rule: RateLimitRule): Pro
   };
 }
 
-/** Liest den aktuellen Stand, ohne ihn zu erhoehen (z.B. fuer Anzeigen). */
+/** Liest den aktuellen Stand, ohne ihn zu erhöhen (z.B. für Anzeigen). */
 export async function peekRateLimit(bucket: string, rule: RateLimitRule): Promise<RateLimitResult> {
   const now = Date.now();
   const windowStart = new Date(Math.floor(now / rule.windowMs) * rule.windowMs);

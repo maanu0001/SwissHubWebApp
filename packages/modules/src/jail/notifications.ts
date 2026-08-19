@@ -67,7 +67,7 @@ export function buildReleaseEmbed(data: ReleaseNotificationData): DiscordEmbed {
         name: 'Rollen',
         value:
           data.failedRoles > 0
-            ? `${data.restoredRoles} wiederhergestellt, ${data.failedRoles} nicht moeglich`
+            ? `${data.restoredRoles} wiederhergestellt, ${data.failedRoles} nicht möglich`
             : `${data.restoredRoles} wiederhergestellt`,
       },
     ],
@@ -78,7 +78,7 @@ export function buildReleaseEmbed(data: ReleaseNotificationData): DiscordEmbed {
 
 /**
  * Discord-Benachrichtigungen sind bewusst "best effort": ein fehlender Channel
- * oder eine fehlende Berechtigung darf eine bereits ausgefuehrte Moderations-
+ * oder eine fehlende Berechtigung darf eine bereits ausgeführte Moderations-
  * aktion nicht scheitern lassen.
  */
 export async function postNotification(

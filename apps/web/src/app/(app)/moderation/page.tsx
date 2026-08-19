@@ -6,7 +6,6 @@ import { formatDateTime, paginate, sanitizeText, toSkipTake } from '@swisshub/sh
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { buttonVariants } from '@/components/ui/button';
-import { PageHeader } from '@/components/shared/page-header';
 import { DataTable } from '@/components/shared/data-table';
 import { Pagination } from '@/components/shared/pagination';
 import { StatusBadge } from '@/components/shared/status-badge';
@@ -72,8 +71,6 @@ export default async function ModerationPage({
 
   return (
     <>
-      <PageHeader title="Moderation" description="Modulunabhaengige Historie aller Moderationsaktionen." />
-
       <form role="search" className="flex items-center gap-2">
         <Input
           name="search"
@@ -133,7 +130,7 @@ export default async function ModerationPage({
         rows={result.items}
         getRowKey={(row) => row.id}
         emptyTitle="Keine Moderationsaktionen"
-        emptyDescription="Sobald Aktionen ausgefuehrt werden, erscheinen sie hier."
+        emptyDescription="Sobald Aktionen ausgeführt werden, erscheinen sie hier."
         caption="Moderationshistorie"
       />
 

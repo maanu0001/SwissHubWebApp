@@ -44,20 +44,20 @@ const DEFAULT_STATUS: Record<AppErrorCode, number> = {
 const DEFAULT_MESSAGE: Record<AppErrorCode, string> = {
   UNAUTHENTICATED: 'Du bist nicht angemeldet. Bitte melde dich erneut mit Discord an.',
   NOT_A_MEMBER: 'Du bist kein Mitglied des SwissHub Discord-Servers.',
-  FORBIDDEN: 'Dir fehlt die erforderliche Berechtigung fuer diese Aktion.',
-  VALIDATION_FAILED: 'Die Eingaben sind ungueltig. Bitte pruefe das Formular.',
+  FORBIDDEN: 'Dir fehlt die erforderliche Berechtigung für diese Aktion.',
+  VALIDATION_FAILED: 'Die Eingaben sind ungültig. Bitte prüfe das Formular.',
   NOT_FOUND: 'Der angeforderte Eintrag wurde nicht gefunden.',
   CONFLICT: 'Die Aktion steht im Konflikt mit dem aktuellen Zustand.',
-  RATE_LIMITED: 'Zu viele Anfragen. Bitte versuche es in Kuerze erneut.',
-  DISCORD_UNAVAILABLE: 'Discord ist derzeit nicht erreichbar. Bitte versuche es spaeter erneut.',
+  RATE_LIMITED: 'Zu viele Anfragen. Bitte versuche es in Kürze erneut.',
+  DISCORD_UNAVAILABLE: 'Discord ist derzeit nicht erreichbar. Bitte versuche es später erneut.',
   DISCORD_MISSING_PERMISSIONS:
-    'Aktion konnte nicht ausgefuehrt werden. Der Bot besitzt moeglicherweise nicht genuegend Berechtigungen oder seine Rolle ist zu niedrig.',
+    'Aktion konnte nicht ausgeführt werden. Der Bot besitzt möglicherweise nicht genügend Berechtigungen oder seine Rolle ist zu niedrig.',
   DISCORD_UNKNOWN_MEMBER: 'Das Mitglied wurde auf Discord nicht gefunden (Server verlassen?).',
   DISCORD_UNKNOWN_ROLE: 'Eine konfigurierte Discord-Rolle existiert nicht mehr.',
-  DISCORD_RATE_LIMITED: 'Discord drosselt aktuell die Anfragen. Bitte versuche es in Kuerze erneut.',
-  CONFIGURATION_MISSING: 'Die Konfiguration ist unvollstaendig. Bitte pruefe die Einstellungen.',
-  POLICY_VIOLATION: 'Diese Aktion ist gegen dieses Mitglied nicht zulaessig.',
-  INTERNAL: 'Aktion konnte nicht ausgefuehrt werden. Bitte versuche es spaeter erneut.',
+  DISCORD_RATE_LIMITED: 'Discord drosselt aktuell die Anfragen. Bitte versuche es in Kürze erneut.',
+  CONFIGURATION_MISSING: 'Die Konfiguration ist unvollständig. Bitte prüfe die Einstellungen.',
+  POLICY_VIOLATION: 'Diese Aktion ist gegen dieses Mitglied nicht zulässig.',
+  INTERNAL: 'Aktion konnte nicht ausgeführt werden. Bitte versuche es später erneut.',
 };
 
 export interface AppErrorOptions {

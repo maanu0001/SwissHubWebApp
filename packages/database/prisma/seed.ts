@@ -1,7 +1,7 @@
 /**
  * Initiales Setup.
  *
- * Der Seed erfindet keine Discord-IDs: er uebernimmt ausschliesslich die Werte
+ * Der Seed erfindet keine Discord-IDs: er übernimmt ausschliesslich die Werte
  * aus der Umgebung (DISCORD_ADMIN_ROLE_ID, DISCORD_JAIL_ROLE_ID) und legt
  * sinnvolle Grundeinstellungen an. Fehlt eine ID, wird eine klare Anleitung
  * ausgegeben statt etwas zu raten.
@@ -46,7 +46,7 @@ async function main(): Promise<void> {
         label: 'Administrator',
         isProtected: true,
         moderationLevel: 100,
-        notes: 'Aus DISCORD_ADMIN_ROLE_ID uebernommen.',
+        notes: 'Aus DISCORD_ADMIN_ROLE_ID übernommen.',
       },
       update: {},
     });

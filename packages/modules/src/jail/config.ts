@@ -13,15 +13,15 @@ export const JAIL_PERMISSIONS = {
   settings: 'jail.settings',
 } as const;
 
-/** Obergrenze, die auch per Konfiguration nicht ueberschritten werden kann. */
+/** Obergrenze, die auch per Konfiguration nicht überschritten werden kann. */
 export const JAIL_MAX_DURATION_SECONDS = 365 * 24 * 60 * 60;
 
 export const jailSettingsSchema = z.object({
-  /** Rolle, die waehrend des Jails vergeben wird. */
+  /** Rolle, die während des Jails vergeben wird. */
   jailRoleId: optionalSnowflakeSchema,
-  /** Channel, in dem das Mitglied ueber den Jail informiert wird. */
+  /** Channel, in dem das Mitglied über den Jail informiert wird. */
   jailChannelId: optionalSnowflakeSchema,
-  /** Channel fuer das Moderationslog (ueberschreibt die Kerneinstellung). */
+  /** Channel für das Moderationslog (überschreibt die Kerneinstellung). */
   moderationLogChannelId: optionalSnowflakeSchema,
   /** Maximale Jail-Dauer in Sekunden. */
   maxDurationSeconds: z
@@ -30,7 +30,7 @@ export const jailSettingsSchema = z.object({
     .min(60)
     .max(JAIL_MAX_DURATION_SECONDS)
     .default(7 * 24 * 60 * 60),
-  /** Zusaetzliche Rollen, die waehrend des Jails erhalten bleiben. */
+  /** Zusätzliche Rollen, die während des Jails erhalten bleiben. */
   keepRoleIds: z
     .array(z.string().regex(/^\d{17,20}$/u))
     .max(50)
@@ -47,8 +47,9 @@ export const jailModule: ModuleDefinition = registerModule({
   id: JAIL_MODULE_ID,
   name: 'Jail',
   description:
-    'SwissHub Jail-System: Mitglieder temporaer isolieren, Rollen sichern und automatisch wieder freigeben.',
+    'SwissHub Jail-System: Mitglieder temporär isolieren, Rollen sichern und automatisch wieder freigeben.',
   icon: 'Lock',
+  tagline: 'Verwalte Jails und Strafen',
   permissionPrefix: 'jail',
   defaultEnabled: true,
   settingsSchema: jailSettingsSchema,
@@ -62,7 +63,7 @@ export const jailModule: ModuleDefinition = registerModule({
     {
       key: JAIL_PERMISSIONS.create,
       label: 'Jail erstellen',
-      description: 'Mitglieder jailen. Fuehrt eine echte Discord-Aktion aus.',
+      description: 'Mitglieder jailen. Führt eine echte Discord-Aktion aus.',
       module: JAIL_MODULE_ID,
       critical: true,
     },
@@ -92,9 +93,12 @@ export const jailModule: ModuleDefinition = registerModule({
     {
       href: '/jail',
       label: 'Jail',
+      description: 'Aktive und vergangene Jail-Strafen des SwissHub Discord-Servers',
       permission: JAIL_PERMISSIONS.view,
       icon: 'Lock',
+      group: 'moderation',
       order: 30,
+      counter: 'activeJails',
     },
   ],
 });

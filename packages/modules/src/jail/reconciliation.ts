@@ -43,7 +43,7 @@ const ORPHAN_SCAN_LIMIT = 1000;
  * Gleicht Datenbank- und Discord-Zustand ab.
  *
  * Discord-Aktionen und Datenbank lassen sich nicht in einer gemeinsamen
- * Transaktion ausfuehren. Reconciliation erkennt deshalb Abweichungen
+ * Transaktion ausführen. Reconciliation erkennt deshalb Abweichungen
  * (z.B. "DB sagt gejailt, Jail-Rolle fehlt") und korrigiert sie kontrolliert.
  */
 export async function reconcileJails(options: ReconcileOptions = {}): Promise<ReconciliationSummary> {
@@ -148,7 +148,7 @@ export async function reconcileJails(options: ReconcileOptions = {}): Promise<Re
           discordId: orphan.discordId,
           label: orphan.displayName,
           repaired: false,
-          detail: 'Traegt die Jail-Rolle, obwohl kein aktiver Jail existiert.',
+          detail: 'Trägt die Jail-Rolle, obwohl kein aktiver Jail existiert.',
         });
       }
     }
@@ -196,7 +196,7 @@ export async function reconcileJails(options: ReconcileOptions = {}): Promise<Re
 
 /**
  * Sucht Mitglieder, die die Jail-Rolle tragen, ohne dass ein aktiver Jail
- * existiert. Der Scan ist bewusst begrenzt, um Discord nicht zu ueberlasten.
+ * existiert. Der Scan ist bewusst begrenzt, um Discord nicht zu überlasten.
  */
 async function findOrphanJailRoleHolders(
   gateway: DiscordGateway,

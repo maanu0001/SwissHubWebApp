@@ -1,9 +1,9 @@
 import type { NextConfig } from 'next';
 
 /**
- * Security Header, die fuer jede Antwort gelten.
+ * Security Header, die für jede Antwort gelten.
  * Die Content-Security-Policy wird in `src/middleware.ts` gesetzt, weil sie
- * pro Request eine Nonce enthaelt.
+ * pro Request eine Nonce enthält.
  */
 const securityHeaders = [
   { key: 'X-Content-Type-Options', value: 'nosniff' },
@@ -28,6 +28,8 @@ const productionHeaders = [
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
+  // Der Entwicklungs-Indikator liegt sonst ueber der Statusleiste der Seitenleiste.
+  devIndicators: { position: 'bottom-right' },
   // Die Workspace-Pakete werden als TypeScript-Quelle eingebunden.
   transpilePackages: [
     '@swisshub/auth',
@@ -41,7 +43,7 @@ const nextConfig: NextConfig = {
   ],
   serverExternalPackages: ['@prisma/client'],
   experimental: {
-    // Server Actions sind nur fuer die eigene Origin erlaubt (CSRF).
+    // Server Actions sind nur für die eigene Origin erlaubt (CSRF).
     serverActions: {
       bodySizeLimit: '1mb',
     },

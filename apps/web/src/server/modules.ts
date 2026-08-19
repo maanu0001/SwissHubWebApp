@@ -4,7 +4,7 @@ import { AppError } from '@swisshub/shared';
 
 /**
  * Stellt sicher, dass ein Modul aktiviert ist, bevor seine Aktionen laufen.
- * Ein deaktiviertes Modul darf auch ueber direkte Requests nichts ausloesen.
+ * Ein deaktiviertes Modul darf auch über direkte Requests nichts auslösen.
  */
 export async function assertModuleEnabled(moduleId: string): Promise<void> {
   const definition = getModuleDefinition(moduleId);

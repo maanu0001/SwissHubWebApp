@@ -11,29 +11,29 @@ import { enforceRateLimit, type RateLimitName } from './rate-limit';
 const log = createLogger('web:action');
 
 /**
- * Zentrale Sicherheitskette fuer Server Actions.
+ * Zentrale Sicherheitskette für Server Actions.
  *
  * Reihenfolge (Fail Closed - jeder Schritt kann abbrechen):
  *   Authentifizierung -> Guild-Mitgliedschaft -> CSRF -> Rate Limit ->
- *   Validierung -> Autorisierung -> Ausfuehrung.
+ *   Validierung -> Autorisierung -> Ausführung.
  *
- * Ein manipuliertes HTTP-Request kann dadurch nichts ausloesen, was der
- * angemeldete Benutzer ueber die UI nicht ebenfalls duerfte.
+ * Ein manipuliertes HTTP-Request kann dadurch nichts auslösen, was der
+ * angemeldete Benutzer über die UI nicht ebenfalls dürfte.
  */
 export interface ActionDefinition<TSchema extends z.ZodTypeAny> {
   /** Interner Name (Logs, Rate-Limit-Bucket). */
   name: string;
   module?: string;
-  /** Benoetigte Permission. */
+  /** Benötigte Permission. */
   permission?: string;
   schema?: TSchema;
   rateLimit?: RateLimitName;
   /**
-   * `critical` laedt die Discord-Rollen frisch, bevor autorisiert wird.
-   * Standard fuer alle schreibenden Aktionen.
+   * `critical` lädt die Discord-Rollen frisch, bevor autorisiert wird.
+   * Standard für alle schreibenden Aktionen.
    */
   freshness?: 'cached' | 'critical';
-  /** CSRF-Pruefung (Standard: an). */
+  /** CSRF-Prüfung (Standard: an). */
   csrf?: boolean;
 }
 
@@ -80,8 +80,8 @@ export function defineAction<TSchema extends z.ZodTypeAny, TResult>(
             path: definition.name,
           });
           throw new AppError('FORBIDDEN', {
-            userMessage: 'Sicherheitspruefung fehlgeschlagen. Bitte Seite neu laden und erneut versuchen.',
-            internalMessage: 'CSRF-Token ungueltig',
+            userMessage: 'Sicherheitsprüfung fehlgeschlagen. Bitte Seite neu laden und erneut versuchen.',
+            internalMessage: 'CSRF-Token ungültig',
           });
         }
       }

@@ -23,9 +23,10 @@ async function main(): Promise<void> {
 
   await ensureBootstrapRoles();
 
-  if (discordMocksEnabled()) {
+  const mockMode = discordMocksEnabled();
+  if (mockMode) {
     log.warn(
-      'DEV_MOCK_DISCORD ist aktiv: der Bot verbindet sich NICHT mit Discord und fuehrt nur Datenbankjobs aus.',
+      'DEV_MOCK_DISCORD ist aktiv: der Bot verbindet sich NICHT mit Discord und führt nur Datenbankjobs aus.',
     );
   }
 
@@ -34,11 +35,13 @@ async function main(): Promise<void> {
   });
 
   const status = {
-    online: false,
+    // Im Mock-Modus gibt es keine Discord-Verbindung; der Prozess selbst läuft
+    // aber und erledigt seine Jobs - das meldet der Heartbeat entsprechend.
+    online: mockMode,
     wsPingMs: null as number | null,
     memberCount: null as number | null,
     botUserId: null as string | null,
-    botUsername: null as string | null,
+    botUsername: mockMode ? 'swisshub-bot (Mock)' : (null as string | null),
   };
 
   const jobs = createJobRunner(() => ({ ...status }));
@@ -52,7 +55,7 @@ async function main(): Promise<void> {
     const guild = readyClient.guilds.cache.get(discordConfig.guildId);
     if (!guild) {
       log.error(
-        'Der Bot ist nicht Mitglied der konfigurierten Guild. Bitte DISCORD_GUILD_ID pruefen und den Bot einladen.',
+        'Der Bot ist nicht Mitglied der konfigurierten Guild. Bitte DISCORD_GUILD_ID prüfen und den Bot einladen.',
         { guildId: discordConfig.guildId },
       );
     } else {
@@ -70,7 +73,7 @@ async function main(): Promise<void> {
     });
   });
 
-  // Rollenaenderungen sofort im Identity-Cache entwerten, damit
+  // Rollenänderungen sofort im Identity-Cache entwerten, damit
   // Berechtigungen nicht auf veralteten Rollen basieren.
   client.on(Events.GuildMemberUpdate, async (oldMember, newMember) => {
     if (newMember.guild.id !== discordConfig.guildId) {
@@ -109,7 +112,6 @@ async function main(): Promise<void> {
       status.memberCount = client.guilds.cache.get(discordConfig.guildId)?.memberCount ?? status.memberCount;
     }
   }, 15_000);
-  pingTimer.unref?.();
 
   jobs.start();
 

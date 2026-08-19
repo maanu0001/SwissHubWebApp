@@ -20,7 +20,7 @@ export interface MemberCardData {
   showDiscordId?: boolean;
 }
 
-/** Kompakte Mitgliederkarte fuer Such- und Listenansichten. */
+/** Kompakte Mitgliederkarte für Such- und Listenansichten. */
 export function MemberCard({ member }: { member: MemberCardData }): React.JSX.Element {
   return (
     <Link

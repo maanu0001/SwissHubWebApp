@@ -5,14 +5,14 @@ export const DISCORD_EPOCH = 1_420_070_400_000n;
 
 export const SNOWFLAKE_REGEX = /^\d{17,20}$/u;
 
-export const snowflakeSchema = z.string().trim().regex(SNOWFLAKE_REGEX, 'Ungueltige Discord ID');
+export const snowflakeSchema = z.string().trim().regex(SNOWFLAKE_REGEX, 'Ungültige Discord ID');
 
 export const optionalSnowflakeSchema = z
   .union([snowflakeSchema, z.literal('')])
   .optional()
   .transform((value) => (value ? value : undefined));
 
-/** Prueft, ob ein Wert wie eine Discord Snowflake aussieht. */
+/** Prüft, ob ein Wert wie eine Discord Snowflake aussieht. */
 export const isSnowflake = (value: unknown): boolean =>
   typeof value === 'string' && SNOWFLAKE_REGEX.test(value);
 

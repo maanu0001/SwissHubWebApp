@@ -3,9 +3,9 @@ import type { GuildChannel, GuildMember, GuildRole, GuildSummary, BotIdentity } 
 /**
  * Zentrale Discord-Abstraktion.
  *
- * Module sprechen ausschliesslich ueber dieses Interface mit Discord - dadurch
+ * Module sprechen ausschliesslich über dieses Interface mit Discord - dadurch
  * bleibt discord.js/REST eine austauschbare Implementierungsdetail-Ebene und
- * saemtliche Aufrufe sind in Tests mockbar.
+ * sämtliche Aufrufe sind in Tests mockbar.
  */
 export interface DiscordGateway {
   members: {
@@ -13,9 +13,9 @@ export interface DiscordGateway {
     get(discordId: string): Promise<GuildMember | null>;
     /** Serverseitige Suche nach Username/Nickname. */
     search(query: string, limit?: number): Promise<GuildMember[]>;
-    /** Seitenweises Listing (Paginierung ueber `after`). */
+    /** Seitenweises Listing (Paginierung über `after`). */
     list(options?: { limit?: number; after?: string }): Promise<GuildMember[]>;
-    /** Setzt die vollstaendige Rollenliste (atomar, ein Request). */
+    /** Setzt die vollständige Rollenliste (atomar, ein Request). */
     setRoles(discordId: string, roleIds: string[], reason?: string): Promise<void>;
   };
   roles: {
@@ -34,9 +34,9 @@ export interface DiscordGateway {
   };
   bot: {
     identity(): Promise<BotIdentity>;
-    /** Der Bot als Guild-Mitglied - Basis fuer die Rollenhierarchie. */
+    /** Der Bot als Guild-Mitglied - Basis für die Rollenhierarchie. */
     member(): Promise<GuildMember | null>;
-    /** Hoechste Rollenposition des Bots in der Guild. */
+    /** Höchste Rollenposition des Bots in der Guild. */
     highestRolePosition(): Promise<number>;
   };
   /** True, wenn deterministische Mock-Daten geliefert werden. */
@@ -61,6 +61,6 @@ export interface DiscordEmbed {
 export interface DiscordMessagePayload {
   content?: string;
   embeds?: DiscordEmbed[];
-  /** Standardmaessig werden saemtliche Mentions unterdrueckt. */
+  /** Standardmässig werden sämtliche Mentions unterdrückt. */
   allowedMentions?: { parse: Array<'users' | 'roles' | 'everyone'> };
 }

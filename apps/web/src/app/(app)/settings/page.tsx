@@ -9,7 +9,6 @@ import { listPermissions } from '@swisshub/permissions';
 import { getCoreSettings, getModuleSettings, jail } from '@swisshub/modules';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { PageHeader } from '@/components/shared/page-header';
 import { ErrorState } from '@/components/shared/states';
 import { CoreSettingsForm } from '@/modules/settings/components/core-settings-form';
 import { JailSettingsForm } from '@/modules/settings/components/jail-settings-form';
@@ -66,15 +65,10 @@ export default async function SettingsPage(): Promise<React.JSX.Element> {
 
   return (
     <>
-      <PageHeader
-        title="Einstellungen"
-        description="Discord-Anbindung, Rollen, Berechtigungen und Systemverhalten."
-      />
-
       {discordRoles === null ? (
         <ErrorState
           title="Discord derzeit nicht erreichbar"
-          description="Rollen und Channels koennen momentan nicht geladen werden. Bereits gespeicherte Einstellungen bleiben aktiv."
+          description="Rollen und Channels können momentan nicht geladen werden. Bereits gespeicherte Einstellungen bleiben aktiv."
         />
       ) : null}
 
@@ -82,7 +76,7 @@ export default async function SettingsPage(): Promise<React.JSX.Element> {
         <CardHeader>
           <CardTitle>Discord</CardTitle>
           <CardDescription>
-            Verbindung zum SwissHub Discord-Server. Bot Token und Client Secret werden ausschliesslich ueber
+            Verbindung zum SwissHub Discord-Server. Bot Token und Client Secret werden ausschliesslich über
             Environment Variables gesetzt und sind hier bewusst nicht bearbeitbar.
           </CardDescription>
         </CardHeader>
@@ -99,7 +93,7 @@ export default async function SettingsPage(): Promise<React.JSX.Element> {
           </dl>
           <p className="flex items-start gap-2 rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-warning">
             <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
-            Secrets (Bot Token, Client Secret, AUTH_SECRET) gehoeren ausschliesslich in die Environment
+            Secrets (Bot Token, Client Secret, AUTH_SECRET) gehören ausschliesslich in die Environment
             Variables des Servers - niemals in die Datenbank oder das Frontend.
           </p>
         </CardContent>
@@ -154,7 +148,7 @@ export default async function SettingsPage(): Promise<React.JSX.Element> {
         <CardHeader>
           <CardTitle>Rollen &amp; Berechtigungen</CardTitle>
           <CardDescription>
-            Discord-Rollen Berechtigungen zuordnen, Moderationsstufen festlegen und geschuetzte Rollen
+            Discord-Rollen Berechtigungen zuordnen, Moderationsstufen festlegen und geschützte Rollen
             definieren.
           </CardDescription>
         </CardHeader>

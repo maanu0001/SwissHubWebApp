@@ -41,7 +41,7 @@ export default async function JailDetailPage({
     notFound();
   }
 
-  // Rollennamen sind Komfort - faellt Discord aus, werden IDs angezeigt.
+  // Rollennamen sind Komfort - fällt Discord aus, werden IDs angezeigt.
   const roles = await discord.roles.list().catch(() => []);
   const roleName = (roleId: string): { name: string; color: number } => {
     const role = roles.find((entry_) => entry_.id === roleId);
@@ -53,13 +53,13 @@ export default async function JailDetailPage({
   return (
     <>
       <PageHeader
-        title={`Jail: ${entry.targetDisplayName ?? entry.targetUsername}`}
+        title={`${entry.targetDisplayName ?? entry.targetUsername}`}
         description={`Erstellt am ${formatDateTime(entry.startedAt)} durch ${entry.moderatorUsername}.`}
         actions={
           <div className="flex items-center gap-2">
             <Link href="/jail" className={cn(buttonVariants({ variant: 'outline', size: 'sm' }))}>
               <ArrowLeft aria-hidden="true" />
-              Zurueck
+              Zurück
             </Link>
             {active && can(context, jail.JAIL_PERMISSIONS.release) ? (
               <ReleaseJailButton
@@ -147,7 +147,7 @@ export default async function JailDetailPage({
             {entry.keptRoleIds.length > 0 ? (
               <section>
                 <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  Waehrend des Jails behalten ({entry.keptRoleIds.length})
+                  Während des Jails behalten ({entry.keptRoleIds.length})
                 </h3>
                 <div className="flex flex-wrap gap-1.5">
                   {entry.keptRoleIds.map((roleId) => {
@@ -188,7 +188,7 @@ export default async function JailDetailPage({
                       })}
                     </div>
                     <p className="mt-2 text-xs text-muted-foreground">
-                      Rollen koennen geloescht worden sein oder liegen ueber der Rolle des Bots.
+                      Rollen können gelöscht worden sein oder liegen über der Rolle des Bots.
                     </p>
                   </section>
                 ) : null}

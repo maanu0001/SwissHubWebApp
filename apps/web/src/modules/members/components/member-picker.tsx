@@ -29,7 +29,7 @@ const DEBOUNCE_MS = 350;
 
 /**
  * Mitgliedersuche mit Debouncing.
- * Die eigentliche Suche laeuft serverseitig (Rate Limit + Berechtigungspruefung).
+ * Die eigentliche Suche läuft serverseitig (Rate Limit + Berechtigungsprüfung).
  */
 export function MemberPicker({
   csrfToken,
@@ -107,7 +107,7 @@ export function MemberPicker({
             }}
             className="text-xs font-medium text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
           >
-            Aendern
+            Ändern
           </button>
         </div>
       </div>
@@ -142,7 +142,7 @@ export function MemberPicker({
         ) : null}
       </div>
       <p id="member-search-hint" className="text-xs text-muted-foreground">
-        Mindestens 2 Zeichen. Discord IDs werden direkt aufgeloest.
+        Mindestens 2 Zeichen. Discord IDs werden direkt aufgelöst.
       </p>
 
       {results.length > 0 ? (

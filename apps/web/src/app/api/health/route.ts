@@ -5,9 +5,9 @@ import { readBotStatus } from '@swisshub/modules';
 export const dynamic = 'force-dynamic';
 
 /**
- * Health Check fuer Monitoring/Container-Orchestrierung.
+ * Health Check für Monitoring/Container-Orchestrierung.
  * Gibt bewusst keine internen Details preis (keine Fehlermeldungen, keine
- * Versionsnummern von Abhaengigkeiten, keine IDs).
+ * Versionsnummern von Abhängigkeiten, keine IDs).
  */
 export async function GET(): Promise<NextResponse> {
   const [database, bot] = await Promise.all([checkDatabase(), readBotStatus().catch(() => null)]);

@@ -5,7 +5,7 @@ import type { JailListQuery } from './schemas';
 
 /**
  * Lesezugriffe des Jail-Moduls. Bewusst getrennt von den schreibenden
- * Services, damit Listen-/Detailansichten keine Seiteneffekte ausloesen.
+ * Services, damit Listen-/Detailansichten keine Seiteneffekte auslösen.
  */
 export async function listJails(query: JailListQuery): Promise<Paginated<JailEntry>> {
   const where: Prisma.JailEntryWhereInput = {
@@ -46,7 +46,7 @@ export async function getActiveJail(discordId: string): Promise<JailEntry | null
   return prisma.jailEntry.findUnique({ where: { activeKey: discordId } });
 }
 
-/** Vollstaendige Jail-Historie eines Mitglieds. */
+/** Vollständige Jail-Historie eines Mitglieds. */
 export async function getJailHistory(discordId: string, limit = 25): Promise<JailEntry[]> {
   return prisma.jailEntry.findMany({
     where: { targetDiscordId: discordId },

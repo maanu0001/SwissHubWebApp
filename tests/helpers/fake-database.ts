@@ -1,11 +1,11 @@
 /**
- * In-Memory-Ersatz fuer `@swisshub/database`.
+ * In-Memory-Ersatz für `@swisshub/database`.
  *
  * Damit lassen sich die Integrationstests des Jail-Moduls ohne laufende
- * PostgreSQL-Instanz ausfuehren. Die fuer die Sicherheit entscheidenden
+ * PostgreSQL-Instanz ausführen. Die für die Sicherheit entscheidenden
  * Eigenschaften werden bewusst nachgebildet:
  *   - Unique-Constraint auf `activeKey`  -> nur ein aktiver Jail pro Mitglied,
- *   - Unique-Constraint auf Idempotenzschluesseln,
+ *   - Unique-Constraint auf Idempotenzschlüsseln,
  *   - `updateMany` mit Filter            -> atomares "Beanspruchen" des Release.
  */
 
@@ -127,7 +127,7 @@ function matchesJail(entry: FakeJailEntry, where: Filter): boolean {
   });
 }
 
-/** Erzeugt das Mock-Modul fuer `vi.mock('@swisshub/database', ...)`. */
+/** Erzeugt das Mock-Modul für `vi.mock('@swisshub/database', ...)`. */
 export function createFakeDatabaseModule(state: FakeState) {
   const prisma = {
     async $transaction<T>(handler: (tx: unknown) => Promise<T>): Promise<T> {

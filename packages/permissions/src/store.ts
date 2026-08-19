@@ -4,10 +4,10 @@ import { ADMIN_FULL } from './registry';
 import type { RolePermissionMapping } from './engine';
 
 /**
- * Laedt die Rollen-/Permission-Konfiguration aus der Datenbank.
+ * Lädt die Rollen-/Permission-Konfiguration aus der Datenbank.
  *
- * Ein kurzer In-Memory-Cache haelt die Last klein; Aenderungen ueber die
- * Einstellungen invalidieren ihn sofort. Die TTL begrenzt zusaetzlich, wie lange
+ * Ein kurzer In-Memory-Cache hält die Last klein; Änderungen über die
+ * Einstellungen invalidieren ihn sofort. Die TTL begrenzt zusätzlich, wie lange
  * eine zweite Instanz veraltete Daten sehen kann.
  */
 export interface RoleConfiguration {
@@ -57,7 +57,7 @@ export async function loadRoleConfiguration(force = false): Promise<RoleConfigur
 }
 
 /**
- * Legt beim ersten Start die Administratorrolle an, damit sich ueberhaupt
+ * Legt beim ersten Start die Administratorrolle an, damit sich überhaupt
  * jemand anmelden und die restliche Konfiguration vornehmen kann.
  */
 export async function ensureBootstrapRoles(): Promise<void> {

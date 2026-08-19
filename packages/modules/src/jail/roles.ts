@@ -2,30 +2,38 @@ import { filterManageableRoles } from '@swisshub/permissions';
 import type { GuildRole } from '@swisshub/discord';
 
 /**
- * Reine Rollenberechnung fuer Jail und Release.
+ * Reine Rollenberechnung für Jail und Release.
  *
- * Bewusst ohne Seiteneffekte, damit die Logik vollstaendig testbar ist -
- * hier entscheidet sich, welche Rollen ein Mitglied verliert und zurueckerhaelt.
+ * Bewusst ohne Seiteneffekte, damit die Logik vollständig testbar ist -
+ * hier entscheidet sich, welche Rollen ein Mitglied verliert und zurückerhält.
  */
 export interface JailRolePlanInput {
   currentRoleIds: readonly string[];
   guildRoles: readonly GuildRole[];
   botHighestPosition: number;
   jailRoleId: string;
-  /** Rollen, die waehrend des Jails erhalten bleiben sollen. */
+  /** Rollen, die während des Jails erhalten bleiben sollen. */
   keepRoleIds: ReadonlySet<string>;
 }
 
 export interface JailRolePlan {
-  /** Vollstaendige Rollenliste, die auf Discord gesetzt wird. */
+  /** Vollständige Rollenliste, die auf Discord gesetzt wird. */
   nextRoleIds: string[];
-  /** Snapshot der Rollen vor dem Jail (fuer die Wiederherstellung). */
+  /** Snapshot der Rollen vor dem Jail (für die Wiederherstellung). */
   snapshotRoleIds: string[];
   /** Rollen, die entfernt werden. */
   removedRoleIds: string[];
   /** Rollen, die absichtlich erhalten bleiben. */
   keptRoleIds: string[];
-  /** Rollen, die der Bot nicht verwalten kann und die deshalb bleiben. */
+  /**
+   * Von Discord verwaltete Rollen (Booster, Integrationen). Sie lassen sich
+   * grundsätzlich von niemandem entfernen und gelten deshalb nicht als Fehler.
+   */
+  managedRoleIds: string[];
+  /**
+   * Rollen, die der Bot wegen seiner Rollenposition nicht entfernen kann.
+   * Das ist ein Konfigurationsproblem und wird als Warnung gemeldet.
+   */
   untouchableRoleIds: string[];
 }
 
@@ -33,11 +41,15 @@ export function planJailRoles(input: JailRolePlanInput): JailRolePlan {
   const current = [...new Set(input.currentRoleIds)].filter((roleId) => roleId !== input.jailRoleId);
   const { manageable, blocked } = filterManageableRoles(current, input.guildRoles, input.botHighestPosition);
 
-  // Bewusst behaltene Rollen zaehlen als "kept" - auch wenn sie ohnehin nicht
-  // entfernt werden koennten (z.B. von Discord verwaltete Booster-Rollen).
+  // Bewusst behaltene Rollen zählen als "kept" - auch wenn sie ohnehin nicht
+  // entfernt werden könnten (z.B. von Discord verwaltete Booster-Rollen).
   const kept = current.filter((roleId) => input.keepRoleIds.has(roleId));
   const removed = manageable.filter((roleId) => !input.keepRoleIds.has(roleId));
-  const untouchable = blocked.filter((roleId) => !input.keepRoleIds.has(roleId));
+  const remaining = blocked.filter((roleId) => !input.keepRoleIds.has(roleId));
+  const isManaged = (roleId: string): boolean =>
+    input.guildRoles.find((role) => role.id === roleId)?.managed === true;
+  const managedRoleIds = remaining.filter(isManaged);
+  const untouchable = remaining.filter((roleId) => !isManaged(roleId));
   const nextRoleIds = [...new Set([...blocked, ...kept, input.jailRoleId])];
 
   return {
@@ -45,12 +57,13 @@ export function planJailRoles(input: JailRolePlanInput): JailRolePlan {
     snapshotRoleIds: current,
     removedRoleIds: removed,
     keptRoleIds: kept,
+    managedRoleIds,
     untouchableRoleIds: untouchable,
   };
 }
 
 export interface ReleaseRolePlanInput {
-  /** Rollen, die das Mitglied aktuell auf Discord traegt. */
+  /** Rollen, die das Mitglied aktuell auf Discord trägt. */
   currentRoleIds: readonly string[];
   /** Snapshot aus dem Jail-Datensatz. */
   snapshotRoleIds: readonly string[];
@@ -61,15 +74,15 @@ export interface ReleaseRolePlanInput {
 
 export interface ReleaseRolePlan {
   nextRoleIds: string[];
-  /** Rollen, die wiederhergestellt werden koennen. */
+  /** Rollen, die wiederhergestellt werden können. */
   restorableRoleIds: string[];
-  /** Rollen, die nicht wiederhergestellt werden koennen (geloescht, zu hoch, managed). */
+  /** Rollen, die nicht wiederhergestellt werden können (gelöscht, zu hoch, managed). */
   unrestorableRoleIds: string[];
 }
 
 /**
  * Stellt Rollen nur wieder her, wenn sie weiterhin existieren und vom Bot
- * verwaltet werden duerfen. Geloeschte oder zu hohe Rollen werden ausgelassen
+ * verwaltet werden dürfen. Gelöschte oder zu hohe Rollen werden ausgelassen
  * statt den gesamten Release scheitern zu lassen.
  */
 export function planReleaseRoles(input: ReleaseRolePlanInput): ReleaseRolePlan {

@@ -23,14 +23,14 @@ export default async function AccessDeniedPage(): Promise<React.JSX.Element> {
             <CardTitle className="text-xl">Kein Zugriff auf {branding.name}</CardTitle>
             <CardDescription>
               Du bist derzeit kein Mitglied des {branding.name} Discord-Servers. Die WebApp steht
-              ausschliesslich Mitgliedern zur Verfuegung.
+              ausschliesslich Mitgliedern zur Verfügung.
             </CardDescription>
           </div>
         </CardHeader>
         <CardContent className="space-y-4 text-center text-sm text-muted-foreground">
           <p>
             Tritt dem Discord-Server bei und melde dich anschliessend erneut an. Falls du sicher bist, dass du
-            Mitglied bist, warte einen Moment - die Mitgliedschaft wird regelmaessig neu geprueft.
+            Mitglied bist, warte einen Moment - die Mitgliedschaft wird regelmässig neu geprüft.
           </p>
           {context ? (
             <div className="flex justify-center">

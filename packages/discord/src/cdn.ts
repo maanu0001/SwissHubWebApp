@@ -15,7 +15,7 @@ export function memberAvatarUrl(
   return `${CDN}/avatars/${discordId}/${avatarHash}.${extension}?size=${size}`;
 }
 
-/** Discords Standard-Avatar fuer Accounts ohne eigenes Bild. */
+/** Discords Standard-Avatar für Accounts ohne eigenes Bild. */
 export function defaultAvatarUrl(discordId: string): string {
   let index = 0;
   try {

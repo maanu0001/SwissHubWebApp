@@ -14,7 +14,7 @@ export function EmptyState({ title, description, action, className }: StateProps
   return (
     <div
       className={cn(
-        'flex flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-border/80 px-6 py-14 text-center',
+        'flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-border px-6 py-12 text-center',
         className,
       )}
     >
@@ -60,7 +60,7 @@ export function PermissionDeniedState({ description }: { description?: string })
       <div className="space-y-1">
         <p className="font-medium">Keine Berechtigung</p>
         <p className="text-sm text-muted-foreground">
-          {description ?? 'Dir fehlt die erforderliche Berechtigung fuer diesen Bereich.'}
+          {description ?? 'Dir fehlt die erforderliche Berechtigung für diesen Bereich.'}
         </p>
       </div>
     </div>

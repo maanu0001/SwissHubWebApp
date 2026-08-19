@@ -1,7 +1,7 @@
 import { Skeleton } from '@/components/ui/skeleton';
 import { TableSkeleton } from '@/components/shared/states';
 
-/** Ladezustand waehrend die Serverdaten geholt werden. */
+/** Ladezustand während die Serverdaten geholt werden. */
 export default function Loading(): React.JSX.Element {
   return (
     <div className="space-y-6">

@@ -15,7 +15,7 @@ const ROLES: GuildRole[] = [
 const BOT_POSITION = 80;
 
 describe('Rollenhierarchie', () => {
-  it('bestimmt die hoechste Rollenposition', () => {
+  it('bestimmt die höchste Rollenposition', () => {
     expect(highestRolePosition(['r-member', 'r-mod'], ROLES)).toBe(70);
     expect(highestRolePosition([], ROLES)).toBe(0);
     expect(highestRolePosition(['unbekannt'], ROLES)).toBe(0);
@@ -51,7 +51,7 @@ describe('Jail-Rollenplanung', () => {
     expect(plan.snapshotRoleIds.sort()).toEqual(['r-member', 'r-mod']);
   });
 
-  it('behaelt konfigurierte Rollen (z.B. Booster) bei', () => {
+  it('behält konfigurierte Rollen (z.B. Booster) bei', () => {
     const plan = jail.planJailRoles({
       currentRoleIds: ['r-member', 'r-mod'],
       guildRoles: ROLES,
@@ -66,7 +66,7 @@ describe('Jail-Rollenplanung', () => {
     expect(plan.removedRoleIds).toEqual(['r-mod']);
   });
 
-  it('laesst nicht verwaltbare Rollen unangetastet', () => {
+  it('lässt nicht verwaltbare Rollen unangetastet', () => {
     const plan = jail.planJailRoles({
       currentRoleIds: ['r-admin', 'r-booster', 'r-member'],
       guildRoles: ROLES,
@@ -75,7 +75,10 @@ describe('Jail-Rollenplanung', () => {
       keepRoleIds: new Set(),
     });
 
-    expect(plan.untouchableRoleIds.sort()).toEqual(['r-admin', 'r-booster']);
+    // Von Discord verwaltete Rollen (Booster) sind kein Konfigurationsproblem,
+    // Rollen oberhalb der Bot-Rolle dagegen schon.
+    expect(plan.managedRoleIds).toEqual(['r-booster']);
+    expect(plan.untouchableRoleIds).toEqual(['r-admin']);
     expect(plan.nextRoleIds).toContain('r-admin');
     expect(plan.nextRoleIds).toContain('r-booster');
     expect(plan.nextRoleIds).not.toContain('r-member');
@@ -110,17 +113,17 @@ describe('Release-Rollenplanung', () => {
     expect(plan.unrestorableRoleIds).toEqual([]);
   });
 
-  it('ueberspringt geloeschte Rollen statt den Release scheitern zu lassen', () => {
+  it('überspringt gelöschte Rollen statt den Release scheitern zu lassen', () => {
     const plan = jail.planReleaseRoles({
       currentRoleIds: ['r-jail'],
-      snapshotRoleIds: ['r-member', 'r-geloescht'],
+      snapshotRoleIds: ['r-member', 'r-gelöscht'],
       guildRoles: ROLES,
       botHighestPosition: BOT_POSITION,
       jailRoleId: 'r-jail',
     });
 
     expect(plan.restorableRoleIds).toEqual(['r-member']);
-    expect(plan.unrestorableRoleIds).toEqual(['r-geloescht']);
+    expect(plan.unrestorableRoleIds).toEqual(['r-gelöscht']);
     expect(plan.nextRoleIds).not.toContain('r-jail');
   });
 
@@ -137,7 +140,7 @@ describe('Release-Rollenplanung', () => {
     expect(plan.unrestorableRoleIds).toEqual(['r-admin']);
   });
 
-  it('behaelt Rollen, die das Mitglied waehrend des Jails erhalten hat', () => {
+  it('behält Rollen, die das Mitglied während des Jails erhalten hat', () => {
     const plan = jail.planReleaseRoles({
       currentRoleIds: ['r-jail', 'r-booster'],
       snapshotRoleIds: ['r-member'],

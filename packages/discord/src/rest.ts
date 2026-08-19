@@ -46,7 +46,7 @@ function bucketKey(method: string, route: string, override?: string): string {
 }
 
 /**
- * Fuehrt eine Discord REST Anfrage aus.
+ * Führt eine Discord REST Anfrage aus.
  *
  * - Anfragen desselben Buckets laufen seriell (keine aggressiven Parallelbursts).
  * - `429` wird respektiert (inkl. globalem Limit) und begrenzt wiederholt.
@@ -62,7 +62,7 @@ export async function discordRequest<T>(route: string, options: RequestOptions =
     () => execute<T>(route, method, options, state),
     () => execute<T>(route, method, options, state),
   );
-  // Fehler duerfen die Kette nicht unterbrechen.
+  // Fehler dürfen die Kette nicht unterbrechen.
   state.chain = run.catch(() => undefined);
   return run;
 }
@@ -153,7 +153,7 @@ async function execute<T>(
     return (await response.json()) as T;
   }
 
-  throw new DiscordApiError(0, undefined, route, 'Anfrage konnte nicht ausgefuehrt werden');
+  throw new DiscordApiError(0, undefined, route, 'Anfrage konnte nicht ausgeführt werden');
 }
 
 function buildHeaders(options: RequestOptions): Record<string, string> {
@@ -187,7 +187,7 @@ async function safeJson(response: Response): Promise<unknown> {
   }
 }
 
-/** Nur fuer Tests: setzt die Rate-Limit-Buchhaltung zurueck. */
+/** Nur für Tests: setzt die Rate-Limit-Buchhaltung zurück. */
 export function resetRestState(): void {
   buckets.clear();
   globalResetAt = 0;

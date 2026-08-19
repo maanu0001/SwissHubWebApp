@@ -19,7 +19,7 @@ export default function GlobalError({
   reset: () => void;
 }): React.JSX.Element {
   useEffect(() => {
-    // Nur die Referenz protokollieren - der Server hat den vollstaendigen Fehler.
+    // Nur die Referenz protokollieren - der Server hat den vollständigen Fehler.
     console.error('Unerwarteter Fehler', error.digest ?? '');
   }, [error]);
 
@@ -30,7 +30,7 @@ export default function GlobalError({
           <span className="rounded-full bg-destructive/15 p-3 text-destructive">
             <AlertOctagon className="size-6" aria-hidden="true" />
           </span>
-          <CardTitle className="text-xl">Aktion konnte nicht ausgefuehrt werden</CardTitle>
+          <CardTitle className="text-xl">Aktion konnte nicht ausgeführt werden</CardTitle>
           <CardDescription>
             Es ist ein unerwarteter Fehler aufgetreten. Bitte versuche es erneut. Falls das Problem bestehen
             bleibt, wende dich an einen Administrator.

@@ -1,6 +1,6 @@
 import type { GuildRole } from '@swisshub/discord';
 
-/** Hoechste Rollenposition eines Mitglieds (0 = @everyone). */
+/** Höchste Rollenposition eines Mitglieds (0 = @everyone). */
 export function highestRolePosition(roleIds: readonly string[], roles: readonly GuildRole[]): number {
   let highest = 0;
   for (const roleId of roleIds) {
@@ -13,7 +13,7 @@ export function highestRolePosition(roleIds: readonly string[], roles: readonly 
 }
 
 /**
- * Rollen, die der Bot verwalten darf: strikt unterhalb seiner hoechsten Rolle
+ * Rollen, die der Bot verwalten darf: strikt unterhalb seiner höchsten Rolle
  * und nicht von Discord verwaltet (Integrations-/Booster-Rollen).
  */
 export function isRoleManageableByBot(role: GuildRole | undefined, botHighestPosition: number): boolean {

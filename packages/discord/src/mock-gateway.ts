@@ -6,7 +6,7 @@ import type { GuildMember, GuildRole } from './types';
 const log = createLogger('discord:mock');
 
 /**
- * Deterministische Mock-Daten fuer die UI-Entwicklung ohne Discord-Zugang.
+ * Deterministische Mock-Daten für die UI-Entwicklung ohne Discord-Zugang.
  *
  * Wird ausschliesslich aktiviert, wenn `DEV_MOCK_DISCORD=true` UND
  * `NODE_ENV !== 'production'` gilt (siehe `discordMocksEnabled()`), damit dieser
@@ -103,7 +103,7 @@ function buildMember(id: string, username: string, displayName: string, roleIds:
 
 export function createMockGateway(): DiscordGateway {
   const state = new Map(MOCK_MEMBERS.map((member) => [member.discordId, { ...member }]));
-  log.warn('Discord Mock-Modus aktiv - es werden KEINE echten Discord-Aktionen ausgefuehrt');
+  log.warn('Discord Mock-Modus aktiv - es werden KEINE echten Discord-Aktionen ausgeführt');
 
   return {
     members: {
@@ -171,6 +171,7 @@ export function createMockGateway(): DiscordGateway {
           name: 'SwissHub (Mock)',
           iconHash: null,
           approximateMemberCount: state.size,
+          approximatePresenceCount: Math.max(1, Math.round(state.size / 2)),
           ownerId: '100000000000000001',
         };
       },

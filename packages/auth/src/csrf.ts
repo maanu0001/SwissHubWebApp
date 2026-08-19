@@ -4,8 +4,8 @@ import { hmacSha256, safeEqual } from '@swisshub/shared/crypto';
 /**
  * CSRF-Schutz (Double Submit + sessiongebundener HMAC).
  *
- * Next.js prueft bei Server Actions bereits den Origin-Header. Der Token hier
- * ist die zweite Verteidigungslinie (Defense in Depth) und schuetzt zusaetzlich
+ * Next.js prüft bei Server Actions bereits den Origin-Header. Der Token hier
+ * ist die zweite Verteidigungslinie (Defense in Depth) und schützt zusätzlich
  * die Route Handler.
  */
 export function issueCsrfToken(sessionId: string): string {

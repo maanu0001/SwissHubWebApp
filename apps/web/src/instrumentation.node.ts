@@ -5,7 +5,7 @@ import { ensureBootstrapRoles } from '@swisshub/permissions';
 const log = createLogger('web');
 
 /**
- * Startpruefung der WebApp:
+ * Startprüfung der WebApp:
  *  1. Umgebungsvariablen validieren (Fail Fast mit klarer Meldung),
  *  2. Administratorrolle aus der Umgebung bootstrappen.
  */
@@ -24,7 +24,7 @@ async function bootstrap(): Promise<void> {
   }
 
   await ensureBootstrapRoles().catch((error: unknown) => {
-    log.warn('Bootstrap der Administratorrolle uebersprungen', { error });
+    log.warn('Bootstrap der Administratorrolle übersprungen', { error });
   });
 
   registerShutdownHooks();
@@ -33,7 +33,7 @@ async function bootstrap(): Promise<void> {
 
 /**
  * Graceful Shutdown: Datenbankverbindungen sauber schliessen, damit beim
- * Deployment keine haengenden Verbindungen zurueckbleiben.
+ * Deployment keine hängenden Verbindungen zurückbleiben.
  */
 function registerShutdownHooks(): void {
   let shuttingDown = false;

@@ -4,9 +4,9 @@ import { cn } from '@/lib/utils';
 /**
  * Zentrale Marken-Darstellung.
  *
- * Ein spaeteres SwissHub-Logo wird einfach unter `public/branding/logo.svg`
- * bzw. `public/branding/logo-mark.svg` abgelegt - Codeaenderungen sind dafuer
- * nicht noetig. Farben und Namen kommen aus `@swisshub/config/client`.
+ * Ein späteres SwissHub-Logo wird einfach unter `public/branding/logo.svg`
+ * bzw. `public/branding/logo-mark.svg` abgelegt - Codeänderungen sind dafür
+ * nicht nötig. Farben und Namen kommen aus `@swisshub/config/client`.
  */
 export function BrandMark({
   size = 36,

@@ -1,6 +1,6 @@
 # Architektur
 
-## 1. Ueberblick
+## 1. Überblick
 
 Die SwissHub Bot WebApp besteht aus drei Laufzeitkomponenten und einem gemeinsamen
 Paket-Kern in einem npm-Workspace-Monorepo.
@@ -29,19 +29,19 @@ Paket-Kern in einem npm-Workspace-Monorepo.
                         +---------------------------+
 ```
 
-- **WebApp** rendert die Oberflaeche und fuehrt Moderationsaktionen aus. Discord-Aufrufe laufen
-  ueber die REST-Abstraktion, niemals direkt aus React-Komponenten.
-- **Bot** haelt die Gateway-Verbindung, schreibt den Heartbeat und erledigt zeitgesteuerte
-  Aufgaben (automatische Freilassung, Reconciliation, Aufraeumen).
-- **PostgreSQL** ist Source of Truth fuer alles, was einen Neustart ueberleben muss.
+- **WebApp** rendert die Oberfläche und führt Moderationsaktionen aus. Discord-Aufrufe laufen
+  über die REST-Abstraktion, niemals direkt aus React-Komponenten.
+- **Bot** hält die Gateway-Verbindung, schreibt den Heartbeat und erledigt zeitgesteuerte
+  Aufgaben (automatische Freilassung, Reconciliation, Aufräumen).
+- **PostgreSQL** ist Source of Truth für alles, was einen Neustart überleben muss.
 
 WebApp und Bot kommunizieren **nicht** direkt miteinander - sie teilen sich Datenbank und
-Servicecode. Dadurch gibt es keinen zusaetzlichen RPC-Kanal, der abgesichert werden muesste,
-und beide Prozesse koennen unabhaengig neu gestartet werden.
+Servicecode. Dadurch gibt es keinen zusätzlichen RPC-Kanal, der abgesichert werden müsste,
+und beide Prozesse können unabhängig neu gestartet werden.
 
 ## 2. Pakete
 
-| Paket                   | Verantwortung                                                                 | Abhaengig von          |
+| Paket                   | Verantwortung                                                                 | Abhängig von           |
 | ----------------------- | ----------------------------------------------------------------------------- | ---------------------- |
 | `@swisshub/config`      | ENV-Validierung (Zod), Branding, Cookie-/Session-/Job-Konstanten              | -                      |
 | `@swisshub/shared`      | Fehlerhierarchie, `ActionResult`, Zeit-/Textutilities, Pagination, Krypto     | -                      |
@@ -52,7 +52,7 @@ und beide Prozesse koennen unabhaengig neu gestartet werden.
 | `@swisshub/modules`     | Module Registry, Kernbereiche, Jail-Modul, Mitglieder-Service, Bot-Status     | alle oberen            |
 | `@swisshub/auth`        | Discord OAuth2 (PKCE), Sessions, Identity-Refresh, CSRF, AuthContext          | alle oberen            |
 
-Die Abhaengigkeiten zeigen strikt in eine Richtung. `packages/discord` kennt weder Datenbank
+Die Abhängigkeiten zeigen strikt in eine Richtung. `packages/discord` kennt weder Datenbank
 noch Berechtigungen; `packages/permissions` kennt keine UI.
 
 ## 3. Request Flow (Moderationsaktion)
@@ -64,14 +64,14 @@ UI (Client Component)
 apps/web/src/server/action.ts        (defineAction)
   |  1. Session validieren                     -> UNAUTHENTICATED
   |  2. Guild-Mitgliedschaft (frisch)          -> NOT_A_MEMBER
-  |  3. CSRF-Token pruefen                     -> FORBIDDEN + SecurityEvent
+  |  3. CSRF-Token prüfen                     -> FORBIDDEN + SecurityEvent
   |  4. Rate Limit (DB, serverseitig)          -> RATE_LIMITED
   |  5. Zod-Validierung                        -> VALIDATION_FAILED
   |  6. Permission Engine                      -> FORBIDDEN + Audit
   v
 packages/modules/src/jail/service.ts
   |  7. Moderation Policy (Hierarchie/Schutz)  -> POLICY_VIOLATION + Audit
-  |  8. Idempotenzschluessel reservieren       -> CONFLICT (Duplikat)
+  |  8. Idempotenzschlüssel reservieren       -> CONFLICT (Duplikat)
   |  9. DB-Datensatz PENDING (Unique activeKey)-> CONFLICT (Race)
   | 10. Discord-Aktion (REST)                  -> FAILED + Audit
   | 11. Status COMPLETED/PARTIAL + Audit + ModerationAction
@@ -85,42 +85,42 @@ Jeder Schritt kann abbrechen; ein Abbruch bedeutet immer **keine Discord-Aktion*
 
 ## 4. Zustandsmodell einer Moderationsaktion
 
-Discord-API und Datenbank lassen sich nicht in einer gemeinsamen Transaktion ausfuehren.
-Deshalb traegt jeder Jail-Datensatz einen expliziten Status:
+Discord-API und Datenbank lassen sich nicht in einer gemeinsamen Transaktion ausführen.
+Deshalb trägt jeder Jail-Datensatz einen expliziten Status:
 
 | Status      | Bedeutung                                                            |
 | ----------- | -------------------------------------------------------------------- |
 | `PENDING`   | Datensatz erstellt, Discord-Aktion noch nicht gestartet              |
-| `EXECUTING` | Discord-Aktion laeuft                                                |
+| `EXECUTING` | Discord-Aktion läuft                                                 |
 | `COMPLETED` | Discord-Aktion erfolgreich                                           |
 | `PARTIAL`   | teilweise erfolgreich (z.B. einzelne Rollen nicht wiederherstellbar) |
 | `FAILED`    | Discord-Aktion fehlgeschlagen - der Jail gilt als nicht aktiv        |
 
-`recoverStuckJails()` setzt Vorgaenge zurueck, die laenger als 5 Minuten in `PENDING`/`EXECUTING`
-haengen (Absturz, Deployment). `reconcileJails()` vergleicht anschliessend den Discord-Zustand
+`recoverStuckJails()` setzt Vorgänge zurück, die länger als 5 Minuten in `PENDING`/`EXECUTING`
+hängen (Absturz, Deployment). `reconcileJails()` vergleicht anschliessend den Discord-Zustand
 mit der Datenbank und korrigiert Abweichungen.
 
-## 5. Nebenlaeufigkeit
+## 5. Nebenläufigkeit
 
-| Risiko                                               | Schutz                                                                                   |
-| ---------------------------------------------------- | ---------------------------------------------------------------------------------------- |
-| Doppelklick / Retry / Refresh                        | Idempotenzschluessel (`IdempotencyRecord`, Unique)                                       |
-| Zwei Moderatoren jailen gleichzeitig dieselbe Person | `JailEntry.activeKey` ist `UNIQUE` und traegt die Discord-ID, solange der Jail aktiv ist |
-| Gleichzeitige Freilassung (Moderator + Sweep-Job)    | `updateMany` mit Filter `releasedAt: null` beansprucht den Release atomar                |
-| Parallele Audit-Schreibvorgaenge                     | `pg_advisory_xact_lock` serialisiert die Hash-Chain                                      |
-| Sweep-Job ueberlappt sich selbst                     | Job-Runner ueberspringt Ticks, solange ein Durchgang laeuft                              |
+| Risiko                                               | Schutz                                                                                  |
+| ---------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| Doppelklick / Retry / Refresh                        | Idempotenzschlüssel (`IdempotencyRecord`, Unique)                                       |
+| Zwei Moderatoren jailen gleichzeitig dieselbe Person | `JailEntry.activeKey` ist `UNIQUE` und trägt die Discord-ID, solange der Jail aktiv ist |
+| Gleichzeitige Freilassung (Moderator + Sweep-Job)    | `updateMany` mit Filter `releasedAt: null` beansprucht den Release atomar               |
+| Parallele Audit-Schreibvorgänge                      | `pg_advisory_xact_lock` serialisiert die Hash-Chain                                     |
+| Sweep-Job überlappt sich selbst                      | Job-Runner überspringt Ticks, solange ein Durchgang läuft                               |
 
-## 6. Aktualitaet der Discord-Rollen
+## 6. Aktualität der Discord-Rollen
 
-Rollen koennen sich jederzeit aendern, deshalb wird nie mit Daten aus einer alten Session
+Rollen können sich jederzeit ändern, deshalb wird nie mit Daten aus einer alten Session
 gearbeitet:
 
 - `DiscordIdentityCache` speichert Mitgliedschaft und Rollen mit Zeitstempel.
-- Normale Seitenaufrufe duerfen den Cache bis `ROLE_CACHE_TTL_SECONDS` (Standard 300 s) nutzen.
+- Normale Seitenaufrufe dürfen den Cache bis `ROLE_CACHE_TTL_SECONDS` (Standard 300 s) nutzen.
 - **Schreibende Aktionen** laufen mit `freshness: 'critical'` und akzeptieren maximal
   `ROLE_CRITICAL_TTL_SECONDS` (Standard 30 s) alte Daten - sonst wird direkt bei Discord geladen.
 - Der Bot invalidiert den Cache sofort bei `GuildMemberUpdate`/`GuildMemberRemove`.
-- Faellt Discord aus, gilt der Benutzer als **nicht** berechtigt (Fail Closed).
+- Fällt Discord aus, gilt der Benutzer als **nicht** berechtigt (Fail Closed).
 
 ## 7. Datenmodell (Auszug)
 
@@ -131,7 +131,7 @@ User ──1:1── DiscordIdentityCache
 ManagedRole ──1:n── RolePermission        (Discord-Rolle -> Permission)
 
 JailEntry     activeKey UNIQUE, idempotencyKey UNIQUE, roleSnapshot[]
-ModerationAction                          modulunabhaengige Historie
+ModerationAction                          modulunabhängige Historie
 AuditLog      sequence, previousHash, hash (Hash-Chain)
 SecurityEvent
 SystemConfig  key/value (validiert per Zod)
@@ -144,23 +144,23 @@ Alle Zeitstempel werden in UTC gespeichert und erst im UI in `Europe/Zurich` dar
 
 ## 8. Datensparsamkeit
 
-Es wird bewusst **keine** vollstaendige Kopie der Discord-Mitgliederdatenbank gefuehrt:
+Es wird bewusst **keine** vollständige Kopie der Discord-Mitgliederdatenbank geführt:
 
-| Dauerhaft gespeichert                                                        | Nur temporaer von Discord geladen         |
+| Dauerhaft gespeichert                                                        | Nur temporär von Discord geladen          |
 | ---------------------------------------------------------------------------- | ----------------------------------------- |
 | Discord-ID, Username, Anzeigename, Avatar-Hash der **angemeldeten** Benutzer | Mitgliederlisten und Suchergebnisse       |
 | Mitgliedschaft + Rollen-IDs (Cache mit TTL)                                  | Rollennamen und Farben                    |
-| Moderationsvorgaenge (Jail, Audit) inkl. Rollen-Snapshot                     | Channel-Listen                            |
+| Moderationsvorgänge (Jail, Audit) inkl. Rollen-Snapshot                      | Channel-Listen                            |
 | Pseudonymisierte IP (HMAC) und User-Agent im Audit Log                       | Profildaten nicht angemeldeter Mitglieder |
 
 ## 9. Beobachtbarkeit
 
 - Strukturiertes JSON-Logging (Production) bzw. lesbare Zeilen (Entwicklung) mit Redaction.
-- `/api/health` prueft WebApp, Datenbank und Bot-Heartbeat.
+- `/api/health` prüft WebApp, Datenbank und Bot-Heartbeat.
 - `BotStatus` liefert Ping, letzten Heartbeat und letzte erfolgreiche Verbindung.
 - `ReconciliationRun` protokolliert jeden Abgleich inklusive gefundener Abweichungen.
-- Die Fehlerobjekte tragen stabile Codes (`AppErrorCode`), sodass sich spaeter Sentry oder
-  ein Metrik-Exporter ohne Umbau anschliessen laesst.
+- Die Fehlerobjekte tragen stabile Codes (`AppErrorCode`), sodass sich später Sentry oder
+  ein Metrik-Exporter ohne Umbau anschliessen lässt.
 
 ## 10. Erweiterbarkeit
 

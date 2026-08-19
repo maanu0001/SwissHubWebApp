@@ -5,8 +5,8 @@ import { getModuleSettings } from '../module-state';
 import { JAIL_MODULE_ID, type JailSettings } from './config';
 
 /**
- * Buendelt alle Discord-/Konfigurationsdaten, die fuer eine Jail-Aktion
- * benoetigt werden. Ein einziger Ladepunkt haelt die Anzahl Discord-Requests
+ * Bündelt alle Discord-/Konfigurationsdaten, die für eine Jail-Aktion
+ * benötigt werden. Ein einziger Ladepunkt hält die Anzahl Discord-Requests
  * klein und macht die Aktionen testbar.
  */
 export interface JailExecutionContext {

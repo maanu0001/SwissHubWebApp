@@ -11,7 +11,7 @@ import { z } from 'zod';
 
 const snowflake = z
   .string()
-  .regex(/^\d{17,20}$/u, 'muss eine gueltige Discord Snowflake ID sein (17-20 Ziffern)');
+  .regex(/^\d{17,20}$/u, 'muss eine gültige Discord Snowflake ID sein (17-20 Ziffern)');
 
 const optionalSnowflake = z
   .string()
@@ -20,7 +20,7 @@ const optionalSnowflake = z
   .optional()
   .refine(
     (value) => value === undefined || /^\d{17,20}$/u.test(value),
-    'muss eine gueltige Discord Snowflake ID sein (17-20 Ziffern)',
+    'muss eine gültige Discord Snowflake ID sein (17-20 Ziffern)',
   );
 
 const boolish = (defaultValue: boolean) =>
@@ -43,12 +43,12 @@ export const serverEnvSchema = z
     NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
 
     /** PostgreSQL connection string used by Prisma. */
-    DATABASE_URL: z.string().min(1, 'wird benoetigt (PostgreSQL Connection String)'),
+    DATABASE_URL: z.string().min(1, 'wird benötigt (PostgreSQL Connection String)'),
 
     /** Discord application + bot credentials. Never exposed to the browser. */
-    DISCORD_BOT_TOKEN: z.string().min(20, 'sieht nicht wie ein gueltiger Bot Token aus'),
+    DISCORD_BOT_TOKEN: z.string().min(20, 'sieht nicht wie ein gültiger Bot Token aus'),
     DISCORD_CLIENT_ID: snowflake,
-    DISCORD_CLIENT_SECRET: z.string().min(10, 'wird benoetigt'),
+    DISCORD_CLIENT_SECRET: z.string().min(10, 'wird benötigt'),
     DISCORD_GUILD_ID: snowflake,
 
     /** Optional bootstrap IDs - can alternatively be configured in the UI. */
@@ -108,10 +108,10 @@ export class EnvironmentError extends Error {
   constructor(readonly issues: string[]) {
     super(
       [
-        'Ungueltige oder fehlende Umgebungsvariablen:',
+        'Ungültige oder fehlende Umgebungsvariablen:',
         ...issues.map((issue) => `  - ${issue}`),
         '',
-        'Bitte .env anhand von .env.example vervollstaendigen.',
+        'Bitte .env anhand von .env.example vervollständigen.',
       ].join('\n'),
     );
     this.name = 'EnvironmentError';

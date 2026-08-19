@@ -78,7 +78,7 @@ describe('Moderation Policy', () => {
     expect(decision.code).toBe('TARGET_IS_BOT');
   });
 
-  it('schuetzt Traeger geschuetzter Rollen', () => {
+  it('schützt Träger geschützter Rollen', () => {
     const decision = evaluateModerationPolicy({
       ...baseInput,
       actor: { ...moderator, moderationLevel: 50 },
@@ -90,7 +90,7 @@ describe('Moderation Policy', () => {
     expect(decision.code).toBe('TARGET_PROTECTED_ROLE');
   });
 
-  it('verhindert Moderation gleich hoher oder hoeherer Discord-Rollen', () => {
+  it('verhindert Moderation gleich hoher oder höherer Discord-Rollen', () => {
     const decision = evaluateModerationPolicy({
       ...baseInput,
       actor: moderator,
@@ -125,7 +125,7 @@ describe('Moderation Policy', () => {
     expect(decision.code).toBe('BOT_ROLE_TOO_LOW');
   });
 
-  it('schuetzt den Guild Owner', () => {
+  it('schützt den Guild Owner', () => {
     const decision = evaluateModerationPolicy({
       ...baseInput,
       actor: moderator,
@@ -143,7 +143,7 @@ describe('Moderation Policy', () => {
     expect(decision.code).toBe('TARGET_NOT_A_MEMBER');
   });
 
-  it('erlaubt dem Owner die Rollenhierarchie zu uebergehen, nicht aber die Schutzregeln', () => {
+  it('erlaubt dem Owner die Rollenhierarchie zu übergehen, nicht aber die Schutzregeln', () => {
     const owner = { discordId: 'sh-owner', roleIds: [], isOwner: true, moderationLevel: 0 };
 
     expect(
@@ -154,7 +154,7 @@ describe('Moderation Policy', () => {
     ).toBe('TARGET_PROTECTED_ROLE');
   });
 
-  it('bestimmt die hoechste Moderationsstufe', () => {
+  it('bestimmt die höchste Moderationsstufe', () => {
     expect(moderationLevelOf(['r-support', 'r-mod'], baseInput.moderationLevels)).toBe(50);
     expect(moderationLevelOf(['r-member'], baseInput.moderationLevels)).toBe(0);
   });

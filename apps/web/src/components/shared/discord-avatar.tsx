@@ -6,7 +6,7 @@ interface DiscordAvatarProps {
   discordId: string;
   avatarHash?: string | null;
   name: string;
-  size?: 24 | 32 | 40 | 64 | 96;
+  size?: 20 | 24 | 28 | 32 | 36 | 40 | 48 | 64 | 96;
   className?: string;
 }
 

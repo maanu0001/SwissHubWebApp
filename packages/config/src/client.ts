@@ -12,7 +12,7 @@ export const branding = {
   /** Sub title / product descriptor. */
   productName: 'Bot Control Center',
   /** Short description used for metadata. */
-  description: 'Administrations- und Moderationsoberflaeche fuer den SwissHub Discord-Server.',
+  description: 'Administrations- und Moderationsoberfläche für den SwissHub Discord-Server.',
   /**
    * Logo files. Drop a replacement at these paths to rebrand the app - no code
    * change required. If the file is missing, the app falls back to the
@@ -25,6 +25,27 @@ export const branding = {
   },
   /** Primary accent colour of the SwissHub brand. */
   accent: '#83060a',
+  /** Hellerer Rotton für Icons, Glows und Statusakzente. */
+  accentBright: '#e63a41',
+  /**
+   * Hinweiskarte am unteren Rand der Seitenleiste.
+   * `href: null` -> es wird auf den konfigurierten Discord-Server verlinkt.
+   * `enabled: false` -> die Karte wird nicht gerendert.
+   */
+  promo: {
+    enabled: true,
+    title: 'SwissHub Premium',
+    description: 'Unterstütze uns und erhalte exklusive Vorteile!',
+    cta: 'Mehr erfahren',
+    href: null as string | null,
+  },
+  /** Banner unterhalb des Dashboards. */
+  banner: {
+    enabled: true,
+    title: 'SwissHub Bot Control Center',
+    subtitle: 'Deine zentrale Verwaltung für SwissHub Bots',
+    image: '/branding/banner.svg',
+  },
   /** Locale + timezone used for all user facing date rendering. */
   locale: 'de-CH',
   timezone: 'Europe/Zurich',

@@ -92,6 +92,57 @@ export function formatRemaining(end: Date | string | number, now: Date = new Dat
   return diff <= 0 ? null : formatDuration(diff);
 }
 
+/**
+ * Kalendernahe Darstellung: `Heute, 20:45`, `Morgen, 00:10`, `Gestern, 18:12`
+ * oder `19.08., 20:45`. Der Tagesvergleich erfolgt in der Zielzeitzone.
+ */
+export function formatDayTime(
+  value: Date | string | number,
+  options: FormatOptions & { now?: Date } = {},
+): string {
+  const date = toDate(value);
+  if (!date) {
+    return '-';
+  }
+  const timezone = options.timezone ?? DEFAULT_TIMEZONE;
+  const locale = options.locale ?? DEFAULT_LOCALE;
+  const now = options.now ?? new Date();
+
+  const dayDifference = calendarDayDifference(date, now, timezone);
+  const time = formatTime(date, { locale, timezone });
+
+  if (dayDifference === 0) {
+    return `Heute, ${time}`;
+  }
+  if (dayDifference === 1) {
+    return `Morgen, ${time}`;
+  }
+  if (dayDifference === -1) {
+    return `Gestern, ${time}`;
+  }
+
+  const day = new Intl.DateTimeFormat(locale, {
+    timeZone: timezone,
+    day: '2-digit',
+    month: '2-digit',
+  }).format(date);
+  return `${day}, ${time}`;
+}
+
+/** Differenz in Kalendertagen (Zielzeitzone), unabhängig von der Uhrzeit. */
+function calendarDayDifference(date: Date, reference: Date, timezone: string): number {
+  const key = (value: Date): number => {
+    const parts = new Intl.DateTimeFormat('en-CA', {
+      timeZone: timezone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).format(value);
+    return Date.parse(`${parts}T00:00:00.000Z`);
+  };
+  return Math.round((key(date) - key(reference)) / DAY);
+}
+
 /** Discord dynamic timestamp markup, e.g. `<t:1755624600:f>`. */
 export function discordTimestamp(value: Date, style: 'f' | 'F' | 'R' | 'd' | 't' = 'f'): string {
   return `<t:${Math.floor(value.getTime() / 1000)}:${style}>`;

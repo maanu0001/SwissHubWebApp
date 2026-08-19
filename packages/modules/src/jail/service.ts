@@ -45,10 +45,12 @@ function toAppErrorFromDiscord(error: unknown): AppError {
 const IDEMPOTENCY_SCOPE_CREATE = 'jail.create';
 const IDEMPOTENCY_SCOPE_RELEASE = 'jail.release';
 
-/** Ausfuehrender Moderator - bereits serverseitig authentifiziert und autorisiert. */
+/** Ausführender Moderator - bereits serverseitig authentifiziert und autorisiert. */
 export interface JailActor {
   discordId: string;
   username: string;
+  /** Avatar-Hash für die Darstellung in der Historie (optional). */
+  avatarHash?: string | null;
   roleIds: string[];
   isOwner: boolean;
   moderationLevel: number;
@@ -67,9 +69,9 @@ export interface JailServiceOptions {
 
 export interface CreateJailResult {
   jail: JailEntry;
-  /** Nicht blockierende Hinweise fuer das UI. */
+  /** Nicht blockierende Hinweise für das UI. */
   warnings: string[];
-  /** True, wenn ein identischer Request bereits ausgefuehrt wurde. */
+  /** True, wenn ein identischer Request bereits ausgeführt wurde. */
   duplicate: boolean;
 }
 
@@ -79,7 +81,7 @@ export interface CreateJailResult {
  * Ablauf (Fail Closed, Datenbank als Source of Truth):
  *   Validierung -> Moderation Policy -> Idempotenz -> DB-Datensatz (PENDING)
  *   -> Discord-Rollen setzen -> COMPLETED + Audit + Benachrichtigung.
- * Schlaegt Discord fehl, bleibt der Datensatz als FAILED erhalten und der
+ * Schlägt Discord fehl, bleibt der Datensatz als FAILED erhalten und der
  * Jail gilt nicht als aktiv.
  */
 export async function createJail(
@@ -103,17 +105,17 @@ export async function createJail(
   const jailRole = context.guildRoles.find((role) => role.id === jailRoleId);
   if (!jailRole) {
     throw configurationMissing(
-      'Die konfigurierte Jail-Rolle existiert auf Discord nicht mehr. Bitte Einstellungen pruefen.',
+      'Die konfigurierte Jail-Rolle existiert auf Discord nicht mehr. Bitte Einstellungen prüfen.',
     );
   }
   if (jailRole.position >= context.botHighestPosition) {
     throw new AppError('DISCORD_MISSING_PERMISSIONS', {
       userMessage:
-        'Die Jail-Rolle liegt ueber der Rolle des Bots. Bitte die Bot-Rolle auf Discord hoeher einordnen.',
+        'Die Jail-Rolle liegt über der Rolle des Bots. Bitte die Bot-Rolle auf Discord höher einordnen.',
     });
   }
 
-  // Zielmitglied immer frisch laden - Rollen koennen sich jederzeit geaendert haben.
+  // Zielmitglied immer frisch laden - Rollen können sich jederzeit geändert haben.
   const target = await gateway.members.get(input.targetDiscordId);
   const decision = evaluateModerationPolicy({
     actor: {
@@ -155,7 +157,7 @@ export async function createJail(
         userAgent: options.metadata?.userAgent,
       }),
     ]);
-    throw policyViolation(decision.message ?? 'Diese Aktion ist nicht zulaessig.');
+    throw policyViolation(decision.message ?? 'Diese Aktion ist nicht zulässig.');
   }
 
   // Idempotenz: doppelte Requests (Doppelklick, Retry, Refresh) abfangen.
@@ -167,7 +169,7 @@ export async function createJail(
     if (existing) {
       return { jail: existing, warnings: [], duplicate: true };
     }
-    throw conflict('Diese Aktion wird bereits ausgefuehrt. Bitte einen Moment warten.');
+    throw conflict('Diese Aktion wird bereits ausgeführt. Bitte einen Moment warten.');
   }
 
   const now = new Date();
@@ -182,7 +184,7 @@ export async function createJail(
 
   if (plan.untouchableRoleIds.length > 0) {
     warnings.push(
-      `${plan.untouchableRoleIds.length} Rolle(n) konnten nicht entfernt werden (von Discord verwaltet oder ueber der Bot-Rolle).`,
+      `${plan.untouchableRoleIds.length} Rolle(n) konnten nicht entfernt werden, weil sie über der Rolle des Bots liegen.`,
     );
   }
 
@@ -193,8 +195,10 @@ export async function createJail(
         targetDiscordId: target.discordId,
         targetUsername: target.username,
         targetDisplayName: target.displayName,
+        targetAvatarHash: target.avatarHash,
         moderatorDiscordId: actor.discordId,
         moderatorUsername: actor.username,
+        moderatorAvatarHash: actor.avatarHash ?? null,
         reason: input.reason,
         durationSeconds: input.durationSeconds,
         startedAt: now,
@@ -223,7 +227,7 @@ export async function createJail(
     );
   } catch (error) {
     const appError = toAppErrorFromDiscord(error);
-    log.error('Jail konnte auf Discord nicht ausgefuehrt werden', {
+    log.error('Jail konnte auf Discord nicht ausgeführt werden', {
       error,
       jailId: entry.id,
       target: target.discordId,
@@ -337,7 +341,7 @@ export async function createJail(
 }
 
 export interface ReleaseJailOptions extends JailServiceOptions {
-  /** Wer die Freilassung ausloest. `null` = automatisch durch den Bot. */
+  /** Wer die Freilassung auslöst. `null` = automatisch durch den Bot. */
   actor?: JailActor | null;
   releaseType: 'MANUAL' | 'AUTOMATIC' | 'RECONCILED';
   /** Optionaler Idempotency Key (bei manuellen Aktionen aus dem UI). */
@@ -354,7 +358,7 @@ export interface ReleaseJailResult {
 }
 
 /**
- * Laesst ein Mitglied frei.
+ * Lässt ein Mitglied frei.
  *
  * Die Freilassung wird per `updateMany` "beansprucht" - dadurch kann derselbe
  * Jail nicht gleichzeitig von zwei Moderatoren (oder vom Sweep-Job) beendet
@@ -383,11 +387,11 @@ export async function releaseJail(jailId: string, options: ReleaseJailOptions): 
           memberLeftGuild: false,
         };
       }
-      throw conflict('Diese Freilassung wird bereits ausgefuehrt.');
+      throw conflict('Diese Freilassung wird bereits ausgeführt.');
     }
   }
 
-  // Atomar beanspruchen: nur ein Prozess darf den Release ausfuehren.
+  // Atomar beanspruchen: nur ein Prozess darf den Release ausführen.
   const claimed = await prisma.jailEntry.updateMany({
     where: {
       id: jailId,
@@ -405,7 +409,7 @@ export async function releaseJail(jailId: string, options: ReleaseJailOptions): 
     if (jail.releasedAt) {
       throw conflict('Dieses Mitglied wurde bereits freigelassen.');
     }
-    throw conflict('Die Freilassung wird bereits ausgefuehrt.');
+    throw conflict('Die Freilassung wird bereits ausgeführt.');
   }
 
   const jailRoleId = context.settings.jailRoleId;
@@ -423,8 +427,8 @@ export async function releaseJail(jailId: string, options: ReleaseJailOptions): 
   }
 
   // Mitglied hat den Server verlassen: Jail wird beendet, damit die Datenbank
-  // nicht dauerhaft einen aktiven Jail fuehrt. Rollen kehren bei einem
-  // erneuten Beitritt ohnehin nicht zurueck.
+  // nicht dauerhaft einen aktiven Jail führt. Rollen kehren bei einem
+  // erneuten Beitritt ohnehin nicht zurück.
   if (!member) {
     const closed = await finaliseRelease(jail.id, {
       releaseType: options.releaseType,
@@ -472,7 +476,7 @@ export async function releaseJail(jailId: string, options: ReleaseJailOptions): 
   try {
     await gateway.members.setRoles(member.discordId, plan.nextRoleIds, reason);
   } catch (error) {
-    // Fallback: Jail-Rolle einzeln entfernen und Rollen einzeln zurueckgeben,
+    // Fallback: Jail-Rolle einzeln entfernen und Rollen einzeln zurückgeben,
     // damit eine einzelne problematische Rolle nicht den ganzen Release kippt.
     log.warn('Sammelaktualisierung der Rollen fehlgeschlagen - Einzelaktualisierung', {
       error,

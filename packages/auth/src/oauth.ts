@@ -10,7 +10,7 @@ const log = createLogger('auth:oauth');
  * Discord OAuth2 (Authorization Code Flow mit PKCE).
  *
  * Der Access Token des Benutzers wird ausschliesslich serverseitig verwendet,
- * um die Discord-Identitaet zu lesen, und danach sofort verworfen bzw.
+ * um die Discord-Identität zu lesen, und danach sofort verworfen bzw.
  * widerrufen. Es wird kein Benutzer-Token persistiert.
  */
 function client(): Discord {
@@ -45,8 +45,8 @@ export interface DiscordOAuthUser {
 }
 
 /**
- * Tauscht den Authorization Code gegen die Discord-Identitaet.
- * Der Access Token verlaesst diese Funktion nicht.
+ * Tauscht den Authorization Code gegen die Discord-Identität.
+ * Der Access Token verlässt diese Funktion nicht.
  */
 export async function exchangeCodeForUser(code: string, codeVerifier: string): Promise<DiscordOAuthUser> {
   const provider = client();

@@ -1,5 +1,5 @@
 // Die Kernbereiche und das Jail-Modul registrieren sich beim Import.
-// Weitere Module hier ergaenzen - siehe docs/MODULES.md.
+// Weitere Module hier ergänzen - siehe docs/MODULES.md.
 import './core-modules';
 import './jail/config';
 

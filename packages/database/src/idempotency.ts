@@ -3,10 +3,10 @@ import { prisma } from './client';
 import type { ActionStatus } from '@prisma/client';
 
 /**
- * Idempotenz fuer kritische Aktionen.
+ * Idempotenz für kritische Aktionen.
  *
- * Doppelklicks, Retries und Browser-Refreshes duerfen keine zweite
- * Moderationsaktion ausloesen. Der Client sendet dafuer einen Idempotency Key;
+ * Doppelklicks, Retries und Browser-Refreshes dürfen keine zweite
+ * Moderationsaktion auslösen. Der Client sendet dafür einen Idempotency Key;
  * der Server reserviert ihn per Unique-Constraint, bevor er handelt.
  */
 export interface IdempotencyClaim {
@@ -21,7 +21,7 @@ function storageKey(scope: string, key: string): string {
   return `${scope}:${key}`;
 }
 
-/** Reserviert den Schluessel. Gibt `duplicate` zurueck, wenn er bereits vergeben ist. */
+/** Reserviert den Schlüssel. Gibt `duplicate` zurück, wenn er bereits vergeben ist. */
 export async function claimIdempotencyKey(
   scope: string,
   key: string,
@@ -65,7 +65,7 @@ export async function completeIdempotencyKey(
 }
 
 /**
- * Gibt einen Schluessel wieder frei, wenn die Aktion gar nicht erst gestartet
+ * Gibt einen Schlüssel wieder frei, wenn die Aktion gar nicht erst gestartet
  * werden konnte (z.B. Validierungsfehler) - sonst blockiert ein fehlerhafter
  * Versuch den erneuten, korrigierten Versuch.
  */
@@ -73,7 +73,7 @@ export async function releaseIdempotencyKey(scope: string, key: string): Promise
   await prisma.idempotencyRecord.delete({ where: { key: storageKey(scope, key) } }).catch(() => undefined);
 }
 
-/** Entfernt abgelaufene Schluessel (vom Bot periodisch aufgerufen). */
+/** Entfernt abgelaufene Schlüssel (vom Bot periodisch aufgerufen). */
 export async function purgeExpiredIdempotencyKeys(): Promise<number> {
   const result = await prisma.idempotencyRecord.deleteMany({
     where: { expiresAt: { lt: new Date() } },

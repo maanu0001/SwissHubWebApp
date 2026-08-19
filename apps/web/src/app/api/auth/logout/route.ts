@@ -9,7 +9,7 @@ export const dynamic = 'force-dynamic';
 /**
  * Meldet den Benutzer ab.
  *
- * Nur als POST mit gueltigem CSRF-Token - damit kann ein fremder Link niemanden
+ * Nur als POST mit gültigem CSRF-Token - damit kann ein fremder Link niemanden
  * ungewollt abmelden.
  */
 export async function POST(request: NextRequest): Promise<NextResponse> {

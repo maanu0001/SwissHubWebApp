@@ -14,7 +14,7 @@ export const dynamic = 'force-dynamic';
  * Startet den Discord OAuth2 Flow.
  *
  * `state` und `code_verifier` (PKCE) werden in kurzlebigen, httpOnly-Cookies
- * abgelegt und im Callback geprueft - Schutz gegen CSRF und Code Injection.
+ * abgelegt und im Callback geprüft - Schutz gegen CSRF und Code Injection.
  */
 export async function GET(request: NextRequest): Promise<NextResponse> {
   const metadata = await getRequestMetadata();

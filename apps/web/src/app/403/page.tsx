@@ -23,18 +23,18 @@ export default async function ForbiddenPage({
           </span>
           <CardTitle className="text-xl">Keine Berechtigung</CardTitle>
           <CardDescription>
-            Dir fehlt die erforderliche Berechtigung fuer diesen Bereich. Wende dich an einen Administrator,
-            wenn du Zugriff benoetigst.
+            Dir fehlt die erforderliche Berechtigung für diesen Bereich. Wende dich an einen Administrator,
+            wenn du Zugriff benötigst.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           {params.permission ? (
             <p className="text-xs text-muted-foreground">
-              Benoetigte Berechtigung: <code className="font-mono">{params.permission}</code>
+              Benötigte Berechtigung: <code className="font-mono">{params.permission}</code>
             </p>
           ) : null}
           <Link href="/dashboard" className={cn(buttonVariants({ variant: 'default' }))}>
-            Zurueck zum Dashboard
+            Zurück zum Dashboard
           </Link>
         </CardContent>
       </Card>

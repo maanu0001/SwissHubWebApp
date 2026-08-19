@@ -6,8 +6,8 @@ import type { Session, User } from '@swisshub/database';
 /**
  * Serverseitige Sessions.
  *
- * Im Cookie liegt ein zufaelliges 256-Bit Token. Gespeichert wird nur dessen
- * HMAC - ein Datenbankleck erlaubt damit keine Session-Uebernahme.
+ * Im Cookie liegt ein zufälliges 256-Bit Token. Gespeichert wird nur dessen
+ * HMAC - ein Datenbankleck erlaubt damit keine Session-Übernahme.
  */
 function hashToken(token: string): string {
   return hmacSha256(env.AUTH_SECRET, `session:${token}`);
@@ -19,7 +19,7 @@ export interface SessionMetadata {
 }
 
 export interface CreatedSession {
-  /** Klartext-Token fuer das Cookie - wird nirgends gespeichert. */
+  /** Klartext-Token für das Cookie - wird nirgends gespeichert. */
   token: string;
   session: Session;
 }
@@ -48,14 +48,14 @@ export interface ValidatedSession {
 }
 
 /**
- * Prueft ein Session-Token und verlaengert das Inaktivitaetsfenster.
+ * Prüft ein Session-Token und verlängert das Inaktivitätsfenster.
  *
- * Zusaetzlich wird das Token regelmaessig rotiert (Session Fixation Schutz).
+ * Zusätzlich wird das Token regelmässig rotiert (Session Fixation Schutz).
  */
 export interface ValidateOptions {
   /**
    * Token rotieren, wenn es alt genug ist. In React Server Components muss die
-   * Rotation deaktiviert werden, weil dort keine Cookies gesetzt werden koennen.
+   * Rotation deaktiviert werden, weil dort keine Cookies gesetzt werden können.
    */
   rotate?: boolean;
 }
@@ -124,7 +124,7 @@ export async function revokeSessionByToken(token: string, reason: string): Promi
     .catch(() => undefined);
 }
 
-/** Beendet saemtliche Sessions eines Benutzers (z.B. bei Rechteentzug). */
+/** Beendet sämtliche Sessions eines Benutzers (z.B. bei Rechteentzug). */
 export async function revokeAllSessions(userId: string, reason: string): Promise<number> {
   const result = await prisma.session.updateMany({
     where: { userId, revokedAt: null },
@@ -133,7 +133,7 @@ export async function revokeAllSessions(userId: string, reason: string): Promise
   return result.count;
 }
 
-/** Entfernt abgelaufene Sessions endgueltig (periodischer Job im Bot). */
+/** Entfernt abgelaufene Sessions endgültig (periodischer Job im Bot). */
 export async function purgeExpiredSessions(): Promise<number> {
   const cutoff = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
   const result = await prisma.session.deleteMany({

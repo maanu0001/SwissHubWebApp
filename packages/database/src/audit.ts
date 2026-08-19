@@ -8,8 +8,8 @@ const log = createLogger('audit');
 /**
  * Zentrale Audit-Aktionen.
  *
- * Module duerfen eigene Aktionen ergaenzen; das Feld bleibt bewusst ein String,
- * damit neue Module nichts an der Kernstruktur aendern muessen.
+ * Module dürfen eigene Aktionen ergänzen; das Feld bleibt bewusst ein String,
+ * damit neue Module nichts an der Kernstruktur ändern müssen.
  */
 export const AUDIT_ACTIONS = {
   LOGIN: 'LOGIN',
@@ -100,7 +100,7 @@ export function computeAuditHash(previousHash: string | null, payload: string): 
 /**
  * Schreibt einen Audit-Eintrag inklusive Hash-Chain.
  *
- * Der Eintrag verweist per `previousHash` auf seinen Vorgaenger. Nachtraegliche
+ * Der Eintrag verweist per `previousHash` auf seinen Vorgänger. Nachträgliche
  * Manipulationen einzelner Zeilen brechen dadurch die Kette und werden von
  * `verifyAuditChain()` erkannt.
  */
@@ -153,10 +153,10 @@ export async function recordAudit(input: AuditInput): Promise<{ id: string; hash
 }
 
 /**
- * Audit-Schreibvorgang, der niemals den Aufrufer scheitern laesst.
+ * Audit-Schreibvorgang, der niemals den Aufrufer scheitern lässt.
  *
- * Eine bereits ausgefuehrte Discord-Aktion darf nicht nachtraeglich "fehlschlagen",
- * nur weil das Logging nicht moeglich war - der Fehler wird stattdessen laut
+ * Eine bereits ausgeführte Discord-Aktion darf nicht nachträglich "fehlschlagen",
+ * nur weil das Logging nicht möglich war - der Fehler wird stattdessen laut
  * protokolliert.
  */
 export async function safeRecordAudit(input: AuditInput): Promise<void> {
@@ -173,7 +173,7 @@ export interface AuditChainVerification {
   brokenAt?: { id: string; sequence: string };
 }
 
-/** Prueft die Hash-Chain der letzten `limit` Eintraege. */
+/** Prüft die Hash-Chain der letzten `limit` Einträge. */
 export async function verifyAuditChain(limit = 1000): Promise<AuditChainVerification> {
   const entries = await prisma.auditLog.findMany({
     orderBy: { sequence: 'desc' },

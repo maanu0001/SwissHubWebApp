@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server';
-import { COOKIE, isProduction } from '@swisshub/config';
+import { COOKIE, appUrl, isProduction } from '@swisshub/config';
 import { createAuthorizationRequest } from '@swisshub/auth';
 import { SECURITY_EVENTS, recordSecurityEvent } from '@swisshub/database';
 import { createLogger } from '@swisshub/logger';
@@ -29,7 +29,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       userAgent: metadata.userAgent,
       path: '/api/auth/login',
     });
-    return NextResponse.redirect(new URL('/login?error=rate_limit', request.url));
+    return NextResponse.redirect(appUrl('/login?error=rate_limit'));
   }
 
   let authorization;
@@ -37,6 +37,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     authorization = createAuthorizationRequest();
   } catch (error) {
     log.error('OAuth Authorization URL konnte nicht erstellt werden', { error });
+    // Hier ist die Konfiguration selbst defekt - deshalb bewusst ohne appUrl().
     return NextResponse.redirect(new URL('/login?error=configuration', request.url));
   }
 

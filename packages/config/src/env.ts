@@ -63,6 +63,8 @@ export const serverEnvSchema = z
     NEXT_PUBLIC_APP_URL: z.string().url('muss eine absolute URL sein, z.B. http://localhost:3000'),
 
     LOG_LEVEL: z.enum(['debug', 'info', 'warn', 'error']).default('info'),
+    /** `json` erzwingt strukturierte Logzeilen (Standard in Production). */
+    LOG_FORMAT: z.enum(['json', 'pretty']).optional(),
 
     /** Session lifetimes. */
     SESSION_ABSOLUTE_TTL_HOURS: intWithDefault(24 * 7, 1, 24 * 90),

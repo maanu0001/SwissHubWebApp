@@ -1,0 +1,39 @@
+# SwissHub WebApp als systemd-Dienst (Alternative zu Docker)
+#
+#   cp deploy/systemd/swisshub-web.service /etc/systemd/system/
+#   systemctl daemon-reload && systemctl enable --now swisshub-web
+
+[Unit]
+Description=SwissHub Bot WebApp
+Documentation=https://github.com/maanu0001/SwissHub_Bot-WebApp
+After=network-online.target postgresql.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=swisshub
+Group=swisshub
+WorkingDirectory=/opt/swisshub
+EnvironmentFile=/opt/swisshub/.env
+Environment=NODE_ENV=production
+Environment=PORT=3000
+Environment=TZ=Europe/Zurich
+ExecStart=/usr/bin/npm run start --workspace @swisshub/web
+Restart=always
+RestartSec=5
+KillSignal=SIGTERM
+TimeoutStopSec=30
+
+# Haertung
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/swisshub/apps/web/.next
+ProtectKernelTunables=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+
+[Install]
+WantedBy=multi-user.target

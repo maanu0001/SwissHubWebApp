@@ -1,0 +1,38 @@
+# SwissHub Discord-Bot als systemd-Dienst (Alternative zu Docker)
+#
+#   cp deploy/systemd/swisshub-bot.service /etc/systemd/system/
+#   systemctl daemon-reload && systemctl enable --now swisshub-bot
+
+[Unit]
+Description=SwissHub Discord Bot
+Documentation=https://github.com/maanu0001/SwissHub_Bot-WebApp
+After=network-online.target postgresql.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=swisshub
+Group=swisshub
+WorkingDirectory=/opt/swisshub
+EnvironmentFile=/opt/swisshub/.env
+Environment=NODE_ENV=production
+Environment=TZ=Europe/Zurich
+ExecStart=/usr/bin/npm run start:bot
+Restart=always
+RestartSec=10
+# Der Bot faehrt bei SIGTERM kontrolliert herunter (Jobs, Heartbeat, Datenbank).
+KillSignal=SIGTERM
+TimeoutStopSec=30
+
+# Haertung
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+
+[Install]
+WantedBy=multi-user.target

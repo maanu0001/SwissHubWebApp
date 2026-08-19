@@ -261,11 +261,14 @@ Mit Docker (WebApp + Bot + PostgreSQL):
 ```bash
 cp .env.example .env      # ausfüllen (inkl. POSTGRES_PASSWORD)
 docker compose -f docker-compose.prod.yml up -d --build
-docker compose -f docker-compose.prod.yml exec web npm run db:deploy
-docker compose -f docker-compose.prod.yml exec web npm run db:seed
+docker compose -f docker-compose.prod.yml run --rm migrate npm run db:seed
 ```
 
+Migrationen wendet der `migrate`-Dienst beim Start automatisch an.
 Health Check: `GET /api/health` (liefert Status von WebApp, Datenbank und Bot ohne sensible Details).
+
+> **Vollständige Server-Anleitung** (eigene Domain, nginx, TLS, Backups,
+> systemd-Variante): [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)
 
 ---
 
@@ -368,3 +371,4 @@ Discord-Server; mit `enabled: false` verschwindet sie ganz.
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) - Systemkomponenten, Datenfluss, Zustände
 - [docs/SECURITY.md](docs/SECURITY.md) - Authentifizierung, Autorisierung, Secrets, Annahmen
 - [docs/MODULES.md](docs/MODULES.md) - Schritt-für-Schritt: neues Modul entwickeln
+- [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) - Produktivbetrieb auf einem eigenen Server

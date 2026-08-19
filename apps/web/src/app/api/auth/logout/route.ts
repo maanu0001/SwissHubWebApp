@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server';
-import { COOKIE } from '@swisshub/config';
+import { COOKIE, appUrl } from '@swisshub/config';
 import { revokeSessionByToken, validateSessionToken, verifyCsrfToken } from '@swisshub/auth';
 import { AUDIT_ACTIONS, SECURITY_EVENTS, recordSecurityEvent, safeRecordAudit } from '@swisshub/database';
 import { getRequestMetadata } from '@/server/request';
@@ -18,7 +18,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   const formData = await request.formData().catch(() => null);
   const csrfToken = formData?.get('csrfToken');
 
-  const response = NextResponse.redirect(new URL('/login?logout=1', request.url), { status: 303 });
+  const response = NextResponse.redirect(appUrl('/login?logout=1'), { status: 303 });
   response.cookies.delete(COOKIE.session);
 
   if (!token) {
@@ -39,7 +39,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       userAgent: metadata.userAgent,
       path: '/api/auth/logout',
     });
-    return NextResponse.redirect(new URL('/dashboard?error=csrf', request.url), { status: 303 });
+    return NextResponse.redirect(appUrl('/dashboard?error=csrf'), { status: 303 });
   }
 
   await revokeSessionByToken(token, 'LOGOUT');

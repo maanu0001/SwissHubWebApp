@@ -41,6 +41,12 @@ export const identityConfig = {
   },
 };
 
+/** Absolute URL innerhalb der WebApp, unabhaengig von Proxy-Headern. */
+export function appUrl(path = '/'): string {
+  const base = env.NEXT_PUBLIC_APP_URL.replace(/\/$/u, '');
+  return `${base}${path.startsWith('/') ? path : `/${path}`}`;
+}
+
 export const discordConfig = {
   apiBaseUrl: 'https://discord.com/api/v10',
   cdnBaseUrl: 'https://cdn.discordapp.com',
@@ -60,7 +66,7 @@ export const discordConfig = {
     return env.DISCORD_CLIENT_SECRET;
   },
   get redirectUri(): string {
-    return `${env.NEXT_PUBLIC_APP_URL.replace(/\/$/u, '')}/api/auth/callback/discord`;
+    return appUrl('/api/auth/callback/discord');
   },
 };
 

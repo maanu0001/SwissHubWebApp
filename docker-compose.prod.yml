@@ -1,10 +1,11 @@
 # SwissHub Bot WebApp - Produktionsbetrieb (Linux/Docker)
 #
-#   cp .env.example .env   # ausfuellen
+#   cp .env.example .env   # ausfuellen, siehe docs/DEPLOYMENT.md
 #   docker compose -f docker-compose.prod.yml up -d --build
 #
 # Enthaelt Datenbank, WebApp und Bot. Secrets kommen ausschliesslich aus .env
-# und werden niemals ins Image gebacken.
+# und werden niemals ins Image gebacken. Die WebApp lauscht bewusst nur auf
+# 127.0.0.1 - nach aussen geht ausschliesslich nginx mit TLS.
 
 services:
   postgres:
@@ -23,6 +24,22 @@ services:
       timeout: 5s
       retries: 5
 
+  # Wendet ausstehende Migrationen an, bevor WebApp und Bot starten.
+  migrate:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: web
+    env_file: .env
+    environment:
+      NODE_ENV: production
+      TZ: Europe/Zurich
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: ['npm', 'run', 'db:deploy']
+    restart: 'no'
+
   web:
     build:
       context: .
@@ -33,13 +50,23 @@ services:
     environment:
       NODE_ENV: production
       TZ: Europe/Zurich
+      PORT: 3000
     depends_on:
       postgres:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
     ports:
-      - '3000:3000'
+      # Nur lokal erreichbar - TLS und Domain uebernimmt nginx.
+      - '127.0.0.1:3000:3000'
     healthcheck:
-      test: ['CMD', 'node', '-e', "fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -58,6 +85,9 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    # Zeit fuer den kontrollierten Shutdown (laufende Jobs, Heartbeat).
     stop_grace_period: 30s
 
 volumes:

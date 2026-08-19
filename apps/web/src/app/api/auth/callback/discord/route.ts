@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server';
-import { COOKIE } from '@swisshub/config';
+import { COOKIE, appUrl } from '@swisshub/config';
 import { createSession, exchangeCodeForUser, refreshIdentity, upsertUserFromDiscord } from '@swisshub/auth';
 import { AUDIT_ACTIONS, SECURITY_EVENTS, recordSecurityEvent, safeRecordAudit } from '@swisshub/database';
 import { createLogger } from '@swisshub/logger';
@@ -28,13 +28,13 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
   if (error) {
     log.warn('Discord OAuth abgebrochen', { error });
-    return clearOauthCookies(NextResponse.redirect(new URL('/login?error=denied', request.url)));
+    return clearOauthCookies(NextResponse.redirect(appUrl('/login?error=denied')));
   }
 
   try {
     await enforceRateLimit('oauthCallback', await getRateLimitIdentity());
   } catch {
-    return clearOauthCookies(NextResponse.redirect(new URL('/login?error=rate_limit', request.url)));
+    return clearOauthCookies(NextResponse.redirect(appUrl('/login?error=rate_limit')));
   }
 
   const storedState = request.cookies.get(COOKIE.oauthState)?.value;
@@ -48,7 +48,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       userAgent: metadata.userAgent,
       path: '/api/auth/callback/discord',
     });
-    return clearOauthCookies(NextResponse.redirect(new URL('/login?error=state', request.url)));
+    return clearOauthCookies(NextResponse.redirect(appUrl('/login?error=state')));
   }
 
   try {
@@ -74,7 +74,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
           userAgent: metadata.userAgent,
         }),
       ]);
-      return clearOauthCookies(NextResponse.redirect(new URL('/login?error=blocked', request.url)));
+      return clearOauthCookies(NextResponse.redirect(appUrl('/login?error=blocked')));
     }
 
     // Guild-Mitgliedschaft und Rollen sofort frisch laden.
@@ -105,10 +105,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         ipHash: metadata.ipHash,
         userAgent: metadata.userAgent,
       });
-      return clearOauthCookies(NextResponse.redirect(new URL('/access-denied', request.url)));
+      return clearOauthCookies(NextResponse.redirect(appUrl('/access-denied')));
     }
 
-    return clearOauthCookies(NextResponse.redirect(new URL('/dashboard', request.url)));
+    return clearOauthCookies(NextResponse.redirect(appUrl('/dashboard')));
   } catch (caught) {
     log.error('OAuth Callback fehlgeschlagen', { error: caught });
     await recordSecurityEvent({
@@ -118,6 +118,6 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       userAgent: metadata.userAgent,
       path: '/api/auth/callback/discord',
     });
-    return clearOauthCookies(NextResponse.redirect(new URL('/login?error=oauth', request.url)));
+    return clearOauthCookies(NextResponse.redirect(appUrl('/login?error=oauth')));
   }
 }

@@ -1,0 +1,17 @@
+{
+  "name": "@swisshub/permissions",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@swisshub/config": "*",
+    "@swisshub/database": "*",
+    "@swisshub/discord": "*",
+    "@swisshub/shared": "*"
+  }
+}

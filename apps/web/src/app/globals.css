@@ -1,0 +1,113 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/**
+ * SwissHub Theme
+ * Dark-first, nahe Schwarz/Anthrazit mit #83060a als Akzent.
+ */
+@layer base {
+  :root {
+    --background: 240 6% 6%;
+    --foreground: 210 20% 96%;
+
+    --card: 240 6% 9%;
+    --card-elevated: 240 6% 12%;
+    --card-foreground: 210 20% 96%;
+
+    --popover: 240 7% 8%;
+    --popover-foreground: 210 20% 96%;
+
+    /* #83060a */
+    --primary: 358 91% 27%;
+    --primary-muted: 358 70% 18%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 240 5% 14%;
+    --secondary-foreground: 210 20% 92%;
+
+    --muted: 240 5% 14%;
+    --muted-foreground: 240 5% 65%;
+
+    --accent: 240 5% 16%;
+    --accent-foreground: 210 20% 96%;
+
+    --destructive: 0 72% 45%;
+    --destructive-foreground: 0 0% 100%;
+
+    --success: 142 65% 40%;
+    --success-foreground: 0 0% 100%;
+
+    --warning: 38 92% 50%;
+    --warning-foreground: 240 6% 10%;
+
+    --border: 240 5% 18%;
+    --input: 240 5% 18%;
+    --ring: 358 91% 45%;
+
+    --radius: 0.7rem;
+
+    --font-sans:
+      ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans',
+      sans-serif;
+    --font-mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  html {
+    color-scheme: dark;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    background-image: theme('backgroundImage.surface-gradient');
+    background-attachment: fixed;
+  }
+
+  /* Sichtbare, kontrastreiche Fokuszustaende (Accessibility). */
+  :focus-visible {
+    @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
+  }
+
+  ::selection {
+    background-color: hsl(var(--primary) / 0.4);
+  }
+}
+
+@layer components {
+  .surface-card {
+    @apply rounded-lg border border-border/80 bg-card shadow-card;
+  }
+
+  .accent-glow {
+    box-shadow: theme('boxShadow.glow');
+  }
+
+  .skeleton-shimmer {
+    @apply relative overflow-hidden bg-muted;
+  }
+
+  .skeleton-shimmer::after {
+    @apply absolute inset-0 -translate-x-full animate-shimmer;
+    background-image: linear-gradient(90deg, transparent, hsl(var(--foreground) / 0.06), transparent);
+    content: '';
+  }
+}
+
+@layer utilities {
+  .scrollbar-slim::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  .scrollbar-slim::-webkit-scrollbar-thumb {
+    @apply rounded-full bg-border;
+  }
+
+  .scrollbar-slim::-webkit-scrollbar-track {
+    background: transparent;
+  }
+}

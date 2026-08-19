@@ -1,0 +1,126 @@
+import { jobConfig } from '@swisshub/config';
+import { createLogger } from '@swisshub/logger';
+import { purgeExpiredIdempotencyKeys } from '@swisshub/database';
+import { purgeExpiredSessions } from '@swisshub/auth';
+import { jail, writeHeartbeat } from '@swisshub/modules';
+
+const log = createLogger('bot:jobs');
+
+export interface JobRunner {
+  start(): void;
+  stop(): Promise<void>;
+}
+
+interface JobDefinition {
+  name: string;
+  intervalMs: number;
+  /** Direkt beim Start einmal ausfuehren. */
+  runOnStart?: boolean;
+  run(): Promise<void>;
+}
+
+/**
+ * Wiederkehrende Hintergrundjobs des Bots.
+ *
+ * Alle Jobs sind idempotent und ueberlappungsfrei: laeuft ein Durchgang noch,
+ * wird der naechste Tick uebersprungen. Die Datenbank bleibt Source of Truth,
+ * damit ein Neustart nichts verliert.
+ */
+export function createJobRunner(
+  getStatus: () => {
+    wsPingMs: number | null;
+    online: boolean;
+    memberCount: number | null;
+    botUserId: string | null;
+    botUsername: string | null;
+  },
+): JobRunner {
+  const timers: NodeJS.Timeout[] = [];
+  const running = new Set<string>();
+
+  const jobs: JobDefinition[] = [
+    {
+      name: 'heartbeat',
+      intervalMs: jobConfig.heartbeatIntervalMs,
+      runOnStart: true,
+      async run() {
+        const status = getStatus();
+        await writeHeartbeat({
+          online: status.online,
+          wsPingMs: status.wsPingMs,
+          guildMemberCount: status.memberCount,
+          botUserId: status.botUserId,
+          botUsername: status.botUsername,
+          version: process.env.npm_package_version ?? '1.0.0',
+        });
+      },
+    },
+    {
+      name: 'jail-sweep',
+      intervalMs: jobConfig.jailSweepIntervalMs,
+      runOnStart: true,
+      async run() {
+        await jail.recoverStuckJails();
+        await jail.releaseExpiredJails();
+      },
+    },
+    {
+      name: 'reconciliation',
+      intervalMs: jobConfig.reconcileIntervalMs,
+      async run() {
+        await jail.reconcileJails({ mode: 'AUTOMATIC', repair: true });
+      },
+    },
+    {
+      name: 'cleanup',
+      intervalMs: 60 * 60 * 1000,
+      async run() {
+        const [sessions, keys] = await Promise.all([purgeExpiredSessions(), purgeExpiredIdempotencyKeys()]);
+        if (sessions > 0 || keys > 0) {
+          log.info('Aufraeumen abgeschlossen', { sessions, idempotencyKeys: keys });
+        }
+      },
+    },
+  ];
+
+  async function execute(job: JobDefinition): Promise<void> {
+    if (running.has(job.name)) {
+      log.debug('Job laeuft noch - Tick uebersprungen', { job: job.name });
+      return;
+    }
+    running.add(job.name);
+    try {
+      await job.run();
+    } catch (error) {
+      log.error('Job fehlgeschlagen', { job: job.name, error });
+    } finally {
+      running.delete(job.name);
+    }
+  }
+
+  return {
+    start() {
+      for (const job of jobs) {
+        if (job.runOnStart) {
+          void execute(job);
+        }
+        const timer = setInterval(() => void execute(job), job.intervalMs);
+        timer.unref?.();
+        timers.push(timer);
+        log.info('Job gestartet', { job: job.name, intervalMs: job.intervalMs });
+      }
+    },
+    async stop() {
+      for (const timer of timers) {
+        clearInterval(timer);
+      }
+      timers.length = 0;
+      // Laufende Durchgaenge kurz auslaufen lassen, damit keine Aktion
+      // halb ausgefuehrt zurueckbleibt.
+      const deadline = Date.now() + 5000;
+      while (running.size > 0 && Date.now() < deadline) {
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      }
+    },
+  };
+}

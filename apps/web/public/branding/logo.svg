@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 260 64" width="260" height="64" role="img" aria-label="SwissHub Bot Control Center">
+  <defs>
+    <linearGradient id="swisshub-logo" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#83060a" />
+      <stop offset="100%" stop-color="#4a0306" />
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="16" fill="url(#swisshub-logo)" />
+  <path d="M32 14v36M14 32h36" stroke="#ffffff" stroke-width="7" stroke-linecap="round" opacity="0.95" />
+  <text x="80" y="34" font-family="system-ui, sans-serif" font-size="22" font-weight="600" fill="#f4f4f5">SwissHub</text>
+  <text x="80" y="52" font-family="system-ui, sans-serif" font-size="13" fill="#a1a1aa">Bot Control Center</text>
+</svg>

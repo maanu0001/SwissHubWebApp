@@ -1,0 +1,64 @@
+# SwissHub Bot WebApp - Produktionsbetrieb (Linux/Docker)
+#
+#   cp .env.example .env   # ausfuellen
+#   docker compose -f docker-compose.prod.yml up -d --build
+#
+# Enthaelt Datenbank, WebApp und Bot. Secrets kommen ausschliesslich aus .env
+# und werden niemals ins Image gebacken.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-swisshub}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD wird benoetigt}
+      POSTGRES_DB: ${POSTGRES_DB:-swisshub}
+      TZ: Europe/Zurich
+    volumes:
+      - swisshub-postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-swisshub} -d ${POSTGRES_DB:-swisshub}']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: web
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      NODE_ENV: production
+      TZ: Europe/Zurich
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - '3000:3000'
+    healthcheck:
+      test: ['CMD', 'node', '-e', "fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+  bot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: bot
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      NODE_ENV: production
+      TZ: Europe/Zurich
+    depends_on:
+      postgres:
+        condition: service_healthy
+    stop_grace_period: 30s
+
+volumes:
+  swisshub-postgres:

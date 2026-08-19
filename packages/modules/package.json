@@ -1,0 +1,21 @@
+{
+  "name": "@swisshub/modules",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./jail": "./src/jail/index.ts"
+  },
+  "dependencies": {
+    "@swisshub/config": "*",
+    "@swisshub/database": "*",
+    "@swisshub/discord": "*",
+    "@swisshub/logger": "*",
+    "@swisshub/permissions": "*",
+    "@swisshub/shared": "*",
+    "zod": "3.25.76"
+  }
+}

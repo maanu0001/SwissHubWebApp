@@ -1,0 +1,334 @@
+// SwissHub Bot WebApp - Datenbankschema
+//
+// Grundsaetze:
+//  * Die Datenbank ist Source of Truth fuer alles, was einen Neustart von Bot
+//    oder WebApp ueberleben muss (Jails, Audit Logs, Einstellungen).
+//  * Datensparsamkeit: Discord-Mitgliederdaten werden nur zwischengespeichert,
+//    wo sie fuer Sicherheitsentscheide oder Nachvollziehbarkeit noetig sind.
+//  * Alle Zeitstempel werden in UTC gespeichert und erst im UI in Europe/Zurich
+//    dargestellt.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+/// Grobe Anwendungsgruppe. Sie ist bewusst NICHT die Quelle der Wahrheit fuer
+/// Berechtigungen - massgebend sind Discord-Rollen + Permission Engine.
+enum AppRole {
+  USER
+  TEAM
+  MODERATOR
+  ADMIN
+  OWNER
+}
+
+/// Zustand einer Aktion, die Discord und Datenbank umfasst.
+enum ActionStatus {
+  PENDING
+  EXECUTING
+  COMPLETED
+  PARTIAL
+  FAILED
+}
+
+enum JailReleaseType {
+  AUTOMATIC
+  MANUAL
+  RECONCILED
+}
+
+enum ModerationActionType {
+  JAIL_CREATE
+  JAIL_RELEASE
+  JAIL_EXTEND
+}
+
+enum SecuritySeverity {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum ReconciliationMode {
+  AUTOMATIC
+  MANUAL
+}
+
+/// Anwendungskonto, das an eine Discord-Identitaet gebunden ist.
+model User {
+  id           String   @id @default(cuid())
+  discordId    String   @unique
+  username     String
+  globalName   String?
+  avatarHash   String?
+  appRole      AppRole  @default(USER)
+  /// Anwendungsseitige Sperre (unabhaengig von Discord).
+  isBlocked    Boolean  @default(false)
+  firstLoginAt DateTime @default(now())
+  lastLoginAt  DateTime @default(now())
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  sessions      Session[]
+  identityCache DiscordIdentityCache?
+
+  @@index([username])
+}
+
+/// Serverseitige Session. Im Browser liegt ausschliesslich ein zufaelliges
+/// Token; gespeichert wird nur dessen SHA-256 Hash.
+model Session {
+  id            String    @id @default(cuid())
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash     String    @unique
+  createdAt     DateTime  @default(now())
+  lastUsedAt    DateTime  @default(now())
+  rotatedAt     DateTime  @default(now())
+  /// Absolutes Ablaufdatum - unabhaengig von Aktivitaet.
+  expiresAt     DateTime
+  /// Ablauf bei Inaktivitaet; wird bei jedem Request verlaengert.
+  idleExpiresAt DateTime
+  revokedAt     DateTime?
+  revokedReason String?
+  ipHash        String?
+  userAgent     String?
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+/// Zwischenspeicher fuer Guild-Mitgliedschaft und Discord-Rollen.
+/// Wird nach Ablauf der TTL und vor sicherheitskritischen Aktionen erneuert.
+model DiscordIdentityCache {
+  discordId     String    @id
+  userId        String?   @unique
+  user          User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  isMember      Boolean   @default(false)
+  roleIds       String[]  @default([])
+  nickname      String?
+  joinedGuildAt DateTime?
+  fetchedAt     DateTime  @default(now())
+
+  @@index([fetchedAt])
+}
+
+/// Discord-Rolle, die von SwissHub verwaltet/bewertet wird.
+model ManagedRole {
+  id              String   @id @default(cuid())
+  discordRoleId   String   @unique
+  label           String
+  /// Geschuetzte Rollen koennen nicht moderiert werden.
+  isProtected     Boolean  @default(false)
+  /// Rollen, die beim Jail erhalten bleiben (z.B. Booster).
+  keepOnJail      Boolean  @default(false)
+  /// Interne Moderationsstufe fuer die Hierarchiepruefung (hoeher = staerker).
+  moderationLevel Int      @default(0)
+  notes           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  permissions RolePermission[]
+}
+
+/// Zuordnung Discord-Rolle -> Permission der Permission Engine.
+model RolePermission {
+  id            String      @id @default(cuid())
+  discordRoleId String
+  permission    String
+  createdAt     DateTime    @default(now())
+  createdBy     String?
+  role          ManagedRole @relation(fields: [discordRoleId], references: [discordRoleId], onDelete: Cascade)
+
+  @@unique([discordRoleId, permission])
+  @@index([permission])
+}
+
+/// Generischer, typisiert gelesener Konfigurationsspeicher.
+model SystemConfig {
+  key       String   @id
+  value     Json
+  updatedAt DateTime @updatedAt
+  updatedBy String?
+}
+
+/// Aktivierungszustand und Einstellungen eines Moduls.
+model ModuleState {
+  moduleId  String   @id
+  enabled   Boolean  @default(true)
+  settings  Json     @default("{}")
+  updatedAt DateTime @updatedAt
+  updatedBy String?
+}
+
+/// Jail-Vorgang. Die Datenbank ist Source of Truth - der Bot leitet daraus
+/// automatische Freilassungen und Reconciliation ab.
+model JailEntry {
+  id                  String           @id @default(cuid())
+  targetDiscordId     String
+  targetUsername      String
+  targetDisplayName   String?
+  moderatorDiscordId  String
+  moderatorUsername   String
+  reason              String
+  durationSeconds     Int
+  startedAt           DateTime         @default(now())
+  endsAt              DateTime
+  releasedAt          DateTime?
+  releaseType         JailReleaseType?
+  releasedByDiscordId String?
+  releasedByUsername  String?
+  /// Rollen vor dem Jail (Snapshot fuer die Wiederherstellung).
+  roleSnapshot        String[]         @default([])
+  /// Rollen, die waehrend des Jails erhalten blieben.
+  keptRoleIds         String[]         @default([])
+  /// Beim Release erfolgreich wiederhergestellte Rollen.
+  restoredRoleIds     String[]         @default([])
+  /// Rollen, die nicht wiederhergestellt werden konnten (geloescht, zu hoch, ...).
+  failedRoleIds       String[]         @default([])
+  status              ActionStatus     @default(PENDING)
+  releaseStatus       ActionStatus?
+  errorCode           String?
+  errorMessage        String?
+  /// Gesetzt solange der Jail aktiv ist (= targetDiscordId). NULL nach dem
+  /// Release. Der Unique-Index verhindert dadurch zwei gleichzeitig aktive
+  /// Jails fuer dasselbe Mitglied (Race Condition Schutz).
+  activeKey           String?          @unique
+  /// Verhindert doppelte Ausfuehrung bei Doppelklick/Retry.
+  idempotencyKey      String?          @unique
+  createdAt           DateTime         @default(now())
+  updatedAt           DateTime         @updatedAt
+
+  @@index([targetDiscordId, startedAt])
+  @@index([endsAt])
+  @@index([status])
+  @@index([moderatorDiscordId])
+}
+
+/// Modulunabhaengige Moderationshistorie (Basis fuer Statistiken).
+model ModerationAction {
+  id              String               @id @default(cuid())
+  type            ModerationActionType
+  module          String
+  actorDiscordId  String
+  actorUsername   String
+  targetDiscordId String
+  targetUsername  String
+  reason          String?
+  status          ActionStatus         @default(COMPLETED)
+  referenceId     String?
+  metadata        Json                 @default("{}")
+  createdAt       DateTime             @default(now())
+
+  @@index([targetDiscordId, createdAt])
+  @@index([actorDiscordId, createdAt])
+  @@index([createdAt])
+}
+
+/// Manipulationsgeschuetztes Audit Log (Hash-Chain).
+model AuditLog {
+  id              String   @id @default(cuid())
+  sequence        BigInt   @unique @default(autoincrement())
+  createdAt       DateTime @default(now())
+  action          String
+  module          String?
+  actorDiscordId  String?
+  actorUsername   String?
+  targetDiscordId String?
+  targetLabel     String?
+  success         Boolean  @default(true)
+  errorCode       String?
+  errorMessage    String?
+  metadata        Json     @default("{}")
+  ipHash          String?
+  userAgent       String?
+  /// Hash des vorherigen Eintrags - erlaubt das Erkennen von Manipulationen.
+  previousHash    String?
+  hash            String
+
+  @@index([createdAt])
+  @@index([action, createdAt])
+  @@index([module, createdAt])
+  @@index([actorDiscordId, createdAt])
+  @@index([targetDiscordId, createdAt])
+  @@index([success, createdAt])
+}
+
+/// Sicherheitsrelevante Ereignisse (fehlende Berechtigungen, CSRF, ...).
+model SecurityEvent {
+  id        String           @id @default(cuid())
+  createdAt DateTime         @default(now())
+  type      String
+  severity  SecuritySeverity @default(LOW)
+  discordId String?
+  ipHash    String?
+  userAgent String?
+  path      String?
+  metadata  Json             @default("{}")
+
+  @@index([createdAt])
+  @@index([type, createdAt])
+  @@index([discordId, createdAt])
+}
+
+/// Serverseitiges Rate Limiting (Fixed Window).
+model RateLimitCounter {
+  bucket      String
+  windowStart DateTime
+  count       Int      @default(0)
+  expiresAt   DateTime
+
+  @@id([bucket, windowStart])
+  @@index([expiresAt])
+}
+
+/// Idempotenzschluessel fuer kritische Aktionen.
+model IdempotencyRecord {
+  key            String       @id
+  scope          String
+  actorDiscordId String
+  status         ActionStatus @default(PENDING)
+  resultRef      String?
+  createdAt      DateTime     @default(now())
+  expiresAt      DateTime
+
+  @@index([expiresAt])
+  @@index([scope, actorDiscordId])
+}
+
+/// Laufzeitstatus des Discord-Bots (vom Bot geschrieben, von der WebApp gelesen).
+model BotStatus {
+  id               String    @id @default("singleton")
+  online           Boolean   @default(false)
+  wsPingMs         Int?
+  guildMemberCount Int?
+  botUserId        String?
+  botUsername      String?
+  version          String?
+  lastHeartbeatAt  DateTime  @default(now())
+  lastConnectedAt  DateTime?
+  lastError        String?
+  updatedAt        DateTime  @updatedAt
+}
+
+/// Abgleich zwischen Datenbank- und Discord-Zustand.
+model ReconciliationRun {
+  id          String             @id @default(cuid())
+  module      String
+  mode        ReconciliationMode @default(AUTOMATIC)
+  startedAt   DateTime           @default(now())
+  finishedAt  DateTime?
+  checked     Int                @default(0)
+  drift       Int                @default(0)
+  repaired    Int                @default(0)
+  failed      Int                @default(0)
+  triggeredBy String?
+  details     Json               @default("{}")
+
+  @@index([module, startedAt])
+}

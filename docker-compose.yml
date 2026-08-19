@@ -1,0 +1,30 @@
+# SwissHub Bot WebApp - lokale Entwicklung
+#
+#   docker compose up -d
+#
+# Startet ausschliesslich die Infrastruktur (PostgreSQL). WebApp und Bot laufen
+# waehrend der Entwicklung direkt via `npm run dev` bzw. `npm run dev:bot`.
+# Fuer den Produktionsbetrieb siehe docker-compose.prod.yml.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: swisshub-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: swisshub
+      POSTGRES_PASSWORD: swisshub
+      POSTGRES_DB: swisshub
+      TZ: Europe/Zurich
+    ports:
+      - '5432:5432'
+    volumes:
+      - swisshub-postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U swisshub -d swisshub']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  swisshub-postgres:

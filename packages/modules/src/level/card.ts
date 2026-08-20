@@ -96,8 +96,9 @@ export function renderLevelCardSvg(input: LevelCardInput): string {
   const percent = Math.round(progress.progress * 100);
 
   // Grobe Breitenschätzung für Beschriftung und Prozentangabe, damit der
-  // Balken dazwischen passt.
-  const labelWidth = 78;
+  // Balken dazwischen passt. Lieber etwas zu grosszügig: ein zu schmaler Wert
+  // schiebt den Balken unter die Beschriftung.
+  const labelWidth = 102;
   const percentWidth = `${percent}%`.length * 12;
   const percentX = width - 40 - percentWidth;
   const barX = textX + labelWidth + 14;

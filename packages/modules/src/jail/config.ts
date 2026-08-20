@@ -1,5 +1,12 @@
 import { z } from 'zod';
 import { optionalSnowflakeSchema } from '@swisshub/shared';
+import {
+  DEFAULT_PERMANENT_PUBLIC_TEMPLATE,
+  DEFAULT_PING_TEMPLATE,
+  DEFAULT_PUBLIC_TEMPLATE,
+  DEFAULT_RELEASE_TEMPLATE,
+  JAIL_TEMPLATE_PLACEHOLDERS,
+} from './templates';
 import { registerModule, type ModuleDefinition } from '../registry';
 import type { SettingsField } from '../settings/fields';
 import type { ModuleHealthCheck, ModuleHealthContext } from '../health/types';
@@ -21,6 +28,13 @@ export const JAIL_PERMISSIONS = {
    * so ist das Verhalten im Dashboard steuerbar.
    */
   voteMultivote: 'jail.vote.multivote',
+  /**
+   * Darf trotz laufender Sperrfrist eine neue Abstimmung starten.
+   * Ersetzt die feste Admin-Prüfung des alten Bots.
+   */
+  voteBypassCooldown: 'jail.vote.bypassCooldown',
+  /** Darf die alte Jail-Datenbank importieren. */
+  import: 'jail.import',
 } as const;
 
 /** Obergrenze, die auch per Konfiguration nicht überschritten werden kann. */
@@ -71,9 +85,59 @@ export const jailSettingsSchema = z.object({
     .min(60)
     .max(7 * 24 * 60 * 60)
     .default(30 * 60),
+  /**
+   * Sperrfrist für Initiatoren nach einer erfolgreichen Abstimmung.
+   * Wer `jail.vote.bypassCooldown` hat, ist davon ausgenommen.
+   */
+  voteJailCooldownHours: z.number().int().min(0).max(168).default(12),
+
+  // --- Öffentliche Nachrichten -------------------------------------------
+  /** Channel für die öffentliche Ankündigung (früher ANNOUNCE_CHANNEL_ID). */
+  announcementChannelId: optionalSnowflakeSchema,
+  /** Channel, in dem das Mitglied gepingt wird (früher JAIL_PING_CHANNEL_ID). */
+  jailPingChannelId: optionalSnowflakeSchema,
+  /** Öffentliche Ankündigung senden. */
+  announcePublicly: z.boolean().default(true),
+  /** Mitglied im Jail-Ping-Channel erwähnen. */
+  pingOnJail: z.boolean().default(true),
+  /** Neue Jails standardmässig ohne öffentliche Ankündigung anlegen. */
+  silentByDefault: z.boolean().default(false),
+  publicJailTemplate: z.string().max(1000).default(DEFAULT_PUBLIC_TEMPLATE),
+  publicPermanentJailTemplate: z.string().max(1000).default(DEFAULT_PERMANENT_PUBLIC_TEMPLATE),
+  publicReleaseTemplate: z.string().max(1000).default(DEFAULT_RELEASE_TEMPLATE),
+  jailPingTemplate: z.string().max(1000).default(DEFAULT_PING_TEMPLATE),
+  voteJailPingTemplate: z
+    .string()
+    .max(1000)
+    .default('Hoi {mention}, d Community het defür abgstumme dich in Jail z stecke ({end_relative}).'),
+
+  // --- Verhalten ----------------------------------------------------------
+  /**
+   * Booster-Rolle. Sie bleibt während des Jails erhalten - im alten Bot war
+   * die ID fest im Code, hier ist sie konfigurierbar und optional.
+   */
+  boosterRoleId: optionalSnowflakeSchema,
+  keepBoosterRole: z.boolean().default(true),
+  /** Mitglied beim Jail aus dem Sprachkanal trennen. */
+  disconnectFromVoice: z.boolean().default(true),
+  /** Jail beim erneuten Beitritt automatisch wieder anwenden. */
+  reapplyOnRejoin: z.boolean().default(true),
+
+  // --- Geschlechterrollen (optional) --------------------------------------
+  /**
+   * Nur für die Anrede in den Vorlagen (`{gendered:...}`, `{pronoun}`).
+   * Ohne Konfiguration bleiben alle Texte neutral.
+   */
+  genderMaleRoleId: optionalSnowflakeSchema,
+  genderFemaleRoleId: optionalSnowflakeSchema,
 });
 
 export type JailSettings = z.infer<typeof jailSettingsSchema>;
+
+/** Platzhalterhilfe - steht direkt am ersten Vorlagenfeld. */
+const PLACEHOLDER_HELP = `Verfügbare Platzhalter: ${JAIL_TEMPLATE_PLACEHOLDERS.map(
+  (entry) => entry.token,
+).join(', ')}. Unbekannte Platzhalter bleiben unverändert stehen.`;
 
 /**
  * Beschreibung der Einstellungen für die generische Oberfläche.
@@ -182,6 +246,141 @@ export const jailSettingsFields: SettingsField[] = [
     max: 7 * 24 * 60 * 60,
     presets: [30 * 60, 60 * 60, 6 * 60 * 60, 24 * 60 * 60],
   },
+  {
+    key: 'voteJailCooldownHours',
+    type: 'number',
+    label: 'Sperrfrist nach erfolgreicher Abstimmung',
+    description:
+      'So lange darf dieselbe Person keine neue Abstimmung starten. 0 deaktiviert die Sperrfrist. Ausgenommen ist, wer "Vote Jail: Sperrfrist umgehen" besitzt.',
+    group: 'Vote Jail',
+    min: 0,
+    max: 168,
+    unit: 'Stunden',
+  },
+
+  // --- Discord: weitere Channels und Rollen --------------------------------
+  {
+    key: 'announcementChannelId',
+    type: 'discord-channel',
+    label: 'Ankündigungs-Channel',
+    description: 'Hier erscheint die öffentliche Meldung, wenn jemand gejailt oder freigelassen wird.',
+    group: 'Discord',
+    channelKinds: ['text'],
+  },
+  {
+    key: 'jailPingChannelId',
+    type: 'discord-channel',
+    label: 'Jail-Ping-Channel',
+    description: 'Hier wird das Mitglied direkt erwähnt, damit es die Strafe mitbekommt.',
+    group: 'Discord',
+    channelKinds: ['text'],
+  },
+  {
+    key: 'boosterRoleId',
+    type: 'discord-role',
+    label: 'Booster-Rolle',
+    description: 'Optional. Wird während eines Jails nicht entzogen, solange die Option unten aktiv ist.',
+    group: 'Discord',
+  },
+  {
+    key: 'genderMaleRoleId',
+    type: 'discord-role',
+    label: 'Rolle "männlich"',
+    description: 'Optional - wird ausschliesslich für die Anrede in den Textvorlagen verwendet.',
+    group: 'Anrede',
+  },
+  {
+    key: 'genderFemaleRoleId',
+    type: 'discord-role',
+    label: 'Rolle "weiblich"',
+    description: 'Optional - wird ausschliesslich für die Anrede in den Textvorlagen verwendet.',
+    group: 'Anrede',
+  },
+
+  // --- Verhalten -----------------------------------------------------------
+  {
+    key: 'keepBoosterRole',
+    type: 'boolean',
+    label: 'Booster-Rolle behalten',
+    description: 'Server-Booster verlieren ihre Booster-Rolle während des Jails nicht.',
+    group: 'Verhalten',
+  },
+  {
+    key: 'disconnectFromVoice',
+    type: 'boolean',
+    label: 'Aus Sprachkanal trennen',
+    description: 'Beim Jail wird das Mitglied aus einem laufenden Sprachkanal entfernt.',
+    group: 'Verhalten',
+  },
+  {
+    key: 'reapplyOnRejoin',
+    type: 'boolean',
+    label: 'Jail beim Wiedereintritt erneut anwenden',
+    description:
+      'Verlässt jemand den Server während eines Jails, wird die Strafe beim erneuten Beitritt automatisch wieder gesetzt.',
+    group: 'Verhalten',
+  },
+  {
+    key: 'silentByDefault',
+    type: 'boolean',
+    label: 'Neue Jails standardmässig still',
+    description: 'Die öffentliche Ankündigung ist dann im Formular vorab abgewählt.',
+    group: 'Verhalten',
+  },
+
+  // --- Öffentliche Texte ---------------------------------------------------
+  {
+    key: 'announcePublicly',
+    type: 'boolean',
+    label: 'Öffentliche Ankündigung senden',
+    group: 'Öffentliche Nachrichten',
+  },
+  {
+    key: 'pingOnJail',
+    type: 'boolean',
+    label: 'Mitglied im Jail-Ping-Channel erwähnen',
+    group: 'Öffentliche Nachrichten',
+  },
+  {
+    key: 'publicJailTemplate',
+    type: 'textarea',
+    label: 'Ankündigung: Jail auf Zeit',
+    description: PLACEHOLDER_HELP,
+    group: 'Öffentliche Nachrichten',
+    maxLength: 1000,
+  },
+  {
+    key: 'publicPermanentJailTemplate',
+    type: 'textarea',
+    label: 'Ankündigung: permanenter Jail',
+    description: 'Wie oben, aber ohne Enddatum. Dieselben Platzhalter.',
+    group: 'Öffentliche Nachrichten',
+    maxLength: 1000,
+  },
+  {
+    key: 'publicReleaseTemplate',
+    type: 'textarea',
+    label: 'Ankündigung: Freilassung',
+    description: 'Dieselben Platzhalter. {end_time} ist hier ohne Bedeutung.',
+    group: 'Öffentliche Nachrichten',
+    maxLength: 1000,
+  },
+  {
+    key: 'jailPingTemplate',
+    type: 'textarea',
+    label: 'Ping an das gejailte Mitglied',
+    description: 'Dieselben Platzhalter.',
+    group: 'Öffentliche Nachrichten',
+    maxLength: 1000,
+  },
+  {
+    key: 'voteJailPingTemplate',
+    type: 'textarea',
+    label: 'Ping nach einer Abstimmung',
+    description: 'Wird anstelle des normalen Pings verwendet, wenn der Jail aus einer Abstimmung stammt.',
+    group: 'Öffentliche Nachrichten',
+    maxLength: 1000,
+  },
 ];
 
 /**
@@ -230,6 +429,33 @@ async function jailHealthChecks(context: ModuleHealthContext): Promise<ModuleHea
       label: 'Jail-Channel',
       status: 'warning',
       detail: 'Die Benachrichtigung ist aktiv, es ist aber kein Channel gewählt.',
+      fixHref: settingsHref,
+    });
+  }
+
+  if (settings.announcePublicly && !settings.announcementChannelId) {
+    checks.push({
+      label: 'Ankündigungs-Channel',
+      status: 'warning',
+      detail: 'Die öffentliche Ankündigung ist aktiv, es ist aber kein Channel gewählt.',
+      fixHref: settingsHref,
+    });
+  }
+
+  if (settings.pingOnJail && !settings.jailPingChannelId) {
+    checks.push({
+      label: 'Jail-Ping-Channel',
+      status: 'warning',
+      detail: 'Der Ping ist aktiv, es ist aber kein Channel gewählt.',
+      fixHref: settingsHref,
+    });
+  }
+
+  if (settings.keepBoosterRole && !settings.boosterRoleId) {
+    checks.push({
+      label: 'Booster-Rolle',
+      status: 'warning',
+      detail: 'Booster-Rollen sollen erhalten bleiben, es ist aber keine Rolle gewählt.',
       fixHref: settingsHref,
     });
   }
@@ -305,7 +531,7 @@ export const jailModule: ModuleDefinition = registerModule({
   defaultEnabled: true,
   settingsSchema: jailSettingsSchema,
   settingsFields: jailSettingsFields,
-  configVersion: 2,
+  configVersion: 3,
   requiredDiscordPermissions: [
     'MANAGE_ROLES',
     'SEND_MESSAGES',
@@ -363,6 +589,20 @@ export const jailModule: ModuleDefinition = registerModule({
       module: JAIL_MODULE_ID,
       critical: true,
     },
+    {
+      key: JAIL_PERMISSIONS.voteBypassCooldown,
+      label: 'Vote Jail: Sperrfrist umgehen',
+      description: 'Darf eine neue Abstimmung starten, ohne die Sperrfrist abzuwarten.',
+      module: JAIL_MODULE_ID,
+      critical: true,
+    },
+    {
+      key: JAIL_PERMISSIONS.import,
+      label: 'Alte Jail-Datenbank importieren',
+      description: 'Darf die SQLite-Datei des früheren Jail-Bots hochladen und übernehmen.',
+      module: JAIL_MODULE_ID,
+      critical: true,
+    },
   ],
   navigation: [
     {
@@ -383,6 +623,15 @@ export const jailModule: ModuleDefinition = registerModule({
       icon: 'Gavel',
       group: 'moderation',
       order: 31,
+    },
+    {
+      href: '/jail/import',
+      label: 'Jail-Import',
+      description: 'Daten des früheren Jail-Bots übernehmen',
+      permission: JAIL_PERMISSIONS.import,
+      icon: 'Database',
+      group: 'moderation',
+      order: 32,
     },
   ],
 });

@@ -78,6 +78,17 @@ geladen. Ist Discord nicht erreichbar, gilt der Benutzer als nicht berechtigt.
 
 ---
 
+### Slash Commands
+
+Discord-Befehle sind Adapter, keine zweite Fachlogik (`apps/bot/src/commands/`):
+
+- Die Berechtigung wird über dieselbe Rollen-Zuordnung aufgelöst wie im Dashboard
+  (`resolvePermissions` + `hasPermission`). Es gibt keine Admin-Rollen-ID im Code.
+- Die Ausführung übernehmen `createJail`, `releaseJail` und `startVoteJail` - inklusive
+  Moderation Policy, Rollen-Snapshot, Idempotenz, Rollenhierarchie und Audit Log.
+- Antworten sind grundsätzlich ephemeral; Fehler werden über `AppError.userMessage`
+  ausgegeben, nie als Rohdaten.
+
 ## 3. Discord-Anbindung
 
 - Bot Token, Client Secret und `AUTH_SECRET` stehen ausschliesslich in Environment Variables.
@@ -256,6 +267,39 @@ Eine Abstimmung ist eine Vorstufe des regulären Jails, kein zweiter Moderations
 - Wer mehrfach stimmen darf, entscheidet ausschliesslich das Permission-System
   (`jail.vote.multivote`) - es gibt keine hart codierte Adminliste.
 - Das Ziel der Abstimmung kann nicht über sich selbst abstimmen.
+- Nach einer erfolgreichen Abstimmung gilt für den Initiator eine Sperrfrist (Standard 12
+  Stunden). Ausgenommen ist nur, wer `jail.vote.bypassCooldown` besitzt - auch das ist eine
+  gewöhnliche Berechtigung und keine feste Rolle.
+
+### Übernahme der alten Jail-Datenbank
+
+Die hochgeladene SQLite-Datei ist nicht vertrauenswürdiger Input und wird
+entsprechend behandelt (`packages/modules/src/jail/import/reader.ts`):
+
+- **Nur lesend.** Die Datei wird mit `readOnly` geöffnet. Es gibt kein `ALTER`,
+  `UPDATE` oder `DELETE` darauf - die Originaldatei bleibt bitgleich.
+- **Kein SQL aus der Datei.** Gelesen werden ausschliesslich die drei erwarteten
+  Tabellen (`jail_data`, `vote_cooldowns`, `active_votes`) mit fest im Code stehendem SQL.
+  Aus der Datei stammen nur Werte, nie Anweisungen. Nichts davon wird gegen PostgreSQL ausgeführt.
+- **Keine Erweiterungen, keine Shell.** `node:sqlite` lädt ohne ausdrückliche Freigabe keine
+  Extensions; es wird kein externer Prozess gestartet.
+- **Kein Pfad aus dem Browser.** Geschrieben wird in ein frisches, zufällig benanntes
+  Verzeichnis mit Modus `0600`; der übermittelte Dateiname dient nur der Anzeige. Path
+  Traversal ist dadurch ausgeschlossen.
+- **Datei wird gelöscht.** Die temporäre Kopie verschwindet in jedem Fall - auch wenn das Lesen
+  scheitert.
+- **Grössenlimit** von 32 MB, geprüft vor dem Schreiben; die Signatur `SQLite format 3` muss
+  stimmen.
+- **Bestehende Daten bleiben.** Der Import legt ausschliesslich neue Zeilen an, in einer
+  Transaktion. Läuft für ein Mitglied bereits ein Jail, wird die Altzeile übersprungen.
+- **Berechtigung und Bestätigung.** Nötig ist `jail.import`; zusätzlich muss ausdrücklich
+  bestätigt werden, dass der alte Bot gestoppt ist - zwei gleichzeitig laufende Bots würden sich
+  gegenseitig die Rollen überschreiben.
+
+**Der alte `bot.py` enthält den Bot-Token im Klartext.** Er wird nicht importiert, nicht
+angezeigt, nicht geloggt und nicht in die neue Konfiguration übernommen - die Datei wird gar
+nicht erst hochgeladen. Der Token sollte im Discord Developer Portal rotiert werden; siehe
+[JAIL_MIGRATION.md](./JAIL_MIGRATION.md).
 
 ### Aussperrschutz
 

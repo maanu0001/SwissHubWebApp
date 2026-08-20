@@ -21,6 +21,12 @@ export interface JailExecutionContext {
   moderationLevels: ReadonlyMap<string, number>;
   moderationLogChannelId: string | null;
   jailChannelId: string | null;
+  /** Channel für die öffentliche Ankündigung. */
+  announcementChannelId: string | null;
+  /** Channel, in dem das Mitglied erwähnt wird. */
+  jailPingChannelId: string | null;
+  /** Rollen für die Anrede in den Textvorlagen (rein kosmetisch). */
+  genderRoles: { maleRoleId: string | null; femaleRoleId: string | null };
 }
 
 export async function loadJailContext(
@@ -45,9 +51,24 @@ export async function loadJailContext(
     botUserId: botIdentity?.id ?? null,
     guildOwnerId: guild?.ownerId ?? null,
     protectedRoleIds: roleConfiguration.protectedRoleIds,
-    keepRoleIds: new Set([...roleConfiguration.keepOnJailRoleIds, ...settings.keepRoleIds]),
+    // Die Booster-Rolle ist im alten Bot fest verdrahtet gewesen. Hier ist sie
+    // eine gewöhnliche Einstellung und fliesst nur dann in die Behalteliste,
+    // wenn sie konfiguriert und aktiviert ist.
+    keepRoleIds: new Set(
+      [
+        ...roleConfiguration.keepOnJailRoleIds,
+        ...settings.keepRoleIds,
+        ...(settings.keepBoosterRole && settings.boosterRoleId ? [settings.boosterRoleId] : []),
+      ].filter(Boolean),
+    ),
     moderationLevels: roleConfiguration.moderationLevels,
     moderationLogChannelId: settings.moderationLogChannelId ?? coreSettings.moderationLogChannelId ?? null,
     jailChannelId: settings.jailChannelId ?? null,
+    announcementChannelId: settings.announcementChannelId ?? null,
+    jailPingChannelId: settings.jailPingChannelId ?? null,
+    genderRoles: {
+      maleRoleId: settings.genderMaleRoleId ?? null,
+      femaleRoleId: settings.genderFemaleRoleId ?? null,
+    },
   };
 }

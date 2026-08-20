@@ -134,6 +134,10 @@ export function createMockGateway(): DiscordGateway {
           member.roleIds = [...new Set(roleIds)];
         }
       },
+      async disconnectFromVoice(discordId) {
+        // Im Mock ist niemand in einem Sprachkanal - der Aufruf ist folgenlos.
+        return state.has(discordId) ? false : false;
+      },
     },
     roles: {
       async list() {

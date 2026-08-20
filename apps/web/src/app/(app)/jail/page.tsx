@@ -147,7 +147,19 @@ export default async function JailPage({ searchParams }: JailPageProps): Promise
       header: 'Status',
       render: (entry: JailEntry) =>
         query.tab === 'active' ? (
-          <StatusBadge status={entry.status} />
+          <span className="flex flex-wrap items-center gap-1.5">
+            <StatusBadge status={entry.status} />
+            {/* Nur auffällige Zustände zeigen - "aktiv" ist in diesem Tab
+                ohnehin der Normalfall und würde nur Lärm erzeugen. */}
+            {entry.lifecycle === 'PENDING_REJOIN' ? (
+              <Badge variant="destructive" title="Mitglied hat den Server verlassen">
+                Server verlassen
+              </Badge>
+            ) : null}
+            {entry.silent ? <Badge variant="outline">Still</Badge> : null}
+            {entry.source === 'IMPORT' ? <Badge variant="outline">Übernommen</Badge> : null}
+            {entry.source === 'VOTE_JAIL' ? <Badge variant="outline">Voting</Badge> : null}
+          </span>
         ) : entry.releaseType ? (
           <Badge variant={entry.releaseType === 'MANUAL' ? 'secondary' : 'outline'}>
             {entry.releaseType === 'MANUAL'
@@ -206,6 +218,7 @@ export default async function JailPage({ searchParams }: JailPageProps): Promise
               csrfToken={csrfToken}
               durationPresets={jail.JAIL_DURATION_PRESETS}
               maxDurationSeconds={settings.maxDurationSeconds}
+              announceByDefault={!settings.silentByDefault}
             />
           ) : null
         }

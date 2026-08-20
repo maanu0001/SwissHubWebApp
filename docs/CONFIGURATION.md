@@ -245,8 +245,58 @@ Die Abstimmung ist Teil des Jail-Moduls und wird unter **Module → Jail** konfi
 | Voting-Dauer          | 5 Minuten  | Danach endet die Abstimmung ohne Ergebnis               |
 | Jail-Dauer bei Erfolg | 30 Minuten | Wird über den regulären Jail-Service ausgeführt         |
 
+| Sperrfrist nach Erfolg | 12 Stunden | Danach darf derselbe Initiator wieder starten (0 = aus) |
+
 Berechtigungen: `jail.vote.start` zum Starten, `jail.vote.multivote` für
-Mehrfachstimmen (typischerweise der Administratorrolle zugewiesen).
+Mehrfachstimmen und `jail.vote.bypassCooldown` zum Überspringen der Sperrfrist
+(typischerweise der Administratorrolle zugewiesen).
+
+### Jail
+
+Unter **Module → Jail**. Der frühere Jail-Bot hatte diese Werte als Konstanten
+im Quelltext; hier sind es Einstellungen mit Rollen- und Channel-Auswahl.
+
+| Einstellung                              | Standard | Bedeutung                                                        |
+| ---------------------------------------- | -------- | ---------------------------------------------------------------- |
+| Jail-Rolle                               | –        | Wird während des Jails vergeben; muss unter der Bot-Rolle liegen |
+| Rollen behalten                          | –        | Bleiben zusätzlich erhalten                                      |
+| Booster-Rolle / Booster-Rolle behalten   | – / an   | Server-Booster verlieren ihre Rolle während des Jails nicht      |
+| Jail-Channel                             | –        | Hinweis an das Mitglied                                          |
+| Moderations-Log                          | –        | Überschreibt den zentralen Log für dieses Modul                  |
+| Ankündigungs-Channel                     | –        | Öffentliche Meldung bei Jail und Freilassung                     |
+| Jail-Ping-Channel                        | –        | Hier wird das Mitglied direkt erwähnt                            |
+| Maximale Jail-Dauer                      | 7 Tage   | Obergrenze für zeitlich begrenzte Jails                          |
+| Aus Sprachkanal trennen                  | an       | Trennt das Mitglied beim Jail aus einem laufenden Sprachkanal    |
+| Jail beim Wiedereintritt erneut anwenden | an       | Ein Jail überlebt Verlassen und erneutes Beitreten               |
+| Neue Jails standardmässig still          | aus      | Vorbelegung der öffentlichen Meldung im Formular                 |
+| Rolle „männlich“ / „weiblich“            | –        | Optional, ausschliesslich für die Anrede in den Textvorlagen     |
+
+#### Textvorlagen
+
+Die öffentlichen Meldungen sind Vorlagen mit Platzhaltern - sie ersetzen die
+früher fest im Code stehenden Varianten:
+
+| Platzhalter                              | Ergebnis                                        |
+| ---------------------------------------- | ----------------------------------------------- |
+| `{mention}`                              | Erwähnung des Mitglieds                         |
+| `{user}`                                 | Anzeigename ohne Erwähnung                      |
+| `{moderator}`                            | Name des Moderators                             |
+| `{reason}`                               | Angegebener Grund                               |
+| `{duration}`                             | z.B. „2 Std.“ oder „permanent“                  |
+| `{end_time}` / `{end_relative}`          | Discord-Zeitstempel (Datum bzw. „in 2 Stunden“) |
+| `{pronoun}`                              | er / sie / er/sie                               |
+| `{gendered:männlich\|weiblich\|neutral}` | Eigene Variante je Geschlecht                   |
+
+Unbekannte Platzhalter bleiben unverändert stehen, damit ein Tippfehler
+sichtbar wird. Benutzertext wird escaped; die einzige mögliche Erwähnung ist
+`{mention}` und wird beim Senden gezielt über `allowedMentions` freigegeben -
+ein `@everyone` in der Vorlage bleibt wirkungslos.
+
+Serverspezifische Emojis (`<:name:id>`) lassen sich direkt in die Vorlage
+schreiben. In den Standardvorlagen steht bewusst keines, weil eine Emoji-ID
+nur auf einem bestimmten Server gültig ist.
+
+Übernahme der alten Jail-Datenbank: [JAIL_MIGRATION.md](JAIL_MIGRATION.md).
 
 ### Kommunikation
 

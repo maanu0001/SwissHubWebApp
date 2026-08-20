@@ -17,6 +17,14 @@ export interface DiscordGateway {
     list(options?: { limit?: number; after?: string }): Promise<GuildMember[]>;
     /** Setzt die vollständige Rollenliste (atomar, ein Request). */
     setRoles(discordId: string, roleIds: string[], reason?: string): Promise<void>;
+    /**
+     * Trennt ein Mitglied aus seinem Sprachkanal.
+     *
+     * Liefert `true`, wenn getrennt wurde, und `false`, wenn das Mitglied gar
+     * nicht in einem Sprachkanal war. Ein fehlgeschlagener Versuch wirft -
+     * die Aufrufer behandeln das bewusst als nicht kritisch.
+     */
+    disconnectFromVoice(discordId: string, reason?: string): Promise<boolean>;
   };
   roles: {
     list(options?: { force?: boolean }): Promise<GuildRole[]>;

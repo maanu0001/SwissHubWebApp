@@ -50,6 +50,8 @@ function resetState(): void {
   state.moderationActions.length = 0;
   state.voteJails.length = 0;
   state.voteJailVotes.length = 0;
+  state.voteJailCooldowns.length = 0;
+  state.jailRoleSnapshots.length = 0;
   state.idempotency.clear();
   state.managedRoles.length = 0;
   state.rolePermissions.length = 0;
@@ -317,6 +319,72 @@ describe('Vote Jail', () => {
     await expect(
       jail.startVoteJail({ targetDiscordId: TARGET }, MODERATOR, { gateway }),
     ).rejects.toMatchObject({ code: 'CONFIGURATION_MISSING' });
+  });
+
+  it('sperrt den Initiator nach einer erfolgreichen Abstimmung', async () => {
+    const id = await startVote();
+    for (const voter of voters) {
+      await jail.castVote(id, { discordId: voter, canMultivote: false });
+    }
+    await jail.completeSuccessfulVote(id, { gateway });
+
+    // 12 Stunden Sperrfrist - wie im alten Bot, aber konfigurierbar.
+    const cooldown = state.voteJailCooldowns.find((entry) => entry.discordId === MODERATOR.discordId);
+    expect(cooldown).toBeDefined();
+    expect(cooldown!.expiresAt.getTime()).toBeGreaterThan(Date.now() + 11 * 60 * 60 * 1000);
+
+    // Der Jail selbst ist längst wieder weg - trotzdem bleibt die Sperre.
+    await jail.releaseJail(state.jails[0]!.id, { releaseType: 'MANUAL', actor: MODERATOR, gateway });
+    await expect(
+      jail.startVoteJail({ targetDiscordId: OTHER }, MODERATOR, { gateway }),
+    ).rejects.toMatchObject({ code: 'RATE_LIMITED' });
+  });
+
+  it('sperrt niemanden nach einer gescheiterten Abstimmung', async () => {
+    const id = await startVote();
+    await jail.castVote(id, { discordId: voters[0]!, canMultivote: false });
+    state.voteJails[0]!.expiresAt = new Date(Date.now() - 1000);
+    await jail.expireVoteJails(25, gateway);
+
+    expect(state.voteJailCooldowns).toHaveLength(0);
+    // Eine neue Abstimmung ist sofort möglich.
+    await expect(
+      jail.startVoteJail({ targetDiscordId: OTHER }, MODERATOR, { gateway }),
+    ).resolves.toBeTruthy();
+  });
+
+  it('lässt die Sperrfrist überspringen, wer die Berechtigung dafür hat', async () => {
+    state.voteJailCooldowns.push({
+      id: 'cooldown-1',
+      discordId: MODERATOR.discordId,
+      username: MODERATOR.username,
+      lastVoteJailId: null,
+      startedAt: new Date(),
+      expiresAt: new Date(Date.now() + 6 * 60 * 60 * 1000),
+    });
+
+    await expect(
+      jail.startVoteJail({ targetDiscordId: TARGET }, MODERATOR, { gateway }),
+    ).rejects.toMatchObject({ code: 'RATE_LIMITED' });
+
+    // Dieselbe Person mit `jail.vote.bypassCooldown` darf sofort.
+    await expect(
+      jail.startVoteJail({ targetDiscordId: TARGET }, { ...MODERATOR, bypassCooldown: true }, { gateway }),
+    ).resolves.toBeTruthy();
+  });
+
+  it('räumt abgelaufene Sperrfristen weg', async () => {
+    state.voteJailCooldowns.push({
+      id: 'cooldown-2',
+      discordId: MODERATOR.discordId,
+      username: MODERATOR.username,
+      lastVoteJailId: null,
+      startedAt: new Date(),
+      expiresAt: new Date(Date.now() - 1000),
+    });
+
+    expect(await jail.getVoteCooldown(MODERATOR.discordId)).toBeNull();
+    expect(await jail.purgeExpiredVoteCooldowns()).toBeGreaterThanOrEqual(0);
   });
 
   it('protokolliert Start und Ergebnis im Audit Log', async () => {

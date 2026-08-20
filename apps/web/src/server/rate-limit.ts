@@ -21,6 +21,7 @@ export const RATE_LIMITS = {
   voteJailStart: { limit: 10, windowMs: 10 * 60 * 1000 },
   communicationSend: { limit: 15, windowMs: 10 * 60 * 1000 },
   brandingUpload: { limit: 10, windowMs: 30 * 60 * 1000 },
+  jailImport: { limit: 10, windowMs: 30 * 60 * 1000 },
 } as const satisfies Record<string, RateLimitRule>;
 
 export type RateLimitName = keyof typeof RATE_LIMITS;

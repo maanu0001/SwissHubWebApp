@@ -11,7 +11,7 @@ import { createLogger } from '@swisshub/logger';
 import { evaluateModerationPolicy } from '@swisshub/permissions';
 import { AppError, sanitizeText } from '@swisshub/shared';
 import type { VoteJail } from '@swisshub/database';
-import { JAIL_MODULE_ID, type JailSettings } from '../config';
+import { JAIL_MODULE_ID, JAIL_PERMISSIONS, type JailSettings } from '../config';
 import { getModuleSettings } from '../../module-state';
 import { loadJailContext, type JailExecutionContext } from '../context';
 import { createJail } from '../service';
@@ -35,6 +35,13 @@ export interface VoteJailActor {
   roleIds: string[];
   isOwner: boolean;
   moderationLevel: number;
+  /**
+   * Darf die Sperrfrist überspringen (`jail.vote.bypassCooldown`).
+   *
+   * Wird vom Aufrufer aus dem Permission-System bestimmt - der alte Bot hatte
+   * dafür eine feste Admin-Rolle.
+   */
+  bypassCooldown?: boolean;
 }
 
 export interface StartVoteJailInput {
@@ -55,6 +62,8 @@ export interface VoteJailConfig {
   requiredVotes: number;
   durationSeconds: number;
   resultSeconds: number;
+  /** Sperrfrist des Initiators nach einer erfolgreichen Abstimmung. */
+  cooldownHours: number;
 }
 
 export async function getVoteJailConfig(): Promise<VoteJailConfig> {
@@ -65,7 +74,54 @@ export async function getVoteJailConfig(): Promise<VoteJailConfig> {
     requiredVotes: settings.voteJailRequiredVotes,
     durationSeconds: settings.voteJailDurationSeconds,
     resultSeconds: settings.voteJailResultSeconds,
+    cooldownHours: settings.voteJailCooldownHours,
   };
+}
+
+/**
+ * Laufende Sperrfrist eines Initiators.
+ *
+ * `null` bedeutet: darf sofort starten. Abgelaufene Einträge werden dabei
+ * gleich entfernt, damit die Tabelle nicht wächst.
+ */
+export async function getVoteCooldown(discordId: string): Promise<Date | null> {
+  const entry = await prisma.voteJailCooldown.findUnique({ where: { discordId } });
+  if (!entry) {
+    return null;
+  }
+  if (entry.expiresAt <= new Date()) {
+    await prisma.voteJailCooldown.deleteMany({ where: { discordId, expiresAt: entry.expiresAt } });
+    return null;
+  }
+  return entry.expiresAt;
+}
+
+/** Setzt die Sperrfrist nach einer erfolgreichen Abstimmung. */
+async function applyVoteCooldown(
+  actor: { discordId: string; username: string },
+  voteJailId: string,
+  hours: number,
+): Promise<void> {
+  if (hours <= 0) {
+    return;
+  }
+  const expiresAt = new Date(Date.now() + hours * 60 * 60 * 1000);
+  await prisma.voteJailCooldown.upsert({
+    where: { discordId: actor.discordId },
+    create: {
+      discordId: actor.discordId,
+      username: actor.username,
+      lastVoteJailId: voteJailId,
+      expiresAt,
+    },
+    update: { username: actor.username, lastVoteJailId: voteJailId, startedAt: new Date(), expiresAt },
+  });
+}
+
+/** Entfernt abgelaufene Sperrfristen (Aufräumjob). */
+export async function purgeExpiredVoteCooldowns(): Promise<number> {
+  const result = await prisma.voteJailCooldown.deleteMany({ where: { expiresAt: { lte: new Date() } } });
+  return result.count;
 }
 
 /**
@@ -136,6 +192,29 @@ export async function startVoteJail(
   const activeJail = await prisma.jailEntry.findUnique({ where: { activeKey: target.discordId } });
   if (activeJail) {
     throw new AppError('CONFLICT', { userMessage: 'Dieses Mitglied ist bereits gejailt.' });
+  }
+
+  // Sperrfrist des Initiators. Sie verhindert, dass dieselbe Person Vote Jail
+  // als Dauerwerkzeug einsetzt.
+  if (!actor.bypassCooldown && config.cooldownHours > 0) {
+    const until = await getVoteCooldown(actor.discordId);
+    if (until) {
+      await safeRecordAudit({
+        action: AUDIT_ACTIONS.VOTE_JAIL_BLOCKED,
+        module: JAIL_MODULE_ID,
+        actorDiscordId: actor.discordId,
+        actorUsername: actor.username,
+        targetDiscordId: target.discordId,
+        success: false,
+        errorCode: 'COOLDOWN',
+        metadata: { until: until.toISOString() },
+        ipHash: options.metadata?.ipHash,
+        userAgent: options.metadata?.userAgent,
+      });
+      throw new AppError('RATE_LIMITED', {
+        userMessage: `Du chasch erscht ${formatCooldownRemaining(until)} wieder es Voting starte.`,
+      });
+    }
   }
 
   const now = new Date();
@@ -316,6 +395,9 @@ export async function completeSuccessfulVote(
         durationSeconds: config.resultSeconds,
         reason: vote.reason ? `Vote Jail: ${vote.reason}` : 'Vote Jail',
         idempotencyKey: voteJailIdempotencyKey(vote.id),
+        // Herkunft: dadurch verwendet der Jail-Service die Vote-Vorlage für
+        // den Ping und die Historie zeigt, woher die Strafe kam.
+        source: 'VOTE_JAIL',
       },
       // Ausgelöst hat die Community, ausgeführt wird im Namen des Initiators.
       // Die Moderation Policy wurde bereits beim Start geprüft; hier zählt nur
@@ -363,8 +445,62 @@ export async function completeSuccessfulVote(
     },
   });
 
+  // Sperrfrist erst nach dem Ergebnis: eine gescheiterte oder abgebrochene
+  // Abstimmung sperrt niemanden.
+  if (jailId) {
+    const bypass = await initiatorMayBypassCooldown(vote.startedByDiscordId);
+    if (!bypass) {
+      await applyVoteCooldown(
+        { discordId: vote.startedByDiscordId, username: vote.startedByUsername },
+        vote.id,
+        config.cooldownHours,
+      );
+    }
+  }
+
   await updateVoteMessage(finished, gateway);
   return finished;
+}
+
+/**
+ * Prüft die Sperrfrist-Ausnahme anhand der aktuellen Rollen des Initiators.
+ *
+ * Der Abschluss läuft im Hintergrund, es gibt also keinen Request-Kontext -
+ * deshalb wird die Berechtigung hier frisch aufgelöst.
+ */
+async function initiatorMayBypassCooldown(discordId: string): Promise<boolean> {
+  try {
+    const { loadRoleConfiguration, resolvePermissions, hasPermission } =
+      await import('@swisshub/permissions');
+    const { discord } = await import('@swisshub/discord');
+    const [configuration, member] = await Promise.all([
+      loadRoleConfiguration(),
+      discord.members.get(discordId).catch(() => null),
+    ]);
+    const resolution = resolvePermissions(
+      { discordId, roleIds: member?.roleIds ?? [], isOwner: false },
+      configuration.mappings,
+    );
+    return hasPermission(resolution, JAIL_PERMISSIONS.voteBypassCooldown);
+  } catch (error) {
+    // Im Zweifel gilt die Sperrfrist - das ist die zurückhaltendere Annahme.
+    log.warn('Sperrfrist-Ausnahme konnte nicht geprüft werden', { error, discordId });
+    return false;
+  }
+}
+
+/** "in 11 Stunden und 20 Minuten" - für die Rückmeldung an den Initiator. */
+export function formatCooldownRemaining(until: Date, now: Date = new Date()): string {
+  const totalMinutes = Math.max(1, Math.ceil((until.getTime() - now.getTime()) / 60_000));
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  if (hours === 0) {
+    return `i ${minutes} Minute`;
+  }
+  if (minutes === 0) {
+    return `i ${hours} Stund`;
+  }
+  return `i ${hours} Stund und ${minutes} Minute`;
 }
 
 /** Beendet abgelaufene Abstimmungen ohne Ergebnis (Worker im Bot). */

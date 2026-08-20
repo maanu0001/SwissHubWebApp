@@ -50,6 +50,50 @@ enum VoteJailStatus {
   CANCELLED
 }
 
+/// Woher ein Jail stammt. Dashboard und Slash Command nutzen denselben
+/// Service - die Quelle ist reine Herkunftsinformation, kein zweiter Weg.
+enum JailSource {
+  DASHBOARD
+  SLASH_COMMAND
+  VOTE_JAIL
+  IMPORT
+  AUTO_RESTORE
+}
+
+/// Fachlicher Zustand eines Jails.
+///
+/// Bewusst getrennt von `ActionStatus`: dort steht, ob die *Discord-Aktion*
+/// durchgelaufen ist, hier steht, in welchem Zustand die *Strafe* ist.
+/// PENDING_REJOIN bedeutet: Mitglied hat den Server verlassen, die Strafe
+/// laeuft weiter und wird beim erneuten Beitritt wieder angewendet.
+enum JailLifecycle {
+  PENDING
+  ACTIVE
+  RELEASED
+  EXPIRED
+  RESTORE_FAILED
+  PENDING_REJOIN
+  FAILED
+}
+
+enum JailImportStatus {
+  ANALYSED
+  CONFIRMED
+  IMPORTING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+/// Entscheidung des Import-Assistenten pro Legacy-Zeile.
+enum JailImportRowAction {
+  IMPORT
+  SKIP_DUPLICATE
+  SKIP_RELEASED
+  SKIP_INVALID
+  CONFLICT
+}
+
 enum CommunicationType {
   NEWS
   EVENT
@@ -297,7 +341,10 @@ model JailEntry {
   releaseType         JailReleaseType?
   releasedByDiscordId String?
   releasedByUsername  String?
-  /// Rollen vor dem Jail (Snapshot für die Wiederherstellung).
+  /// Rollen vor dem Jail als flache ID-Liste.
+  ///
+  /// Bleibt als schneller Lesepfad erhalten (Rollen setzen braucht nur IDs);
+  /// die sprechende Fassung mit Name und Position steht in `roleSnapshotEntries`.
   roleSnapshot        String[]         @default([])
   /// Rollen, die während des Jails erhalten blieben.
   keptRoleIds         String[]         @default([])
@@ -315,52 +362,185 @@ model JailEntry {
   activeKey           String?          @unique
   /// Verhindert doppelte Ausführung bei Doppelklick/Retry.
   idempotencyKey      String?          @unique
+  /// Herkunft des Jails - Dashboard, Slash Command, Abstimmung oder Import.
+  source              JailSource       @default(DASHBOARD)
+  /// Fachlicher Zustand (siehe `JailLifecycle`).
+  lifecycle           JailLifecycle    @default(PENDING)
+  /// Stille Strafe: keine öffentliche Ankündigung, kein Ping.
+  silent              Boolean          @default(false)
+  /// Mitglied wurde beim Jail aus dem Sprachkanal getrennt.
+  voiceDisconnected   Boolean          @default(false)
+  /// Zeitpunkt, an dem das Mitglied den Server während des Jails verlassen hat.
+  leftGuildAt         DateTime?
+  /// Anzahl erneuter Anwendungen nach einem Rejoin.
+  reappliedCount      Int              @default(0)
+  /// Legacy-Schlüssel aus dem alten Bot (`userId:startEpoch`) - macht den
+  /// Import wiederholbar, ohne Duplikate anzulegen.
+  legacyKey           String?          @unique
+  importId            String?
+  import              JailImport?      @relation(fields: [importId], references: [id])
   createdAt           DateTime         @default(now())
   updatedAt           DateTime         @updatedAt
 
   /// Vote Jail, aus dem dieser Jail entstanden ist (falls zutreffend).
   voteJail            VoteJail?
+  /// Rollen-Snapshot mit Name und Position zum Zeitpunkt des Jails.
+  roleSnapshotEntries JailRoleSnapshot[]
 
   @@index([targetDiscordId, startedAt])
   @@index([endsAt])
   @@index([status])
   @@index([type])
   @@index([moderatorDiscordId])
+  @@index([lifecycle])
+  @@index([source])
+  @@index([importId])
+}
+
+/// Eine Rolle im Rollen-Snapshot eines Jails.
+///
+/// Der alte Bot speicherte die Rollen als kommaseparierten Text. Hier steht
+/// jede Rolle als eigene Zeile - inklusive Name und Position zum Zeitpunkt des
+/// Jails. Dadurch bleibt die Historie auch dann lesbar, wenn eine Rolle
+/// zwischenzeitlich umbenannt oder gelöscht wurde.
+model JailRoleSnapshot {
+  id                 String    @id @default(cuid())
+  jailId             String
+  jail               JailEntry @relation(fields: [jailId], references: [id], onDelete: Cascade)
+  roleId             String
+  /// Name zum Zeitpunkt des Jails. NULL, wenn die Rolle damals nicht
+  /// aufgelöst werden konnte (z.B. beim Import einer Altdatenbank).
+  roleNameAtTime     String?
+  rolePositionAtTime Int?
+  /// Von Discord verwaltete Rolle (Booster, Integration).
+  managedAtTime      Boolean   @default(false)
+  /// Rolle blieb während des Jails bewusst erhalten.
+  kept               Boolean   @default(false)
+  /// Beim Release erfolgreich zurückgegeben.
+  restoredAt         DateTime?
+  /// Grund, weshalb die Rolle nicht zurückgegeben werden konnte.
+  restoreFailedCode  String?
+  createdAt          DateTime  @default(now())
+
+  @@unique([jailId, roleId])
+  @@index([jailId])
+  @@index([roleId])
+}
+
+/// Sperrfrist für Initiatoren einer erfolgreichen Abstimmung.
+///
+/// Eigene Tabelle statt eines Feldes am Mitglied: die Sperre überlebt einen
+/// Neustart und lässt sich unabhängig von Discord-Daten aufräumen.
+model VoteJailCooldown {
+  id             String   @id @default(cuid())
+  discordId      String   @unique
+  username       String?
+  lastVoteJailId String?
+  startedAt      DateTime @default(now())
+  expiresAt      DateTime
+
+  @@index([expiresAt])
+}
+
+/// Ein Durchlauf des Legacy-Imports.
+///
+/// Die hochgeladene SQLite-Datei wird ausschliesslich gelesen und nach der
+/// Analyse gelöscht; hier bleibt nur das Ergebnis stehen.
+model JailImport {
+  id                   String           @id @default(cuid())
+  /// Ursprünglicher Dateiname - nur zur Anzeige, nie als Pfad verwendet.
+  fileName             String
+  fileBytes            Int
+  fileSha256           String
+  status               JailImportStatus @default(ANALYSED)
+  /// Gefundene Tabellen und Spalten der Legacy-Datei.
+  schemaInfo           Json?
+  totalRows            Int              @default(0)
+  importableRows       Int              @default(0)
+  duplicateRows        Int              @default(0)
+  releasedRows         Int              @default(0)
+  invalidRows          Int              @default(0)
+  conflictRows         Int              @default(0)
+  importedRows         Int              @default(0)
+  failedRows           Int              @default(0)
+  /// Bestätigung, dass der alte Bot gestoppt wurde.
+  legacyBotStopped     Boolean          @default(false)
+  reconciledAt         DateTime?
+  reconcileSummary     Json?
+  uploadedByDiscordId  String
+  uploadedByUsername   String
+  confirmedByDiscordId String?
+  confirmedAt          DateTime?
+  errorMessage         String?
+  createdAt            DateTime         @default(now())
+  finishedAt           DateTime?
+  rows                 JailImportRow[]
+  jails                JailEntry[]
+
+  @@index([status, createdAt])
+}
+
+/// Eine Zeile der Legacy-Datenbank mit der Entscheidung des Assistenten.
+model JailImportRow {
+  id                 String              @id @default(cuid())
+  importId           String
+  import             JailImport          @relation(fields: [importId], references: [id], onDelete: Cascade)
+  /// Stabiler Schlüssel aus der Legacy-Zeile (`userId:startEpoch`).
+  legacyKey          String
+  targetDiscordId    String
+  roleIds            String[]            @default([])
+  moderatorDiscordId String?
+  reason             String?
+  startedAt          DateTime?
+  endsAt             DateTime?
+  permanent          Boolean             @default(false)
+  /// Optionales Geschlechterfeld des alten Bots (nur für die Anrede).
+  gender             String?
+  legacyStatus       String?
+  action             JailImportRowAction
+  /// Erklärung für die Auswahl - erscheint in der Vorschau.
+  note               String?
+  jailId             String?
+  imported           Boolean             @default(false)
+  createdAt          DateTime            @default(now())
+
+  @@unique([importId, legacyKey])
+  @@index([importId, action])
 }
 
 /// Community-Abstimmung, die bei Erfolg einen regulären Jail auslöst.
 /// Die eigentliche Jail-Ausführung übernimmt der bestehende Jail-Service -
 /// hier wird ausschliesslich die Abstimmung verwaltet.
 model VoteJail {
-  id                  String         @id @default(cuid())
-  targetDiscordId     String
-  targetUsername      String
-  targetDisplayName   String?
-  targetAvatarHash    String?
-  startedByDiscordId  String
-  startedByUsername   String
-  startedByAvatarHash String?
-  reason              String?
-  status              VoteJailStatus @default(ACTIVE)
-  requiredVotes       Int
+  id                   String         @id @default(cuid())
+  targetDiscordId      String
+  targetUsername       String
+  targetDisplayName    String?
+  targetAvatarHash     String?
+  startedByDiscordId   String
+  startedByUsername    String
+  startedByAvatarHash  String?
+  reason               String?
+  status               VoteJailStatus @default(ACTIVE)
+  requiredVotes        Int
   /// Zwischenstand, damit Listen ohne Aggregat auskommen. Wird ausschliesslich
   /// innerhalb der Vote-Transaktion fortgeschrieben.
-  voteCount           Int            @default(0)
+  voteCount            Int            @default(0)
   /// Jail-Dauer in Minuten bei erfolgreicher Abstimmung.
   resultingJailMinutes Int
-  discordChannelId    String?
-  discordMessageId    String?
+  discordChannelId     String?
+  discordMessageId     String?
   /// Verhindert, dass zwei gleichzeitige Klicks zwei Jails auslösen.
-  resultingJailId     String?        @unique
-  resultingJail       JailEntry?     @relation(fields: [resultingJailId], references: [id])
+  resultingJailId      String?        @unique
+  resultingJail        JailEntry?     @relation(fields: [resultingJailId], references: [id])
   /// Gesetzt solange die Abstimmung läuft (= targetDiscordId). Der
   /// Unique-Index verhindert zwei gleichzeitige Abstimmungen gegen dieselbe
   /// Person.
-  activeKey           String?        @unique
-  createdAt           DateTime       @default(now())
-  expiresAt           DateTime
-  finishedAt          DateTime?
-  votes               VoteJailVote[]
+  activeKey            String?        @unique
+  createdAt            DateTime       @default(now())
+  expiresAt            DateTime
+  finishedAt           DateTime?
+  votes                VoteJailVote[]
 
   @@index([status, expiresAt])
   @@index([targetDiscordId, createdAt])
@@ -370,15 +550,15 @@ model VoteJail {
 /// (Unique-Index), Berechtigte mit `jail.vote.multivote` mehrere - deshalb
 /// zählt `voteNumber` mit.
 model VoteJailVote {
-  id              String   @id @default(cuid())
-  voteJailId      String
-  voteJail        VoteJail @relation(fields: [voteJailId], references: [id], onDelete: Cascade)
-  voterDiscordId  String
-  voterUsername   String?
+  id             String   @id @default(cuid())
+  voteJailId     String
+  voteJail       VoteJail @relation(fields: [voteJailId], references: [id], onDelete: Cascade)
+  voterDiscordId String
+  voterUsername  String?
   /// Laufende Nummer der Stimme dieses Mitglieds in dieser Abstimmung.
-  voteNumber      Int      @default(1)
-  isAdminVote     Boolean  @default(false)
-  createdAt       DateTime @default(now())
+  voteNumber     Int      @default(1)
+  isAdminVote    Boolean  @default(false)
+  createdAt      DateTime @default(now())
 
   /// Eine Stimme pro Mitglied und Nummer: normale Mitglieder kommen nie über
   /// Nummer 1 hinaus, Mehrfachstimmen erhalten aufsteigende Nummern.
@@ -388,25 +568,25 @@ model VoteJailVote {
 
 /// Über die WebApp im Namen des Bots gesendete Discord-Nachrichten.
 model CommunicationMessage {
-  id               String            @id @default(cuid())
-  type             CommunicationType
-  title            String
-  content          String
-  bannerUrl        String?
-  discordChannelId String
+  id                 String            @id @default(cuid())
+  type               CommunicationType
+  title              String
+  content            String
+  bannerUrl          String?
+  discordChannelId   String
   discordChannelName String?
-  discordMessageId String?
-  sentByDiscordId  String
-  sentByUsername   String
-  sentByAvatarHash String?
-  sentAt           DateTime          @default(now())
+  discordMessageId   String?
+  sentByDiscordId    String
+  sentByUsername     String
+  sentByAvatarHash   String?
+  sentAt             DateTime          @default(now())
   /// Auf Discord gelöscht - der Verlaufseintrag bleibt für die Nachvollziehbarkeit.
-  deletedAt        DateTime?
+  deletedAt          DateTime?
   deletedByDiscordId String?
   /// Typspezifische Zusatzdaten (Event-Datum, Verantwortlicher, Mentions, ...).
-  metadata         Json              @default("{}")
+  metadata           Json              @default("{}")
   /// Verhindert doppeltes Senden bei Doppelklick oder Retry.
-  idempotencyKey   String?           @unique
+  idempotencyKey     String?           @unique
 
   @@index([sentAt])
   @@index([type, sentAt])

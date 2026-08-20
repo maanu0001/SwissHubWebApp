@@ -18,13 +18,14 @@ import {
 import { evaluateModerationPolicy } from '@swisshub/permissions';
 import { createLogger } from '@swisshub/logger';
 import { AppError, conflict, configurationMissing, policyViolation } from '@swisshub/shared';
-import type { JailEntry } from '@swisshub/database';
+import type { JailEntry, JailSource, Prisma as PrismaTypes } from '@swisshub/database';
 import type { DiscordGateway, GuildMember } from '@swisshub/discord';
 import { JAIL_MODULE_ID } from './config';
 import { loadJailContext, type JailExecutionContext } from './context';
 import { planJailRoles, planReleaseRoles } from './roles';
-import { buildJailEmbed, buildReleaseEmbed, postNotification } from './notifications';
+import { buildJailEmbed, buildReleaseEmbed, postNotification, postTemplateMessage } from './notifications';
 import { assertDurationWithinLimit } from './schemas';
+import { renderJailTemplate, resolveGender, type JailGender } from './templates';
 
 const log = createLogger('jail:service');
 
@@ -80,6 +81,16 @@ export interface CreateJailCommand {
   type?: 'TEMPORARY' | 'PERMANENT';
   /** Nur bei `TEMPORARY` relevant. */
   durationSeconds?: number | null;
+  /**
+   * Herkunft. Reine Information für Historie und Audit - der Ablauf ist für
+   * Dashboard, Slash Command und Abstimmung identisch.
+   */
+  source?: JailSource;
+  /**
+   * Still: keine öffentliche Ankündigung. Ohne Angabe entscheidet die
+   * Einstellung `silentByDefault`.
+   */
+  silent?: boolean;
 }
 
 export interface CreateJailResult {
@@ -109,6 +120,7 @@ export async function createJail(
     ...command,
     type: command.type ?? ('TEMPORARY' as const),
     durationSeconds: command.type === 'PERMANENT' ? null : (command.durationSeconds ?? null),
+    source: command.source ?? ('DASHBOARD' as JailSource),
   };
 
   const gateway = options.gateway ?? defaultDiscord;
@@ -209,6 +221,12 @@ export async function createJail(
     keepRoleIds: context.keepRoleIds,
   });
 
+  // Anrede rein aus den konfigurierten Rollen. Ohne Konfiguration bleibt der
+  // Text neutral - es wird nichts aus dem Namen abgeleitet.
+  const gender = resolveGender(target.roleIds, context.genderRoles);
+  // Ohne ausdrückliche Angabe entscheidet die Einstellung.
+  const silent = input.silent ?? context.settings.silentByDefault;
+
   if (plan.untouchableRoleIds.length > 0) {
     warnings.push(
       `${plan.untouchableRoleIds.length} Rolle(n) konnten nicht entfernt werden, weil sie über der Rolle des Bots liegen.`,
@@ -234,8 +252,17 @@ export async function createJail(
         roleSnapshot: plan.snapshotRoleIds,
         keptRoleIds: plan.keptRoleIds,
         status: 'PENDING',
+        lifecycle: 'PENDING',
+        source: input.source,
+        silent,
         activeKey: target.discordId,
         idempotencyKey: `${IDEMPOTENCY_SCOPE_CREATE}:${input.idempotencyKey}`,
+        // Strukturierter Snapshot: jede Rolle mit Name und Position zum
+        // Zeitpunkt des Jails - dadurch bleibt die Historie lesbar, auch wenn
+        // eine Rolle später umbenannt oder gelöscht wird.
+        roleSnapshotEntries: {
+          create: buildRoleSnapshotRows(plan.snapshotRoleIds, plan.keptRoleIds, context),
+        },
       },
     });
   } catch (error) {
@@ -265,6 +292,7 @@ export async function createJail(
       where: { id: entry.id },
       data: {
         status: 'FAILED',
+        lifecycle: 'FAILED',
         activeKey: null,
         errorCode: appError.code,
         errorMessage: appError.internalMessage?.slice(0, 500) ?? appError.userMessage,
@@ -292,9 +320,26 @@ export async function createJail(
     throw appError;
   }
 
+  // Aus dem Sprachkanal trennen. Bewusst nach dem Rollenwechsel und bewusst
+  // nicht kritisch: der Jail gilt auch dann, wenn Discord die Trennung
+  // ablehnt.
+  let voiceDisconnected = false;
+  if (context.settings.disconnectFromVoice) {
+    voiceDisconnected = await gateway.members
+      .disconnectFromVoice(target.discordId, 'Mitglied wurde gejailt')
+      .catch((error: unknown) => {
+        log.warn('Sprachkanal-Trennung fehlgeschlagen', { error, target: target.discordId });
+        return false;
+      });
+  }
+
   const completed = await prisma.jailEntry.update({
     where: { id: entry.id },
-    data: { status: plan.untouchableRoleIds.length > 0 ? 'PARTIAL' : 'COMPLETED' },
+    data: {
+      status: plan.untouchableRoleIds.length > 0 ? 'PARTIAL' : 'COMPLETED',
+      lifecycle: 'ACTIVE',
+      voiceDisconnected,
+    },
   });
 
   await Promise.all([
@@ -370,7 +415,97 @@ export async function createJail(
     );
   }
 
+  await announceJail({
+    gateway,
+    context,
+    silent,
+    fromVote: input.source === 'VOTE_JAIL',
+    data: {
+      targetDiscordId: target.discordId,
+      targetLabel: target.displayName,
+      moderatorLabel: actor.username,
+      moderatorDiscordId: actor.discordId,
+      reason: input.reason,
+      durationSeconds: input.durationSeconds,
+      endsAt,
+      gender,
+    },
+  });
+
   return { jail: completed, warnings, duplicate: false };
+}
+
+/**
+ * Baut die Zeilen des Rollen-Snapshots.
+ *
+ * Name und Position werden aus dem aktuellen Guild-Zustand gelesen. Ist eine
+ * Rolle dort nicht (mehr) vorhanden, bleiben die Felder leer - das ist
+ * ehrlicher als ein Platzhaltername.
+ */
+function buildRoleSnapshotRows(
+  snapshotRoleIds: readonly string[],
+  keptRoleIds: readonly string[],
+  context: JailExecutionContext,
+): PrismaTypes.JailRoleSnapshotCreateWithoutJailInput[] {
+  const kept = new Set(keptRoleIds);
+  return snapshotRoleIds.map((roleId) => {
+    const role = context.guildRoles.find((entry) => entry.id === roleId);
+    return {
+      roleId,
+      roleNameAtTime: role?.name ?? null,
+      rolePositionAtTime: role?.position ?? null,
+      managedAtTime: role?.managed ?? false,
+      kept: kept.has(roleId),
+    };
+  });
+}
+
+/**
+ * Öffentliche Meldungen zu einem Jail.
+ *
+ * Ankündigung und Ping sind getrennt: ein stiller Jail unterdrückt die
+ * öffentliche Ankündigung, das betroffene Mitglied wird aber weiterhin
+ * informiert - genau so verhielt sich der alte Bot auch.
+ */
+async function announceJail(input: {
+  gateway: DiscordGateway;
+  context: JailExecutionContext;
+  silent: boolean;
+  fromVote: boolean;
+  data: {
+    targetDiscordId: string;
+    targetLabel: string;
+    moderatorLabel: string;
+    moderatorDiscordId: string;
+    reason: string;
+    durationSeconds: number | null;
+    endsAt: Date | null;
+    gender: JailGender;
+  };
+}): Promise<void> {
+  const { context, data } = input;
+
+  if (!input.silent && context.settings.announcePublicly) {
+    const template =
+      data.endsAt === null
+        ? context.settings.publicPermanentJailTemplate
+        : context.settings.publicJailTemplate;
+    await postTemplateMessage(
+      input.gateway,
+      context.announcementChannelId,
+      renderJailTemplate(template, data),
+      { mentionDiscordId: data.targetDiscordId },
+    );
+  }
+
+  if (context.settings.pingOnJail) {
+    const template = input.fromVote
+      ? context.settings.voteJailPingTemplate
+      : context.settings.jailPingTemplate;
+    await postTemplateMessage(input.gateway, context.jailPingChannelId, renderJailTemplate(template, data), {
+      mentionDiscordId: data.targetDiscordId,
+    });
+  }
 }
 
 export interface ReleaseJailOptions extends JailServiceOptions {
@@ -459,9 +594,38 @@ export async function releaseJail(jailId: string, options: ReleaseJailOptions): 
     throw toAppErrorFromDiscord(error);
   }
 
-  // Mitglied hat den Server verlassen: Jail wird beendet, damit die Datenbank
-  // nicht dauerhaft einen aktiven Jail führt. Rollen kehren bei einem
-  // erneuten Beitritt ohnehin nicht zurück.
+  // Mitglied hat den Server verlassen.
+  //
+  // Ist "Jail beim Wiedereintritt erneut anwenden" aktiv, wird die Strafe
+  // NICHT stillschweigend beendet: sie bleibt offen und wartet auf den
+  // Wiedereintritt. Das entspricht dem alten Bot, der solche Einträge als
+  // `expired_pending_restore` stehen liess, statt sie zu löschen.
+  if (!member && context.settings.reapplyOnRejoin && options.releaseType !== 'MANUAL') {
+    const pending = await prisma.jailEntry.update({
+      where: { id: jail.id },
+      data: { lifecycle: 'PENDING_REJOIN', leftGuildAt: jail.leftGuildAt ?? new Date(), releaseStatus: null },
+    });
+    await safeRecordAudit({
+      action: AUDIT_ACTIONS.JAIL_PENDING_REJOIN,
+      module: JAIL_MODULE_ID,
+      actorDiscordId: actor?.discordId ?? null,
+      actorUsername: actor?.username ?? 'system',
+      targetDiscordId: jail.targetDiscordId,
+      targetLabel: jail.targetUsername,
+      success: true,
+      metadata: { jailId: jail.id, releaseType: options.releaseType },
+    });
+    return {
+      jail: pending,
+      restoredRoleIds: [],
+      failedRoleIds: [],
+      warnings: [
+        'Das Mitglied ist nicht mehr auf dem Server. Der Jail bleibt offen und wird beim Wiedereintritt erneut angewendet.',
+      ],
+      memberLeftGuild: true,
+    };
+  }
+
   if (!member) {
     const closed = await finaliseRelease(jail.id, {
       releaseType: options.releaseType,
@@ -632,6 +796,25 @@ export async function releaseJail(jailId: string, options: ReleaseJailOptions): 
     );
   }
 
+  // Öffentliche Freilassungsmeldung. Ein still verhängter Jail wird auch
+  // still beendet - sonst würde die Strafe nachträglich doch publik.
+  if (!jail.silent && context.settings.announcePublicly) {
+    await postTemplateMessage(
+      gateway,
+      context.announcementChannelId,
+      renderJailTemplate(context.settings.publicReleaseTemplate, {
+        targetDiscordId: jail.targetDiscordId,
+        targetLabel: jail.targetDisplayName ?? jail.targetUsername,
+        moderatorLabel: actor?.username ?? 'System',
+        reason: jail.reason,
+        durationSeconds: jail.durationSeconds,
+        endsAt: jail.endsAt,
+        gender: resolveGender(member.roleIds, context.genderRoles),
+      }),
+      { mentionDiscordId: jail.targetDiscordId },
+    );
+  }
+
   return {
     jail: released,
     restoredRoleIds: restored,
@@ -651,10 +834,27 @@ async function finaliseRelease(
     status: 'COMPLETED' | 'PARTIAL';
   },
 ): Promise<JailEntry> {
+  const releasedAt = new Date();
+
+  // Der Snapshot hält fest, welche Rolle tatsächlich zurückkam. Damit lässt
+  // sich später beantworten, was einem Mitglied fehlt - ohne Rätselraten.
+  if (input.restored.length > 0) {
+    await prisma.jailRoleSnapshot.updateMany({
+      where: { jailId, roleId: { in: input.restored } },
+      data: { restoredAt: releasedAt, restoreFailedCode: null },
+    });
+  }
+  if (input.failed.length > 0) {
+    await prisma.jailRoleSnapshot.updateMany({
+      where: { jailId, roleId: { in: input.failed } },
+      data: { restoreFailedCode: 'NOT_RESTORABLE' },
+    });
+  }
+
   return prisma.jailEntry.update({
     where: { id: jailId },
     data: {
-      releasedAt: new Date(),
+      releasedAt,
       releaseType: input.releaseType,
       releasedByDiscordId: input.actor?.discordId ?? null,
       releasedByUsername: input.actor?.username ?? 'System',
@@ -662,6 +862,161 @@ async function finaliseRelease(
       failedRoleIds: input.failed,
       releaseStatus: input.status,
       activeKey: null,
+      // Abgelaufen oder aufgehoben - das ist ein fachlicher Unterschied und
+      // wird deshalb unterschieden. Konnten Rollen nicht zurückgegeben
+      // werden, bleibt das ebenfalls sichtbar.
+      lifecycle:
+        input.failed.length > 0
+          ? 'RESTORE_FAILED'
+          : input.releaseType === 'AUTOMATIC'
+            ? 'EXPIRED'
+            : 'RELEASED',
     },
   });
+}
+
+/**
+ * Wendet einen offenen Jail beim Wiedereintritt erneut an.
+ *
+ * Ohne diese Behandlung wäre ein Jail durch Verlassen und erneutes Beitreten
+ * beliebig umgehbar. Der alte Bot löste das im `on_member_join`-Event; hier
+ * ist es ein Service, der von genau demselben Event aufgerufen wird - die
+ * Entscheidung liegt aber in der Datenbank, nicht im Discord-Client.
+ *
+ * Drei Fälle:
+ *   - kein offener Jail                 -> nichts zu tun
+ *   - Jail bereits abgelaufen           -> regulär freilassen (Rollen zurück)
+ *   - Jail läuft noch                   -> Jail-Rolle erneut setzen
+ */
+export async function reapplyJailOnRejoin(
+  discordId: string,
+  options: JailServiceOptions = {},
+): Promise<'none' | 'reapplied' | 'released' | 'failed'> {
+  const gateway = options.gateway ?? defaultDiscord;
+
+  const open = await prisma.jailEntry.findFirst({
+    where: {
+      targetDiscordId: discordId,
+      releasedAt: null,
+      lifecycle: { in: ['ACTIVE', 'PENDING_REJOIN', 'RESTORE_FAILED'] },
+    },
+    orderBy: { startedAt: 'desc' },
+  });
+  if (!open) {
+    return 'none';
+  }
+
+  const context = options.context ?? (await loadJailContext(gateway));
+  if (!context.settings.reapplyOnRejoin) {
+    return 'none';
+  }
+
+  // Die Strafe ist während der Abwesenheit abgelaufen: dann wird sie beim
+  // Wiedereintritt sofort korrekt beendet statt erneut verhängt.
+  if (open.type === 'TEMPORARY' && open.endsAt !== null && open.endsAt <= new Date()) {
+    try {
+      await releaseJail(open.id, { releaseType: 'AUTOMATIC', gateway, context });
+      return 'released';
+    } catch (error) {
+      log.warn('Abgelaufener Jail konnte beim Wiedereintritt nicht beendet werden', {
+        error,
+        jailId: open.id,
+      });
+      return 'failed';
+    }
+  }
+
+  const jailRoleId = context.settings.jailRoleId;
+  const member = await gateway.members.get(discordId).catch(() => null);
+  if (!jailRoleId || !member) {
+    return 'failed';
+  }
+
+  const plan = planJailRoles({
+    currentRoleIds: member.roleIds,
+    guildRoles: context.guildRoles,
+    botHighestPosition: context.botHighestPosition,
+    jailRoleId,
+    keepRoleIds: context.keepRoleIds,
+  });
+
+  try {
+    await gateway.members.setRoles(discordId, plan.nextRoleIds, 'Wiedereintritt während eines Jails');
+  } catch (error) {
+    log.error('Jail konnte beim Wiedereintritt nicht erneut angewendet werden', {
+      error,
+      jailId: open.id,
+      target: discordId,
+    });
+    await safeRecordAudit({
+      action: AUDIT_ACTIONS.JAIL_REAPPLY_FAILED,
+      module: JAIL_MODULE_ID,
+      actorUsername: 'system',
+      targetDiscordId: discordId,
+      targetLabel: open.targetUsername,
+      success: false,
+      errorMessage: error instanceof Error ? error.message : 'unbekannt',
+      metadata: { jailId: open.id },
+    });
+    return 'failed';
+  }
+
+  const updated = await prisma.jailEntry.update({
+    where: { id: open.id },
+    data: {
+      lifecycle: 'ACTIVE',
+      leftGuildAt: null,
+      reappliedCount: { increment: 1 },
+      activeKey: discordId,
+      // Der Wiedereintritt bringt den Datensatz zurück in den Normalzustand.
+      releaseStatus: null,
+    },
+  });
+
+  await safeRecordAudit({
+    action: AUDIT_ACTIONS.JAIL_REAPPLIED,
+    module: JAIL_MODULE_ID,
+    actorUsername: 'system',
+    targetDiscordId: discordId,
+    targetLabel: open.targetUsername,
+    success: true,
+    metadata: {
+      jailId: open.id,
+      reappliedCount: updated.reappliedCount,
+      endsAt: open.endsAt?.toISOString() ?? null,
+    },
+  });
+
+  log.info('Jail beim Wiedereintritt erneut angewendet', { jailId: open.id, target: discordId });
+  return 'reapplied';
+}
+
+/**
+ * Vermerkt, dass ein gejailtes Mitglied den Server verlassen hat.
+ *
+ * Der Jail bleibt bestehen - er endet nicht dadurch, dass jemand geht.
+ */
+export async function markMemberLeftDuringJail(discordId: string): Promise<boolean> {
+  const active = await prisma.jailEntry.findUnique({ where: { activeKey: discordId } });
+  if (!active) {
+    return false;
+  }
+
+  await prisma.jailEntry.update({
+    where: { id: active.id },
+    data: { lifecycle: 'PENDING_REJOIN', leftGuildAt: new Date() },
+  });
+
+  await safeRecordAudit({
+    action: AUDIT_ACTIONS.JAIL_PENDING_REJOIN,
+    module: JAIL_MODULE_ID,
+    actorUsername: 'system',
+    targetDiscordId: discordId,
+    targetLabel: active.targetUsername,
+    success: true,
+    metadata: { jailId: active.id, reason: 'member-left' },
+  });
+
+  log.info('Mitglied hat den Server während eines Jails verlassen', { jailId: active.id });
+  return true;
 }

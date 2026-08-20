@@ -7,6 +7,8 @@ export * from './scheduler';
 export * from './reconciliation';
 export * from './queries';
 export * from './display';
+export * from './templates';
+export * from './import';
 export { buildJailEmbed, buildReleaseEmbed } from './notifications';
 export * from './vote/service';
 export * from './vote/embed';

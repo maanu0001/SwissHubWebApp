@@ -95,9 +95,13 @@ export function createJobRunner(
       name: 'cleanup',
       intervalMs: 60 * 60 * 1000,
       async run() {
-        const [sessions, keys] = await Promise.all([purgeExpiredSessions(), purgeExpiredIdempotencyKeys()]);
-        if (sessions > 0 || keys > 0) {
-          log.info('Aufräumen abgeschlossen', { sessions, idempotencyKeys: keys });
+        const [sessions, keys, cooldowns] = await Promise.all([
+          purgeExpiredSessions(),
+          purgeExpiredIdempotencyKeys(),
+          jail.purgeExpiredVoteCooldowns(),
+        ]);
+        if (sessions > 0 || keys > 0 || cooldowns > 0) {
+          log.info('Aufräumen abgeschlossen', { sessions, idempotencyKeys: keys, voteCooldowns: cooldowns });
         }
       },
     },

@@ -1,0 +1,75 @@
+import type { ChatInputCommandInteraction, Interaction } from 'discord.js';
+import { bootstrapConfig } from '@swisshub/config';
+import {
+  hasPermission,
+  loadRoleConfiguration,
+  moderationLevelOf,
+  resolvePermissions,
+} from '@swisshub/permissions';
+import type { jail } from '@swisshub/modules';
+
+/**
+ * Berechtigungskontext einer Discord-Interaktion.
+ *
+ * Es gibt bewusst keine zweite Berechtigungslogik für Slash Commands: hier
+ * werden dieselben Rollen-Zuordnungen ausgewertet wie im Dashboard. Wer im
+ * Dashboard `jail.create` hat, kann `/jail` nutzen - und sonst niemand. Feste
+ * Admin-Rollen-IDs wie im alten Bot gibt es nicht mehr.
+ */
+export interface CommandActor {
+  discordId: string;
+  username: string;
+  avatarHash: string | null;
+  roleIds: string[];
+  isOwner: boolean;
+  moderationLevel: number;
+  /** Prüft eine Berechtigung gegen die Rollen des Aufrufers. */
+  can(permission: string): boolean;
+}
+
+function memberRoleIds(interaction: Interaction): string[] {
+  const member = interaction.member;
+  if (member && 'roles' in member && member.roles && 'cache' in member.roles) {
+    return [...member.roles.cache.keys()];
+  }
+  return [];
+}
+
+export async function buildCommandActor(interaction: Interaction): Promise<CommandActor> {
+  const roleIds = memberRoleIds(interaction);
+  const isOwner = bootstrapConfig.ownerDiscordId === interaction.user.id;
+  const configuration = await loadRoleConfiguration();
+  const resolution = resolvePermissions(
+    { discordId: interaction.user.id, roleIds, isOwner },
+    configuration.mappings,
+  );
+
+  return {
+    discordId: interaction.user.id,
+    username: interaction.user.username,
+    avatarHash: interaction.user.avatar ?? null,
+    roleIds,
+    isOwner,
+    moderationLevel: moderationLevelOf(roleIds, configuration.moderationLevels),
+    can: (permission) => hasPermission(resolution, permission),
+  };
+}
+
+/** Form, die der Jail-Service für den ausführenden Moderator erwartet. */
+export function toJailActor(actor: CommandActor): jail.JailActor {
+  return {
+    discordId: actor.discordId,
+    username: actor.username,
+    avatarHash: actor.avatarHash,
+    roleIds: actor.roleIds,
+    isOwner: actor.isOwner,
+    moderationLevel: actor.moderationLevel,
+  };
+}
+
+/** Einheitliche Absage, wenn eine Berechtigung fehlt. */
+export const NO_PERMISSION = 'Du hesch kei Berächtigung für de Befehl.';
+
+export function isChatInput(interaction: Interaction): interaction is ChatInputCommandInteraction {
+  return interaction.isChatInputCommand();
+}

@@ -19,6 +19,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/input';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
 import { MemberPicker, type PickedMember } from '@/modules/members/components/member-picker';
 import { createJailAction } from '@/modules/jail/actions';
 
@@ -31,6 +32,11 @@ interface CreateJailDialogProps {
   triggerLabel?: string;
   /** `quick-action` rendert den Auslöser als Zeile der Schnellaktionen. */
   variant?: 'button' | 'quick-action';
+  /**
+   * Vorbelegung der öffentlichen Meldung aus den Moduleinstellungen
+   * (`silentByDefault`). Der Wert lässt sich pro Jail überschreiben.
+   */
+  announceByDefault?: boolean;
 }
 
 const CUSTOM = 'custom';
@@ -50,6 +56,7 @@ export function CreateJailDialog({
   presetMember,
   triggerLabel = 'Jail erstellen',
   variant = 'button',
+  announceByDefault = true,
 }: CreateJailDialogProps): React.JSX.Element {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -61,6 +68,9 @@ export function CreateJailDialog({
   const [reason, setReason] = useState('');
   const [idempotencyKey, setIdempotencyKey] = useState<string | null>(null);
   const [fieldError, setFieldError] = useState<string | null>(null);
+  // Öffentliche Meldung im Ankündigungs-Channel. Aus ist gleichbedeutend mit
+  // dem früheren `/silent_jail`.
+  const [announce, setAnnounce] = useState(announceByDefault);
 
   const permanent = preset === PERMANENT;
 
@@ -86,6 +96,7 @@ export function CreateJailDialog({
     setPending(false);
     setMember(presetMember ?? null);
     setReason('');
+    setAnnounce(announceByDefault);
     setIdempotencyKey(null);
     setFieldError(null);
   }
@@ -125,6 +136,7 @@ export function CreateJailDialog({
       type: permanent ? 'PERMANENT' : 'TEMPORARY',
       durationSeconds: permanent ? undefined : durationSeconds,
       reason: reason.trim(),
+      silent: !announce,
       idempotencyKey,
     });
 
@@ -217,6 +229,11 @@ export function CreateJailDialog({
                       : 'Ende: Permanent - der Jail endet nur durch eine manuelle Freilassung.'}
                   </p>
                   <p className="text-muted-foreground">
+                    {announce
+                      ? 'Im Ankündigungs-Channel erscheint eine öffentliche Meldung.'
+                      : 'Still: es erscheint keine öffentliche Meldung. Das Mitglied wird trotzdem informiert.'}
+                  </p>
+                  <p className="text-muted-foreground">
                     Diese Aktion betrifft einen echten Discord-Benutzer und wird im Audit Log gespeichert.
                   </p>
                 </div>
@@ -296,6 +313,19 @@ export function CreateJailDialog({
                   placeholder="z.B. Spam im Chat"
                 />
                 <p className="text-xs text-muted-foreground">{reason.length}/500 Zeichen</p>
+              </div>
+
+              <div className="flex items-start justify-between gap-4 rounded-md border border-border bg-secondary/30 px-3 py-2.5">
+                <div className="min-w-0">
+                  <Label htmlFor="jail-announce" className="cursor-pointer">
+                    Öffentliche Meldung senden
+                  </Label>
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    Aus entspricht dem früheren <code>/silent_jail</code>: kein Eintrag im
+                    Ankündigungs-Channel. Das Mitglied selbst wird weiterhin benachrichtigt.
+                  </p>
+                </div>
+                <Switch id="jail-announce" checked={announce} onCheckedChange={setAnnounce} />
               </div>
 
               {fieldError ? (

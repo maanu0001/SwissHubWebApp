@@ -35,20 +35,26 @@ export default async function JailDetailPage({
 }): Promise<React.JSX.Element> {
   const context = await requirePagePermission(jail.JAIL_PERMISSIONS.view);
   const { id } = await params;
-  const entry = await jail.getJail(id);
+  const entry = await jail.getJailDetail(id);
 
   if (!entry) {
     notFound();
   }
 
-  // Rollennamen sind Komfort - fällt Discord aus, werden IDs angezeigt.
+  // Rollennamen kommen zuerst aus dem Snapshot: dort steht der Name, den die
+  // Rolle zum Zeitpunkt des Jails hatte. Nur wenn dort nichts steht (z.B. bei
+  // übernommenen Altdaten), wird der aktuelle Discord-Name verwendet - und
+  // sonst die reine ID.
   const roles = await discord.roles.list().catch(() => []);
+  const snapshotByRoleId = new Map(entry.roleSnapshotEntries.map((row) => [row.roleId, row]));
   const roleName = (roleId: string): { name: string; color: number } => {
-    const role = roles.find((entry_) => entry_.id === roleId);
-    return { name: role?.name ?? roleId, color: role?.color ?? 0 };
+    const live = roles.find((entry_) => entry_.id === roleId);
+    const snapshot = snapshotByRoleId.get(roleId);
+    return { name: live?.name ?? snapshot?.roleNameAtTime ?? roleId, color: live?.color ?? 0 };
   };
 
   const active = entry.releasedAt === null && entry.status !== 'FAILED';
+  const lifecycle = jail.jailLifecycleLabel(entry.lifecycle);
 
   return (
     <>
@@ -108,9 +114,34 @@ export default async function JailDetailPage({
               <DetailRow label="Status">
                 <span className="flex flex-wrap items-center gap-2">
                   <StatusBadge status={entry.status} />
-                  {active ? <Badge variant="warning">Aktiv</Badge> : <Badge variant="outline">Beendet</Badge>}
+                  <Badge
+                    variant={
+                      lifecycle.tone === 'problem'
+                        ? 'destructive'
+                        : lifecycle.tone === 'active'
+                          ? 'warning'
+                          : 'outline'
+                    }
+                  >
+                    {lifecycle.label}
+                  </Badge>
                 </span>
               </DetailRow>
+              <DetailRow label="Herkunft">
+                <span className="flex flex-wrap items-center gap-2">
+                  {jail.jailSourceLabel(entry.source)}
+                  {entry.silent ? <Badge variant="outline">Still</Badge> : null}
+                </span>
+              </DetailRow>
+              {entry.voiceDisconnected ? (
+                <DetailRow label="Sprachkanal">Mitglied wurde beim Jail getrennt.</DetailRow>
+              ) : null}
+              {entry.reappliedCount > 0 ? (
+                <DetailRow label="Wiedereintritte">
+                  {entry.reappliedCount}× nach erneutem Beitritt wieder angewendet
+                  {entry.leftGuildAt ? ` · zuletzt verlassen am ${formatDateTime(entry.leftGuildAt)}` : ''}
+                </DetailRow>
+              ) : null}
               {entry.releasedAt ? (
                 <>
                   <DetailRow label="Freigelassen am">{formatDateTime(entry.releasedAt)}</DetailRow>
@@ -152,6 +183,13 @@ export default async function JailDetailPage({
                   })
                 )}
               </div>
+              {entry.roleSnapshotEntries.some((row) => row.roleNameAtTime === null) ? (
+                <p className="mt-2 text-xs text-muted-foreground">
+                  Für einzelne Rollen ist kein Name aus der Zeit des Jails bekannt - sie stammen aus der
+                  Übernahme der alten Datenbank und werden als ID angezeigt, falls es sie heute nicht mehr
+                  gibt.
+                </p>
+              ) : null}
             </section>
 
             {entry.keptRoleIds.length > 0 ? (

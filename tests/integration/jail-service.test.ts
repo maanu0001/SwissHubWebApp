@@ -262,23 +262,59 @@ describe('Jail freilassen', () => {
     expect(released.warnings.length).toBeGreaterThan(0);
   });
 
-  it('schliesst den Jail, wenn das Mitglied den Server verlassen hat', async () => {
+  it('hält den Jail offen, wenn das Mitglied den Server verlassen hat', async () => {
+    // Ein Jail endet nicht dadurch, dass jemand den Server verlässt - sonst
+    // wäre jede Strafe durch Verlassen und erneutes Beitreten umgehbar.
     const created = await jail.createJail(input(), MODERATOR, { gateway });
-    const leftGateway = {
-      ...gateway,
-      members: { ...gateway.members, get: vi.fn().mockResolvedValue(null) },
-    };
-
     const released = await jail.releaseJail(created.jail.id, {
       releaseType: 'AUTOMATIC',
-      gateway: leftGateway,
+      gateway: withoutMember(),
+    });
+
+    expect(released.memberLeftGuild).toBe(true);
+    expect(released.jail.releasedAt).toBeNull();
+    expect(released.jail.lifecycle).toBe('PENDING_REJOIN');
+    expect(released.jail.leftGuildAt).not.toBeNull();
+    // Der Platz bleibt belegt: es kann kein zweiter Jail danebenlaufen.
+    expect(released.jail.activeKey).toBe(TARGET);
+  });
+
+  it('schliesst den Jail bei manueller Freilassung eines abwesenden Mitglieds', async () => {
+    // Wer ausdrücklich freilässt, will den Vorgang beenden - auch wenn keine
+    // Rollen mehr zurückgegeben werden können.
+    const created = await jail.createJail(input(), MODERATOR, { gateway });
+    const released = await jail.releaseJail(created.jail.id, {
+      releaseType: 'MANUAL',
+      actor: MODERATOR,
+      gateway: withoutMember(),
     });
 
     expect(released.memberLeftGuild).toBe(true);
     expect(released.jail.releasedAt).not.toBeNull();
     expect(released.jail.activeKey).toBeNull();
   });
+
+  it('schliesst den Jail, wenn die erneute Anwendung deaktiviert ist', async () => {
+    (state.moduleSettings.jail as Record<string, unknown>).reapplyOnRejoin = false;
+
+    const created = await jail.createJail(input(), MODERATOR, { gateway });
+    const released = await jail.releaseJail(created.jail.id, {
+      releaseType: 'AUTOMATIC',
+      gateway: withoutMember(),
+    });
+
+    expect(released.jail.releasedAt).not.toBeNull();
+    expect(released.jail.activeKey).toBeNull();
+  });
 });
+
+/** Gateway, bei dem das Mitglied den Server verlassen hat. */
+function withoutMember(): ReturnType<typeof createMockGateway> {
+  return {
+    ...gateway,
+    members: { ...gateway.members, get: vi.fn().mockResolvedValue(null) },
+  };
+}
 
 describe('Automatisches Jail-Ende', () => {
   it('gibt abgelaufene Jails frei (Datenbank als Source of Truth)', async () => {

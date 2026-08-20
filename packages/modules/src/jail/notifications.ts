@@ -115,3 +115,33 @@ export async function postNotification(
     return false;
   }
 }
+
+/**
+ * Sendet eine aus einer Vorlage erzeugte Klartextnachricht.
+ *
+ * Die einzige erlaubte Erwähnung ist das betroffene Mitglied - und zwar
+ * explizit über `allowedMentions`. Ein `@everyone` in der Vorlage bleibt
+ * dadurch wirkungslos, selbst wenn es jemand hineinschreibt.
+ */
+export async function postTemplateMessage(
+  gateway: DiscordGateway,
+  channelId: string | null,
+  content: string,
+  options: { mentionDiscordId?: string | null } = {},
+): Promise<boolean> {
+  if (!channelId || content.trim().length === 0) {
+    return false;
+  }
+  try {
+    await gateway.channels.send(channelId, {
+      content,
+      allowedMentions: options.mentionDiscordId
+        ? { parse: [], users: [options.mentionDiscordId] }
+        : { parse: [] },
+    });
+    return true;
+  } catch (error) {
+    log.warn('Öffentliche Jail-Nachricht konnte nicht gesendet werden', { error, channelId });
+    return false;
+  }
+}

@@ -35,6 +35,10 @@ export async function releaseExpiredJails(
       type: 'TEMPORARY',
       endsAt: { not: null, lte: new Date() },
       status: { in: ['COMPLETED', 'PARTIAL'] },
+      // Wer den Server verlassen hat, kann seine Rollen nicht zurückbekommen.
+      // Solche Jails bleiben offen und werden beim Wiedereintritt beendet -
+      // sonst würde der Sweep sie bei jedem Durchgang erneut anfassen.
+      lifecycle: { notIn: ['PENDING_REJOIN'] },
     },
     orderBy: { endsAt: 'asc' },
     take: limit,

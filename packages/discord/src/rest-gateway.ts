@@ -1,6 +1,7 @@
 import { resolveGuildId } from './guild-context';
 import { snowflakeToDate } from '@swisshub/shared';
 import { discordRequest } from './rest';
+import { DiscordApiError } from './errors';
 import { DISCORD_PERMISSIONS, combinePermissions, toPermissionBits } from './permissions';
 import {
   botGuildSchema,
@@ -115,6 +116,24 @@ export function createRestGateway(): DiscordGateway {
         body: { roles: [...new Set(roleIds)] },
         auditLogReason: reason,
       });
+    },
+    async disconnectFromVoice(discordId, reason) {
+      // `channel_id: null` trennt das Mitglied. Discord antwortet mit 400,
+      // wenn es in keinem Sprachkanal ist - das ist kein Fehler, sondern der
+      // Normalfall und wird deshalb als "nichts zu tun" gemeldet.
+      try {
+        await discordRequest(`${await guildRoute()}/members/${discordId}`, {
+          method: 'PATCH',
+          body: { channel_id: null },
+          auditLogReason: reason,
+        });
+        return true;
+      } catch (error) {
+        if (error instanceof DiscordApiError && error.status === 400) {
+          return false;
+        }
+        throw error;
+      }
     },
   };
 

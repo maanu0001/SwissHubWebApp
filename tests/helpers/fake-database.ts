@@ -1,3 +1,5 @@
+import { AUDIT_ACTIONS } from '../../packages/database/src/audit-actions';
+
 /**
  * In-Memory-Ersatz für `@swisshub/database`.
  *
@@ -35,8 +37,37 @@ export interface FakeJailEntry {
   errorMessage: string | null;
   activeKey: string | null;
   idempotencyKey: string | null;
+  lifecycle: string;
+  source: string;
+  silent: boolean;
+  voiceDisconnected: boolean;
+  leftGuildAt: Date | null;
+  reappliedCount: number;
+  legacyKey: string | null;
+  importId: string | null;
   createdAt: Date;
   updatedAt: Date;
+}
+
+export interface FakeJailRoleSnapshot {
+  id: string;
+  jailId: string;
+  roleId: string;
+  roleNameAtTime: string | null;
+  rolePositionAtTime: number | null;
+  managedAtTime: boolean;
+  kept: boolean;
+  restoredAt: Date | null;
+  restoreFailedCode: string | null;
+}
+
+export interface FakeVoteJailCooldown {
+  id: string;
+  discordId: string;
+  username: string | null;
+  lastVoteJailId: string | null;
+  startedAt: Date;
+  expiresAt: Date;
 }
 
 export interface FakeManagedRole {
@@ -120,6 +151,10 @@ export interface FakeState {
   jails: FakeJailEntry[];
   voteJails: FakeVoteJail[];
   voteJailVotes: FakeVoteJailVote[];
+  voteJailCooldowns: FakeVoteJailCooldown[];
+  jailRoleSnapshots: FakeJailRoleSnapshot[];
+  jailImports: Array<Record<string, unknown>>;
+  jailImportRows: Array<Record<string, unknown>>;
   communicationMessages: Array<Record<string, unknown>>;
   managedRoles: FakeManagedRole[];
   rolePermissions: Array<{ discordRoleId: string; permission: string }>;
@@ -154,6 +189,10 @@ export function createFakeState(): FakeState {
     reconciliationRuns: [],
     voteJails: [],
     voteJailVotes: [],
+    voteJailCooldowns: [],
+    jailRoleSnapshots: [],
+    jailImports: [],
+    jailImportRows: [],
     communicationMessages: [],
     guildConfig: null,
     roleCache: [],
@@ -271,8 +310,17 @@ export function createFakeDatabaseModule(state: FakeState) {
           throw new FakeKnownRequestError('P2002', 'Unique constraint failed on idempotencyKey');
         }
 
+        if (data.legacyKey && state.jails.some((entry) => entry.legacyKey === data.legacyKey)) {
+          throw new FakeKnownRequestError('P2002', 'Unique constraint failed on legacyKey');
+        }
+
         state.sequence += 1;
         const now = new Date();
+        // Verschachteltes `create` der Rollen-Snapshot-Zeilen abtrennen -
+        // gespeichert wird es weiter unten in der eigenen Sammlung.
+        const { roleSnapshotEntries, ...scalars } = data as Partial<FakeJailEntry> & {
+          roleSnapshotEntries?: { create: Array<Partial<FakeJailRoleSnapshot>> };
+        };
         const entry: FakeJailEntry = {
           id: `jail-${state.sequence}`,
           type: 'TEMPORARY',
@@ -299,20 +347,54 @@ export function createFakeDatabaseModule(state: FakeState) {
           errorMessage: null,
           activeKey: null,
           idempotencyKey: null,
+          lifecycle: 'PENDING',
+          source: 'DASHBOARD',
+          silent: false,
+          voiceDisconnected: false,
+          leftGuildAt: null,
+          reappliedCount: 0,
+          legacyKey: null,
+          importId: null,
           createdAt: now,
           updatedAt: now,
-          ...data,
+          ...scalars,
         };
         state.jails.push(entry);
+
+        for (const row of roleSnapshotEntries?.create ?? []) {
+          state.jailRoleSnapshots.push({
+            id: `snapshot-${state.jailRoleSnapshots.length + 1}`,
+            jailId: entry.id,
+            roleId: '',
+            roleNameAtTime: null,
+            rolePositionAtTime: null,
+            managedAtTime: false,
+            kept: false,
+            restoredAt: null,
+            restoreFailedCode: null,
+            ...row,
+          });
+        }
+
         return { ...entry };
       },
 
-      async update({ where, data }: { where: { id: string }; data: Partial<FakeJailEntry> }) {
+      async update({ where, data }: { where: { id: string }; data: Record<string, unknown> }) {
         const entry = state.jails.find((item) => item.id === where.id);
         if (!entry) {
           throw new FakeKnownRequestError('P2025', 'Record not found');
         }
-        Object.assign(entry, data, { updatedAt: new Date() });
+        // Prisma erlaubt `{ increment: n }` statt eines festen Werts.
+        const resolved: Record<string, unknown> = {};
+        for (const [key, value] of Object.entries(data)) {
+          if (value && typeof value === 'object' && 'increment' in value) {
+            const current = (entry as unknown as Record<string, number>)[key] ?? 0;
+            resolved[key] = current + Number((value as { increment: number }).increment);
+          } else {
+            resolved[key] = value;
+          }
+        }
+        Object.assign(entry, resolved, { updatedAt: new Date() });
         return { ...entry };
       },
 
@@ -324,13 +406,30 @@ export function createFakeDatabaseModule(state: FakeState) {
         return { count: matching.length };
       },
 
-      async findUnique({ where }: { where: { id?: string; activeKey?: string } }) {
+      async findUnique({
+        where,
+        include,
+      }: {
+        where: { id?: string; activeKey?: string; legacyKey?: string };
+        include?: { roleSnapshotEntries?: unknown };
+      }) {
         const entry = state.jails.find(
           (item) =>
             (where.id !== undefined && item.id === where.id) ||
-            (where.activeKey !== undefined && item.activeKey === where.activeKey),
+            (where.activeKey !== undefined && item.activeKey === where.activeKey) ||
+            (where.legacyKey !== undefined && item.legacyKey === where.legacyKey),
         );
-        return entry ? { ...entry } : null;
+        if (!entry) {
+          return null;
+        }
+        return include?.roleSnapshotEntries
+          ? {
+              ...entry,
+              roleSnapshotEntries: state.jailRoleSnapshots
+                .filter((row) => row.jailId === entry.id)
+                .map((row) => ({ ...row })),
+            }
+          : { ...entry };
       },
 
       async findFirst({ where }: { where?: Filter } = {}) {
@@ -348,6 +447,218 @@ export function createFakeDatabaseModule(state: FakeState) {
 
       async count({ where }: { where?: Filter } = {}) {
         return state.jails.filter((entry) => (where ? matchesJail(entry, where) : true)).length;
+      },
+    },
+
+    jailRoleSnapshot: {
+      async createMany({ data }: { data: Array<Partial<FakeJailRoleSnapshot>> }) {
+        for (const row of data) {
+          state.jailRoleSnapshots.push({
+            id: `snapshot-${state.jailRoleSnapshots.length + 1}`,
+            jailId: '',
+            roleId: '',
+            roleNameAtTime: null,
+            rolePositionAtTime: null,
+            managedAtTime: false,
+            kept: false,
+            restoredAt: null,
+            restoreFailedCode: null,
+            ...row,
+          });
+        }
+        return { count: data.length };
+      },
+      async updateMany({
+        where,
+        data,
+      }: {
+        where: { jailId?: string; roleId?: { in: string[] } };
+        data: Partial<FakeJailRoleSnapshot>;
+      }) {
+        const matching = state.jailRoleSnapshots.filter(
+          (row) =>
+            (where.jailId === undefined || row.jailId === where.jailId) &&
+            (where.roleId === undefined || where.roleId.in.includes(row.roleId)),
+        );
+        for (const row of matching) {
+          Object.assign(row, data);
+        }
+        return { count: matching.length };
+      },
+      async findMany({ where }: { where?: { jailId?: string } } = {}) {
+        return state.jailRoleSnapshots
+          .filter((row) => (where?.jailId === undefined ? true : row.jailId === where.jailId))
+          .map((row) => ({ ...row }));
+      },
+      async count({ where }: { where?: { jailId?: string } } = {}) {
+        return state.jailRoleSnapshots.filter((row) =>
+          where?.jailId === undefined ? true : row.jailId === where.jailId,
+        ).length;
+      },
+    },
+
+    voteJailCooldown: {
+      async findUnique({ where }: { where: { discordId: string } }) {
+        const entry = state.voteJailCooldowns.find((row) => row.discordId === where.discordId);
+        return entry ? { ...entry } : null;
+      },
+      async upsert({
+        where,
+        create,
+        update,
+      }: {
+        where: { discordId: string };
+        create: Partial<FakeVoteJailCooldown>;
+        update: Partial<FakeVoteJailCooldown> & { expiresAt?: Date | { set: Date } };
+      }) {
+        const existing = state.voteJailCooldowns.find((row) => row.discordId === where.discordId);
+        if (existing) {
+          const { expiresAt, ...rest } = update;
+          Object.assign(existing, rest, {
+            expiresAt:
+              expiresAt && typeof expiresAt === 'object' && 'set' in expiresAt
+                ? expiresAt.set
+                : (expiresAt ?? existing.expiresAt),
+          });
+          return { ...existing };
+        }
+        const entry: FakeVoteJailCooldown = {
+          id: `cooldown-${state.voteJailCooldowns.length + 1}`,
+          discordId: where.discordId,
+          username: null,
+          lastVoteJailId: null,
+          startedAt: new Date(),
+          expiresAt: new Date(),
+          ...create,
+        };
+        state.voteJailCooldowns.push(entry);
+        return { ...entry };
+      },
+      async deleteMany({ where }: { where?: Filter } = {}) {
+        const before = state.voteJailCooldowns.length;
+        state.voteJailCooldowns = state.voteJailCooldowns.filter(
+          (row) => !(where ? matchesJail(row as unknown as FakeJailEntry, where) : true),
+        );
+        return { count: before - state.voteJailCooldowns.length };
+      },
+      async count() {
+        return state.voteJailCooldowns.length;
+      },
+    },
+
+    jailImport: {
+      async create({ data }: { data: Record<string, unknown> }) {
+        const { rows, ...scalars } = data as Record<string, unknown> & {
+          rows?: { create: Array<Record<string, unknown>> };
+        };
+        const entry: Record<string, unknown> = {
+          id: `import-${state.jailImports.length + 1}`,
+          status: 'ANALYSED',
+          totalRows: 0,
+          importableRows: 0,
+          duplicateRows: 0,
+          releasedRows: 0,
+          invalidRows: 0,
+          conflictRows: 0,
+          importedRows: 0,
+          failedRows: 0,
+          legacyBotStopped: false,
+          reconciledAt: null,
+          reconcileSummary: null,
+          confirmedByDiscordId: null,
+          confirmedAt: null,
+          errorMessage: null,
+          createdAt: new Date(),
+          finishedAt: null,
+          ...scalars,
+        };
+        state.jailImports.push(entry);
+
+        const created = (rows?.create ?? []).map((row, index) => ({
+          id: `import-row-${state.jailImportRows.length + index + 1}`,
+          importId: entry.id,
+          imported: false,
+          jailId: null,
+          createdAt: new Date(),
+          ...row,
+        }));
+        state.jailImportRows.push(...created);
+
+        return { ...entry, rows: created.map((row) => ({ ...row })) };
+      },
+      async findUnique({
+        where,
+        include,
+      }: {
+        where: { id: string };
+        include?: { rows?: { where?: { action?: string } } };
+      }) {
+        const entry = state.jailImports.find((row) => row.id === where.id);
+        if (!entry) {
+          return null;
+        }
+        if (!include?.rows) {
+          return { ...entry };
+        }
+        const action = include.rows.where?.action;
+        return {
+          ...entry,
+          rows: state.jailImportRows
+            .filter((row) => row.importId === entry.id && (action ? row.action === action : true))
+            .map((row) => ({ ...row })),
+        };
+      },
+      async findFirst({ where }: { where?: Filter } = {}) {
+        const entry = state.jailImports.find((row) =>
+          where ? matchesJail(row as unknown as FakeJailEntry, where) : true,
+        );
+        return entry ? { ...entry } : null;
+      },
+      async findMany() {
+        return [...state.jailImports].reverse().map((row) => ({ ...row }));
+      },
+      async update({ where, data }: { where: { id: string }; data: Record<string, unknown> }) {
+        const entry = state.jailImports.find((row) => row.id === where.id);
+        if (!entry) {
+          throw new FakeKnownRequestError('P2025', 'Record not found');
+        }
+        Object.assign(entry, data);
+        return { ...entry };
+      },
+      async updateMany({ where, data }: { where: Filter; data: Record<string, unknown> }) {
+        const matching = state.jailImports.filter((row) =>
+          matchesJail(row as unknown as FakeJailEntry, where),
+        );
+        for (const row of matching) {
+          Object.assign(row, data);
+        }
+        return { count: matching.length };
+      },
+      async count({ where }: { where?: Filter } = {}) {
+        return state.jailImports.filter((row) =>
+          where ? matchesJail(row as unknown as FakeJailEntry, where) : true,
+        ).length;
+      },
+    },
+
+    jailImportRow: {
+      async update({ where, data }: { where: { id: string }; data: Record<string, unknown> }) {
+        const entry = state.jailImportRows.find((row) => row.id === where.id);
+        if (!entry) {
+          throw new FakeKnownRequestError('P2025', 'Record not found');
+        }
+        Object.assign(entry, data);
+        return { ...entry };
+      },
+      async findMany({ where }: { where?: Filter } = {}) {
+        return state.jailImportRows
+          .filter((row) => (where ? matchesJail(row as unknown as FakeJailEntry, where) : true))
+          .map((row) => ({ ...row }));
+      },
+      async count({ where }: { where?: Filter } = {}) {
+        return state.jailImportRows.filter((row) =>
+          where ? matchesJail(row as unknown as FakeJailEntry, where) : true,
+        ).length;
       },
     },
 
@@ -842,33 +1153,7 @@ export function createFakeDatabaseModule(state: FakeState) {
     prisma,
     Prisma: { PrismaClientKnownRequestError: FakeKnownRequestError },
 
-    AUDIT_ACTIONS: {
-      LOGIN: 'LOGIN',
-      LOGIN_DENIED: 'LOGIN_DENIED',
-      LOGOUT: 'LOGOUT',
-      PERMISSION_DENIED: 'PERMISSION_DENIED',
-      SETTING_CHANGED: 'SETTING_CHANGED',
-      ROLE_MAPPING_CHANGED: 'ROLE_MAPPING_CHANGED',
-      MODULE_ENABLED: 'MODULE_ENABLED',
-      MODULE_DISABLED: 'MODULE_DISABLED',
-      MODULE_SETTINGS_CHANGED: 'MODULE_SETTINGS_CHANGED',
-      DISCORD_ACTION_FAILED: 'DISCORD_ACTION_FAILED',
-      JAIL_CREATED: 'JAIL_CREATED',
-      JAIL_RELEASED: 'JAIL_RELEASED',
-      JAIL_FAILED: 'JAIL_FAILED',
-      JAIL_RECONCILED: 'JAIL_RECONCILED',
-      RECONCILIATION_RUN: 'RECONCILIATION_RUN',
-      VOTE_JAIL_STARTED: 'VOTE_JAIL_STARTED',
-      VOTE_JAIL_SUCCEEDED: 'VOTE_JAIL_SUCCEEDED',
-      VOTE_JAIL_FAILED: 'VOTE_JAIL_FAILED',
-      COMMUNICATION_NEWS_SENT: 'COMMUNICATION_NEWS_SENT',
-      COMMUNICATION_EVENT_SENT: 'COMMUNICATION_EVENT_SENT',
-      COMMUNICATION_POLL_SENT: 'COMMUNICATION_POLL_SENT',
-      COMMUNICATION_MESSAGE_DELETED: 'COMMUNICATION_MESSAGE_DELETED',
-      COMMUNICATION_SEND_FAILED: 'COMMUNICATION_SEND_FAILED',
-      BRANDING_LOGO_UPDATED: 'BRANDING_LOGO_UPDATED',
-      BRANDING_LOGO_RESET: 'BRANDING_LOGO_RESET',
-    },
+    AUDIT_ACTIONS,
 
     SECURITY_EVENTS: {
       INVALID_SESSION: 'INVALID_SESSION',

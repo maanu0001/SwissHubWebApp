@@ -14,12 +14,14 @@ import { ensureBootstrapRoles } from '@swisshub/permissions';
 import {
   getGuildConfig,
   importGuildFromEnvironment,
+  jail,
   invalidateSyncCaches,
   syncDiscord,
   writeHeartbeat,
 } from '@swisshub/modules';
 import { createJobRunner } from './jobs';
 import { registerVoteJailHandler } from './vote-jail';
+import { registerCommandHandler, registerJailCommands } from './commands/register';
 
 const log = createLogger('bot');
 
@@ -75,6 +77,9 @@ async function main(): Promise<void> {
 
   // Button-Klicks der Vote-Jail-Abstimmungen entgegennehmen.
   registerVoteJailHandler(client);
+  // Slash Commands (/jail, /jail_free, /vote_jail, ...). Die Befehle sind
+  // reine Adapter auf dieselben Services, die auch das Dashboard nutzt.
+  registerCommandHandler(client);
 
   /**
    * Aktive Guild-ID. Sie kann sich zur Laufzeit ändern (Einrichtungsassistent),
@@ -114,6 +119,9 @@ async function main(): Promise<void> {
         log.info('Mit Discord verbunden', { guild: guild.name, members: guild.memberCount });
       }
 
+      // Slash Commands für den verbundenen Server registrieren.
+      await registerJailCommands(readyClient, guildId);
+
       // Beim Start einmal synchronisieren, damit Rollen- und Channel-Auswahl
       // im Dashboard sofort aktuell sind.
       const summary = await syncDiscord({ trigger: 'startup' }).catch((error: unknown) => {
@@ -149,8 +157,35 @@ async function main(): Promise<void> {
   });
 
   client.on(Events.GuildMemberRemove, async (member) => {
-    if (isActiveGuild(member.guild.id)) {
-      await invalidateIdentity(member.id);
+    if (!isActiveGuild(member.guild.id)) {
+      return;
+    }
+    await invalidateIdentity(member.id);
+    // Ein Jail endet nicht dadurch, dass jemand den Server verlässt. Der
+    // Eintrag bleibt offen und wartet auf den Wiedereintritt.
+    await jail.markMemberLeftDuringJail(member.id).catch((error: unknown) => {
+      log.warn('Austritt konnte nicht am Jail vermerkt werden', { error, member: member.id });
+    });
+  });
+
+  /**
+   * Wiedereintritt während eines laufenden Jails.
+   *
+   * Ohne diese Behandlung liesse sich ein Jail durch Verlassen und erneutes
+   * Beitreten umgehen. Die Entscheidung trifft der Jail-Service anhand der
+   * Datenbank - hier wird nur das Ereignis weitergereicht.
+   */
+  client.on(Events.GuildMemberAdd, async (member) => {
+    if (!isActiveGuild(member.guild.id)) {
+      return;
+    }
+    try {
+      const outcome = await jail.reapplyJailOnRejoin(member.id);
+      if (outcome !== 'none') {
+        log.info('Wiedereintritt eines gejailten Mitglieds behandelt', { member: member.id, outcome });
+      }
+    } catch (error) {
+      log.error('Jail konnte beim Wiedereintritt nicht behandelt werden', { error, member: member.id });
     }
   });
 
@@ -223,6 +258,8 @@ async function main(): Promise<void> {
       log.info('Verbundener Discord-Server geändert', { guildId });
       if (guildId) {
         await syncDiscord({ trigger: 'event' }).catch(() => undefined);
+        // Die Befehle hängen an der Guild - nach einem Wechsel neu setzen.
+        await registerJailCommands(client, guildId).catch(() => undefined);
       }
     })();
   }, 60_000);

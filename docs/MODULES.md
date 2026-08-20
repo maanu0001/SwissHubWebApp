@@ -511,6 +511,53 @@ Entscheidende Punkte:
 - **Discord-Interaktionen im Bot.** `apps/bot/src/vote-jail.ts` nimmt Button-Klicks entgegen und
   ruft ausschliesslich Modulfunktionen auf - die Fachlogik bleibt im Modul.
 
+## 10b. Beispiel: Slash Commands als Adapter
+
+Die Discord-Befehle des Jail-Moduls (`/jail`, `/silent_jail`, `/jail_free`, `/jail_list`,
+`/vote_jail`) liegen in `apps/bot/src/commands/` und enthalten **keine** Jail-Logik. Jeder Befehl
+folgt derselben Kette:
+
+```
+Interaktion -> Berechtigung -> Eingabe prüfen -> Service -> Antwort
+```
+
+- **Ein Service für zwei Oberflächen.** `handleJailCommand` ruft `jail.createJail`,
+  `jail.releaseJail` und `jail.startVoteJail` auf - dieselben Funktionen wie die Server Actions
+  des Dashboards. Ein Unique-Constraint, ein Audit-Eintrag, ein Rollen-Snapshot.
+- **Berechtigungen aus derselben Zuordnung.** `buildCommandActor` löst die Rollen des Aufrufers
+  über `loadRoleConfiguration`/`resolvePermissions` auf. Es gibt keine Admin-Rollen-ID im Code.
+- **Konfiguration aus dem Dashboard.** Jail-Rolle, Channels, Vorlagen und Grenzwerte kommen aus
+  den Moduleinstellungen; eine Änderung wirkt ohne Neustart des Bots.
+- **Registrierung pro Guild.** `registerJailCommands` setzt die Befehlsliste vollständig
+  (`commands.set`) - entfernte Befehle verschwinden dadurch auch auf Discord.
+- **Herkunft statt Sonderweg.** Der einzige Unterschied im Datensatz ist `source`
+  (`DASHBOARD` / `SLASH_COMMAND` / `VOTE_JAIL` / `IMPORT` / `AUTO_RESTORE`).
+
+Der Test `tests/integration/jail-shared-service.test.ts` prüft genau das: Ein über das Dashboard
+angelegter Jail blockiert `/jail` und lässt sich mit `/jail_free` beenden.
+
+## 10c. Beispiel: Datenübernahme aus einem Altsystem
+
+`packages/modules/src/jail/import/` übernimmt die SQLite-Datenbank des früheren Jail-Bots. Der
+Ablauf ist zweistufig und bis zur Bestätigung folgenlos:
+
+```
+reader.ts    Datei lesen (nur lesend, node:sqlite, feste Tabellenliste)
+service.ts   analysieren -> bewerten -> bestätigen -> in einer Transaktion übernehmen
+queries.ts   Leseseite für den Assistenten
+```
+
+- **Die Analyse verändert nichts.** Sie speichert nur ihr Ergebnis; Jails entstehen erst nach der
+  ausdrücklichen Bestätigung.
+- **Wiederholbar.** Jede Altzeile bekommt einen `legacyKey`; ein zweiter Durchgang erkennt sie
+  wieder und legt nichts doppelt an.
+- **Bestehende Daten bleiben.** Läuft für ein Mitglied bereits ein Jail, wird die Altzeile als
+  Konflikt übersprungen statt überschrieben.
+- **Untrusted Input.** Siehe [SECURITY.md](./SECURITY.md) - die Datei wird nie als SQL ausgeführt,
+  nie verändert und nach dem Lesen gelöscht.
+
+Details und die vollständige Feldabbildung: [JAIL_MIGRATION.md](./JAIL_MIGRATION.md).
+
 ## 11. Konventionen
 
 1. **Keine Discord-Aufrufe ausserhalb der Service-Schicht.** UI und Route Handler rufen Services auf.

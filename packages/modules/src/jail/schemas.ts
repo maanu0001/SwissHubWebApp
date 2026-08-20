@@ -46,6 +46,11 @@ export const createJailSchema = z
     /** Nur bei `TEMPORARY` erforderlich. */
     durationSeconds: jailDurationSchema.optional(),
     reason: jailReasonSchema,
+    /**
+     * Still: keine öffentliche Ankündigung. Ohne Angabe entscheidet die
+     * Moduleinstellung `silentByDefault`.
+     */
+    silent: z.boolean().optional(),
     /** Verhindert doppelte Ausführung bei Doppelklick oder Retry. */
     idempotencyKey: z.string().uuid('Ungültiger Idempotency Key'),
   })
@@ -126,3 +131,64 @@ export const startVoteJailSchema = z.object({
 });
 
 export type StartVoteJailFormInput = z.infer<typeof startVoteJailSchema>;
+
+/**
+ * Dauerangabe aus einem Slash Command lesen.
+ *
+ * Das Format stammt aus dem alten Bot und bleibt bewusst erhalten, damit das
+ * Team seine Gewohnheiten behält: `10m`, `2h`, `3d` - eine blosse Zahl gilt
+ * als Minuten. Zusätzlich wird `permanent` verstanden.
+ *
+ * Rückgabe:
+ *   - `{ type: 'PERMANENT' }`             bei "permanent"/"unbegrenzt"
+ *   - `{ type: 'TEMPORARY', seconds }`    bei einer gültigen Dauer
+ *   - `null`                              bei einer unlesbaren Eingabe
+ */
+export function parseDurationInput(
+  value: string,
+): { type: 'PERMANENT' } | { type: 'TEMPORARY'; seconds: number } | null {
+  const input = value.trim().toLowerCase();
+  if (input.length === 0) {
+    return null;
+  }
+  if (['permanent', 'unbegrenzt', 'unbefristet', 'perma', 'dauerhaft'].includes(input)) {
+    return { type: 'PERMANENT' };
+  }
+
+  if (/^\d+$/u.test(input)) {
+    const minutes = Number(input);
+    return minutes > 0 ? toDuration(minutes * 60) : null;
+  }
+
+  const match = /^(\d+)\s*(minuten?|mins?|m|stunden?|std|h|tage?|tag|d|t|wochen?|w)$/u.exec(input);
+  if (!match) {
+    return null;
+  }
+
+  const amount = Number(match[1]);
+  const unit = match[2] ?? '';
+  if (amount <= 0) {
+    return null;
+  }
+
+  const seconds = /^(minuten?|mins?|m)$/u.test(unit)
+    ? amount * 60
+    : /^(stunden?|std|h)$/u.test(unit)
+      ? amount * 3600
+      : /^(wochen?|w)$/u.test(unit)
+        ? amount * 7 * 86400
+        : amount * 86400;
+
+  return toDuration(seconds);
+}
+
+function toDuration(seconds: number): { type: 'TEMPORARY'; seconds: number } | null {
+  if (seconds < MIN_JAIL_DURATION_SECONDS || seconds > JAIL_MAX_DURATION_SECONDS) {
+    return null;
+  }
+  return { type: 'TEMPORARY', seconds };
+}
+
+/** Hinweistext bei einer unlesbaren Dauer - identisch für alle Befehle. */
+export const DURATION_HINT =
+  'Ungültigi Duur. Nutz zum Biispiel `10m`, `2h`, `3d` oder `permanent`. Ohni Iigab isch de Jail permanent.';

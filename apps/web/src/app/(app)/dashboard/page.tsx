@@ -336,6 +336,7 @@ export default async function DashboardPage(): Promise<React.JSX.Element> {
                   csrfToken={csrfToken}
                   durationPresets={jail.JAIL_DURATION_PRESETS}
                   maxDurationSeconds={jailSettings.maxDurationSeconds}
+                  announceByDefault={!jailSettings.silentByDefault}
                   variant="quick-action"
                   triggerLabel="Mitglied jailen"
                 />

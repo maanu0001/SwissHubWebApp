@@ -26,10 +26,14 @@ export async function releaseExpiredJails(
   limit = 25,
   gateway: DiscordGateway = defaultDiscord,
 ): Promise<SweepResult> {
-  const dü = await prisma.jailEntry.findMany({
+  const due = await prisma.jailEntry.findMany({
     where: {
       releasedAt: null,
-      endsAt: { lte: new Date() },
+      // Nur zeitlich begrenzte Jails laufen ab. Permanente Jails haben kein
+      // `endsAt` und werden hier bewusst nie erfasst - sie enden ausschliesslich
+      // durch eine manuelle Freilassung.
+      type: 'TEMPORARY',
+      endsAt: { not: null, lte: new Date() },
       status: { in: ['COMPLETED', 'PARTIAL'] },
     },
     orderBy: { endsAt: 'asc' },
@@ -37,7 +41,7 @@ export async function releaseExpiredJails(
     select: { id: true, targetDiscordId: true },
   });
 
-  if (dü.length === 0) {
+  if (due.length === 0) {
     return { processed: 0, released: 0, failed: 0 };
   }
 
@@ -46,7 +50,7 @@ export async function releaseExpiredJails(
   let released = 0;
   let failed = 0;
 
-  for (const entry of dü) {
+  for (const entry of due) {
     try {
       await releaseJail(entry.id, { releaseType: 'AUTOMATIC', gateway, context });
       released += 1;
@@ -60,8 +64,8 @@ export async function releaseExpiredJails(
     }
   }
 
-  log.info('Jail-Sweep abgeschlossen', { processed: dü.length, released, failed });
-  return { processed: dü.length, released, failed };
+  log.info('Jail-Sweep abgeschlossen', { processed: due.length, released, failed });
+  return { processed: due.length, released, failed };
 }
 
 /**

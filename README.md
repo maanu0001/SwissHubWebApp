@@ -13,6 +13,9 @@ Login mit Discord  ->  Guild-Check  ->  Permission Engine  ->  Moderation Policy
 - **Sicherheit zuerst:** jede Aktion wird serverseitig authentifiziert, autorisiert und protokolliert.
 - **Datenbank als Source of Truth:** Jails überleben Neustart, Deployment und Crash.
 - **Modular:** Navigation, Berechtigungen und Einstellungen entstehen aus der Module Registry.
+- **Jail:** zeitlich begrenzt oder permanent, mit Rollen-Snapshot und automatischer Freilassung.
+- **Vote Jail:** Community-Abstimmung, die bei Erfolg über dieselbe Jail-Engine ausgeführt wird.
+- **Kommunikation:** Neuigkeiten, Events und Umfragen als Discord-Embeds mit Live-Vorschau.
 
 ---
 
@@ -361,6 +364,8 @@ Discord-Server; mit `enabled: false` verschwindet sie ganz.
 
 4. **Jail konfigurieren**: _Module -> Jail -> Einstellungen_. Jail-Rolle, Channels und maximale
    Dauer setzen. Die Auswahl bietet nur Rollen an, die der Bot tatsächlich verwalten kann.
+   Im selben Bereich lässt sich **Vote Jail** aktivieren (Channel, benötigte Stimmen, Laufzeit,
+   Jail-Dauer bei Erfolg - Standard: 5 Stimmen in 5 Minuten ergeben 30 Minuten Jail).
 5. **Testen**: _Mitglieder_ -> Mitglied öffnen -> _Mitglied jailen_. Nach Ablauf gibt der Bot das
    Mitglied automatisch frei und stellt die Rollen wieder her.
 6. **Nachvollziehen**: _Audit Log_ zeigt jede Aktion inklusive Integritätsprüfung der Hash-Chain.

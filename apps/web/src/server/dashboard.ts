@@ -1,7 +1,7 @@
 import 'server-only';
 import { prisma } from '@swisshub/database';
 import { discord } from '@swisshub/discord';
-import { jail, readBotStatus, type BotStatusView } from '@swisshub/modules';
+import { jail, loadAvatarHashes, readBotStatus, type BotStatusView } from '@swisshub/modules';
 import { createLogger } from '@swisshub/logger';
 import type { AuditLog, JailEntry } from '@swisshub/database';
 
@@ -19,7 +19,8 @@ export interface DashboardData {
   actionsYesterday: number;
   /** Prozentuale Veränderung gegenüber gestern (gerundet). */
   actionsTrend: number | null;
-  recentActivity: AuditLog[];
+  /** Letzte Aktionen inklusive Avatar-Hash des Ausführenden. */
+  recentActivity: Array<AuditLog & { actorAvatarHash: string | null }>;
 }
 
 export interface DashboardScope {
@@ -63,6 +64,8 @@ export async function loadDashboardData(scope: DashboardScope): Promise<Dashboar
       }),
     ]);
 
+  const avatarHashes = await loadAvatarHashes(recentActivity.map((entry) => entry.actorDiscordId));
+
   return {
     bot,
     memberCount: guild?.approximateMemberCount ?? bot.guildMemberCount,
@@ -74,6 +77,10 @@ export async function loadDashboardData(scope: DashboardScope): Promise<Dashboar
     actionsYesterday,
     actionsTrend:
       actionsYesterday > 0 ? Math.round(((actionsToday - actionsYesterday) / actionsYesterday) * 100) : null,
-    recentActivity,
+    // Avatare gesammelt nachschlagen - ein Query statt einer Anfrage pro Zeile.
+    recentActivity: recentActivity.map((entry) => ({
+      ...entry,
+      actorAvatarHash: avatarHashes.get(entry.actorDiscordId ?? '') ?? null,
+    })),
   };
 }

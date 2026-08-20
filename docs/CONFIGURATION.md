@@ -233,6 +233,41 @@ configVersion: 2,
 requiredDiscordPermissions: ['MANAGE_ROLES'],
 ```
 
+### Vote Jail
+
+Die Abstimmung ist Teil des Jail-Moduls und wird unter **Module → Jail** konfiguriert:
+
+| Einstellung           | Standard   | Bedeutung                                               |
+| --------------------- | ---------- | ------------------------------------------------------- |
+| Vote Jail aktiv       | aus        | Schalter für das gesamte Feature                        |
+| Vote Jail Channel     | –          | Wo die Abstimmung erscheint (Channel-Auswahl, keine ID) |
+| Benötigte Stimmen     | 5          | So viele Stimmen führen zum Jail                        |
+| Voting-Dauer          | 5 Minuten  | Danach endet die Abstimmung ohne Ergebnis               |
+| Jail-Dauer bei Erfolg | 30 Minuten | Wird über den regulären Jail-Service ausgeführt         |
+
+Berechtigungen: `jail.vote.start` zum Starten, `jail.vote.multivote` für
+Mehrfachstimmen (typischerweise der Administratorrolle zugewiesen).
+
+### Kommunikation
+
+Unter **Module → Kommunikation**:
+
+| Einstellung                  | Standard                           | Bedeutung                                           |
+| ---------------------------- | ---------------------------------- | --------------------------------------------------- |
+| Standard-Channel             | –                                  | Vorauswahl im Formular                              |
+| Fusszeile                    | `SwissHub • Zäme hock, zäme zocke` | Fusszeile jedes Embeds                              |
+| Umfragen mit 👍/👎           | an                                 | Reaktionen automatisch setzen                       |
+| @everyone und @here zulassen | aus                                | Zusätzlich zur Berechtigung `communication.mention` |
+
+### Branding
+
+Unter **System → Branding** lässt sich das WebApp-Logo hochladen
+(`branding.manage`). In der Datenbank steht nur die Referenz
+(`branding.logo` in `SystemConfig`), die Datei liegt in `SWISSHUB_UPLOAD_DIR`.
+Details zur Absicherung: [SECURITY.md](SECURITY.md).
+
+### Feldtypen
+
 Verfügbare Feldtypen: `discord-role`, `discord-role-list`, `discord-channel`,
 `discord-channel-list`, `boolean`, `number`, `duration`, `text`, `textarea`
 (`packages/modules/src/settings/fields.ts`).

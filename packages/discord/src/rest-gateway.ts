@@ -1,6 +1,7 @@
 import { resolveGuildId } from './guild-context';
 import { snowflakeToDate } from '@swisshub/shared';
 import { discordRequest } from './rest';
+import { DISCORD_PERMISSIONS, combinePermissions, toPermissionBits } from './permissions';
 import {
   botGuildSchema,
   discordChannelSchema,
@@ -14,9 +15,22 @@ import {
   type GuildRole,
   type GuildSummary,
   type BotIdentity,
+  channelOverwritesSchema,
+  discordMessageSchema,
   type RawDiscordMember,
 } from './types';
-import type { DiscordGateway, DiscordMessagePayload } from './gateway';
+import type { DiscordGateway, DiscordMessagePayload, SentMessage } from './gateway';
+
+/** Discord-Payload aus unserer Abstraktion - Mentions sind per Default aus. */
+function toMessageBody(payload: DiscordMessagePayload): Record<string, unknown> {
+  return {
+    content: payload.content,
+    embeds: payload.embeds,
+    components: payload.components,
+    // Ohne explizite Freigabe pingt keine Nachricht jemanden an.
+    allowed_mentions: payload.allowedMentions ?? { parse: [] },
+  };
+}
 
 /** Kurzlebiger Cache für selten ändernde Guild-Metadaten. */
 const CACHE_TTL_MS = 60_000;
@@ -165,17 +179,94 @@ export function createRestGateway(): DiscordGateway {
       });
     },
 
-    async send(channelId, payload: DiscordMessagePayload) {
-      await discordRequest(`/channels/${channelId}/messages`, {
+    async send(channelId, payload: DiscordMessagePayload): Promise<SentMessage> {
+      const raw = await discordRequest<unknown>(`/channels/${channelId}/messages`, {
         method: 'POST',
-        body: {
-          content: payload.content,
-          embeds: payload.embeds,
-          // Standardmässig keine Pings auslösen - Log-Nachrichten sollen
-          // niemanden benachrichtigen.
-          allowed_mentions: payload.allowedMentions ?? { parse: [] },
-        },
+        body: toMessageBody(payload),
       });
+      const parsed = discordMessageSchema.safeParse(raw);
+      return { id: parsed.success ? parsed.data.id : '', channelId };
+    },
+
+    async edit(channelId, messageId, payload: DiscordMessagePayload) {
+      await discordRequest(`/channels/${channelId}/messages/${messageId}`, {
+        method: 'PATCH',
+        body: toMessageBody(payload),
+      });
+    },
+
+    async delete(channelId, messageId, reason) {
+      await discordRequest(`/channels/${channelId}/messages/${messageId}`, {
+        method: 'DELETE',
+        auditLogReason: reason,
+      });
+    },
+
+    async react(channelId, messageId, emoji) {
+      // Unicode-Emoji müssen URL-kodiert werden; @me = eigene Reaktion.
+      await discordRequest(
+        `/channels/${channelId}/messages/${messageId}/reactions/${encodeURIComponent(emoji)}/@me`,
+        { method: 'PUT' },
+      );
+    },
+
+    /**
+     * Effektive Berechtigungen des Bots im Channel.
+     *
+     * Reihenfolge nach Discord: @everyone-Rolle, dann Rollen-Overwrites
+     * (erst alle Deny, dann alle Allow), zuletzt der Member-Overwrite.
+     * `ADMINISTRATOR` sticht alles.
+     */
+    async botPermissions(channelId): Promise<bigint> {
+      const [identity, botMember, allRoles, guildId] = await Promise.all([
+        bot.identity(),
+        bot.member(),
+        roles.list(),
+        resolveGuildId(),
+      ]);
+      if (!botMember) {
+        return 0n;
+      }
+
+      const base = combinePermissions(
+        allRoles
+          .filter((role) => role.id === guildId || botMember.roleIds.includes(role.id))
+          .map((role) => role.permissions),
+      );
+      if ((base & DISCORD_PERMISSIONS.ADMINISTRATOR) !== 0n) {
+        return base;
+      }
+
+      const raw = await discordRequest<unknown>(`/channels/${channelId}`);
+      const parsed = channelOverwritesSchema.safeParse(raw);
+      if (!parsed.success) {
+        return base;
+      }
+
+      let total = base;
+      const overwrites = parsed.data.permission_overwrites ?? [];
+
+      const everyone = overwrites.find((entry) => entry.id === guildId);
+      if (everyone) {
+        total = (total & ~toPermissionBits(everyone.deny)) | toPermissionBits(everyone.allow);
+      }
+
+      let allow = 0n;
+      let deny = 0n;
+      for (const entry of overwrites) {
+        if (entry.type === 0 && entry.id !== guildId && botMember.roleIds.includes(entry.id)) {
+          allow |= toPermissionBits(entry.allow);
+          deny |= toPermissionBits(entry.deny);
+        }
+      }
+      total = (total & ~deny) | allow;
+
+      const member = overwrites.find((entry) => entry.type === 1 && entry.id === identity.id);
+      if (member) {
+        total = (total & ~toPermissionBits(member.deny)) | toPermissionBits(member.allow);
+      }
+
+      return total;
     },
   };
 

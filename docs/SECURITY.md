@@ -215,6 +215,48 @@ gespeichert. Gespeichert wird mit Vorher/Nachher im Audit Log.
 Rollen- und Channel-Listen sind ausschliesslich für authentifizierte Benutzer mit
 `settings.view` abrufbar - es gibt keine offene API, die den Serveraufbau preisgibt.
 
+### Datei-Uploads (WebApp-Logo)
+
+Der Logo-Upload ist die einzige Stelle, an der fremde Dateien auf den Server gelangen. Er läuft
+über einen Route Handler mit derselben Kette wie jede Server Action (Session, Mitgliedschaft,
+CSRF, Rate Limit, `branding.manage`) und zusätzlich:
+
+| Massnahme        | Umsetzung                                                                                                                                                                     |
+| ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Typprüfung       | Am Dateiinhalt (Magic Bytes), nicht an Endung oder Content-Type. Ein als PNG deklariertes HTML fällt durch.                                                                   |
+| Erlaubte Formate | PNG, JPG, WEBP. **SVG bewusst nicht** - es kann Skripte enthalten und müsste dafür zuverlässig bereinigt werden.                                                              |
+| Grösse           | Maximal 5 MB, Abmessungen zwischen 16×16 und 4096×4096.                                                                                                                       |
+| Dateiname        | Serverseitig erzeugt (`logo-<32 Hex>.<ext>`). Der Name aus dem Browser wird verworfen - Path Traversal und ausführbare Endungen sind damit ausgeschlossen.                    |
+| Ablage           | Ausserhalb von `public/`, in einem eigenen Volume; Dateirechte `0640`, nicht ausführbar.                                                                                      |
+| Auslieferung     | Über `/api/branding/logo` mit fest gesetztem `Content-Type` und `X-Content-Type-Options: nosniff`. Eine hochgeladene Datei kann nie als HTML oder Skript ausgeliefert werden. |
+| Lesen/Löschen    | Nur Namen, die dem eigenen Muster entsprechen; der aufgelöste Pfad muss im Upload-Verzeichnis liegen.                                                                         |
+
+### Discord-Erwähnungen
+
+Nachrichten des Kommunikationsmoduls pingen standardmässig niemanden: `allowedMentions` ist
+`{ parse: [] }`. Ein Ping entsteht nur, wenn beides zutrifft - die Berechtigung
+`communication.mention` UND der Schalter „@everyone und @here zulassen" in den
+Moduleinstellungen. Rollen-Pings werden einzeln freigegeben (`roles: [id]`), nie pauschal.
+Benutzertext wird zusätzlich escaped, sodass `@everyone` im Fliesstext nicht zum Ping wird.
+
+Banner-URLs müssen `https` sein; `javascript:`, `data:`, `file:` und interne Adressen
+(localhost, private Netze, Link-Local) werden abgelehnt. Der Bot lädt das Bild nicht herunter -
+Discord holt es direkt, es entsteht also kein SSRF-Pfad über unseren Server.
+
+### Vote Jail
+
+Eine Abstimmung ist eine Vorstufe des regulären Jails, kein zweiter Moderationsweg:
+
+- Beim Start greift dieselbe Moderation Policy wie bei einem direkten Jail (Selbstmoderation,
+  Bot, Guild-Owner, geschützte Rollen, Rollenhierarchie).
+- Die Ausführung übernimmt `createJail` - inklusive Rollen-Snapshot, Idempotenz und Audit Log.
+- Die Stimmzählung läuft in einer Transaktion mit Zeilensperre (`SELECT … FOR UPDATE`). Zwei
+  gleichzeitige Klicks auf die letzte Stimme können nicht beide die Schwelle auslösen;
+  zusätzlich ist `VoteJail.resultingJailId` unique.
+- Wer mehrfach stimmen darf, entscheidet ausschliesslich das Permission-System
+  (`jail.vote.multivote`) - es gibt keine hart codierte Adminliste.
+- Das Ziel der Abstimmung kann nicht über sich selbst abstimmen.
+
 ### Aussperrschutz
 
 Die letzte Discord-Rolle mit `permissions.manage` bzw. `admin.full` lässt sich weder entwerten

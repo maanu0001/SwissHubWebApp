@@ -15,8 +15,10 @@ export interface JailNotificationData {
   moderatorDiscordId: string;
   moderatorLabel: string;
   reason: string;
-  durationSeconds: number;
-  endsAt: Date;
+  /** `null` bei einem permanenten Jail. */
+  durationSeconds: number | null;
+  /** `null` bei einem permanenten Jail. */
+  endsAt: Date | null;
   timezone?: string;
 }
 
@@ -25,6 +27,8 @@ export interface ReleaseNotificationData {
   targetLabel: string;
   moderatorLabel: string;
   automatic: boolean;
+  /** Kennzeichnet die Aufhebung eines permanenten Jails. */
+  permanent?: boolean;
   restoredRoles: number;
   failedRoles: number;
 }
@@ -33,17 +37,28 @@ function safe(value: string): string {
   return truncate(escapeDiscordMarkdown(value), 256);
 }
 
+/**
+ * Ein permanenter Jail zeigt statt Countdown und Enddatum klar "Permanent" -
+ * so ist auf Discord sofort erkennbar, dass er nicht von selbst endet.
+ */
 export function buildJailEmbed(data: JailNotificationData): DiscordEmbed {
+  const permanent = data.endsAt === null;
   return {
     title: 'Mitglied gejailt',
     color: ACCENT_COLOR,
     fields: [
       { name: 'Benutzer', value: `<@${data.targetDiscordId}> (${safe(data.targetLabel)})` },
       { name: 'Moderator', value: `<@${data.moderatorDiscordId}> (${safe(data.moderatorLabel)})` },
-      { name: 'Dauer', value: formatDuration(data.durationSeconds * 1000), inline: true },
+      {
+        name: 'Dauer',
+        value: permanent ? 'Permanent' : formatDuration((data.durationSeconds ?? 0) * 1000),
+        inline: true,
+      },
       {
         name: 'Ende',
-        value: formatDateTime(data.endsAt, { timezone: data.timezone ?? branding.timezone }),
+        value: permanent
+          ? 'Kein automatisches Ende'
+          : formatDateTime(data.endsAt as Date, { timezone: data.timezone ?? branding.timezone }),
         inline: true,
       },
       { name: 'Grund', value: truncate(escapeDiscordMarkdown(data.reason), 1000) },
@@ -61,7 +76,9 @@ export function buildReleaseEmbed(data: ReleaseNotificationData): DiscordEmbed {
       { name: 'Benutzer', value: `<@${data.targetDiscordId}> (${safe(data.targetLabel)})` },
       {
         name: data.automatic ? 'Freigabe' : 'Moderator',
-        value: data.automatic ? 'Automatisch (Ablauf der Strafe)' : safe(data.moderatorLabel),
+        value: data.automatic
+          ? 'Automatisch (Ablauf der Strafe)'
+          : `${safe(data.moderatorLabel)}${data.permanent ? ' (permanenter Jail aufgehoben)' : ''}`,
       },
       {
         name: 'Rollen',

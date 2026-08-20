@@ -72,6 +72,16 @@ export function createJobRunner(
       },
     },
     {
+      name: 'vote-jail-expiry',
+      // Abgelaufene Abstimmungen beenden. Die Datenbank ist Source of Truth -
+      // ein Neustart verliert dadurch keine laufende Abstimmung.
+      intervalMs: 30 * 1000,
+      runOnStart: true,
+      async run() {
+        await jail.expireVoteJails();
+      },
+    },
+    {
       name: 'discord-sync',
       // Sicherheitsnetz: Discord-Ereignisse können ausfallen (Neustart,
       // verpasste Gateway-Events). Ein regelmässiger Abgleich hält die

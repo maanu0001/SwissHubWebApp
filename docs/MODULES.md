@@ -211,12 +211,12 @@ Details: [CONFIGURATION.md](CONFIGURATION.md).
 `group` bestimmt, in welchem Abschnitt der Seitenleiste das Modul erscheint
 (definiert in `packages/modules/src/registry.ts`):
 
-| Gruppe       | Beschriftung            | Beispiele                        |
-| ------------ | ----------------------- | -------------------------------- |
-| `overview`   | (ohne Titel)            | Dashboard                        |
-| `moderation` | Mitglieder & Moderation | Mitglieder, Jail, Moderation     |
-| `modules`    | Bot Module              | Feature-Module                   |
-| `system`     | System                  | Audit Log, Module, Einstellungen |
+| Gruppe       | Beschriftung            | Beispiele                                  |
+| ------------ | ----------------------- | ------------------------------------------ |
+| `overview`   | (ohne Titel)            | Dashboard                                  |
+| `moderation` | Mitglieder & Moderation | Mitglieder, Jail, Moderation               |
+| `modules`    | Bot Module              | Feature-Module                             |
+| `system`     | System                  | Audit Log, Module, Einstellungen, Branding |
 
 ### Geplante Module
 
@@ -483,6 +483,33 @@ Fehlerfall der Discord-API.
 - [ ] `npm run check` läuft fehlerfrei
 
 ---
+
+## 10a. Beispiel: Vote Jail als Aufsatz auf ein bestehendes Modul
+
+Vote Jail zeigt, wie eine neue Funktion in ein vorhandenes Modul integriert wird, statt daneben
+ein zweites System zu bauen:
+
+```
+packages/modules/src/jail/vote/
+  service.ts   Abstimmung starten, Stimmen zählen, Ergebnis ausführen
+  embed.ts     Discord-Darstellung inkl. Button
+  queries.ts   Leseseite für das Dashboard
+```
+
+Entscheidende Punkte:
+
+- **Keine zweite Jail-Logik.** Bei Erfolg ruft `completeSuccessfulVote` den bestehenden
+  `createJail`-Service auf - Moderation Policy, Rollen-Snapshot, Idempotenz und Audit Log gelten
+  unverändert.
+- **Berechtigungen über die Registry.** `jail.vote.start` und `jail.vote.multivote` sind normale
+  Permissions und im Dashboard zuweisbar. Ob jemand mehrfach stimmen darf, entscheidet nie eine
+  hart codierte ID.
+- **Zustand in der Datenbank.** Abstimmungen und Stimmen liegen in `VoteJail`/`VoteJailVote`,
+  nicht im Speicher - ein Neustart verliert nichts.
+- **Nebenläufigkeit.** Die Zählung läuft in einer Transaktion mit Zeilensperre; der Statuswechsel
+  auf `SUCCEEDED` passiert in derselben Transaktion wie die entscheidende Stimme.
+- **Discord-Interaktionen im Bot.** `apps/bot/src/vote-jail.ts` nimmt Button-Klicks entgegen und
+  ruft ausschliesslich Modulfunktionen auf - die Fachlogik bleibt im Modul.
 
 ## 11. Konventionen
 

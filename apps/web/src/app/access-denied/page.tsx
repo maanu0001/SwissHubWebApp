@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { UserX } from 'lucide-react';
 import { branding } from '@swisshub/config/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { branding as brandingModule } from '@swisshub/modules';
 import { BrandMark } from '@/components/shared/brand-mark';
 import { LogoutButton } from '@/components/layout/logout-button';
 import { getOptionalAuthContext, csrfTokenFor } from '@/server/auth';
@@ -10,12 +11,17 @@ export const metadata: Metadata = { title: 'Kein Zugriff' };
 
 export default async function AccessDeniedPage(): Promise<React.JSX.Element> {
   const context = await getOptionalAuthContext();
+  // Logo aus der Branding-Konfiguration; ohne Upload greift das Standardlogo.
+  const logoUrl = brandingModule.brandingLogoUrl(
+    await brandingModule.getBrandingConfig(),
+    branding.logo.mark,
+  );
 
   return (
     <main className="flex min-h-dvh items-center justify-center px-4 py-16">
       <Card className="w-full max-w-lg">
         <CardHeader className="items-center gap-4 text-center">
-          <BrandMark size={48} withWordmark={false} />
+          <BrandMark size={48} withWordmark={false} logoUrl={logoUrl} />
           <span className="rounded-full bg-warning/15 p-3 text-warning">
             <UserX className="size-6" aria-hidden="true" />
           </span>

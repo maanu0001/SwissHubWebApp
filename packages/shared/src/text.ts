@@ -8,9 +8,32 @@
 // eslint-disable-next-line no-control-regex
 const CONTROL_CHARS = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/gu;
 
+export interface SanitizeOptions {
+  /**
+   * Zeilenumbrüche erhalten. Für mehrzeilige Texte (z.B. Ankündigungen)
+   * nötig - dort ist die Formatierung Teil der Nachricht. Standard ist aus,
+   * weil einzeilige Eingaben so nicht heimlich mehrzeilig werden können.
+   */
+  keepNewlines?: boolean;
+}
+
 /** Removes control characters and collapses whitespace. */
-export function sanitizeText(value: string, maxLength = 1000): string {
-  return value.replace(CONTROL_CHARS, '').replace(/\s+/gu, ' ').trim().slice(0, maxLength);
+export function sanitizeText(value: string, maxLength = 1000, options: SanitizeOptions = {}): string {
+  const withoutControls = value.replace(CONTROL_CHARS, '');
+  if (!options.keepNewlines) {
+    return withoutControls.replace(/\s+/gu, ' ').trim().slice(0, maxLength);
+  }
+  return (
+    withoutControls
+      // Zeilenumbrüche vereinheitlichen, aber erhalten.
+      .replace(/\r\n?/gu, '\n')
+      // Höchstens zwei aufeinanderfolgende Leerzeilen.
+      .replace(/\n{3,}/gu, '\n\n')
+      // Innerhalb einer Zeile weiterhin Leerraum zusammenfassen.
+      .replace(/[^\S\n]+/gu, ' ')
+      .trim()
+      .slice(0, maxLength)
+  );
 }
 
 /** Escapes Discord markdown so user content cannot forge formatting or mentions. */

@@ -24,7 +24,7 @@ import { JAIL_MODULE_ID } from './config';
 import { loadJailContext, type JailExecutionContext } from './context';
 import { planJailRoles, planReleaseRoles } from './roles';
 import { buildJailEmbed, buildReleaseEmbed, postNotification } from './notifications';
-import { assertDurationWithinLimit, type CreateJailInput } from './schemas';
+import { assertDurationWithinLimit } from './schemas';
 
 const log = createLogger('jail:service');
 
@@ -67,6 +67,21 @@ export interface JailServiceOptions {
   context?: JailExecutionContext;
 }
 
+/**
+ * Eingabe des Jail-Services.
+ *
+ * Bewusst etwas lockerer als das Zod-Schema: `type` ist optional, damit
+ * bestehende Aufrufer unverändert einen zeitlich begrenzten Jail erzeugen.
+ */
+export interface CreateJailCommand {
+  targetDiscordId: string;
+  reason: string;
+  idempotencyKey: string;
+  type?: 'TEMPORARY' | 'PERMANENT';
+  /** Nur bei `TEMPORARY` relevant. */
+  durationSeconds?: number | null;
+}
+
 export interface CreateJailResult {
   jail: JailEntry;
   /** Nicht blockierende Hinweise für das UI. */
@@ -85,10 +100,17 @@ export interface CreateJailResult {
  * Jail gilt nicht als aktiv.
  */
 export async function createJail(
-  input: CreateJailInput,
+  command: CreateJailCommand,
   actor: JailActor,
   options: JailServiceOptions = {},
 ): Promise<CreateJailResult> {
+  // Aufrufer dürfen `type` weglassen - zeitlich begrenzt bleibt der Normalfall.
+  const input = {
+    ...command,
+    type: command.type ?? ('TEMPORARY' as const),
+    durationSeconds: command.type === 'PERMANENT' ? null : (command.durationSeconds ?? null),
+  };
+
   const gateway = options.gateway ?? defaultDiscord;
   const context = options.context ?? (await loadJailContext(gateway));
   const warnings: string[] = [];
@@ -100,7 +122,12 @@ export async function createJail(
     );
   }
 
-  assertDurationWithinLimit(input.durationSeconds, context.settings.maxDurationSeconds);
+  // Die Obergrenze gilt nur für zeitlich begrenzte Jails; ein permanenter
+  // Jail hat bewusst keine Dauer und damit auch keine Obergrenze.
+  const permanent = input.type === 'PERMANENT';
+  if (!permanent) {
+    assertDurationWithinLimit(input.durationSeconds ?? 0, context.settings.maxDurationSeconds);
+  }
 
   const jailRole = context.guildRoles.find((role) => role.id === jailRoleId);
   if (!jailRole) {
@@ -152,7 +179,7 @@ export async function createJail(
         success: false,
         errorCode: decision.code ?? 'POLICY_VIOLATION',
         errorMessage: decision.message,
-        metadata: { durationSeconds: input.durationSeconds },
+        metadata: { type: input.type, durationSeconds: input.durationSeconds },
         ipHash: options.metadata?.ipHash,
         userAgent: options.metadata?.userAgent,
       }),
@@ -173,7 +200,7 @@ export async function createJail(
   }
 
   const now = new Date();
-  const endsAt = new Date(now.getTime() + input.durationSeconds * 1000);
+  const endsAt = permanent ? null : new Date(now.getTime() + (input.durationSeconds ?? 0) * 1000);
   const plan = planJailRoles({
     currentRoleIds: target.roleIds,
     guildRoles: context.guildRoles,
@@ -200,6 +227,7 @@ export async function createJail(
         moderatorUsername: actor.username,
         moderatorAvatarHash: actor.avatarHash ?? null,
         reason: input.reason,
+        type: input.type,
         durationSeconds: input.durationSeconds,
         startedAt: now,
         endsAt,
@@ -255,7 +283,7 @@ export async function createJail(
         success: false,
         errorCode: appError.code,
         errorMessage: appError.userMessage,
-        metadata: { jailId: entry.id, durationSeconds: input.durationSeconds },
+        metadata: { jailId: entry.id, type: input.type, durationSeconds: input.durationSeconds },
         ipHash: options.metadata?.ipHash,
         userAgent: options.metadata?.userAgent,
       }),
@@ -282,7 +310,11 @@ export async function createJail(
         reason: input.reason,
         status: completed.status,
         referenceId: completed.id,
-        metadata: { durationSeconds: input.durationSeconds, endsAt: endsAt.toISOString() },
+        metadata: {
+          type: input.type,
+          durationSeconds: input.durationSeconds,
+          endsAt: endsAt?.toISOString() ?? null,
+        },
       },
     }),
     safeRecordAudit({
@@ -295,8 +327,9 @@ export async function createJail(
       success: true,
       metadata: {
         jailId: completed.id,
+        type: input.type,
         durationSeconds: input.durationSeconds,
-        endsAt: endsAt.toISOString(),
+        endsAt: endsAt?.toISOString() ?? null,
         removedRoles: plan.removedRoleIds.length,
         keptRoles: plan.keptRoleIds.length,
       },
@@ -592,6 +625,7 @@ export async function releaseJail(jailId: string, options: ReleaseJailOptions): 
         targetLabel: jail.targetDisplayName ?? jail.targetUsername,
         moderatorLabel: actor?.username ?? 'System',
         automatic: options.releaseType === 'AUTOMATIC',
+        permanent: jail.type === 'PERMANENT',
         restoredRoles: restored.length,
         failedRoles: failed.length,
       }),

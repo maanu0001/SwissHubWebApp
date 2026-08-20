@@ -18,6 +18,9 @@ export const RATE_LIMITS = {
   reconciliation: { limit: 5, windowMs: 15 * 60 * 1000 },
   discordSync: { limit: 10, windowMs: 5 * 60 * 1000 },
   setupWrite: { limit: 20, windowMs: 15 * 60 * 1000 },
+  voteJailStart: { limit: 10, windowMs: 10 * 60 * 1000 },
+  communicationSend: { limit: 15, windowMs: 10 * 60 * 1000 },
+  brandingUpload: { limit: 10, windowMs: 30 * 60 * 1000 },
 } as const satisfies Record<string, RateLimitRule>;
 
 export type RateLimitName = keyof typeof RATE_LIMITS;

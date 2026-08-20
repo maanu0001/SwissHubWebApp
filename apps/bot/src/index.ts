@@ -19,6 +19,7 @@ import {
   writeHeartbeat,
 } from '@swisshub/modules';
 import { createJobRunner } from './jobs';
+import { registerVoteJailHandler } from './vote-jail';
 
 const log = createLogger('bot');
 
@@ -71,6 +72,9 @@ async function main(): Promise<void> {
   };
 
   const jobs = createJobRunner(() => ({ ...status }));
+
+  // Button-Klicks der Vote-Jail-Abstimmungen entgegennehmen.
+  registerVoteJailHandler(client);
 
   /**
    * Aktive Guild-ID. Sie kann sich zur Laufzeit ändern (Einrichtungsassistent),

@@ -4,7 +4,7 @@ import { notFound } from 'next/navigation';
 import { ArrowLeft, Bot, Lock, ShieldAlert } from 'lucide-react';
 import { can } from '@swisshub/auth';
 import { getModuleSettings, getMemberProfile, isModuleEnabled, jail } from '@swisshub/modules';
-import { formatDate, formatDateTime, formatDuration, snowflakeSchema } from '@swisshub/shared';
+import { formatDate, formatDateTime, snowflakeSchema } from '@swisshub/shared';
 import { Badge } from '@/components/ui/badge';
 import { buttonVariants } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -114,7 +114,9 @@ export default async function MemberDetailPage({
               {profile.activeJail ? (
                 <Badge variant="warning">
                   <Lock className="size-3" aria-hidden="true" />
-                  Gejailt bis {formatDateTime(profile.activeJail.endsAt)}
+                  {profile.activeJail.endsAt
+                    ? `Gejailt bis ${formatDateTime(profile.activeJail.endsAt)}`
+                    : 'Permanent gejailt'}
                 </Badge>
               ) : (
                 <Badge variant="success">Nicht gejailt</Badge>
@@ -171,7 +173,7 @@ export default async function MemberDetailPage({
                         {formatDateTime(entry.startedAt)}
                       </Link>
                       <span className="flex items-center gap-2">
-                        <Badge variant="outline">{formatDuration(entry.durationSeconds * 1000)}</Badge>
+                        <Badge variant="outline">{jail.jailDurationLabel(entry)}</Badge>
                         {entry.releasedAt ? (
                           <Badge variant="secondary">
                             {entry.releaseType === 'MANUAL' ? 'Manuell beendet' : 'Automatisch beendet'}

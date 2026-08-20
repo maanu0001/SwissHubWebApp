@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { jail, getModuleSettings, isModuleEnabled } from '@swisshub/modules';
-import { formatDateTime, formatDayTime, formatDuration } from '@swisshub/shared';
+import { formatDateTime, formatDayTime } from '@swisshub/shared';
 import { can } from '@swisshub/auth';
 import { Badge } from '@/components/ui/badge';
 import { buttonVariants } from '@/components/ui/button';
@@ -114,7 +114,7 @@ export default async function JailPage({ searchParams }: JailPageProps): Promise
       render: (entry: JailEntry) => (
         <span className="whitespace-nowrap text-muted-foreground">
           {query.tab === 'active'
-            ? formatDayTime(entry.endsAt)
+            ? jail.jailEndLabel(entry, { short: true })
             : entry.releasedAt
               ? formatDateTime(entry.releasedAt)
               : '-'}
@@ -125,19 +125,21 @@ export default async function JailPage({ searchParams }: JailPageProps): Promise
       ? {
           key: 'remaining',
           header: 'Verbleibend',
-          render: (entry: JailEntry) => (
-            <span className="whitespace-nowrap font-medium text-primary-bright">
-              <RemainingTime endsAt={entry.endsAt.toISOString()} />
-            </span>
-          ),
+          render: (entry: JailEntry) =>
+            entry.endsAt ? (
+              <span className="whitespace-nowrap font-medium text-primary-bright">
+                <RemainingTime endsAt={entry.endsAt.toISOString()} />
+              </span>
+            ) : (
+              // Permanente Jails haben keinen Countdown.
+              <Badge variant="warning">{jail.PERMANENT_LABEL}</Badge>
+            ),
         }
       : {
           key: 'duration',
           header: 'Dauer',
           render: (entry: JailEntry) => (
-            <span className="whitespace-nowrap text-muted-foreground">
-              {formatDuration(entry.durationSeconds * 1000)}
-            </span>
+            <span className="whitespace-nowrap text-muted-foreground">{jail.jailDurationLabel(entry)}</span>
           ),
         },
     {

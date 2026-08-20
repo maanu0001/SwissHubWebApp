@@ -13,6 +13,8 @@ interface AppShellProps {
   server: ServerCardData;
   bot: { online: boolean; wsPingMs: number | null };
   discordUrl: string;
+  /** Hochgeladenes Logo aus der Branding-Konfiguration. */
+  logoUrl: string;
   children: React.ReactNode;
 }
 
@@ -28,18 +30,20 @@ export function AppShell({
   server,
   bot,
   discordUrl,
+  logoUrl,
   children,
 }: AppShellProps): React.JSX.Element {
   return (
     <PermissionProvider permissions={permissions}>
       <div className="flex min-h-dvh">
-        <Sidebar groups={groups} server={server} bot={bot} discordUrl={discordUrl} />
+        <Sidebar groups={groups} server={server} bot={bot} discordUrl={discordUrl} logoUrl={logoUrl} />
 
         <div className="flex min-w-0 flex-1 flex-col">
           <AppHeader
             titles={titles}
             groups={groups}
             user={user}
+            logoUrl={logoUrl}
             canSearchMembers={permissions.includes('members.view') || permissions.includes('admin.full')}
           />
 

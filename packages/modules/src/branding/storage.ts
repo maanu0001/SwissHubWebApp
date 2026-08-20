@@ -1,0 +1,243 @@
+import { createHash, randomBytes } from 'node:crypto';
+import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { join, resolve } from 'node:path';
+import { createLogger } from '@swisshub/logger';
+import { AppError } from '@swisshub/shared';
+
+const log = createLogger('branding:storage');
+
+/**
+ * Speicherung hochgeladener Branding-Dateien.
+ *
+ * Grundsätze:
+ *  - Dateinamen werden ausschliesslich serverseitig erzeugt (Zufall + Endung
+ *    aus dem erkannten Format). Der Name aus dem Browser wird nie verwendet -
+ *    damit sind Path Traversal und ausführbare Endungen ausgeschlossen.
+ *  - Der Typ wird an den echten Bytes erkannt, nicht am Content-Type-Header
+ *    oder an der Endung.
+ *  - Ausgeliefert wird über einen Route Handler mit festem Content-Type; das
+ *    Verzeichnis liegt ausserhalb von `public` und wird nie statisch bedient.
+ */
+export const UPLOAD_DIR = process.env.SWISSHUB_UPLOAD_DIR ?? '/var/lib/swisshub/uploads';
+
+/** 5 MB - grosszügig für ein Logo, klein genug gegen Missbrauch. */
+export const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
+
+export type LogoFormat = 'png' | 'jpeg' | 'webp';
+
+export const ACCEPTED_MIME_TYPES: Record<string, LogoFormat> = {
+  'image/png': 'png',
+  'image/jpeg': 'jpeg',
+  'image/jpg': 'jpeg',
+  'image/webp': 'webp',
+};
+
+const EXTENSION: Record<LogoFormat, string> = { png: 'png', jpeg: 'jpg', webp: 'webp' };
+
+export const CONTENT_TYPE: Record<LogoFormat, string> = {
+  png: 'image/png',
+  jpeg: 'image/jpeg',
+  webp: 'image/webp',
+};
+
+/**
+ * Format anhand der Datei-Signatur bestimmen.
+ *
+ * SVG wird bewusst nicht unterstützt: eine SVG-Datei kann Skripte enthalten
+ * und müsste dafür zuverlässig bereinigt werden. Solange diese Bereinigung
+ * nicht existiert, ist das Weglassen die ehrlichere Lösung.
+ */
+export function detectImageFormat(bytes: Uint8Array): LogoFormat | null {
+  if (bytes.length < 12) {
+    return null;
+  }
+  // PNG: 89 50 4E 47 0D 0A 1A 0A
+  if (
+    bytes[0] === 0x89 &&
+    bytes[1] === 0x50 &&
+    bytes[2] === 0x4e &&
+    bytes[3] === 0x47 &&
+    bytes[4] === 0x0d &&
+    bytes[5] === 0x0a &&
+    bytes[6] === 0x1a &&
+    bytes[7] === 0x0a
+  ) {
+    return 'png';
+  }
+  // JPEG: FF D8 FF
+  if (bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) {
+    return 'jpeg';
+  }
+  // WEBP: "RIFF" .... "WEBP"
+  if (
+    bytes[0] === 0x52 &&
+    bytes[1] === 0x49 &&
+    bytes[2] === 0x46 &&
+    bytes[3] === 0x46 &&
+    bytes[8] === 0x57 &&
+    bytes[9] === 0x45 &&
+    bytes[10] === 0x42 &&
+    bytes[11] === 0x50
+  ) {
+    return 'webp';
+  }
+  return null;
+}
+
+/**
+ * Bildabmessungen aus dem Header lesen.
+ *
+ * Bewusst ohne Bildbibliothek: es genügt, offensichtlich unbrauchbare Uploads
+ * (1x1-Pixel, riesige Dateien) abzulehnen. `null` bedeutet "nicht ermittelbar"
+ * und ist kein Fehler.
+ */
+export function readImageSize(
+  bytes: Uint8Array,
+  format: LogoFormat,
+): { width: number; height: number } | null {
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  try {
+    if (format === 'png') {
+      return { width: view.getUint32(16), height: view.getUint32(20) };
+    }
+    if (format === 'webp' && bytes[12] === 0x56 && bytes[13] === 0x50 && bytes[14] === 0x38) {
+      // Nur das einfache VP8L/VP8X-Layout; sonst nicht ermittelbar.
+      if (bytes[15] === 0x58) {
+        const width = 1 + (bytes[24]! | (bytes[25]! << 8) | (bytes[26]! << 16));
+        const height = 1 + (bytes[27]! | (bytes[28]! << 8) | (bytes[29]! << 16));
+        return { width, height };
+      }
+      return null;
+    }
+    if (format === 'jpeg') {
+      let offset = 2;
+      while (offset + 9 < bytes.length) {
+        if (bytes[offset] !== 0xff) {
+          offset += 1;
+          continue;
+        }
+        const marker = bytes[offset + 1]!;
+        // SOF0..SOF3, SOF5..SOF7, SOF9..SOF11, SOF13..SOF15
+        if (marker >= 0xc0 && marker <= 0xcf && ![0xc4, 0xc8, 0xcc].includes(marker)) {
+          return { height: view.getUint16(offset + 5), width: view.getUint16(offset + 7) };
+        }
+        offset += 2 + view.getUint16(offset + 2);
+      }
+    }
+  } catch {
+    return null;
+  }
+  return null;
+}
+
+export interface StoredUpload {
+  /** Reiner Dateiname ohne Pfadanteile. */
+  fileName: string;
+  format: LogoFormat;
+  bytes: number;
+  width: number | null;
+  height: number | null;
+  /** Kurzer Inhaltshash - dient als Cache-Busting-Parameter. */
+  version: string;
+}
+
+/**
+ * Speichert einen Upload und gibt den erzeugten Dateinamen zurück.
+ * Wirft `VALIDATION_FAILED`, wenn die Datei nicht akzeptiert wird.
+ */
+export async function storeLogoUpload(
+  data: Uint8Array,
+  declaredMimeType: string | null,
+): Promise<StoredUpload> {
+  if (data.byteLength === 0) {
+    throw new AppError('VALIDATION_FAILED', { userMessage: 'Die Datei ist leer.' });
+  }
+  if (data.byteLength > MAX_UPLOAD_BYTES) {
+    throw new AppError('VALIDATION_FAILED', {
+      userMessage: `Die Datei ist zu gross (maximal ${Math.round(MAX_UPLOAD_BYTES / 1024 / 1024)} MB).`,
+    });
+  }
+
+  // Der echte Inhalt entscheidet - der gemeldete Content-Type muss lediglich
+  // dazu passen. Eine als PNG deklarierte HTML-Datei fällt hier durch.
+  const format = detectImageFormat(data);
+  if (!format) {
+    throw new AppError('VALIDATION_FAILED', {
+      userMessage: 'Nur PNG, JPG und WEBP werden unterstützt.',
+    });
+  }
+  if (declaredMimeType && ACCEPTED_MIME_TYPES[declaredMimeType.toLowerCase()] !== format) {
+    throw new AppError('VALIDATION_FAILED', {
+      userMessage: 'Dateityp und Inhalt stimmen nicht überein.',
+    });
+  }
+
+  const size = readImageSize(data, format);
+  if (size && (size.width < 16 || size.height < 16)) {
+    throw new AppError('VALIDATION_FAILED', { userMessage: 'Das Bild ist zu klein (mindestens 16x16).' });
+  }
+  if (size && (size.width > 4096 || size.height > 4096)) {
+    throw new AppError('VALIDATION_FAILED', { userMessage: 'Das Bild ist zu gross (maximal 4096x4096).' });
+  }
+
+  await mkdir(UPLOAD_DIR, { recursive: true });
+
+  // Zufälliger Name, feste Endung: der Name aus dem Browser wird verworfen.
+  const fileName = `logo-${randomBytes(16).toString('hex')}.${EXTENSION[format]}`;
+  // `mode` 0o640: lesbar für den Dienst, nicht ausführbar.
+  await writeFile(join(UPLOAD_DIR, fileName), data, { mode: 0o640 });
+
+  const version = createHash('sha256').update(data).digest('hex').slice(0, 12);
+  log.info('Branding-Upload gespeichert', { fileName, bytes: data.byteLength, format });
+
+  return {
+    fileName,
+    format,
+    bytes: data.byteLength,
+    width: size?.width ?? null,
+    height: size?.height ?? null,
+    version,
+  };
+}
+
+/**
+ * Liest eine gespeicherte Datei.
+ *
+ * Der Dateiname wird streng geprüft und der aufgelöste Pfad muss innerhalb des
+ * Upload-Verzeichnisses liegen - `../` kann damit nicht ausbrechen.
+ */
+export async function readUpload(fileName: string): Promise<{ data: Buffer; format: LogoFormat } | null> {
+  const format = assertSafeFileName(fileName);
+  const target = resolve(UPLOAD_DIR, fileName);
+  if (!target.startsWith(resolve(UPLOAD_DIR) + '/')) {
+    return null;
+  }
+  try {
+    return { data: await readFile(target), format };
+  } catch {
+    return null;
+  }
+}
+
+export async function deleteUpload(fileName: string): Promise<void> {
+  try {
+    assertSafeFileName(fileName);
+  } catch {
+    return;
+  }
+  const target = resolve(UPLOAD_DIR, fileName);
+  if (!target.startsWith(resolve(UPLOAD_DIR) + '/')) {
+    return;
+  }
+  await rm(target, { force: true });
+}
+
+/** Erlaubt ausschliesslich die selbst erzeugten Namen. */
+function assertSafeFileName(fileName: string): LogoFormat {
+  const match = /^logo-[0-9a-f]{32}\.(png|jpg|webp)$/u.exec(fileName);
+  if (!match) {
+    throw new AppError('VALIDATION_FAILED', { userMessage: 'Ungültiger Dateiname.' });
+  }
+  const extension = match[1];
+  return extension === 'jpg' ? 'jpeg' : (extension as LogoFormat);
+}

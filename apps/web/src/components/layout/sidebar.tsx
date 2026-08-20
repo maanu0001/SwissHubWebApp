@@ -16,6 +16,7 @@ export interface SidebarProps {
   server: ServerCardData;
   bot: { online: boolean; wsPingMs: number | null };
   discordUrl: string;
+  logoUrl: string;
 }
 
 /**
@@ -23,7 +24,7 @@ export interface SidebarProps {
  * Hinweiskarte und eine Leiste mit Statusanzeige und Werkzeugen.
  * Der eingeklappte Zustand bleibt für die Sitzung erhalten.
  */
-export function Sidebar({ groups, server, bot, discordUrl }: SidebarProps): React.JSX.Element {
+export function Sidebar({ groups, server, bot, discordUrl, logoUrl }: SidebarProps): React.JSX.Element {
   const [collapsed, setCollapsed] = useState(false);
 
   return (
@@ -39,7 +40,7 @@ export function Sidebar({ groups, server, bot, discordUrl }: SidebarProps): Reac
         className="rounded-lg px-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         aria-label={`${branding.name} Dashboard`}
       >
-        <BrandMark size={collapsed ? 34 : 38} withWordmark={!collapsed} />
+        <BrandMark size={collapsed ? 34 : 38} withWordmark={!collapsed} logoUrl={logoUrl} />
       </Link>
 
       <ServerCard data={server} collapsed={collapsed} />

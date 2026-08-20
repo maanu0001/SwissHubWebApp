@@ -10,7 +10,7 @@ import {
   jail,
   listModuleStatus,
 } from '@swisshub/modules';
-import { formatDateTime, formatDayTime, formatRemaining, plural } from '@swisshub/shared';
+import { formatDateTime, formatRemaining, plural } from '@swisshub/shared';
 import { StatCard, StatDelta } from '@/components/shared/stat-card';
 import { Panel } from '@/components/shared/panel';
 import { ActivityItem } from '@/components/shared/activity-item';
@@ -230,10 +230,12 @@ export default async function DashboardPage(): Promise<React.JSX.Element> {
                             </span>
                           </td>
                           <td className="whitespace-nowrap px-5 py-3 text-muted-foreground">
-                            {formatDayTime(entry.endsAt)}
+                            {jail.jailEndLabel(entry, { short: true })}
                           </td>
                           <td className="whitespace-nowrap px-5 py-3 font-medium text-primary-bright">
-                            {formatRemaining(entry.endsAt) ?? 'Fällig'}
+                            {entry.endsAt
+                              ? (formatRemaining(entry.endsAt) ?? 'Fällig')
+                              : jail.PERMANENT_LABEL}
                           </td>
                           <td className="px-2 py-3 text-right">
                             <JailRowActions
@@ -308,6 +310,8 @@ export default async function DashboardPage(): Promise<React.JSX.Element> {
                         action: entry.action,
                         createdAt: entry.createdAt,
                         actorUsername: entry.actorUsername,
+                        actorDiscordId: entry.actorDiscordId,
+                        actorAvatarHash: entry.actorAvatarHash,
                         targetLabel: entry.targetLabel ?? entry.targetDiscordId,
                         reason:
                           typeof entry.metadata === 'object' &&

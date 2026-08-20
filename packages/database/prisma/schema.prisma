@@ -36,6 +36,26 @@ enum ActionStatus {
   FAILED
 }
 
+/// Zeitlich begrenzt oder unbefristet. Unbefristete Jails haben kein `endsAt`
+/// und werden vom automatischen Release-Worker bewusst nicht angefasst.
+enum JailType {
+  TEMPORARY
+  PERMANENT
+}
+
+enum VoteJailStatus {
+  ACTIVE
+  SUCCEEDED
+  FAILED
+  CANCELLED
+}
+
+enum CommunicationType {
+  NEWS
+  EVENT
+  POLL
+}
+
 enum JailReleaseType {
   AUTOMATIC
   MANUAL
@@ -264,9 +284,15 @@ model JailEntry {
   moderatorDiscordId  String
   moderatorUsername   String
   reason              String
-  durationSeconds     Int
+  /// Art des Jails. Bestehende Einträge wurden bei der Migration als
+  /// TEMPORARY übernommen.
+  type                JailType         @default(TEMPORARY)
+  /// Geplante Dauer. NULL bei einem permanenten Jail.
+  durationSeconds     Int?
   startedAt           DateTime         @default(now())
-  endsAt              DateTime
+  /// Geplantes Ende. NULL bei einem permanenten Jail - bewusst kein
+  /// künstliches Datum wie 31.12.9999, damit Abfragen ehrlich bleiben.
+  endsAt              DateTime?
   releasedAt          DateTime?
   releaseType         JailReleaseType?
   releasedByDiscordId String?
@@ -292,10 +318,99 @@ model JailEntry {
   createdAt           DateTime         @default(now())
   updatedAt           DateTime         @updatedAt
 
+  /// Vote Jail, aus dem dieser Jail entstanden ist (falls zutreffend).
+  voteJail            VoteJail?
+
   @@index([targetDiscordId, startedAt])
   @@index([endsAt])
   @@index([status])
+  @@index([type])
   @@index([moderatorDiscordId])
+}
+
+/// Community-Abstimmung, die bei Erfolg einen regulären Jail auslöst.
+/// Die eigentliche Jail-Ausführung übernimmt der bestehende Jail-Service -
+/// hier wird ausschliesslich die Abstimmung verwaltet.
+model VoteJail {
+  id                  String         @id @default(cuid())
+  targetDiscordId     String
+  targetUsername      String
+  targetDisplayName   String?
+  targetAvatarHash    String?
+  startedByDiscordId  String
+  startedByUsername   String
+  startedByAvatarHash String?
+  reason              String?
+  status              VoteJailStatus @default(ACTIVE)
+  requiredVotes       Int
+  /// Zwischenstand, damit Listen ohne Aggregat auskommen. Wird ausschliesslich
+  /// innerhalb der Vote-Transaktion fortgeschrieben.
+  voteCount           Int            @default(0)
+  /// Jail-Dauer in Minuten bei erfolgreicher Abstimmung.
+  resultingJailMinutes Int
+  discordChannelId    String?
+  discordMessageId    String?
+  /// Verhindert, dass zwei gleichzeitige Klicks zwei Jails auslösen.
+  resultingJailId     String?        @unique
+  resultingJail       JailEntry?     @relation(fields: [resultingJailId], references: [id])
+  /// Gesetzt solange die Abstimmung läuft (= targetDiscordId). Der
+  /// Unique-Index verhindert zwei gleichzeitige Abstimmungen gegen dieselbe
+  /// Person.
+  activeKey           String?        @unique
+  createdAt           DateTime       @default(now())
+  expiresAt           DateTime
+  finishedAt          DateTime?
+  votes               VoteJailVote[]
+
+  @@index([status, expiresAt])
+  @@index([targetDiscordId, createdAt])
+}
+
+/// Einzelne Stimme. Normale Mitglieder haben genau einen Eintrag
+/// (Unique-Index), Berechtigte mit `jail.vote.multivote` mehrere - deshalb
+/// zählt `voteNumber` mit.
+model VoteJailVote {
+  id              String   @id @default(cuid())
+  voteJailId      String
+  voteJail        VoteJail @relation(fields: [voteJailId], references: [id], onDelete: Cascade)
+  voterDiscordId  String
+  voterUsername   String?
+  /// Laufende Nummer der Stimme dieses Mitglieds in dieser Abstimmung.
+  voteNumber      Int      @default(1)
+  isAdminVote     Boolean  @default(false)
+  createdAt       DateTime @default(now())
+
+  /// Eine Stimme pro Mitglied und Nummer: normale Mitglieder kommen nie über
+  /// Nummer 1 hinaus, Mehrfachstimmen erhalten aufsteigende Nummern.
+  @@unique([voteJailId, voterDiscordId, voteNumber])
+  @@index([voteJailId])
+}
+
+/// Über die WebApp im Namen des Bots gesendete Discord-Nachrichten.
+model CommunicationMessage {
+  id               String            @id @default(cuid())
+  type             CommunicationType
+  title            String
+  content          String
+  bannerUrl        String?
+  discordChannelId String
+  discordChannelName String?
+  discordMessageId String?
+  sentByDiscordId  String
+  sentByUsername   String
+  sentByAvatarHash String?
+  sentAt           DateTime          @default(now())
+  /// Auf Discord gelöscht - der Verlaufseintrag bleibt für die Nachvollziehbarkeit.
+  deletedAt        DateTime?
+  deletedByDiscordId String?
+  /// Typspezifische Zusatzdaten (Event-Datum, Verantwortlicher, Mentions, ...).
+  metadata         Json              @default("{}")
+  /// Verhindert doppeltes Senden bei Doppelklick oder Retry.
+  idempotencyKey   String?           @unique
+
+  @@index([sentAt])
+  @@index([type, sentAt])
+  @@index([discordChannelId])
 }
 
 /// Modulunabhängige Moderationshistorie (Basis für Statistiken).

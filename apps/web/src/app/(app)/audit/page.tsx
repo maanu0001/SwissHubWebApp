@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import { ShieldCheck, ShieldX } from 'lucide-react';
-import { listModuleDefinitions } from '@swisshub/modules';
+import { listModuleDefinitions, loadAvatarHashes } from '@swisshub/modules';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -26,6 +26,8 @@ export default async function AuditPage({
   const filter = auditFilterSchema.parse(params);
 
   const [result, integrity] = await Promise.all([loadAuditLog(filter), checkAuditIntegrity()]);
+  // Avatare der Ausführenden gesammelt nachschlagen.
+  const avatarHashes = await loadAvatarHashes(result.items.map((entry) => entry.actorDiscordId));
   const modules = listModuleDefinitions();
 
   const buildHref = (page: number): string => {
@@ -179,6 +181,7 @@ export default async function AuditPage({
                     module: entry.module,
                     actorUsername: entry.actorUsername,
                     actorDiscordId: entry.actorDiscordId,
+                    actorAvatarHash: avatarHashes.get(entry.actorDiscordId ?? '') ?? null,
                     targetLabel: entry.targetLabel,
                     targetDiscordId: entry.targetDiscordId,
                     success: entry.success,

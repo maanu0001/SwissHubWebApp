@@ -105,7 +105,8 @@ export async function reconcileJails(options: ReconcileOptions = {}): Promise<Re
       }
 
       if (!member.roleIds.includes(jailRoleId)) {
-        const expired = jail.endsAt <= new Date();
+        // Permanente Jails laufen nie ab - sie gelten nie als überfällig.
+        const expired = jail.endsAt !== null && jail.endsAt <= new Date();
         const entry: JailDrift = {
           type: expired ? 'EXPIRED_NOT_RELEASED' : 'JAIL_ROLE_MISSING',
           jailId: jail.id,

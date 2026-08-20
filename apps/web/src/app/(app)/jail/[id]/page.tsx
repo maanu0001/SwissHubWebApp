@@ -5,7 +5,7 @@ import { ArrowLeft } from 'lucide-react';
 import { can } from '@swisshub/auth';
 import { discord } from '@swisshub/discord';
 import { jail } from '@swisshub/modules';
-import { formatDateTime, formatDuration } from '@swisshub/shared';
+import { formatDateTime } from '@swisshub/shared';
 import { Badge } from '@/components/ui/badge';
 import { buttonVariants } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -92,9 +92,19 @@ export default async function JailDetailPage({
               <DetailRow label="Grund">
                 <span className="whitespace-pre-wrap break-words">{entry.reason}</span>
               </DetailRow>
-              <DetailRow label="Dauer">{formatDuration(entry.durationSeconds * 1000)}</DetailRow>
+              <DetailRow label="Dauer">
+                {jail.isPermanentJail(entry) ? (
+                  <Badge variant="warning">{jail.PERMANENT_LABEL}</Badge>
+                ) : (
+                  jail.jailDurationLabel(entry)
+                )}
+              </DetailRow>
               <DetailRow label="Start">{formatDateTime(entry.startedAt)}</DetailRow>
-              <DetailRow label="Geplantes Ende">{formatDateTime(entry.endsAt)}</DetailRow>
+              <DetailRow label="Geplantes Ende">
+                {entry.endsAt
+                  ? formatDateTime(entry.endsAt)
+                  : 'Kein automatisches Ende - nur manuelle Freilassung.'}
+              </DetailRow>
               <DetailRow label="Status">
                 <span className="flex flex-wrap items-center gap-2">
                   <StatusBadge status={entry.status} />

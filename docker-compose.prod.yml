@@ -51,6 +51,11 @@ services:
       NODE_ENV: production
       TZ: Europe/Zurich
       PORT: 3000
+      # Hochgeladene Dateien (Logo) liegen im Volume - ein Rebuild des
+      # Containers verliert sie dadurch nicht.
+      SWISSHUB_UPLOAD_DIR: /var/lib/swisshub/uploads
+    volumes:
+      - swisshub-uploads:/var/lib/swisshub/uploads
     depends_on:
       postgres:
         condition: service_healthy
@@ -92,3 +97,4 @@ services:
 
 volumes:
   swisshub-postgres:
+  swisshub-uploads:

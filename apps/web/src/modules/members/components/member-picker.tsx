@@ -91,6 +91,7 @@ export function MemberPicker({
               avatarHash={value.avatarHash}
               name={value.displayName}
               size={32}
+              status={value.jailed ? 'jailed' : null}
             />
             <span className="flex flex-col leading-tight">
               <span className="text-sm font-medium">{value.displayName}</span>
@@ -157,6 +158,7 @@ export function MemberPicker({
                 )}
               >
                 <DiscordAvatar
+                  status={member.jailed ? 'jailed' : null}
                   discordId={member.discordId}
                   avatarHash={member.avatarHash}
                   name={member.displayName}

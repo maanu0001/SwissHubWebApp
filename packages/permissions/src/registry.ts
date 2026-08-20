@@ -80,6 +80,13 @@ export const CORE_PERMISSIONS: PermissionDefinition[] = [
     critical: true,
   },
   {
+    key: 'branding.manage',
+    label: 'Branding verwalten',
+    description: 'Logo und Erscheinungsbild der WebApp ändern.',
+    module: 'core',
+    critical: true,
+  },
+  {
     key: 'system.manage',
     label: 'System verwalten',
     description: 'Systemweite Funktionen wie Reconciliation und Wartung.',

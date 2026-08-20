@@ -11,15 +11,16 @@
 
 export interface FakeJailEntry {
   id: string;
+  type: string;
   targetDiscordId: string;
   targetUsername: string;
   targetDisplayName: string | null;
   moderatorDiscordId: string;
   moderatorUsername: string;
   reason: string;
-  durationSeconds: number;
+  durationSeconds: number | null;
   startedAt: Date;
-  endsAt: Date;
+  endsAt: Date | null;
   releasedAt: Date | null;
   releaseType: string | null;
   releasedByDiscordId: string | null;
@@ -82,8 +83,44 @@ export interface FakeChannelCache {
   deletedAt: Date | null;
 }
 
+export interface FakeVoteJail {
+  id: string;
+  targetDiscordId: string;
+  targetUsername: string;
+  targetDisplayName: string | null;
+  targetAvatarHash: string | null;
+  startedByDiscordId: string;
+  startedByUsername: string;
+  startedByAvatarHash: string | null;
+  reason: string | null;
+  status: string;
+  requiredVotes: number;
+  voteCount: number;
+  resultingJailMinutes: number;
+  discordChannelId: string | null;
+  discordMessageId: string | null;
+  resultingJailId: string | null;
+  activeKey: string | null;
+  createdAt: Date;
+  expiresAt: Date;
+  finishedAt: Date | null;
+}
+
+export interface FakeVoteJailVote {
+  id: string;
+  voteJailId: string;
+  voterDiscordId: string;
+  voterUsername: string | null;
+  voteNumber: number;
+  isAdminVote: boolean;
+  createdAt: Date;
+}
+
 export interface FakeState {
   jails: FakeJailEntry[];
+  voteJails: FakeVoteJail[];
+  voteJailVotes: FakeVoteJailVote[];
+  communicationMessages: Array<Record<string, unknown>>;
   managedRoles: FakeManagedRole[];
   rolePermissions: Array<{ discordRoleId: string; permission: string }>;
   moduleSettings: Record<string, unknown>;
@@ -115,6 +152,9 @@ export function createFakeState(): FakeState {
     moderationActions: [],
     idempotency: new Map(),
     reconciliationRuns: [],
+    voteJails: [],
+    voteJailVotes: [],
+    communicationMessages: [],
     guildConfig: null,
     roleCache: [],
     channelCache: [],
@@ -136,27 +176,50 @@ class FakeKnownRequestError extends Error {
 
 type Filter = Record<string, unknown>;
 
+/**
+ * Prisma-Filter nachbilden.
+ *
+ * Wichtig: ALLE angegebenen Operatoren müssen zutreffen. Prisma kombiniert
+ * z.B. `{ not: null, lte: date }` mit UND - würde hier nur der erste Operator
+ * geprüft, liefe der Test an der echten Abfrage vorbei.
+ */
 function matchesStatusFilter(value: unknown, filter: unknown): boolean {
   if (filter === null) {
     return value === null;
   }
-  if (typeof filter === 'object' && filter !== null) {
-    const criteria = filter as { in?: unknown[]; not?: unknown; lte?: Date; lt?: Date; gte?: Date };
-    if (criteria.in) {
-      return criteria.in.includes(value as never);
+  if (typeof filter === 'object' && filter !== null && !(filter instanceof Date)) {
+    const criteria = filter as {
+      in?: unknown[];
+      notIn?: unknown[];
+      not?: unknown;
+      lte?: Date;
+      lt?: Date;
+      gte?: Date;
+      gt?: Date;
+    };
+
+    if (criteria.in !== undefined && !criteria.in.includes(value as never)) {
+      return false;
     }
-    if ('not' in criteria) {
-      return value !== criteria.not;
+    if (criteria.notIn !== undefined && criteria.notIn.includes(value as never)) {
+      return false;
     }
-    if (criteria.lte instanceof Date) {
-      return value instanceof Date && value <= criteria.lte;
+    if ('not' in criteria && value === criteria.not) {
+      return false;
     }
-    if (criteria.lt instanceof Date) {
-      return value instanceof Date && value < criteria.lt;
+    if (criteria.lte instanceof Date && !(value instanceof Date && value <= criteria.lte)) {
+      return false;
     }
-    if (criteria.gte instanceof Date) {
-      return value instanceof Date && value >= criteria.gte;
+    if (criteria.lt instanceof Date && !(value instanceof Date && value < criteria.lt)) {
+      return false;
     }
+    if (criteria.gte instanceof Date && !(value instanceof Date && value >= criteria.gte)) {
+      return false;
+    }
+    if (criteria.gt instanceof Date && !(value instanceof Date && value > criteria.gt)) {
+      return false;
+    }
+    return true;
   }
   return value === filter;
 }
@@ -173,11 +236,28 @@ function matchesJail(entry: FakeJailEntry, where: Filter): boolean {
   });
 }
 
+/** Generischer Filter-Abgleich für Tabellen ohne eigene Matcher-Funktion. */
+function matchesGeneric(entry: Record<string, unknown>, where: Filter): boolean {
+  return Object.entries(where).every(([key, filter]) => matchesStatusFilter(entry[key], filter));
+}
+
 /** Erzeugt das Mock-Modul für `vi.mock('@swisshub/database', ...)`. */
 export function createFakeDatabaseModule(state: FakeState) {
   const prisma = {
     async $transaction<T>(handler: (tx: unknown) => Promise<T>): Promise<T> {
       return handler(prisma);
+    },
+
+    /**
+     * `SELECT ... FOR UPDATE` gibt es in der In-Memory-Variante nicht. Für die
+     * Tests genügt es, die abgefragte Zeile zurückzugeben - die eigentliche
+     * Nebenläufigkeit wird durch die Reihenfolge der Aufrufe simuliert.
+     */
+    async $queryRaw<T>(strings: TemplateStringsArray, ...values: unknown[]): Promise<T> {
+      const id = values[0] as string;
+      const entry = state.voteJails.find((item) => item.id === id);
+      void strings;
+      return (entry ? [{ id: entry.id, status: entry.status }] : []) as T;
     },
     jailEntry: {
       async create({ data }: { data: Partial<FakeJailEntry> }): Promise<FakeJailEntry> {
@@ -195,6 +275,7 @@ export function createFakeDatabaseModule(state: FakeState) {
         const now = new Date();
         const entry: FakeJailEntry = {
           id: `jail-${state.sequence}`,
+          type: 'TEMPORARY',
           targetDiscordId: '',
           targetUsername: '',
           targetDisplayName: null,
@@ -538,6 +619,151 @@ export function createFakeDatabaseModule(state: FakeState) {
       },
     },
 
+    voteJail: {
+      async create({ data }: { data: Partial<FakeVoteJail> }) {
+        if (data.activeKey && state.voteJails.some((entry) => entry.activeKey === data.activeKey)) {
+          throw new FakeKnownRequestError('P2002', 'Unique constraint failed on activeKey');
+        }
+        state.sequence += 1;
+        const entry: FakeVoteJail = {
+          id: `vote-${state.sequence}`,
+          targetDiscordId: '',
+          targetUsername: '',
+          targetDisplayName: null,
+          targetAvatarHash: null,
+          startedByDiscordId: '',
+          startedByUsername: '',
+          startedByAvatarHash: null,
+          reason: null,
+          status: 'ACTIVE',
+          requiredVotes: 5,
+          voteCount: 0,
+          resultingJailMinutes: 30,
+          discordChannelId: null,
+          discordMessageId: null,
+          resultingJailId: null,
+          activeKey: null,
+          createdAt: new Date(),
+          expiresAt: new Date(),
+          finishedAt: null,
+          ...data,
+        };
+        state.voteJails.push(entry);
+        return { ...entry };
+      },
+      async findUnique({ where }: { where: { id?: string; activeKey?: string } }) {
+        const entry = state.voteJails.find(
+          (item) =>
+            (where.id !== undefined && item.id === where.id) ||
+            (where.activeKey !== undefined && item.activeKey === where.activeKey),
+        );
+        return entry ? { ...entry } : null;
+      },
+      async findUniqueOrThrow({ where }: { where: { id: string } }) {
+        const entry = state.voteJails.find((item) => item.id === where.id);
+        if (!entry) {
+          throw new FakeKnownRequestError('P2025', 'Record not found');
+        }
+        return { ...entry };
+      },
+      async findMany({ where, take }: { where?: Filter; take?: number; orderBy?: unknown } = {}) {
+        const matching = state.voteJails.filter((entry) =>
+          where ? matchesGeneric(entry as unknown as Record<string, unknown>, where) : true,
+        );
+        return (take ? matching.slice(0, take) : matching).map((entry) => ({ ...entry }));
+      },
+      async update({ where, data }: { where: { id: string }; data: Partial<FakeVoteJail> }) {
+        const entry = state.voteJails.find((item) => item.id === where.id);
+        if (!entry) {
+          throw new FakeKnownRequestError('P2025', 'Record not found');
+        }
+        Object.assign(entry, data);
+        return { ...entry };
+      },
+      async count({ where }: { where?: Filter } = {}) {
+        return state.voteJails.filter((entry) =>
+          where ? matchesGeneric(entry as unknown as Record<string, unknown>, where) : true,
+        ).length;
+      },
+    },
+
+    voteJailVote: {
+      async create({ data }: { data: Partial<FakeVoteJailVote> }) {
+        const duplicate = state.voteJailVotes.some(
+          (entry) =>
+            entry.voteJailId === data.voteJailId &&
+            entry.voterDiscordId === data.voterDiscordId &&
+            entry.voteNumber === (data.voteNumber ?? 1),
+        );
+        if (duplicate) {
+          throw new FakeKnownRequestError('P2002', 'Unique constraint failed');
+        }
+        state.sequence += 1;
+        const entry: FakeVoteJailVote = {
+          id: `votevote-${state.sequence}`,
+          voteJailId: '',
+          voterDiscordId: '',
+          voterUsername: null,
+          voteNumber: 1,
+          isAdminVote: false,
+          createdAt: new Date(),
+          ...data,
+        };
+        state.voteJailVotes.push(entry);
+        return { ...entry };
+      },
+      async count({ where }: { where?: { voteJailId?: string; voterDiscordId?: string } } = {}) {
+        return state.voteJailVotes.filter(
+          (entry) =>
+            (where?.voteJailId === undefined || entry.voteJailId === where.voteJailId) &&
+            (where?.voterDiscordId === undefined || entry.voterDiscordId === where.voterDiscordId),
+        ).length;
+      },
+      async findMany({ where }: { where?: { voteJailId?: string } } = {}) {
+        return state.voteJailVotes
+          .filter((entry) => where?.voteJailId === undefined || entry.voteJailId === where.voteJailId)
+          .map((entry) => ({ ...entry }));
+      },
+    },
+
+    communicationMessage: {
+      async create({ data }: { data: Record<string, unknown> }) {
+        const key = data.idempotencyKey as string | undefined;
+        if (key && state.communicationMessages.some((entry) => entry.idempotencyKey === key)) {
+          throw new FakeKnownRequestError('P2002', 'Unique constraint failed');
+        }
+        state.sequence += 1;
+        const entry = {
+          id: `comm-${state.sequence}`,
+          sentAt: new Date(),
+          deletedAt: null,
+          deletedByDiscordId: null,
+          ...data,
+        };
+        state.communicationMessages.push(entry);
+        return { ...entry };
+      },
+      async findUnique({ where }: { where: { id: string } }) {
+        const entry = state.communicationMessages.find((item) => item.id === where.id);
+        return entry ? { ...entry } : null;
+      },
+      async findMany({ take }: { where?: Filter; take?: number; orderBy?: unknown; skip?: number } = {}) {
+        const all = [...state.communicationMessages].reverse();
+        return (take ? all.slice(0, take) : all).map((entry) => ({ ...entry }));
+      },
+      async count() {
+        return state.communicationMessages.length;
+      },
+      async update({ where, data }: { where: { id: string }; data: Record<string, unknown> }) {
+        const entry = state.communicationMessages.find((item) => item.id === where.id);
+        if (!entry) {
+          throw new FakeKnownRequestError('P2025', 'Record not found');
+        }
+        Object.assign(entry, data);
+        return { ...entry };
+      },
+    },
+
     syncRun: {
       async create({ data }: { data: Record<string, unknown> }) {
         const entry = { id: `sync-${state.syncRuns.length + 1}`, startedAt: new Date(), ...data };
@@ -632,6 +858,16 @@ export function createFakeDatabaseModule(state: FakeState) {
       JAIL_FAILED: 'JAIL_FAILED',
       JAIL_RECONCILED: 'JAIL_RECONCILED',
       RECONCILIATION_RUN: 'RECONCILIATION_RUN',
+      VOTE_JAIL_STARTED: 'VOTE_JAIL_STARTED',
+      VOTE_JAIL_SUCCEEDED: 'VOTE_JAIL_SUCCEEDED',
+      VOTE_JAIL_FAILED: 'VOTE_JAIL_FAILED',
+      COMMUNICATION_NEWS_SENT: 'COMMUNICATION_NEWS_SENT',
+      COMMUNICATION_EVENT_SENT: 'COMMUNICATION_EVENT_SENT',
+      COMMUNICATION_POLL_SENT: 'COMMUNICATION_POLL_SENT',
+      COMMUNICATION_MESSAGE_DELETED: 'COMMUNICATION_MESSAGE_DELETED',
+      COMMUNICATION_SEND_FAILED: 'COMMUNICATION_SEND_FAILED',
+      BRANDING_LOGO_UPDATED: 'BRANDING_LOGO_UPDATED',
+      BRANDING_LOGO_RESET: 'BRANDING_LOGO_RESET',
     },
 
     SECURITY_EVENTS: {

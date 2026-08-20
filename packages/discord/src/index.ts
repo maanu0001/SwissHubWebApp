@@ -49,4 +49,12 @@ export * from './gateway';
 export { clearDiscordCache } from './rest-gateway';
 export { createMockGateway } from './mock-gateway';
 export { discordRequest, resetRestState } from './rest';
-export { memberAvatarUrl, defaultAvatarUrl, guildIconUrl } from './cdn';
+export {
+  getDiscordAvatarUrl,
+  memberAvatarUrl,
+  avatarSizeFor,
+  defaultAvatarUrl,
+  guildIconUrl,
+  messageLink,
+  type AvatarSize,
+} from './cdn';

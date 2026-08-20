@@ -21,6 +21,7 @@ interface AppHeaderProps {
   groups: NavigationGroup[];
   user: UserMenuProps;
   canSearchMembers: boolean;
+  logoUrl: string;
 }
 
 /**
@@ -28,7 +29,13 @@ interface AppHeaderProps {
  * Benutzerprofil. Der Titel kommt aus der Route - dadurch muss ihn keine Seite
  * doppelt pflegen.
  */
-export function AppHeader({ titles, groups, user, canSearchMembers }: AppHeaderProps): React.JSX.Element {
+export function AppHeader({
+  titles,
+  groups,
+  user,
+  canSearchMembers,
+  logoUrl,
+}: AppHeaderProps): React.JSX.Element {
   const pathname = usePathname();
   const router = useRouter();
   const searchRef = useRef<HTMLInputElement>(null);
@@ -58,7 +65,7 @@ export function AppHeader({ titles, groups, user, canSearchMembers }: AppHeaderP
     <header className="sticky top-0 z-30 flex min-h-[4.5rem] items-center gap-3 border-b border-border bg-background/90 px-4 py-3 backdrop-blur sm:px-6">
       <div className="flex items-center gap-2 lg:hidden">
         <MobileNav groups={groups} />
-        <BrandMark size={30} withWordmark={false} />
+        <BrandMark size={30} withWordmark={false} logoUrl={logoUrl} />
       </div>
 
       <div className="min-w-0 flex-1">

@@ -4,17 +4,20 @@ import { cn } from '@/lib/utils';
 /**
  * Zentrale Marken-Darstellung.
  *
- * Ein späteres SwissHub-Logo wird einfach unter `public/branding/logo.svg`
- * bzw. `public/branding/logo-mark.svg` abgelegt - Codeänderungen sind dafür
- * nicht nötig. Farben und Namen kommen aus `@swisshub/config/client`.
+ * `logoUrl` kommt aus der Branding-Konfiguration (Dashboard-Upload). Ohne
+ * eigenes Logo greift die mitgelieferte Datei aus `public/branding/`.
+ * Farben und Namen kommen aus `@swisshub/config/client`.
  */
 export function BrandMark({
   size = 36,
   withWordmark = true,
+  logoUrl,
   className,
 }: {
   size?: number;
   withWordmark?: boolean;
+  /** Übersteuert das Standardlogo (hochgeladenes Logo inkl. Cache-Busting). */
+  logoUrl?: string | null;
   className?: string;
 }): React.JSX.Element {
   return (
@@ -24,7 +27,13 @@ export function BrandMark({
         style={{ width: size, height: size }}
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={branding.logo.mark} alt={`${branding.name} Logo`} width={size} height={size} />
+        <img
+          src={logoUrl ?? branding.logo.mark}
+          alt={`${branding.name} Logo`}
+          width={size}
+          height={size}
+          className="size-full object-contain"
+        />
       </span>
       {withWordmark ? (
         <span className="flex flex-col leading-tight">

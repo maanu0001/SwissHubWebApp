@@ -1,5 +1,6 @@
 import { snowflakeToDate } from '@swisshub/shared';
 import { createLogger } from '@swisshub/logger';
+import { DISCORD_PERMISSIONS } from './permissions';
 import type { DiscordGateway } from './gateway';
 import type { GuildMember, GuildRole } from './types';
 
@@ -103,6 +104,8 @@ function buildMember(id: string, username: string, displayName: string, roleIds:
 
 export function createMockGateway(): DiscordGateway {
   const state = new Map(MOCK_MEMBERS.map((member) => [member.discordId, { ...member }]));
+  const sentMessages = new Map<string, { channelId: string }>();
+  let messageCounter = 0;
   log.warn('Discord Mock-Modus aktiv - es werden KEINE echten Discord-Aktionen ausgeführt');
 
   return {
@@ -177,7 +180,32 @@ export function createMockGateway(): DiscordGateway {
         ];
       },
       async send(channelId, payload) {
+        messageCounter += 1;
+        const id = `${800000000000000000n + BigInt(messageCounter)}`;
+        sentMessages.set(id, { channelId });
         log.info('Mock: Discord-Nachricht', { channelId, title: payload.embeds?.[0]?.title });
+        return { id, channelId };
+      },
+      async edit(channelId, messageId, payload) {
+        log.info('Mock: Nachricht bearbeitet', { channelId, messageId, title: payload.embeds?.[0]?.title });
+      },
+      async delete(channelId, messageId) {
+        sentMessages.delete(messageId);
+        log.info('Mock: Nachricht gelöscht', { channelId, messageId });
+      },
+      async react(channelId, messageId, emoji) {
+        log.info('Mock: Reaktion hinzugefügt', { channelId, messageId, emoji });
+      },
+      async botPermissions() {
+        // Der Mock-Bot darf alles, was die Module brauchen.
+        return (
+          DISCORD_PERMISSIONS.VIEW_CHANNEL |
+          DISCORD_PERMISSIONS.SEND_MESSAGES |
+          DISCORD_PERMISSIONS.EMBED_LINKS |
+          DISCORD_PERMISSIONS.ADD_REACTIONS |
+          DISCORD_PERMISSIONS.READ_MESSAGE_HISTORY |
+          DISCORD_PERMISSIONS.MANAGE_ROLES
+        );
       },
     },
     guild: {

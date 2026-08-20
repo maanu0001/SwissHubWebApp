@@ -172,3 +172,27 @@ export function channelKind(type: number): ChannelKind | null {
   }
   return null;
 }
+
+/** Antwort beim Senden einer Nachricht - benötigt wird nur die ID. */
+export const discordMessageSchema = z.object({
+  id: z.string(),
+  channel_id: z.string().optional(),
+});
+
+/**
+ * Channel-Overwrites für die Berechtigungsberechnung.
+ * `type` 0 = Rolle, 1 = Mitglied.
+ */
+export const channelOverwritesSchema = z.object({
+  id: z.string(),
+  permission_overwrites: z
+    .array(
+      z.object({
+        id: z.string(),
+        type: z.number(),
+        allow: z.string(),
+        deny: z.string(),
+      }),
+    )
+    .optional(),
+});

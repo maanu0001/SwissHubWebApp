@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { AUDIT_ACTIONS, safeRecordAudit } from '@swisshub/database';
 import {
+  branding as brandingModule,
   coreSettingsSchema,
   findCachedChannel,
   getModuleDefinition,
@@ -131,5 +132,30 @@ export const runJailReconciliationAction = defineAction(
       repaired: summary.repaired,
       failed: summary.failed,
     };
+  },
+);
+
+/**
+ * Standardlogo wiederherstellen.
+ *
+ * Der Upload selbst läuft über einen Route Handler (Dateien lassen sich nicht
+ * per Server Action übertragen); das Zurücksetzen braucht keine Datei und
+ * bleibt deshalb hier.
+ */
+export const resetBrandingLogoAction = defineAction(
+  {
+    name: 'settings.branding.reset',
+    module: 'settings',
+    permission: 'branding.manage',
+    schema: z.object({}),
+    rateLimit: 'settingsWrite',
+    freshness: 'critical',
+  },
+  async ({ ctx }) => {
+    await brandingModule.resetLogo({ discordId: ctx.user.discordId, username: ctx.user.username });
+
+    revalidatePath('/settings/branding');
+    revalidatePath('/dashboard');
+    return { reset: true };
   },
 );

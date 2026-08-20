@@ -3,7 +3,12 @@ import { redirect } from 'next/navigation';
 import { AlertTriangle } from 'lucide-react';
 import { branding } from '@swisshub/config/client';
 import { discord } from '@swisshub/discord';
-import { getGuildConfig, getSystemHealth, isDiscordAdministrator } from '@swisshub/modules';
+import {
+  branding as brandingModule,
+  getGuildConfig,
+  getSystemHealth,
+  isDiscordAdministrator,
+} from '@swisshub/modules';
 import { BrandMark } from '@/components/shared/brand-mark';
 import { SetupWizard, type BotGuildOption } from '@/modules/configuration/components/setup-wizard';
 import { csrfTokenFor, requireMember } from '@/server/auth';
@@ -34,6 +39,12 @@ export default async function SetupPage(): Promise<React.JSX.Element> {
     }
   }
 
+  // Logo aus der Branding-Konfiguration; ohne Upload greift das Standardlogo.
+  const logoUrl = brandingModule.brandingLogoUrl(
+    await brandingModule.getBrandingConfig(),
+    branding.logo.mark,
+  );
+
   const [health, botGuilds] = await Promise.all([
     getSystemHealth(),
     discord.guild.listBotGuilds().catch(() => []),
@@ -48,7 +59,7 @@ export default async function SetupPage(): Promise<React.JSX.Element> {
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-3xl flex-col gap-6 px-4 py-10">
       <header className="space-y-2">
-        <BrandMark />
+        <BrandMark logoUrl={logoUrl} />
         <h1 className="text-2xl font-semibold">Einrichtung</h1>
         <p className="text-sm text-muted-foreground">
           In vier Schritten ist {branding.name} einsatzbereit. Die Konfiguration liegt vollständig in der

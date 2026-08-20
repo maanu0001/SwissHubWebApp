@@ -34,6 +34,7 @@ interface CreateJailDialogProps {
 }
 
 const CUSTOM = 'custom';
+const PERMANENT = 'permanent';
 
 /**
  * Jail-Maske inklusive Bestätigungsschritt.
@@ -61,15 +62,24 @@ export function CreateJailDialog({
   const [idempotencyKey, setIdempotencyKey] = useState<string | null>(null);
   const [fieldError, setFieldError] = useState<string | null>(null);
 
+  const permanent = preset === PERMANENT;
+
   const durationSeconds = useMemo(() => {
+    if (permanent) {
+      return 0;
+    }
     if (preset !== CUSTOM) {
       return Number(preset);
     }
     const minutes = Number(customMinutes);
     return Number.isFinite(minutes) ? Math.round(minutes * 60) : 0;
-  }, [preset, customMinutes]);
+  }, [permanent, preset, customMinutes]);
 
-  const endsAt = useMemo(() => new Date(Date.now() + durationSeconds * 1000), [durationSeconds]);
+  // Ein permanenter Jail hat kein geplantes Ende - deshalb auch keins anzeigen.
+  const endsAt = useMemo(
+    () => (permanent ? null : new Date(Date.now() + durationSeconds * 1000)),
+    [permanent, durationSeconds],
+  );
 
   function reset(): void {
     setConfirming(false);
@@ -90,13 +100,15 @@ export function CreateJailDialog({
       setFieldError('Bitte einen Grund mit mindestens 3 Zeichen angeben.');
       return;
     }
-    if (durationSeconds < 60) {
-      setFieldError('Die Mindestdauer beträgt 1 Minute.');
-      return;
-    }
-    if (durationSeconds > maxDurationSeconds) {
-      setFieldError(`Die maximale Dauer beträgt ${formatDuration(maxDurationSeconds * 1000)}.`);
-      return;
+    if (!permanent) {
+      if (durationSeconds < 60) {
+        setFieldError('Die Mindestdauer beträgt 1 Minute.');
+        return;
+      }
+      if (durationSeconds > maxDurationSeconds) {
+        setFieldError(`Die maximale Dauer beträgt ${formatDuration(maxDurationSeconds * 1000)}.`);
+        return;
+      }
     }
     setIdempotencyKey(crypto.randomUUID());
     setConfirming(true);
@@ -110,7 +122,8 @@ export function CreateJailDialog({
     const response = await createJailAction({
       csrfToken,
       targetDiscordId: member.discordId,
-      durationSeconds,
+      type: permanent ? 'PERMANENT' : 'TEMPORARY',
+      durationSeconds: permanent ? undefined : durationSeconds,
       reason: reason.trim(),
       idempotencyKey,
     });
@@ -120,7 +133,9 @@ export function CreateJailDialog({
         toast.info('Diese Aktion wurde bereits ausgeführt.');
       } else {
         toast.success(`${member.displayName} wurde erfolgreich gejailt.`, {
-          description: `Ende: ${formatDateTime(response.data.endsAt)}`,
+          description: response.data.endsAt
+            ? `Ende: ${formatDateTime(response.data.endsAt)}`
+            : 'Permanent - kein automatisches Ende.',
         });
       }
       for (const warning of response.data.warnings) {
@@ -181,14 +196,26 @@ export function CreateJailDialog({
               <DialogDescription asChild>
                 <div className="space-y-3 text-sm">
                   <p className="text-foreground">
-                    Du bist dabei, <strong>@{member.username}</strong> für{' '}
-                    <strong>{formatDuration(durationSeconds * 1000)}</strong> zu jailen.
+                    Du bist dabei, <strong>@{member.username}</strong>{' '}
+                    {permanent ? (
+                      <>
+                        <strong>permanent</strong> zu jailen.
+                      </>
+                    ) : (
+                      <>
+                        für <strong>{formatDuration(durationSeconds * 1000)}</strong> zu jailen.
+                      </>
+                    )}
                   </p>
                   <div className="rounded-md border border-border bg-secondary/40 p-3">
                     <p className="text-xs uppercase tracking-wide text-muted-foreground">Grund</p>
                     <p className="mt-1 whitespace-pre-wrap break-words text-foreground">{reason.trim()}</p>
                   </div>
-                  <p className="text-muted-foreground">Ende: {formatDateTime(endsAt)}</p>
+                  <p className="text-muted-foreground">
+                    {endsAt
+                      ? `Ende: ${formatDateTime(endsAt)}`
+                      : 'Ende: Permanent - der Jail endet nur durch eine manuelle Freilassung.'}
+                  </p>
                   <p className="text-muted-foreground">
                     Diese Aktion betrifft einen echten Discord-Benutzer und wird im Audit Log gespeichert.
                   </p>
@@ -233,9 +260,17 @@ export function CreateJailDialog({
                         </SelectItem>
                       ))}
                     <SelectItem value={CUSTOM}>Benutzerdefiniert</SelectItem>
+                    <SelectItem value={PERMANENT}>Permanent</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
+
+              {permanent ? (
+                <p className="rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-warning">
+                  Ein permanenter Jail endet nicht von selbst. Freilassen bleibt jederzeit über „Jail
+                  aufheben" möglich.
+                </p>
+              ) : null}
 
               {preset === CUSTOM ? (
                 <div className="space-y-2">

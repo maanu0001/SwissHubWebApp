@@ -34,7 +34,8 @@ export interface MemberSummary {
   accountCreatedAt: Date | null;
   boosting: boolean;
   /** Aktiver Jail, falls vorhanden. */
-  activeJail: { id: string; endsAt: Date; reason: string } | null;
+  /** Aktiver Jail; `endsAt` ist `null` bei einem permanenten Jail. */
+  activeJail: { id: string; endsAt: Date | null; reason: string } | null;
   timedOut: boolean;
 }
 

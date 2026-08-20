@@ -5,6 +5,7 @@ import { ShieldCheck, TriangleAlert } from 'lucide-react';
 import { branding } from '@swisshub/config/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { branding as brandingModule } from '@swisshub/modules';
 import { BrandMark } from '@/components/shared/brand-mark';
 import { getOptionalAuthContext } from '@/server/auth';
 
@@ -30,6 +31,12 @@ export default async function LoginPage({
     redirect(context.isMember ? '/dashboard' : '/access-denied');
   }
 
+  // Logo aus der Branding-Konfiguration; ohne Upload greift das Standardlogo.
+  const logoUrl = brandingModule.brandingLogoUrl(
+    await brandingModule.getBrandingConfig(),
+    branding.logo.mark,
+  );
+
   const params = await searchParams;
   const errorMessage = params.error ? (ERROR_MESSAGES[params.error] ?? ERROR_MESSAGES.oauth) : null;
 
@@ -38,7 +45,7 @@ export default async function LoginPage({
       <div className="pointer-events-none absolute inset-0 bg-surface-gradient" aria-hidden="true" />
       <Card className="relative w-full max-w-md border-border/70 bg-card/90 backdrop-blur">
         <CardHeader className="items-center gap-4 text-center">
-          <BrandMark size={56} withWordmark={false} />
+          <BrandMark size={56} withWordmark={false} logoUrl={logoUrl} />
           <div className="space-y-1">
             <CardTitle className="text-xl">{branding.name} Anmeldung</CardTitle>
             <CardDescription>{branding.description}</CardDescription>

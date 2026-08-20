@@ -13,6 +13,14 @@ export const JAIL_PERMISSIONS = {
   edit: 'jail.edit',
   release: 'jail.release',
   settings: 'jail.settings',
+  /** Darf eine Community-Abstimmung starten. */
+  voteStart: 'jail.vote.start',
+  /**
+   * Darf in einer Abstimmung mehrfach stimmen.
+   * Bewusst eine eigene Berechtigung statt einer fest verdrahteten Adminliste -
+   * so ist das Verhalten im Dashboard steuerbar.
+   */
+  voteMultivote: 'jail.vote.multivote',
 } as const;
 
 /** Obergrenze, die auch per Konfiguration nicht überschritten werden kann. */
@@ -41,6 +49,28 @@ export const jailSettingsSchema = z.object({
   postModerationLog: z.boolean().default(true),
   /** Hinweis im Jail-Channel posten. */
   notifyInJailChannel: z.boolean().default(true),
+
+  // --- Vote Jail ----------------------------------------------------------
+  /** Community-Abstimmungen aktivieren. */
+  voteJailEnabled: z.boolean().default(false),
+  /** Channel, in dem die Abstimmung veröffentlicht wird. */
+  voteJailChannelId: optionalSnowflakeSchema,
+  /** Stimmen, die für einen erfolgreichen Vote Jail nötig sind. */
+  voteJailRequiredVotes: z.number().int().min(1).max(100).default(5),
+  /** Laufzeit der Abstimmung in Sekunden. */
+  voteJailDurationSeconds: z
+    .number()
+    .int()
+    .min(60)
+    .max(24 * 60 * 60)
+    .default(5 * 60),
+  /** Jail-Dauer bei erfolgreicher Abstimmung, in Sekunden. */
+  voteJailResultSeconds: z
+    .number()
+    .int()
+    .min(60)
+    .max(7 * 24 * 60 * 60)
+    .default(30 * 60),
 });
 
 export type JailSettings = z.infer<typeof jailSettingsSchema>;
@@ -108,6 +138,50 @@ export const jailSettingsFields: SettingsField[] = [
     label: 'Hinweis im Jail-Channel posten',
     group: 'Benachrichtigungen',
   },
+  {
+    key: 'voteJailEnabled',
+    type: 'boolean',
+    label: 'Vote Jail aktiv',
+    description: 'Erlaubt Berechtigten, eine Community-Abstimmung über einen Jail zu starten.',
+    group: 'Vote Jail',
+  },
+  {
+    key: 'voteJailChannelId',
+    type: 'discord-channel',
+    label: 'Vote Jail Channel',
+    description: 'Channel, in dem die Abstimmung veröffentlicht wird.',
+    group: 'Vote Jail',
+    channelKinds: ['text'],
+  },
+  {
+    key: 'voteJailRequiredVotes',
+    type: 'number',
+    label: 'Benötigte Stimmen',
+    description: 'So viele Stimmen führen zum Jail.',
+    group: 'Vote Jail',
+    min: 1,
+    max: 100,
+    unit: 'Stimmen',
+  },
+  {
+    key: 'voteJailDurationSeconds',
+    type: 'duration',
+    label: 'Voting-Dauer',
+    description: 'Danach endet die Abstimmung ohne Ergebnis.',
+    group: 'Vote Jail',
+    min: 60,
+    max: 24 * 60 * 60,
+    presets: [5 * 60, 10 * 60, 30 * 60, 60 * 60],
+  },
+  {
+    key: 'voteJailResultSeconds',
+    type: 'duration',
+    label: 'Jail-Dauer bei Erfolg',
+    group: 'Vote Jail',
+    min: 60,
+    max: 7 * 24 * 60 * 60,
+    presets: [30 * 60, 60 * 60, 6 * 60 * 60, 24 * 60 * 60],
+  },
 ];
 
 /**
@@ -169,6 +243,54 @@ async function jailHealthChecks(context: ModuleHealthContext): Promise<ModuleHea
     });
   }
 
+  // --- Vote Jail ----------------------------------------------------------
+  if (settings.voteJailEnabled) {
+    const channel = settings.voteJailChannelId
+      ? context.channels.find((entry) => entry.id === settings.voteJailChannelId)
+      : undefined;
+
+    if (!settings.voteJailChannelId) {
+      checks.push({
+        label: 'Vote Jail Channel',
+        status: 'error',
+        detail: 'Vote Jail ist aktiv, aber es ist kein Channel gewählt.',
+        fixHref: settingsHref,
+      });
+    } else if (!channel || channel.deleted) {
+      checks.push({
+        label: 'Vote Jail Channel',
+        status: 'error',
+        detail: 'Der gewählte Vote-Jail-Channel existiert auf Discord nicht mehr.',
+        fixHref: settingsHref,
+      });
+    } else {
+      // Ohne Schreib-, Embed- und Button-Rechte bleibt die Abstimmung unsichtbar.
+      const { discord, DISCORD_PERMISSIONS, missingPermissions } = await import('@swisshub/discord');
+      const permissions = await discord.channels.botPermissions(settings.voteJailChannelId).catch(() => null);
+
+      if (permissions === null) {
+        checks.push({
+          label: 'Vote Jail Channel',
+          status: 'warning',
+          detail: `#${channel.name} - die Berechtigungen des Bots konnten nicht geprüft werden.`,
+        });
+      } else {
+        const missing = missingPermissions(permissions, ['VIEW_CHANNEL', 'SEND_MESSAGES', 'EMBED_LINKS']);
+        void DISCORD_PERMISSIONS;
+        checks.push(
+          missing.length === 0
+            ? { label: 'Vote Jail Channel', status: 'ok', detail: `#${channel.name}` }
+            : {
+                label: 'Vote Jail Channel',
+                status: 'error',
+                detail: `Dem Bot fehlen in #${channel.name}: ${missing.join(', ')}.`,
+                fixHref: '/system/bot',
+              },
+        );
+      }
+    }
+  }
+
   return checks;
 }
 
@@ -184,7 +306,13 @@ export const jailModule: ModuleDefinition = registerModule({
   settingsSchema: jailSettingsSchema,
   settingsFields: jailSettingsFields,
   configVersion: 2,
-  requiredDiscordPermissions: ['MANAGE_ROLES', 'SEND_MESSAGES', 'EMBED_LINKS', 'VIEW_CHANNEL'],
+  requiredDiscordPermissions: [
+    'MANAGE_ROLES',
+    'SEND_MESSAGES',
+    'EMBED_LINKS',
+    'VIEW_CHANNEL',
+    'USE_APPLICATION_COMMANDS',
+  ],
   healthChecks: jailHealthChecks,
   permissions: [
     {
@@ -221,6 +349,20 @@ export const jailModule: ModuleDefinition = registerModule({
       module: JAIL_MODULE_ID,
       critical: true,
     },
+    {
+      key: JAIL_PERMISSIONS.voteStart,
+      label: 'Vote Jail starten',
+      description: 'Eine Community-Abstimmung über einen Jail starten.',
+      module: JAIL_MODULE_ID,
+      critical: true,
+    },
+    {
+      key: JAIL_PERMISSIONS.voteMultivote,
+      label: 'Vote Jail: Mehrfachstimme',
+      description: 'Darf in einer Abstimmung mehrfach stimmen (für Administratoren).',
+      module: JAIL_MODULE_ID,
+      critical: true,
+    },
   ],
   navigation: [
     {
@@ -232,6 +374,15 @@ export const jailModule: ModuleDefinition = registerModule({
       group: 'moderation',
       order: 30,
       counter: 'activeJails',
+    },
+    {
+      href: '/jail/votes',
+      label: 'Vote Jails',
+      description: 'Laufende und abgeschlossene Community-Abstimmungen',
+      permission: JAIL_PERMISSIONS.view,
+      icon: 'Gavel',
+      group: 'moderation',
+      order: 31,
     },
   ],
 });

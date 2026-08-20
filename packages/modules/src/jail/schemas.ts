@@ -30,13 +30,39 @@ export const jailDurationSchema = z
   .min(MIN_JAIL_DURATION_SECONDS, 'Die Mindestdauer beträgt 1 Minute.')
   .max(JAIL_MAX_DURATION_SECONDS, 'Die gewählte Dauer ist zu lang.');
 
-export const createJailSchema = z.object({
-  targetDiscordId: snowflakeSchema,
-  durationSeconds: jailDurationSchema,
-  reason: jailReasonSchema,
-  /** Verhindert doppelte Ausführung bei Doppelklick oder Retry. */
-  idempotencyKey: z.string().uuid('Ungültiger Idempotency Key'),
-});
+/**
+ * Jail-Art.
+ *
+ * `PERMANENT` bedeutet: kein automatisches Ende. Freilassen bleibt jederzeit
+ * über `jail.release` möglich - permanent heisst nicht unwiderruflich.
+ */
+export const jailTypeSchema = z.enum(['TEMPORARY', 'PERMANENT']);
+export type JailTypeValue = z.infer<typeof jailTypeSchema>;
+
+export const createJailSchema = z
+  .object({
+    targetDiscordId: snowflakeSchema,
+    type: jailTypeSchema.default('TEMPORARY'),
+    /** Nur bei `TEMPORARY` erforderlich. */
+    durationSeconds: jailDurationSchema.optional(),
+    reason: jailReasonSchema,
+    /** Verhindert doppelte Ausführung bei Doppelklick oder Retry. */
+    idempotencyKey: z.string().uuid('Ungültiger Idempotency Key'),
+  })
+  .superRefine((value, ctx) => {
+    if (value.type === 'TEMPORARY' && value.durationSeconds === undefined) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['durationSeconds'],
+        message: 'Bitte eine Dauer wählen.',
+      });
+    }
+  })
+  .transform((value) => ({
+    ...value,
+    // Ein permanenter Jail hat keine Dauer - kein künstliches Ersatzdatum.
+    durationSeconds: value.type === 'PERMANENT' ? null : (value.durationSeconds ?? null),
+  }));
 
 export type CreateJailInput = z.infer<typeof createJailSchema>;
 
@@ -80,3 +106,23 @@ export function assertDurationWithinLimit(durationSeconds: number, maxDurationSe
     ]);
   }
 }
+
+/**
+ * Vote Jail starten.
+ *
+ * Der Grund ist optional - die Abstimmung selbst ist die Begründung. Was
+ * angegeben wird, landet im Discord-Embed und wird deshalb bereinigt.
+ */
+export const startVoteJailSchema = z.object({
+  targetDiscordId: snowflakeSchema,
+  reason: z
+    .string()
+    .max(500)
+    .optional()
+    .transform((value) => {
+      const cleaned = value ? sanitizeText(value, 500) : '';
+      return cleaned.length > 0 ? cleaned : null;
+    }),
+});
+
+export type StartVoteJailFormInput = z.infer<typeof startVoteJailSchema>;

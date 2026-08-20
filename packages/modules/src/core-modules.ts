@@ -184,6 +184,7 @@ registerModule({
       entry.key.startsWith('settings.') ||
       entry.key === 'permissions.manage' ||
       entry.key === 'system.manage' ||
+      entry.key === 'branding.manage' ||
       entry.key === 'admin.full',
   ),
   navigation: [
@@ -204,6 +205,15 @@ registerModule({
       icon: 'RefreshCw',
       group: 'system',
       order: 79,
+    },
+    {
+      href: '/settings/branding',
+      label: 'Branding',
+      description: 'Logo und Erscheinungsbild der WebApp',
+      permission: 'branding.manage',
+      icon: 'Palette',
+      group: 'system',
+      order: 83,
     },
     {
       href: '/settings',

@@ -1,7 +1,9 @@
 import {
   Blocks,
   CircleAlert,
+  Gavel,
   Lock,
+  Megaphone,
   LogIn,
   ScrollText,
   Settings,
@@ -10,6 +12,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { formatDateTime } from '@swisshub/shared';
+import { DiscordAvatar } from '@/components/shared/discord-avatar';
 import { cn } from '@/lib/utils';
 
 export interface ActivityItemData {
@@ -17,6 +20,8 @@ export interface ActivityItemData {
   action: string;
   createdAt: Date;
   actorUsername: string | null;
+  actorDiscordId?: string | null;
+  actorAvatarHash?: string | null;
   targetLabel: string | null;
   reason: string | null;
   success: boolean;
@@ -51,6 +56,19 @@ const ACTION_VIEW: Record<string, { icon: LucideIcon; tone: Tone; verb: string }
   MODULE_ENABLED: { icon: Blocks, tone: 'success', verb: 'hat ein Modul aktiviert' },
   MODULE_DISABLED: { icon: Blocks, tone: 'warning', verb: 'hat ein Modul deaktiviert' },
   MODULE_SETTINGS_CHANGED: { icon: Blocks, tone: 'warning', verb: 'hat Moduleinstellungen geändert' },
+  VOTE_JAIL_STARTED: { icon: Gavel, tone: 'accent', verb: 'hat einen Vote Jail gegen {target} gestartet' },
+  VOTE_JAIL_SUCCEEDED: { icon: Gavel, tone: 'accent', verb: 'Vote Jail gegen {target} war erfolgreich' },
+  VOTE_JAIL_FAILED: { icon: Gavel, tone: 'info', verb: 'Vote Jail gegen {target} blieb ohne Ergebnis' },
+  COMMUNICATION_NEWS_SENT: { icon: Megaphone, tone: 'info', verb: 'hat Neuigkeiten in {target} gesendet' },
+  COMMUNICATION_EVENT_SENT: { icon: Megaphone, tone: 'info', verb: 'hat ein Event in {target} angekündigt' },
+  COMMUNICATION_POLL_SENT: { icon: Megaphone, tone: 'info', verb: 'hat eine Umfrage in {target} gestartet' },
+  COMMUNICATION_MESSAGE_DELETED: {
+    icon: Megaphone,
+    tone: 'warning',
+    verb: 'hat eine Nachricht in {target} gelöscht',
+  },
+  BRANDING_LOGO_UPDATED: { icon: Settings, tone: 'info', verb: 'hat das Logo aktualisiert' },
+  BRANDING_LOGO_RESET: { icon: Settings, tone: 'warning', verb: 'hat das Logo zurückgesetzt' },
 };
 
 const FALLBACK = { icon: ScrollText, tone: 'info' as Tone, verb: 'hat eine Aktion ausgeführt' };
@@ -71,6 +89,16 @@ export function ActivityItem({ entry }: { entry: ActivityItemData }): React.JSX.
       >
         <Icon className="size-4" />
       </span>
+
+      {entry.actorDiscordId ? (
+        <DiscordAvatar
+          discordId={entry.actorDiscordId}
+          avatarHash={entry.actorAvatarHash}
+          name={entry.actorUsername ?? 'System'}
+          size={24}
+          className="mt-0.5"
+        />
+      ) : null}
 
       <div className="min-w-0 flex-1">
         <p className="text-sm leading-snug">

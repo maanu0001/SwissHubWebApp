@@ -1,5 +1,6 @@
+import { revisionCache } from '@swisshub/database';
 import { discord as defaultDiscord, type DiscordGateway } from '@swisshub/discord';
-import { getModuleSettings } from '../module-state';
+import { getModuleSettings, isModuleEnabled } from '../module-state';
 import { LEVEL_MODULE_ID, type LevelSettings } from './config';
 import type { DecayRules } from './decay';
 
@@ -12,6 +13,8 @@ import type { DecayRules } from './decay';
  */
 export interface LevelContext {
   gateway: DiscordGateway;
+  /** Ist das Modul eingeschaltet? */
+  enabled: boolean;
   settings: LevelSettings;
   accentColor: number;
   decayRules: DecayRules;
@@ -53,14 +56,39 @@ export function decayRulesFrom(settings: LevelSettings): DecayRules {
   };
 }
 
-export async function loadLevelContext(gateway: DiscordGateway = defaultDiscord): Promise<LevelContext> {
-  const settings = await getModuleSettings<LevelSettings>(LEVEL_MODULE_ID);
+/**
+ * Der Teil des Kontexts, der aus der Datenbank kommt.
+ *
+ * Er wird über die Konfigurations-Revision zwischengespeichert. Ohne das
+ * entstünden bei jeder Chat-Nachricht zwei zusätzliche Abfragen - auf einem
+ * lebhaften Server ist das spürbar. Eine Änderung im Dashboard erhöht die
+ * Revision und verwirft den Cache; sie wirkt damit weiterhin ohne Neustart.
+ */
+type CachedContext = Pick<
+  LevelContext,
+  'enabled' | 'settings' | 'accentColor' | 'decayRules' | 'noXpChannelIds' | 'announceLevels'
+>;
+
+const CACHE_KEY = 'level:context';
+
+async function loadCachedContext(): Promise<CachedContext> {
+  const [enabled, settings] = await Promise.all([
+    isModuleEnabled(LEVEL_MODULE_ID),
+    getModuleSettings<LevelSettings>(LEVEL_MODULE_ID),
+  ]);
   return {
-    gateway,
+    enabled,
     settings,
     accentColor: parseAccentColor(settings.accentColor),
     decayRules: decayRulesFrom(settings),
     noXpChannelIds: new Set(settings.noXpChannelIds),
     announceLevels: parseAnnounceLevels(settings.announceLevels),
   };
+}
+
+export async function loadLevelContext(gateway: DiscordGateway = defaultDiscord): Promise<LevelContext> {
+  // Höchstens 15 Sekunden alt - derselbe Wert, mit dem der Vorgänger seinen
+  // XP-Boost zwischenspeicherte.
+  const cached = await revisionCache(CACHE_KEY, loadCachedContext, { maxAgeMs: 15_000 });
+  return { gateway, ...cached };
 }

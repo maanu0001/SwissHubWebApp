@@ -3,6 +3,7 @@ import {
   ChannelType,
   MessageFlags,
   type ChatInputCommandInteraction,
+  type GuildMember,
 } from 'discord.js';
 import { createLogger } from '@swisshub/logger';
 import { AppError } from '@swisshub/shared';
@@ -326,6 +327,23 @@ async function replyError(interaction: ChatInputCommandInteraction, error: unkno
   }
 }
 
+/**
+ * Mitglied auflösen.
+ *
+ * Der Cache ist nach einem Neustart leer; ohne Nachladen fehlten Anzeigename
+ * und Rollen genau dann, wenn sie gebraucht werden.
+ */
+async function resolveMember(
+  interaction: ChatInputCommandInteraction,
+  discordId: string,
+): Promise<GuildMember | null> {
+  const guild = interaction.guild;
+  if (!guild) {
+    return null;
+  }
+  return guild.members.cache.get(discordId) ?? (await guild.members.fetch(discordId).catch(() => null));
+}
+
 /** Verwaltender Aufrufer für Service-Aufrufe. */
 const toLevelActor = (actor: CommandActor): level.LevelActor => ({
   discordId: actor.discordId,
@@ -484,7 +502,7 @@ async function handleLevel(interaction: ChatInputCommandInteraction, context: Ct
   const profile = await level.getProfile(target.id);
   const xp = profile?.xp ?? 0;
   const rank = (await level.getRank(target.id)) ?? 0;
-  const member = interaction.guild?.members.cache.get(target.id);
+  const member = await resolveMember(interaction, target.id);
 
   try {
     const png = await renderLevelCard({
@@ -715,7 +733,7 @@ async function handleAdjust(interaction: ChatInputCommandInteraction, actor: Com
 
   await interaction.deferReply(ephemeral);
 
-  const member = interaction.guild?.members.cache.get(target.id);
+  const member = await resolveMember(interaction, target.id);
   const result = await level.adjustXp(toLevelActor(actor), {
     target: {
       discordId: target.id,

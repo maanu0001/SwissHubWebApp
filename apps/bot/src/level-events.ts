@@ -1,6 +1,6 @@
 import { ChannelType, Events, type Client, type GuildMember, type VoiceState } from 'discord.js';
 import { createLogger } from '@swisshub/logger';
-import { isModuleEnabled, level } from '@swisshub/modules';
+import { level } from '@swisshub/modules';
 
 const log = createLogger('bot:level');
 
@@ -96,11 +96,11 @@ export function registerLevelMessageXp(client: Client): void {
       if (message.author.bot || !message.guild || !message.member) {
         return;
       }
-      if (!(await isModuleEnabled(level.LEVEL_MODULE_ID))) {
-        return;
-      }
 
       const context = await level.loadLevelContext();
+      if (!context.enabled) {
+        return;
+      }
       const member = message.member;
       const identity = identityOf(member);
 
@@ -169,7 +169,8 @@ export function registerLevelVoiceTracking(client: Client): void {
 
         // Beitritt oder Wechsel gilt als Aktivität.
         if (!before.channelId || before.channelId !== after.channelId) {
-          if (await isModuleEnabled(level.LEVEL_MODULE_ID)) {
+          const context = await level.loadLevelContext();
+          if (context.enabled) {
             await level.touchActivity(identityOf(member), { markVoice: true });
           }
         }
@@ -195,13 +196,13 @@ export interface VoiceSweepResult {
  * als eine Minute; ausgefallene Durchgänge werden nicht nachgeholt.
  */
 export async function runVoiceXpSweep(client: Client, guildId: string | null): Promise<VoiceSweepResult> {
-  if (!guildId || !(await isModuleEnabled(level.LEVEL_MODULE_ID))) {
+  if (!guildId) {
     return { checked: 0, granted: 0, xp: 0 };
   }
 
   const context = await level.loadLevelContext();
   const guild = client.guilds.cache.get(guildId);
-  if (!guild) {
+  if (!context.enabled || !guild) {
     return { checked: 0, granted: 0, xp: 0 };
   }
 

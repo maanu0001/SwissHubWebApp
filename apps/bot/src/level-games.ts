@@ -54,8 +54,16 @@ export async function startGame(
   input: StartGameInput,
 ): Promise<void> {
   const { context } = input;
-  const member = interaction.guild?.members.cache.get(interaction.user.id);
-  const opponentMember = interaction.guild?.members.cache.get(input.opponent.id);
+  const guild = interaction.guild;
+  // Der Cache ist nach einem Neustart leer - Anzeigenamen dann nachladen.
+  const [member, opponentMember] = await Promise.all([
+    guild?.members.cache.get(interaction.user.id) ??
+      guild?.members.fetch(interaction.user.id).catch(() => null) ??
+      null,
+    guild?.members.cache.get(input.opponent.id) ??
+      guild?.members.fetch(input.opponent.id).catch(() => null) ??
+      null,
+  ]);
 
   const match = await level.createChallenge({
     kind: input.kind,

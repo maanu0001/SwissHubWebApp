@@ -62,6 +62,23 @@ export function buildVoiceChannelName(
   return rendered.slice(0, 100) || 'Spielersuche';
 }
 
+/**
+ * Teilnehmerlimit des Sprachkanals.
+ *
+ * Hat das Spiel eine Squad-Grösse, gilt diese. Sonst fasst der Kanal genau die
+ * gesuchte Gruppe - so hielt es der alte Bot, und es ist sinnvoll: ein Kanal
+ * ohne Limit würde sich bei einem Spiel wie Minecraft mit Zuschauern füllen,
+ * während die Suche längst voll ist.
+ *
+ * Discord erlaubt höchstens 99.
+ */
+export function voiceUserLimit(match: { maxSquadSize: number | null; requestedPlayers: number }): number {
+  if (match.maxSquadSize !== null) {
+    return Math.min(Math.max(match.maxSquadSize, 1), 99);
+  }
+  return Math.min(match.requestedPlayers + 1, 99);
+}
+
 export interface CreateVoiceResult {
   channelId: string;
   name: string;
@@ -110,9 +127,7 @@ export async function createVoiceChannel(
     const channel = await context.gateway.voice.create({
       name,
       parentId: context.voiceCategoryId,
-      // `maxSquadSize` ist die Gruppengrösse des Spiels; ohne sie begrenzt der
-      // Kanal auf die gesuchte Gruppe. `null`/0 = unbegrenzt.
-      userLimit: match.maxSquadSize ?? null,
+      userLimit: voiceUserLimit(match),
       overwrites,
       reason: `Spielersuche ${match.gameName} von ${options.creatorLabel}`,
     });
@@ -203,6 +218,54 @@ export async function deleteVoiceChannel(
   });
   log.info('Sprachkanal gelöscht', { matchId });
   return true;
+}
+
+/**
+ * Sperrt oder öffnet den Sprachkanal für alle übrigen Mitglieder.
+ *
+ * Ist die Gruppe vollständig, soll niemand mehr dazustossen - der Kanal wird
+ * für `@everyone` geschlossen. Wird wieder ein Platz frei, öffnet er sich.
+ * Die Teilnehmer selbst behalten ihre persönliche Ausnahme und kommen
+ * weiterhin hinein.
+ *
+ * Best effort: schlägt Discord fehl, bleibt die Gruppe trotzdem vollständig -
+ * massgeblich ist die Datenbank.
+ */
+export async function setVoiceChannelLocked(
+  match: SpielersucheMatch,
+  locked: boolean,
+  context: SpielersucheContext,
+): Promise<boolean> {
+  if (!match.voiceChannelId) {
+    return false;
+  }
+
+  const guild = await context.gateway.guild.get().catch(() => null);
+  if (!guild) {
+    return false;
+  }
+
+  try {
+    await context.gateway.voice.setOverwrite(
+      match.voiceChannelId,
+      {
+        id: guild.id,
+        type: 0,
+        // Sichtbar bleibt der Kanal immer - nur das Betreten wird entzogen.
+        allow: locked ? DISCORD_PERMISSIONS.VIEW_CHANNEL : PARTICIPANT_ALLOW,
+        deny: locked ? DISCORD_PERMISSIONS.CONNECT : 0n,
+      },
+      locked ? 'Gruppe vollständig' : 'Wieder Plätze frei',
+    );
+    return true;
+  } catch (error) {
+    log.warn('Sprachkanal konnte nicht gesperrt/geöffnet werden', {
+      error,
+      matchId: match.id,
+      locked,
+    });
+    return false;
+  }
 }
 
 /** Gehört dieser Sprachkanal zu einer Spielersuche? */

@@ -303,24 +303,25 @@ nur auf einem bestimmten Server gültig ist.
 Unter **Spielersuche → Einstellungen**. Der frühere Bot hatte diese Werte teils
 in `.env`, teils in seiner SQLite-Datenbank.
 
-| Einstellung                                | Standard                | Bedeutung                                              |
-| ------------------------------------------ | ----------------------- | ------------------------------------------------------ |
-| Spielersuche-Channel                       | –                       | Hier werden die Suchen veröffentlicht                  |
-| Voice-Kategorie                            | –                       | In dieser Kategorie entstehen die Sprachkanäle         |
-| Automatisch schliessen nach                | 12 Stunden              | Ablaufzeit einer Suche (1–168)                         |
-| Aktive Suchen pro Person                   | 1                       | Der Vorgänger erlaubte genau eine                      |
-| Maximal gesuchte Spieler                   | 20                      | Gilt für Spiele ohne eigene Squad-Grösse               |
-| Spielrolle erwähnen                        | an                      | Rollen-Ping beim Start einer Suche                     |
-| Ping-Sperrfrist je Spiel                   | 5 Minuten               | Unterdrückt nur den Ping, nie die Suche. 0 = aus       |
-| Embed-Farbe                                | `#AFDBF5`               | Farbe der Suchen-Embeds                                |
-| Fusszeile                                  | SwissHub Spielersuche … | Fusszeile jedes Embeds                                 |
-| Sprachkanal automatisch erstellen          | an                      | Je Suche ein eigener Kanal                             |
-| Name des Sprachkanals                      | `🎮・{game}・{creator}` | Platzhalter: `{game}`, `{creator}`, `{id}`             |
-| Leere Sprachkanäle löschen                 | an                      | Nur Kanäle, die dieses Modul erstellt hat              |
-| Ersteller darf im eigenen Kanal moderieren | an                      | Stummschalten und verschieben - nie „Kanäle verwalten" |
-| Tägliche Hinweisnachricht                  | aus                     | Onboarding-Nachricht                                   |
-| Uhrzeit                                    | 16:00                   | Zeitzone Europe/Zurich                                 |
-| Titel / Text / Banner / Fusszeile          | Vorgabe des alten Bots  | Inhalt der Hinweisnachricht                            |
+| Einstellung                                | Standard                | Bedeutung                                                   |
+| ------------------------------------------ | ----------------------- | ----------------------------------------------------------- |
+| Spielersuche-Channel                       | –                       | Hier werden die Suchen veröffentlicht                       |
+| Voice-Kategorie                            | –                       | In dieser Kategorie entstehen die Sprachkanäle              |
+| Automatisch schliessen nach                | 12 Stunden              | Ablaufzeit einer Suche (1–168)                              |
+| Aktive Suchen pro Person                   | 1                       | Der Vorgänger erlaubte genau eine                           |
+| Maximal gesuchte Spieler                   | 20                      | Gilt für Spiele ohne eigene Squad-Grösse                    |
+| Spielrolle erwähnen                        | an                      | Rollen-Ping beim Start einer Suche                          |
+| Ping-Sperrfrist je Spiel                   | 5 Minuten               | Unterdrückt nur den Ping, nie die Suche. 0 = aus            |
+| Embed-Farbe                                | `#AFDBF5`               | Farbe der Suchen-Embeds                                     |
+| Fusszeile                                  | SwissHub Spielersuche … | Fusszeile jedes Embeds                                      |
+| Sprachkanal automatisch erstellen          | an                      | Je Suche ein eigener Kanal                                  |
+| Name des Sprachkanals                      | `🎮・{game}・{creator}` | Platzhalter: `{game}`, `{creator}`, `{id}`                  |
+| Leere Sprachkanäle löschen                 | an                      | Nur Kanäle, die dieses Modul erstellt hat                   |
+| Teilnehmerlimit des Kanals                 | –                       | Squad-Grösse des Spiels, sonst gesuchte Spieler + Ersteller |
+| Ersteller darf im eigenen Kanal moderieren | an                      | Stummschalten und verschieben - nie „Kanäle verwalten"      |
+| Tägliche Hinweisnachricht                  | aus                     | Onboarding-Nachricht                                        |
+| Uhrzeit                                    | 16:00                   | Zeitzone Europe/Zurich                                      |
+| Titel / Text / Banner / Fusszeile          | Vorgabe des alten Bots  | Inhalt der Hinweisnachricht                                 |
 
 Spiele werden nicht hier, sondern unter **Spielersuche → Spiele** gepflegt
 (Name, Discord-Rolle, Banner, Squad-Grösse, aktiv). Änderungen wirken sofort -

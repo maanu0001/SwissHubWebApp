@@ -1,4 +1,9 @@
-import { BUTTON_STYLE, type DiscordActionRow, type DiscordMessagePayload } from '@swisshub/discord';
+import {
+  BUTTON_STYLE,
+  type DiscordActionRow,
+  type DiscordButton,
+  type DiscordMessagePayload,
+} from '@swisshub/discord';
 import { escapeDiscordMarkdown, truncate } from '@swisshub/shared';
 import type { SpielersucheMatch, SpielersucheParticipant } from '@swisshub/database';
 
@@ -108,9 +113,12 @@ export function buildMatchMessage(view: MatchView): DiscordMessagePayload {
   ];
 
   if (match.voiceChannelId) {
+    // Bei vollständiger Gruppe ist der Kanal für alle übrigen geschlossen -
+    // das steht hier, damit niemand vergeblich versucht beizutreten.
+    const state = closed ? '' : match.status === 'COMPLETE' ? '\n🔒 Gschlosse' : '\n🟢 Offe für alli';
     fields.push({
       name: 'Voice-Channel',
-      value: `🔊 <#${match.voiceChannelId}>`,
+      value: `🔊 <#${match.voiceChannelId}>${state}`,
       inline: true,
     });
   }
@@ -170,43 +178,52 @@ function buildComponents(view: MatchView, closed: boolean): DiscordActionRow[] {
   }
 
   const full = view.participants.length >= totalSlots(view.match);
-  return [
+  const components: DiscordButton[] = [
     {
-      type: 1,
-      components: [
-        {
-          type: 2,
-          style: BUTTON_STYLE.SUCCESS,
-          label: 'Mitmache',
-          emoji: { name: '🎮' },
-          custom_id: BUTTON_IDS.join,
-          // Ein voller Knopf wäre eine Einladung zum Frustklick.
-          disabled: full,
-        },
-        {
-          type: 2,
-          style: BUTTON_STYLE.SECONDARY,
-          label: 'Verlah',
-          emoji: { name: '↩️' },
-          custom_id: BUTTON_IDS.leave,
-        },
-        {
-          type: 2,
-          style: BUTTON_STYLE.DANGER,
-          label: 'Suechi beende',
-          emoji: { name: '❌' },
-          custom_id: BUTTON_IDS.close,
-        },
-        {
-          type: 2,
-          style: BUTTON_STYLE.SECONDARY,
-          label: 'Hilf',
-          emoji: { name: '❓' },
-          custom_id: BUTTON_IDS.help,
-        },
-      ],
+      type: 2,
+      style: BUTTON_STYLE.SUCCESS,
+      label: 'Mitmache',
+      emoji: { name: '🎮' },
+      custom_id: BUTTON_IDS.join,
+      // Ein voller Knopf wäre eine Einladung zum Frustklick.
+      disabled: full,
+    },
+    {
+      type: 2,
+      style: BUTTON_STYLE.SECONDARY,
+      label: 'Verlah',
+      emoji: { name: '↩️' },
+      custom_id: BUTTON_IDS.leave,
+    },
+    {
+      type: 2,
+      style: BUTTON_STYLE.DANGER,
+      label: 'Suechi beende',
+      emoji: { name: '❌' },
+      custom_id: BUTTON_IDS.close,
+    },
+    {
+      type: 2,
+      style: BUTTON_STYLE.SECONDARY,
+      label: 'Hilf',
+      emoji: { name: '❓' },
+      custom_id: BUTTON_IDS.help,
     },
   ];
+
+  // Sprung direkt in den Sprachkanal. Ein Link-Knopf löst keine Interaktion
+  // aus - Discord öffnet die Adresse selbst.
+  if (view.match.voiceChannelId && view.guildId) {
+    components.push({
+      type: 2,
+      style: BUTTON_STYLE.LINK,
+      label: 'Zum Voice',
+      emoji: { name: '🔊' },
+      url: `https://discord.com/channels/${view.guildId}/${view.match.voiceChannelId}`,
+    });
+  }
+
+  return [{ type: 1, components }];
 }
 
 /** Hilfe-Embed - erreichbar über den Knopf und über `/spielersuche-hilf`. */

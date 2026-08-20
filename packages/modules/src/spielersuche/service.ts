@@ -14,7 +14,13 @@ import type { SpielersucheMatch, SpielersucheParticipant, SpielersucheSource } f
 import { SPIELERSUCHE_MODULE_ID } from './config';
 import { loadSpielersucheContext, type SpielersucheContext } from './context';
 import { buildMatchMessage, totalSlots } from './embed';
-import { createVoiceChannel, deleteVoiceChannel, grantVoiceAccess, revokeVoiceAccess } from './voice';
+import {
+  createVoiceChannel,
+  deleteVoiceChannel,
+  grantVoiceAccess,
+  revokeVoiceAccess,
+  setVoiceChannelLocked,
+} from './voice';
 import { recordUsage } from './stats';
 import type { CreateSearchInput } from './schemas';
 
@@ -449,6 +455,11 @@ export async function joinSearch(
 
   const context = options.context ?? (await loadSpielersucheContext(options.gateway));
   await grantVoiceAccess(outcome.match, actor.discordId, context);
+  // Vollständige Gruppe: der Sprachkanal wird für alle übrigen geschlossen,
+  // damit niemand mehr hineinstolpert. Die Teilnehmer behalten ihren Zugang.
+  if (outcome.complete) {
+    await setVoiceChannelLocked(outcome.match, true, context);
+  }
   await syncMatchMessage(matchId, context);
 
   await safeRecordAudit({
@@ -526,6 +537,10 @@ export async function leaveSearch(
 
   const context = options.context ?? (await loadSpielersucheContext(options.gateway));
   await revokeVoiceAccess(outcome.match, actor.discordId, context);
+  // Wieder ein Platz frei: der Sprachkanal öffnet sich erneut.
+  if (outcome.reopened) {
+    await setVoiceChannelLocked(outcome.match, false, context);
+  }
   await syncMatchMessage(matchId, context);
 
   await safeRecordAudit({

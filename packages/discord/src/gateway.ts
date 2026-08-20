@@ -104,23 +104,40 @@ export interface DiscordEmbed {
   url?: string;
 }
 
-/** Button-Stile nach Discord (1 = primary … 4 = danger). */
+/**
+ * Button-Stile nach Discord (1 = primary … 4 = danger, 5 = Link).
+ *
+ * Ein Link-Button löst keine Interaktion aus: Discord öffnet die Adresse
+ * direkt. Er trägt deshalb `url` statt `custom_id`.
+ */
 export const BUTTON_STYLE = {
   PRIMARY: 1,
   SECONDARY: 2,
   SUCCESS: 3,
   DANGER: 4,
+  LINK: 5,
 } as const;
 
-export interface DiscordButton {
+export interface DiscordActionButton {
   type: 2;
-  style: (typeof BUTTON_STYLE)[keyof typeof BUTTON_STYLE];
+  style: 1 | 2 | 3 | 4;
   label: string;
   /** Eigene ID - wird beim Klick an den Bot zurückgegeben. */
   custom_id: string;
   emoji?: { name: string };
   disabled?: boolean;
 }
+
+export interface DiscordLinkButton {
+  type: 2;
+  style: 5;
+  label: string;
+  url: string;
+  emoji?: { name: string };
+  disabled?: boolean;
+}
+
+export type DiscordButton = DiscordActionButton | DiscordLinkButton;
 
 export interface DiscordActionRow {
   type: 1;

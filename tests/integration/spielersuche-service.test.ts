@@ -644,3 +644,63 @@ async function resetDatabase(): Promise<void> {
     RESTART IDENTITY CASCADE
   `);
 }
+
+describeWithDatabase('Sprachkanal-Verhalten des Vorgängers', () => {
+  beforeEach(async () => {
+    await resetDatabase();
+    gateway = createMockGateway();
+    setDiscordGateway(gateway);
+    await configure();
+  });
+
+  it('begrenzt den Kanal auf die Squad-Grösse des Spiels', () => {
+    expect(spielersuche.voiceUserLimit({ maxSquadSize: 5, requestedPlayers: 2 })).toBe(5);
+    expect(spielersuche.voiceUserLimit({ maxSquadSize: 3, requestedPlayers: 2 })).toBe(3);
+  });
+
+  it('begrenzt ohne Squad-Grösse auf die gesuchte Gruppe', () => {
+    // Verhalten des alten Bots: Limit = gesuchte Spieler + Ersteller.
+    expect(spielersuche.voiceUserLimit({ maxSquadSize: null, requestedPlayers: 4 })).toBe(5);
+    expect(spielersuche.voiceUserLimit({ maxSquadSize: null, requestedPlayers: 1 })).toBe(2);
+    // Discord erlaubt höchstens 99.
+    expect(spielersuche.voiceUserLimit({ maxSquadSize: null, requestedPlayers: 150 })).toBe(99);
+  });
+
+  it('legt den Kanal mit diesem Limit an', async () => {
+    const created = vi.spyOn(gateway.voice, 'create');
+    const gameId = await createGame('Minecraft', ROLE_LOL, null);
+
+    await spielersuche.createSearch(search(gameId, 3), ALICE, { gateway });
+
+    // Ohne Squad-Grösse: 3 gesuchte + Ersteller.
+    expect(created).toHaveBeenCalledWith(expect.objectContaining({ userLimit: 4 }));
+  });
+
+  it('schliesst den Sprachkanal, sobald die Gruppe vollständig ist', async () => {
+    const overwrite = vi.spyOn(gateway.voice, 'setOverwrite');
+    const gameId = await createGame('CS2', ROLE_CS2, 5);
+    const created = await spielersuche.createSearch(search(gameId, 1), ALICE, { gateway });
+
+    overwrite.mockClear();
+    await spielersuche.joinSearch(created.match.id, BOB, { gateway });
+
+    // Die Sperre gilt der Rolle @everyone (Typ 0 = Rolle).
+    const lock = overwrite.mock.calls.find((call) => call[1].type === 0);
+    expect(lock).toBeDefined();
+    expect(lock?.[1].deny).toBeGreaterThan(0n);
+  });
+
+  it('öffnet den Sprachkanal wieder, wenn ein Platz frei wird', async () => {
+    const overwrite = vi.spyOn(gateway.voice, 'setOverwrite');
+    const gameId = await createGame('CS2', ROLE_CS2, 5);
+    const created = await spielersuche.createSearch(search(gameId, 1), ALICE, { gateway });
+    await spielersuche.joinSearch(created.match.id, BOB, { gateway });
+
+    overwrite.mockClear();
+    await spielersuche.leaveSearch(created.match.id, BOB, { gateway });
+
+    const unlock = overwrite.mock.calls.find((call) => call[1].type === 0);
+    expect(unlock).toBeDefined();
+    expect(unlock?.[1].deny).toBe(0n);
+  });
+});

@@ -209,6 +209,15 @@ Leere Spielersuche-Kanäle werden weiterhin automatisch gelöscht - erkennbar
 daran, dass eine Suche in der Datenbank auf sie zeigt. Fremde Sprachkanäle
 bleiben unberührt.
 
+Das Teilnehmerlimit des Kanals folgt dem alten Verhalten: hat das Spiel eine
+Squad-Grösse, gilt diese; sonst fasst der Kanal genau die gesuchte Gruppe
+(gesuchte Spieler + Ersteller, höchstens 99).
+
+Ist die Gruppe vollständig, wird der Kanal für alle übrigen geschlossen und im
+Embed als `🔒 Gschlosse` ausgewiesen. Wird wieder ein Platz frei, öffnet er
+sich und zeigt `🟢 Offe für alli`. Die Teilnehmer selbst behalten ihren Zugang
+in beiden Zuständen.
+
 ### Ablauf und Onboarding
 
 Der alte Bot prüfte im Zwei-Minuten-Takt im Arbeitsspeicher und schickte die

@@ -1,10 +1,23 @@
 import { Client, Events, GatewayIntentBits } from 'discord.js';
-import { EnvironmentError, assertServerEnv, discordConfig, env, discordMocksEnabled } from '@swisshub/config';
+import {
+  EnvironmentError,
+  assertServerEnv,
+  env,
+  discordMocksEnabled,
+  listDeprecatedEnvKeys,
+} from '@swisshub/config';
+import { clearGuildIdCache, tryResolveGuildId } from '@swisshub/discord';
 import { createLogger } from '@swisshub/logger';
 import { disconnectDatabase } from '@swisshub/database';
 import { invalidateIdentity } from '@swisshub/auth';
 import { ensureBootstrapRoles } from '@swisshub/permissions';
-import { writeHeartbeat } from '@swisshub/modules';
+import {
+  getGuildConfig,
+  importGuildFromEnvironment,
+  invalidateSyncCaches,
+  syncDiscord,
+  writeHeartbeat,
+} from '@swisshub/modules';
 import { createJobRunner } from './jobs';
 
 const log = createLogger('bot');
@@ -21,7 +34,20 @@ async function main(): Promise<void> {
     throw error;
   }
 
+  // Bestehende Installationen: Guild aus der Umgebung einmalig übernehmen.
+  await importGuildFromEnvironment().catch((error: unknown) => {
+    log.warn('Guild konnte nicht aus der Umgebung übernommen werden', { error });
+    return false;
+  });
   await ensureBootstrapRoles();
+
+  const deprecated = listDeprecatedEnvKeys();
+  if (deprecated.length > 0) {
+    log.warn(
+      'Abgelöste Umgebungsvariablen gesetzt - sie dienen nur noch als Bootstrap und können nach der Einrichtung entfernt werden.',
+      { keys: deprecated.map((entry) => entry.key) },
+    );
+  }
 
   const mockMode = discordMocksEnabled();
   if (mockMode) {
@@ -46,21 +72,53 @@ async function main(): Promise<void> {
 
   const jobs = createJobRunner(() => ({ ...status }));
 
+  /**
+   * Aktive Guild-ID. Sie kann sich zur Laufzeit ändern (Einrichtungsassistent),
+   * deshalb wird sie nicht eingefroren, sondern regelmässig neu aufgelöst.
+   */
+  let guildId: string | null = await tryResolveGuildId();
+
+  const refreshGuildId = async (): Promise<string | null> => {
+    clearGuildIdCache();
+    guildId = await tryResolveGuildId();
+    return guildId;
+  };
+
+  const isActiveGuild = (candidate: string): boolean => guildId === null || candidate === guildId;
+
   client.once(Events.ClientReady, async (readyClient) => {
     status.online = true;
     status.botUserId = readyClient.user.id;
     status.botUsername = readyClient.user.username;
     status.wsPingMs = Math.max(0, Math.round(readyClient.ws.ping));
 
-    const guild = readyClient.guilds.cache.get(discordConfig.guildId);
-    if (!guild) {
-      log.error(
-        'Der Bot ist nicht Mitglied der konfigurierten Guild. Bitte DISCORD_GUILD_ID prüfen und den Bot einladen.',
-        { guildId: discordConfig.guildId },
+    await refreshGuildId();
+
+    if (!guildId) {
+      log.warn(
+        'Es ist noch kein Discord-Server verbunden. Bitte den Einrichtungsassistenten im Dashboard abschliessen.',
       );
     } else {
-      status.memberCount = guild.memberCount;
-      log.info('Mit Discord verbunden', { guild: guild.name, members: guild.memberCount });
+      const guild = readyClient.guilds.cache.get(guildId);
+      if (!guild) {
+        log.error(
+          'Der Bot ist nicht Mitglied des verbundenen Discord-Servers. Bitte den Bot einladen oder den Server im Dashboard neu verbinden.',
+          { guildId },
+        );
+      } else {
+        status.memberCount = guild.memberCount;
+        log.info('Mit Discord verbunden', { guild: guild.name, members: guild.memberCount });
+      }
+
+      // Beim Start einmal synchronisieren, damit Rollen- und Channel-Auswahl
+      // im Dashboard sofort aktuell sind.
+      const summary = await syncDiscord({ trigger: 'startup' }).catch((error: unknown) => {
+        log.warn('Start-Sync fehlgeschlagen', { error });
+        return null;
+      });
+      if (summary?.success) {
+        log.info('Start-Sync abgeschlossen', { roles: summary.roles, channels: summary.channels });
+      }
     }
 
     await writeHeartbeat({
@@ -76,7 +134,7 @@ async function main(): Promise<void> {
   // Rollenänderungen sofort im Identity-Cache entwerten, damit
   // Berechtigungen nicht auf veralteten Rollen basieren.
   client.on(Events.GuildMemberUpdate, async (oldMember, newMember) => {
-    if (newMember.guild.id !== discordConfig.guildId) {
+    if (!isActiveGuild(newMember.guild.id)) {
       return;
     }
     const before = [...oldMember.roles.cache.keys()].sort().join(',');
@@ -87,10 +145,43 @@ async function main(): Promise<void> {
   });
 
   client.on(Events.GuildMemberRemove, async (member) => {
-    if (member.guild.id === discordConfig.guildId) {
+    if (isActiveGuild(member.guild.id)) {
       await invalidateIdentity(member.id);
     }
   });
+
+  /**
+   * Ereignisgesteuerte Cache-Invalidierung.
+   *
+   * Ändert sich auf Discord etwas an Rollen oder Channels, wird nicht sofort
+   * ein voller Sync ausgelöst (das würde bei Massenänderungen unnötig viele
+   * Anfragen erzeugen), sondern kurz gesammelt und dann einmal synchronisiert.
+   */
+  let syncTimer: NodeJS.Timeout | null = null;
+  const scheduleSync = (reason: string): void => {
+    invalidateSyncCaches();
+    if (syncTimer) {
+      clearTimeout(syncTimer);
+    }
+    syncTimer = setTimeout(() => {
+      syncTimer = null;
+      void syncDiscord({ trigger: 'event' })
+        .then((summary) => {
+          if (summary.success) {
+            log.debug('Sync nach Discord-Ereignis', { reason, roles: summary.roles });
+          }
+        })
+        .catch((error: unknown) => log.warn('Sync nach Discord-Ereignis fehlgeschlagen', { error }));
+    }, 5_000);
+  };
+
+  for (const event of [Events.GuildRoleCreate, Events.GuildRoleUpdate, Events.GuildRoleDelete] as const) {
+    client.on(event, () => scheduleSync(event));
+  }
+  for (const event of [Events.ChannelCreate, Events.ChannelUpdate, Events.ChannelDelete] as const) {
+    client.on(event, () => scheduleSync(event));
+  }
+  client.on(Events.GuildUpdate, () => scheduleSync(Events.GuildUpdate));
 
   client.on(Events.ShardDisconnect, () => {
     status.online = false;
@@ -109,9 +200,28 @@ async function main(): Promise<void> {
   const pingTimer = setInterval(() => {
     if (client.isReady()) {
       status.wsPingMs = Math.max(0, Math.round(client.ws.ping));
-      status.memberCount = client.guilds.cache.get(discordConfig.guildId)?.memberCount ?? status.memberCount;
+      if (guildId) {
+        status.memberCount = client.guilds.cache.get(guildId)?.memberCount ?? status.memberCount;
+      }
     }
   }, 15_000);
+
+  // Die Guild kann im Dashboard verbunden werden, während der Bot bereits
+  // läuft - dann ohne Neustart übernehmen.
+  const guildWatchTimer = setInterval(() => {
+    void (async () => {
+      const previous = guildId;
+      const config = await getGuildConfig({ force: true }).catch(() => null);
+      if (!config || config.guildId === previous) {
+        return;
+      }
+      await refreshGuildId();
+      log.info('Verbundener Discord-Server geändert', { guildId });
+      if (guildId) {
+        await syncDiscord({ trigger: 'event' }).catch(() => undefined);
+      }
+    })();
+  }, 60_000);
 
   jobs.start();
 
@@ -128,6 +238,10 @@ async function main(): Promise<void> {
     shuttingDown = true;
     log.info('Shutdown gestartet', { signal });
     clearInterval(pingTimer);
+    clearInterval(guildWatchTimer);
+    if (syncTimer) {
+      clearTimeout(syncTimer);
+    }
     await jobs.stop();
     await writeHeartbeat({
       online: false,

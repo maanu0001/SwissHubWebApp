@@ -1,8 +1,14 @@
-import { env } from '@swisshub/config';
 import { branding } from '@swisshub/config/client';
 import { discord } from '@swisshub/discord';
 import { guildIconUrl } from '@swisshub/discord/cdn';
-import { buildNavigation, enabledModuleIds, groupNavigation, jail, readBotStatus } from '@swisshub/modules';
+import {
+  buildNavigation,
+  enabledModuleIds,
+  getGuildConfig,
+  groupNavigation,
+  jail,
+  readBotStatus,
+} from '@swisshub/modules';
 import { AppShell } from '@/components/layout/app-shell';
 import { csrfTokenFor, requireMember } from '@/server/auth';
 
@@ -28,12 +34,17 @@ export default async function AppLayout({
 }): Promise<React.JSX.Element> {
   const context = await requireMember();
 
-  const [moduleIds, bot, guild, jailStats] = await Promise.all([
+  const [moduleIds, bot, guild, guildConfig, jailStats] = await Promise.all([
     enabledModuleIds(),
     readBotStatus(),
     discord.guild.get().catch(() => null),
+    getGuildConfig(),
     jail.getJailStats().catch(() => null),
   ]);
+
+  // Der verbundene Server steht in der Datenbank; Discord liefert nur die
+  // aktuellen Anzeigedaten und darf ausfallen.
+  const guildId = guild?.id ?? guildConfig.guildId;
 
   const navigation = buildNavigation(context.permissionKeys, moduleIds);
   const groups = groupNavigation(navigation).map((group) => ({
@@ -65,11 +76,11 @@ export default async function AppLayout({
       titles={titles}
       permissions={context.permissionKeys}
       bot={{ online: bot.online, wsPingMs: bot.wsPingMs }}
-      discordUrl={`https://discord.com/channels/${env.DISCORD_GUILD_ID}`}
+      discordUrl={guildId ? `https://discord.com/channels/${guildId}` : 'https://discord.com/channels/@me'}
       server={{
-        name: guild?.name ?? branding.name,
-        iconUrl: guild ? guildIconUrl(guild.id, guild.iconHash, 64) : null,
-        memberCount: guild?.approximateMemberCount ?? bot.guildMemberCount,
+        name: guild?.name ?? guildConfig.name ?? branding.name,
+        iconUrl: guildId ? guildIconUrl(guildId, guild?.iconHash ?? guildConfig.iconHash, 64) : null,
+        memberCount: guild?.approximateMemberCount ?? guildConfig.memberCount ?? bot.guildMemberCount,
         botOnline: bot.online,
       }}
       user={{
@@ -79,7 +90,7 @@ export default async function AppLayout({
         avatarHash: context.user.avatarHash,
         primaryRole: APP_ROLE_LABEL[context.user.appRole] ?? 'Mitglied',
         csrfToken: csrfTokenFor(context),
-        guildId: env.DISCORD_GUILD_ID,
+        guildId: guildId ?? '',
       }}
     >
       {children}

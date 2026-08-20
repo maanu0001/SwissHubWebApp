@@ -156,10 +156,13 @@ POSTGRES_DB=swisshub
 DISCORD_CLIENT_ID=...
 DISCORD_CLIENT_SECRET=...
 DISCORD_BOT_TOKEN=...
-DISCORD_GUILD_ID=...
-DISCORD_ADMIN_ROLE_ID=...
-DISCORD_JAIL_ROLE_ID=...
+
+# Notzugang: dieses Konto behält immer Vollzugriff.
 SWISSHUB_OWNER_DISCORD_ID=...
+
+# Discord-Server, Rollen, Channels und Moduleinstellungen gehören NICHT mehr
+# in die .env - sie werden unter /setup im Dashboard konfiguriert.
+# Siehe docs/CONFIGURATION.md.
 
 AUTH_SECRET=<openssl rand -base64 48>
 
@@ -257,15 +260,24 @@ curl -s https://system.swisshub.gg/api/health
 1. <https://system.swisshub.gg> öffnen → **Mit Discord anmelden**.
 2. Nur Mitglieder des konfigurierten Servers kommen hinein; ohne passende
    Rolle landest du auf der Access-Denied-Seite.
-3. Als Owner bzw. mit der Administratorrolle:
-   - **Einstellungen → Rollen & Berechtigungen**: Discord-Rollen ihre
-     Permissions zuweisen (Moderator, Supporter, ...), Administratorrollen als
-     _geschützt_ markieren und Moderationsstufen vergeben.
-   - **Einstellungen → Jail**: Jail-Rolle, Jail-Channel, Moderations-Log-Channel
-     und maximale Dauer setzen.
-   - **Einstellungen → System**: Zeitzone und Anzeigeoptionen prüfen.
-4. Einen Testjail über ein eigenes Zweitkonto ausführen und prüfen, dass
+3. **Einrichtungsassistent** unter <https://system.swisshub.gg/setup>:
+   1. **Discord-Server verbinden** - die Auswahl enthält nur Server, auf denen
+      der Bot Mitglied ist.
+   2. **Abgleich** - Rollen und Channels werden gespiegelt (läuft beim Verbinden
+      automatisch, später auch bei jedem Botstart und alle 15 Minuten).
+   3. **Berechtigungen** - unter _Server → Berechtigungen_ Discord-Rollen ihre
+      Permissions zuweisen (per Vorlage oder einzeln), Administratorrollen als
+      _geschützt_ markieren und Moderationsstufen vergeben.
+   4. **Module** - unter _Module → Jail → Einstellungen_ Jail-Rolle,
+      Jail-Channel, Moderations-Log-Channel und maximale Dauer setzen.
+4. **Prüfen**: _Server_ zeigt den Fertigstellungsgrad; _System → Bot_ prüft,
+   ob der Bot alle nötigen Discord-Berechtigungen besitzt und hoch genug
+   einsortiert ist.
+5. Einen Testjail über ein eigenes Zweitkonto ausführen und prüfen, dass
    Rollenentzug, Log-Embed und automatische Freilassung funktionieren.
+
+> Änderungen im Dashboard wirken sofort - Bot und WebApp müssen dafür **nicht**
+> neu gestartet werden (siehe `ConfigRevision` in docs/CONFIGURATION.md).
 
 ---
 
@@ -277,9 +289,14 @@ zwei Quellen:
 
 1. `SWISSHUB_OWNER_DISCORD_ID` in der `.env` entspricht deiner **Discord-User-ID**
    (nicht der Server-ID) - dieses Konto hat sofort Vollzugriff, ganz ohne Rolle.
-2. Eine deiner Discord-Rollen ist einer Berechtigung zugeordnet. Beim Start legt
-   die Anwendung dafür automatisch die Rolle aus `DISCORD_ADMIN_ROLE_ID` mit
-   `admin.full` an - vorausgesetzt, du **trägst diese Rolle auch selbst**.
+2. Eine deiner Discord-Rollen ist einer Berechtigung zugeordnet (_Server →
+   Berechtigungen_). Ist noch eine `DISCORD_ADMIN_ROLE_ID` gesetzt, legt die
+   Anwendung diese Rolle beim Start automatisch mit `admin.full` an -
+   vorausgesetzt, du **trägst diese Rolle auch selbst**.
+
+Solange die Einrichtung nicht abgeschlossen ist, darf zusätzlich ein
+**Discord-Administrator** den Assistenten unter `/setup` bedienen. Danach zählt
+ausschliesslich die Dashboard-Berechtigung.
 
 Diagnose (zeigt Konfiguration, Rollen und die effektiven Berechtigungen):
 
@@ -307,8 +324,12 @@ docker compose -f docker-compose.prod.yml exec web npm run grant:admin -- <ROLLE
 > wird (`up -d`), nicht bei einem blossen `restart`.
 
 Danach abmelden und erneut anmelden - die Rollen werden dabei frisch von Discord
-geladen. Anschliessend unter _Einstellungen → Rollen & Berechtigungen_ die
-weiteren Rollen (Moderator, Supporter, ...) konfigurieren.
+geladen. Anschliessend unter _Server → Berechtigungen_ die weiteren Rollen
+(Moderator, Supporter, ...) konfigurieren.
+
+> Die letzte Rolle mit „Berechtigungen verwalten“ bzw. „Vollzugriff“ lässt sich
+> im Dashboard nicht entwerten - dieser Aussperrschutz verhindert genau diese
+> Situation für die Zukunft.
 
 ## 8. Betrieb
 

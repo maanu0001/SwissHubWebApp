@@ -72,6 +72,7 @@ Indizes für die Felder, nach denen gefiltert wird.
 import { z } from 'zod';
 import { optionalSnowflakeSchema } from '@swisshub/shared';
 import { registerModule, type ModuleDefinition } from '../registry';
+import type { SettingsField } from '../settings/fields';
 
 export const WARNINGS_MODULE_ID = 'warnings';
 
@@ -89,6 +90,29 @@ export const warningsSettingsSchema = z.object({
 
 export type WarningsSettings = z.infer<typeof warningsSettingsSchema>;
 
+/**
+ * Beschreibung der Einstellungen. Daraus entsteht die Seite
+ * `/modules/warnings` automatisch - inklusive Rollen- und Channel-Auswahl.
+ * Ein eigenes Formular ist nicht nötig, und es gibt keine ID-Eingabefelder.
+ */
+export const warningsSettingsFields: SettingsField[] = [
+  {
+    key: 'logChannelId',
+    type: 'discord-channel',
+    label: 'Log-Channel',
+    group: 'Discord',
+    channelKinds: ['text'],
+  },
+  {
+    key: 'maxSeverity',
+    type: 'number',
+    label: 'Maximale Schwere',
+    group: 'Verhalten',
+    min: 1,
+    max: 10,
+  },
+];
+
 export const warningsModule: ModuleDefinition = registerModule({
   id: WARNINGS_MODULE_ID,
   name: 'Verwarnungen',
@@ -97,6 +121,26 @@ export const warningsModule: ModuleDefinition = registerModule({
   permissionPrefix: 'warnings',
   defaultEnabled: true,
   settingsSchema: warningsSettingsSchema,
+  settingsFields: warningsSettingsFields,
+  configVersion: 1, // bei inkompatiblen Änderungen am Schema erhöhen
+  requiredDiscordPermissions: ['SEND_MESSAGES', 'EMBED_LINKS'],
+  // Konkrete Aussagen für die Systemgesundheit - mit Link zur Lösung.
+  async healthChecks(context) {
+    const { getModuleSettings } = await import('../module-state');
+    const settings = await getModuleSettings<WarningsSettings>(WARNINGS_MODULE_ID);
+    if (!settings.logChannelId) {
+      return [
+        {
+          label: 'Log-Channel',
+          status: 'warning',
+          detail: 'Es ist kein Channel gewählt - Verwarnungen werden nicht protokolliert.',
+          fixHref: `/modules/${WARNINGS_MODULE_ID}`,
+        },
+      ];
+    }
+    void context;
+    return [{ label: 'Log-Channel', status: 'ok' }];
+  },
   permissions: [
     {
       key: WARNINGS_PERMISSIONS.view,
@@ -135,8 +179,29 @@ Danach das Modul in `packages/modules/src/index.ts` importieren:
 import './warnings/config';
 ```
 
-**Das ist die einzige zentrale Änderung.** Navigation, Permission Registry, Modulverwaltung und
-die Berechtigungszuordnung in den Einstellungen kennen das Modul ab jetzt automatisch.
+**Das ist die einzige zentrale Änderung.** Navigation, Permission Registry, Modulverwaltung,
+Berechtigungszuordnung, Einstellungsseite (`/modules/warnings`), Bot-Berechtigungsprüfung und
+Systemgesundheit kennen das Modul ab jetzt automatisch.
+
+### Feldtypen der Einstellungsoberfläche
+
+| Typ                    | Ergebnis im Dashboard                                             |
+| ---------------------- | ----------------------------------------------------------------- |
+| `discord-role`         | Rollenauswahl (`mustBeManageable` erzwingt die Hierarchieprüfung) |
+| `discord-role-list`    | Mehrfachauswahl mit Suche                                         |
+| `discord-channel`      | Channel-Auswahl (`channelKinds` filtert die Art)                  |
+| `discord-channel-list` | Mehrfachauswahl von Channels                                      |
+| `boolean`              | Schalter                                                          |
+| `number`               | Zahlenfeld mit Grenzen und Einheit                                |
+| `duration`             | Dauer mit Vorschlägen und freier Eingabe                          |
+| `text` / `textarea`    | Textfeld                                                          |
+
+Gespeichert wird über `writeModuleSettings` - inklusive Zod-Validierung, Prüfung gegen den
+echten Discord-Zustand, Audit Log mit Vorher/Nachher und Erhöhung der Konfigurations-Revision.
+Details: [CONFIGURATION.md](CONFIGURATION.md).
+
+> **Keine Rollen-IDs im Code.** Ein Modul liest seine Rollen und Channels ausschliesslich aus
+> den eigenen Einstellungen (`getModuleSettings`), niemals aus `process.env`.
 
 > Neues Icon nötig? In `apps/web/src/components/layout/nav-icon.tsx` in die `ICONS`-Zuordnung
 > aufnehmen (bewusst eine feste Liste - so bleibt das Bundle klein).
@@ -344,20 +409,26 @@ export default async function WarningsPage() {
 
 Wiederverwendbare Bausteine:
 
-| Komponente                                                                 | Zweck                                   |
-| -------------------------------------------------------------------------- | --------------------------------------- |
-| `PageHeader`                                                               | Titel, Beschreibung, Aktionen           |
-| `StatCard`                                                                 | Kennzahl mit Icon                       |
-| `DataTable`                                                                | Tabelle inkl. Leerzustand               |
-| `Pagination`                                                               | serverseitige Seitennavigation          |
-| `MemberCard`, `DiscordAvatar`, `RoleBadge`                                 | Mitgliederdarstellung                   |
-| `ConfirmationDialog`                                                       | Bestätigung destruktiver Aktionen       |
-| `StatusBadge`, `EmptyState`, `ErrorState`, `LoadingState`, `TableSkeleton` | Zustände                                |
-| `PermissionGuard`                                                          | UX-Filterung (keine Sicherheitsgrenze!) |
-| `AuditEntry`                                                               | Audit-Eintrag                           |
+| Komponente                                                                 | Zweck                                             |
+| -------------------------------------------------------------------------- | ------------------------------------------------- |
+| `PageHeader`                                                               | Titel, Beschreibung, Aktionen                     |
+| `StatCard`                                                                 | Kennzahl mit Icon                                 |
+| `DataTable`                                                                | Tabelle inkl. Leerzustand                         |
+| `Pagination`                                                               | serverseitige Seitennavigation                    |
+| `MemberCard`, `DiscordAvatar`, `RoleBadge`                                 | Mitgliederdarstellung                             |
+| `ConfirmationDialog`                                                       | Bestätigung destruktiver Aktionen                 |
+| `StatusBadge`, `EmptyState`, `ErrorState`, `LoadingState`, `TableSkeleton` | Zustände                                          |
+| `PermissionGuard`                                                          | UX-Filterung (keine Sicherheitsgrenze!)           |
+| `AuditEntry`                                                               | Audit-Eintrag                                     |
+| `SettingsForm`                                                             | generische Einstellungsseite aus `settingsFields` |
+| `RoleSelect`, `ChannelSelect`, `MultiSelect`                               | Discord-Auswahllisten statt ID-Feldern            |
+| `HealthChecks`                                                             | Ergebnis der Modulprüfungen mit Quick-Fix         |
 
 Formulare in Client-Komponenten übergeben immer `csrfToken` an die Server Action und melden das
 Ergebnis per `toast` (`sonner`).
+
+> Für **Einstellungen** ist keine eigene Seite nötig: `settingsFields` in der Moduldefinition
+> genügt, `/modules/<id>` wird daraus erzeugt.
 
 ---
 
@@ -399,13 +470,15 @@ Fehlerfall der Discord-API.
 
 - [ ] Datenbankmodell + Migration
 - [ ] `config.ts` mit `registerModule(...)`, Permissions und Einstellungen
+- [ ] `settingsFields`, `configVersion`, `requiredDiscordPermissions`, `healthChecks` gesetzt
+- [ ] keine Rollen-/Channel-IDs aus `process.env` - alles aus den Moduleinstellungen
 - [ ] Import in `packages/modules/src/index.ts`
 - [ ] Zod-Schemas für alle Eingaben
 - [ ] Service mit Moderation Policy, Idempotenz und Audit Log
 - [ ] Server Actions über `defineAction`
 - [ ] Seite unter `apps/web/src/app/(app)/<modul>/`
 - [ ] Icon in `nav-icon.tsx` registriert
-- [ ] Einstellungen im UI (falls nötig)
+- [ ] Einstellungen über `settingsFields` beschrieben (die Seite entsteht automatisch)
 - [ ] Tests (Unit + Integration)
 - [ ] `npm run check` läuft fehlerfrei
 

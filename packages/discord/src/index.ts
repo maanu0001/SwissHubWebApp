@@ -35,7 +35,16 @@ export function setDiscordGateway(gateway: DiscordGateway | null): void {
 }
 
 export * from './types';
+export {
+  setGuildIdResolver,
+  resolveGuildId,
+  tryResolveGuildId,
+  clearGuildIdCache,
+  bootstrapGuildId,
+  type GuildIdResolver,
+} from './guild-context';
 export * from './errors';
+export * from './permissions';
 export * from './gateway';
 export { clearDiscordCache } from './rest-gateway';
 export { createMockGateway } from './mock-gateway';

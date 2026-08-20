@@ -41,19 +41,24 @@ und beide Prozesse können unabhängig neu gestartet werden.
 
 ## 2. Pakete
 
-| Paket                   | Verantwortung                                                                 | Abhängig von           |
-| ----------------------- | ----------------------------------------------------------------------------- | ---------------------- |
-| `@swisshub/config`      | ENV-Validierung (Zod), Branding, Cookie-/Session-/Job-Konstanten              | -                      |
-| `@swisshub/shared`      | Fehlerhierarchie, `ActionResult`, Zeit-/Textutilities, Pagination, Krypto     | -                      |
-| `@swisshub/logger`      | strukturiertes Logging inkl. Secret-Redaction                                 | shared                 |
-| `@swisshub/database`    | Prisma Client, Audit Log (Hash-Chain), Rate Limit, Idempotenz, Config-Store   | config, logger         |
-| `@swisshub/discord`     | REST-Client mit Rate-Limit-Handling, Fehler-Mapping, Gateway-Interface, Mocks | config, logger, shared |
-| `@swisshub/permissions` | Permission Registry, Permission Engine, Rollenhierarchie, Moderation Policy   | database, discord      |
-| `@swisshub/modules`     | Module Registry, Kernbereiche, Jail-Modul, Mitglieder-Service, Bot-Status     | alle oberen            |
-| `@swisshub/auth`        | Discord OAuth2 (PKCE), Sessions, Identity-Refresh, CSRF, AuthContext          | alle oberen            |
+| Paket                   | Verantwortung                                                                                         | Abhängig von           |
+| ----------------------- | ----------------------------------------------------------------------------------------------------- | ---------------------- |
+| `@swisshub/config`      | ENV-Validierung (Zod), Branding, Cookie-/Session-/Job-Konstanten                                      | -                      |
+| `@swisshub/shared`      | Fehlerhierarchie, `ActionResult`, Zeit-/Textutilities, Pagination, Krypto                             | -                      |
+| `@swisshub/logger`      | strukturiertes Logging inkl. Secret-Redaction                                                         | shared                 |
+| `@swisshub/database`    | Prisma Client, Audit Log (Hash-Chain), Rate Limit, Idempotenz, Config-Store, Config-Revision          | config, logger         |
+| `@swisshub/discord`     | REST-Client mit Rate-Limit-Handling, Fehler-Mapping, Gateway-Interface, Permission-Bits, Mocks        | config, logger, shared |
+| `@swisshub/permissions` | Permission Registry, Permission Engine, Vorlagen, Aussperrschutz, Rollenhierarchie, Moderation Policy | database, discord      |
+| `@swisshub/modules`     | Module Registry, Guild-Konfiguration, Discord-Sync, Settings-Framework, Health, Jail-Modul            | alle oberen            |
+| `@swisshub/auth`        | Discord OAuth2 (PKCE), Sessions, Identity-Refresh, CSRF, AuthContext                                  | alle oberen            |
 
 Die Abhängigkeiten zeigen strikt in eine Richtung. `packages/discord` kennt weder Datenbank
 noch Berechtigungen; `packages/permissions` kennt keine UI.
+
+Damit `@swisshub/discord` trotzdem die in der Datenbank hinterlegte Guild verwendet, wird ein
+**Resolver injiziert**: `@swisshub/modules` registriert beim Import eine Funktion, die die
+Guild-ID aus `GuildConfig` liest (`packages/discord/src/guild-context.ts`). Die
+Abhängigkeitsrichtung bleibt dadurch erhalten.
 
 ## 3. Request Flow (Moderationsaktion)
 
@@ -128,6 +133,11 @@ gearbeitet:
 User ──1:n── Session
 User ──1:1── DiscordIdentityCache
 
+GuildConfig                               verbundener Discord-Server (Singleton)
+DiscordRoleCache / DiscordChannelCache    gespiegelter Discord-Zustand (Soft Delete)
+ConfigRevision                            Zähler für Konfigurationsänderungen
+SyncRun                                   Protokoll der Discord-Abgleiche
+
 ManagedRole ──1:n── RolePermission        (Discord-Rolle -> Permission)
 
 JailEntry     activeKey UNIQUE, idempotencyKey UNIQUE, roleSnapshot[]
@@ -135,7 +145,7 @@ ModerationAction                          modulunabhängige Historie
 AuditLog      sequence, previousHash, hash (Hash-Chain)
 SecurityEvent
 SystemConfig  key/value (validiert per Zod)
-ModuleState   moduleId, enabled, settings
+ModuleState   moduleId, enabled, settings, configVersion
 RateLimitCounter, IdempotencyRecord, BotStatus, ReconciliationRun
 ```
 
@@ -152,6 +162,21 @@ Es wird bewusst **keine** vollständige Kopie der Discord-Mitgliederdatenbank ge
 | Mitgliedschaft + Rollen-IDs (Cache mit TTL)                                  | Rollennamen und Farben                    |
 | Moderationsvorgänge (Jail, Audit) inkl. Rollen-Snapshot                      | Channel-Listen                            |
 | Pseudonymisierte IP (HMAC) und User-Agent im Audit Log                       | Profildaten nicht angemeldeter Mitglieder |
+| Rollen- und Channel-**Metadaten** (Name, Farbe, Position, Art)               | Mitgliederlisten - bewusst nie gespiegelt |
+
+## 8a. Konfiguration zur Laufzeit
+
+Die Laufzeitkonfiguration liegt vollständig in PostgreSQL (Guild, Rollen-Mappings,
+Moduleinstellungen); die Umgebung enthält nur noch Infrastruktur-Secrets.
+
+Damit Änderungen ohne Neustart wirken, erhöht jeder schreibende Zugriff
+`ConfigRevision.revision`. Bot und WebApp lesen diesen Zähler günstig (eine Zeile,
+gepollt) und verwerfen ihre Caches, sobald er sich ändert
+(`packages/database/src/config-revision.ts`). Es braucht dafür weder Redis noch Pub/Sub.
+
+Der Bot hält den Cache zusätzlich ereignisgesteuert aktuell: Discord-Ereignisse zu Rollen,
+Channels und Guild lösen (gesammelt) einen Abgleich aus; spätestens alle 15 Minuten läuft er
+ohnehin. Details: [CONFIGURATION.md](CONFIGURATION.md).
 
 ## 9. Beobachtbarkeit
 
@@ -159,6 +184,9 @@ Es wird bewusst **keine** vollständige Kopie der Discord-Mitgliederdatenbank ge
 - `/api/health` prüft WebApp, Datenbank und Bot-Heartbeat.
 - `BotStatus` liefert Ping, letzten Heartbeat und letzte erfolgreiche Verbindung.
 - `ReconciliationRun` protokolliert jeden Abgleich inklusive gefundener Abweichungen.
+- `SyncRun` protokolliert jeden Discord-Abgleich (Auslöser, Anzahl, Fehler).
+- Die Systemgesundheit (`getSystemHealth`) liefert den Fertigstellungsgrad der Einrichtung und
+  benennt jeden offenen Punkt mit einem direkten Link zur Lösung.
 - Die Fehlerobjekte tragen stabile Codes (`AppErrorCode`), sodass sich später Sentry oder
   ein Metrik-Exporter ohne Umbau anschliessen lässt.
 

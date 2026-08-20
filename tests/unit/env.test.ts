@@ -1,5 +1,11 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { EnvironmentError, assertServerEnv, resetServerEnvCache, serverEnvSchema } from '@swisshub/config';
+import {
+  EnvironmentError,
+  assertServerEnv,
+  listDeprecatedEnvKeys,
+  resetServerEnvCache,
+  serverEnvSchema,
+} from '@swisshub/config';
 
 const VALID = {
   NODE_ENV: 'development',
@@ -48,6 +54,28 @@ describe('Environment-Validierung', () => {
     expect(serverEnvSchema.safeParse({ ...VALID, DISCORD_GUILD_ID: 'nicht-numerisch' }).success).toBe(false);
     expect(serverEnvSchema.safeParse({ ...VALID, DISCORD_ADMIN_ROLE_ID: '42' }).success).toBe(false);
     expect(serverEnvSchema.safeParse({ ...VALID, DISCORD_ADMIN_ROLE_ID: '' }).success).toBe(true);
+  });
+
+  it('startet auch ohne DISCORD_GUILD_ID - der Server wird im Dashboard verbunden', () => {
+    const withoutGuild = { ...VALID };
+    delete withoutGuild.DISCORD_GUILD_ID;
+
+    const parsed = serverEnvSchema.safeParse(withoutGuild);
+    expect(parsed.success).toBe(true);
+    expect(parsed.success && parsed.data.DISCORD_GUILD_ID).toBeUndefined();
+  });
+
+  it('meldet abgelöste Variablen mit Hinweis auf die neue Stelle', () => {
+    expect(listDeprecatedEnvKeys({} as NodeJS.ProcessEnv)).toEqual([]);
+
+    const deprecated = listDeprecatedEnvKeys({
+      DISCORD_GUILD_ID: '123456789012345678',
+      DISCORD_JAIL_ROLE_ID: '',
+      DISCORD_ADMIN_ROLE_ID: '123456789012345678',
+    } as NodeJS.ProcessEnv);
+
+    expect(deprecated.map((entry) => entry.key)).toEqual(['DISCORD_GUILD_ID', 'DISCORD_ADMIN_ROLE_ID']);
+    expect(deprecated[0]?.replacement).toContain('/setup');
   });
 
   it('verweigert den Mock-Modus in Production', () => {

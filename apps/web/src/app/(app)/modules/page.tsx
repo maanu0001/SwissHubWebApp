@@ -1,10 +1,11 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { listModuleStatus } from '@swisshub/modules';
+import { getModuleHealth, listModuleStatus } from '@swisshub/modules';
 import { formatDateTime } from '@swisshub/shared';
 import { Badge } from '@/components/ui/badge';
 import { NavIcon } from '@/components/layout/nav-icon';
 import { ModuleToggle } from '@/modules/settings/components/module-toggle';
+import { HealthChecks } from '@/modules/configuration/components/health-checks';
 import { csrfTokenFor, requirePagePermission } from '@/server/auth';
 import { cn } from '@/lib/utils';
 
@@ -22,8 +23,9 @@ function SectionTitle({ children }: { children: React.ReactNode }): React.JSX.El
 
 export default async function ModulesPage(): Promise<React.JSX.Element> {
   const context = await requirePagePermission('modules.manage');
-  const status = await listModuleStatus();
+  const [status, health] = await Promise.all([listModuleStatus(), getModuleHealth()]);
   const csrfToken = csrfTokenFor(context);
+  const healthById = new Map(health.map((entry) => [entry.moduleId, entry]));
 
   const features = status.filter((entry) => !entry.definition.core && entry.definition.status !== 'planned');
   const planned = status.filter((entry) => entry.definition.status === 'planned');
@@ -65,6 +67,14 @@ export default async function ModulesPage(): Promise<React.JSX.Element> {
                 ))}
               </div>
 
+              {(() => {
+                const report = healthById.get(entry.definition.id);
+                if (!report || report.checks.length === 0 || report.status === 'ok') {
+                  return null;
+                }
+                return <HealthChecks checks={report.checks.filter((check) => check.status !== 'ok')} />;
+              })()}
+
               <div className="mt-auto flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
                 <span className="flex items-center gap-1.5">
                   <span
@@ -80,6 +90,14 @@ export default async function ModulesPage(): Promise<React.JSX.Element> {
                     className="text-primary-bright hover:underline"
                   >
                     Zum Modul
+                  </Link>
+                ) : null}
+                {entry.definition.settingsFields?.length ? (
+                  <Link
+                    href={`/modules/${entry.definition.id}`}
+                    className="text-primary-bright hover:underline"
+                  >
+                    Einstellungen
                   </Link>
                 ) : null}
               </div>

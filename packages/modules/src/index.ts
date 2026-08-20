@@ -2,10 +2,22 @@
 // Weitere Module hier ergänzen - siehe docs/MODULES.md.
 import './core-modules';
 import './jail/config';
+import { registerGuildResolver } from './guild/config';
+
+// Ab hier löst jeder Discord-Aufruf die Guild aus der Datenbank auf.
+// Das passiert beim Import, damit weder WebApp noch Bot es vergessen können.
+registerGuildResolver();
 
 export * from './registry';
 export * from './module-state';
 export * from './settings';
+export * from './settings/fields';
+export * from './settings/service';
+export * from './guild/config';
+export * from './discord/sync';
+export * from './discord/inspector';
+export * from './health/types';
+export * from './health/service';
 export * as jail from './jail';
 export * from './bot-status';
 export * from './members/service';

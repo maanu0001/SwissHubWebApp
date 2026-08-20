@@ -46,6 +46,42 @@ export interface FakeManagedRole {
   moderationLevel: number;
 }
 
+export interface FakeGuildConfig {
+  id: string;
+  guildId: string;
+  name: string | null;
+  iconHash: string | null;
+  ownerId: string | null;
+  memberCount: number | null;
+  presenceCount: number | null;
+  lastSyncedAt: Date | null;
+  setupCompletedAt: Date | null;
+  setupCompletedBy: string | null;
+}
+
+export interface FakeRoleCache {
+  roleId: string;
+  name: string;
+  color: number;
+  position: number;
+  managed: boolean;
+  hoist: boolean;
+  permissions: string;
+  syncedAt: Date;
+  deletedAt: Date | null;
+}
+
+export interface FakeChannelCache {
+  channelId: string;
+  name: string;
+  type: number;
+  parentId: string | null;
+  position: number;
+  nsfw: boolean;
+  syncedAt: Date;
+  deletedAt: Date | null;
+}
+
 export interface FakeState {
   jails: FakeJailEntry[];
   managedRoles: FakeManagedRole[];
@@ -58,6 +94,11 @@ export interface FakeState {
   moderationActions: Array<Record<string, unknown>>;
   idempotency: Map<string, { status: string; resultRef: string | null; createdAt: Date }>;
   reconciliationRuns: Array<Record<string, unknown>>;
+  guildConfig: FakeGuildConfig | null;
+  roleCache: FakeRoleCache[];
+  channelCache: FakeChannelCache[];
+  syncRuns: Array<Record<string, unknown>>;
+  configRevision: bigint;
   sequence: number;
 }
 
@@ -74,6 +115,11 @@ export function createFakeState(): FakeState {
     moderationActions: [],
     idempotency: new Map(),
     reconciliationRuns: [],
+    guildConfig: null,
+    roleCache: [],
+    channelCache: [],
+    syncRuns: [],
+    configRevision: 1n,
     sequence: 0,
   };
 }
@@ -294,17 +340,232 @@ export function createFakeDatabaseModule(state: FakeState) {
       async upsert() {
         return null;
       },
+      async delete({ where }: { where: { discordRoleId: string } }) {
+        const index = state.managedRoles.findIndex((role) => role.discordRoleId === where.discordRoleId);
+        if (index >= 0) {
+          state.managedRoles.splice(index, 1);
+        }
+        return null;
+      },
     },
 
     rolePermission: {
-      async findMany() {
-        return state.rolePermissions.map((entry) => ({ ...entry }));
+      async findMany({ where }: { where?: { permission?: { in?: string[] } } } = {}) {
+        const allowed = where?.permission?.in;
+        return state.rolePermissions
+          .filter((entry) => !allowed || allowed.includes(entry.permission))
+          .map((entry) => ({ ...entry }));
+      },
+      async count({ where }: { where?: { permission?: { in?: string[] } } } = {}) {
+        const allowed = where?.permission?.in;
+        return state.rolePermissions.filter((entry) => !allowed || allowed.includes(entry.permission)).length;
       },
       async upsert() {
         return null;
       },
       async deleteMany() {
         return { count: 0 };
+      },
+    },
+
+    guildConfig: {
+      async findUnique() {
+        return state.guildConfig ? { ...state.guildConfig } : null;
+      },
+      async create({ data }: { data: Partial<FakeGuildConfig> }) {
+        state.guildConfig = {
+          id: 'singleton',
+          guildId: '',
+          name: null,
+          iconHash: null,
+          ownerId: null,
+          memberCount: null,
+          presenceCount: null,
+          lastSyncedAt: null,
+          setupCompletedAt: null,
+          setupCompletedBy: null,
+          ...data,
+        } as FakeGuildConfig;
+        return { ...state.guildConfig };
+      },
+      async upsert({
+        create,
+        update,
+      }: {
+        create: Partial<FakeGuildConfig>;
+        update: Partial<FakeGuildConfig>;
+      }) {
+        if (state.guildConfig) {
+          Object.assign(state.guildConfig, update);
+        } else {
+          state.guildConfig = {
+            id: 'singleton',
+            guildId: '',
+            name: null,
+            iconHash: null,
+            ownerId: null,
+            memberCount: null,
+            presenceCount: null,
+            lastSyncedAt: null,
+            setupCompletedAt: null,
+            setupCompletedBy: null,
+            ...create,
+          } as FakeGuildConfig;
+        }
+        return { ...state.guildConfig };
+      },
+      async update({ data }: { data: Partial<FakeGuildConfig> }) {
+        if (!state.guildConfig) {
+          throw new FakeKnownRequestError('P2025', 'Record not found');
+        }
+        Object.assign(state.guildConfig, data);
+        return { ...state.guildConfig };
+      },
+    },
+
+    discordRoleCache: {
+      async findMany() {
+        return state.roleCache.map((role) => ({ ...role })).sort((a, b) => b.position - a.position);
+      },
+      async findUnique({ where }: { where: { roleId: string } }) {
+        const role = state.roleCache.find((entry) => entry.roleId === where.roleId);
+        return role ? { ...role } : null;
+      },
+      async upsert({
+        where,
+        create,
+        update,
+      }: {
+        where: { roleId: string };
+        create: Partial<FakeRoleCache>;
+        update: Partial<FakeRoleCache>;
+      }) {
+        const existing = state.roleCache.find((entry) => entry.roleId === where.roleId);
+        if (existing) {
+          Object.assign(existing, update);
+          return { ...existing };
+        }
+        const role = {
+          roleId: where.roleId,
+          name: '',
+          color: 0,
+          position: 0,
+          managed: false,
+          hoist: false,
+          permissions: '0',
+          syncedAt: new Date(),
+          deletedAt: null,
+          ...create,
+        } as FakeRoleCache;
+        state.roleCache.push(role);
+        return { ...role };
+      },
+      async updateMany({
+        where,
+        data,
+      }: {
+        where: { roleId?: { notIn?: string[] }; deletedAt?: null };
+        data: { deletedAt: Date };
+      }) {
+        const keep = where.roleId?.notIn ?? [];
+        const matching = state.roleCache.filter(
+          (entry) => !keep.includes(entry.roleId) && entry.deletedAt === null,
+        );
+        for (const entry of matching) {
+          entry.deletedAt = data.deletedAt;
+        }
+        return { count: matching.length };
+      },
+      async count({ where }: { where?: { deletedAt?: null } } = {}) {
+        return state.roleCache.filter((entry) => (where ? entry.deletedAt === null : true)).length;
+      },
+    },
+
+    discordChannelCache: {
+      async findMany() {
+        return state.channelCache.map((channel) => ({ ...channel })).sort((a, b) => a.position - b.position);
+      },
+      async findUnique({ where }: { where: { channelId: string } }) {
+        const channel = state.channelCache.find((entry) => entry.channelId === where.channelId);
+        return channel ? { ...channel } : null;
+      },
+      async upsert({
+        where,
+        create,
+        update,
+      }: {
+        where: { channelId: string };
+        create: Partial<FakeChannelCache>;
+        update: Partial<FakeChannelCache>;
+      }) {
+        const existing = state.channelCache.find((entry) => entry.channelId === where.channelId);
+        if (existing) {
+          Object.assign(existing, update);
+          return { ...existing };
+        }
+        const channel = {
+          channelId: where.channelId,
+          name: '',
+          type: 0,
+          parentId: null,
+          position: 0,
+          nsfw: false,
+          syncedAt: new Date(),
+          deletedAt: null,
+          ...create,
+        } as FakeChannelCache;
+        state.channelCache.push(channel);
+        return { ...channel };
+      },
+      async updateMany({
+        where,
+        data,
+      }: {
+        where: { channelId?: { notIn?: string[] }; deletedAt?: null };
+        data: { deletedAt: Date };
+      }) {
+        const keep = where.channelId?.notIn ?? [];
+        const matching = state.channelCache.filter(
+          (entry) => !keep.includes(entry.channelId) && entry.deletedAt === null,
+        );
+        for (const entry of matching) {
+          entry.deletedAt = data.deletedAt;
+        }
+        return { count: matching.length };
+      },
+      async count({ where }: { where?: { deletedAt?: null } } = {}) {
+        return state.channelCache.filter((entry) => (where ? entry.deletedAt === null : true)).length;
+      },
+    },
+
+    syncRun: {
+      async create({ data }: { data: Record<string, unknown> }) {
+        const entry = { id: `sync-${state.syncRuns.length + 1}`, startedAt: new Date(), ...data };
+        state.syncRuns.push(entry);
+        return entry;
+      },
+      async update({ where, data }: { where: { id: string }; data: Record<string, unknown> }) {
+        const entry = state.syncRuns.find((item) => item.id === where.id);
+        if (entry) {
+          Object.assign(entry, data);
+        }
+        return entry ?? null;
+      },
+      async findFirst() {
+        return state.syncRuns.at(-1) ?? null;
+      },
+      async findMany() {
+        return [...state.syncRuns];
+      },
+    },
+
+    configRevision: {
+      async findUnique() {
+        return { id: 'singleton', revision: state.configRevision };
+      },
+      async upsert() {
+        state.configRevision += 1n;
+        return { id: 'singleton', revision: state.configRevision };
       },
     },
 
@@ -453,6 +714,25 @@ export function createFakeDatabaseModule(state: FakeState) {
 
     async checkDatabase() {
       return { ok: true, latencyMs: 1 };
+    },
+
+    async readConfigRevision() {
+      return state.configRevision;
+    },
+
+    async bumpConfigRevision() {
+      state.configRevision += 1n;
+      return state.configRevision;
+    },
+
+    // Im Test wird bewusst nicht zwischengespeichert: jeder Aufruf liest den
+    // aktuellen Zustand, damit Tests keine Cache-Effekte umgehen müssen.
+    async revisionCache<T>(_key: string, loader: () => Promise<T>): Promise<T> {
+      return loader();
+    },
+
+    clearRevisionCaches(): void {
+      return undefined;
     },
 
     async disconnectDatabase() {

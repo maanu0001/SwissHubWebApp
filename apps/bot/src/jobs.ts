@@ -2,7 +2,7 @@ import { jobConfig } from '@swisshub/config';
 import { createLogger } from '@swisshub/logger';
 import { purgeExpiredIdempotencyKeys } from '@swisshub/database';
 import { purgeExpiredSessions } from '@swisshub/auth';
-import { jail, writeHeartbeat } from '@swisshub/modules';
+import { jail, syncDiscord, writeHeartbeat } from '@swisshub/modules';
 
 const log = createLogger('bot:jobs');
 
@@ -69,6 +69,16 @@ export function createJobRunner(
       intervalMs: jobConfig.reconcileIntervalMs,
       async run() {
         await jail.reconcileJails({ mode: 'AUTOMATIC', repair: true });
+      },
+    },
+    {
+      name: 'discord-sync',
+      // Sicherheitsnetz: Discord-Ereignisse können ausfallen (Neustart,
+      // verpasste Gateway-Events). Ein regelmässiger Abgleich hält die
+      // Auswahllisten trotzdem aktuell.
+      intervalMs: 15 * 60 * 1000,
+      async run() {
+        await syncDiscord({ trigger: 'scheduled' });
       },
     },
     {

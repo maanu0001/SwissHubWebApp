@@ -1,4 +1,4 @@
-import type { GuildChannel, GuildMember, GuildRole, GuildSummary, BotIdentity } from './types';
+import type { BotGuild, BotIdentity, GuildChannel, GuildMember, GuildRole, GuildSummary } from './types';
 
 /**
  * Zentrale Discord-Abstraktion.
@@ -31,6 +31,8 @@ export interface DiscordGateway {
   guild: {
     get(): Promise<GuildSummary>;
     memberCount(): Promise<number | null>;
+    /** Guilds, in denen der Bot Mitglied ist (automatische Server-Erkennung). */
+    listBotGuilds(): Promise<BotGuild[]>;
   };
   bot: {
     identity(): Promise<BotIdentity>;

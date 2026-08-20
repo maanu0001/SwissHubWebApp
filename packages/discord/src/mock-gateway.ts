@@ -155,9 +155,25 @@ export function createMockGateway(): DiscordGateway {
     channels: {
       async list() {
         return [
-          { id: '700000000000000001', name: 'moderation-log', type: 0 },
-          { id: '700000000000000002', name: 'jail', type: 0 },
-          { id: '700000000000000003', name: 'allgemein', type: 0 },
+          { id: '700000000000000010', name: 'Moderation', type: 4, parentId: null, position: 0, nsfw: false },
+          {
+            id: '700000000000000001',
+            name: 'moderation-log',
+            type: 0,
+            parentId: '700000000000000010',
+            position: 1,
+            nsfw: false,
+          },
+          {
+            id: '700000000000000002',
+            name: 'jail',
+            type: 0,
+            parentId: '700000000000000010',
+            position: 2,
+            nsfw: false,
+          },
+          { id: '700000000000000003', name: 'allgemein', type: 0, parentId: null, position: 3, nsfw: false },
+          { id: '700000000000000004', name: 'Lounge', type: 2, parentId: null, position: 4, nsfw: false },
         ];
       },
       async send(channelId, payload) {
@@ -177,6 +193,11 @@ export function createMockGateway(): DiscordGateway {
       },
       async memberCount() {
         return state.size;
+      },
+      async listBotGuilds() {
+        return [
+          { id: '000000000000000000', name: 'SwissHub (Mock)', iconHash: null, memberCount: state.size },
+        ];
       },
     },
     bot: {

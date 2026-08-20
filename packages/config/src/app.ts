@@ -53,7 +53,11 @@ export const discordConfig = {
   authorizeUrl: 'https://discord.com/oauth2/authorize',
   tokenUrl: 'https://discord.com/api/oauth2/token',
   revokeUrl: 'https://discord.com/api/oauth2/token/revoke',
-  get guildId(): string {
+  /**
+   * Guild-ID aus der Umgebung. Nur Bootstrap bzw. Fallback - massgeblich ist
+   * die in der Datenbank gespeicherte Guild (siehe `resolveGuildId()`).
+   */
+  get bootstrapGuildId(): string | undefined {
     return env.DISCORD_GUILD_ID;
   },
   get botToken(): string {

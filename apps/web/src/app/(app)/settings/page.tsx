@@ -1,101 +1,79 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { AlertTriangle, ExternalLink } from 'lucide-react';
-import { env } from '@swisshub/config';
+import { AlertTriangle, ArrowRight } from 'lucide-react';
+import { listDeprecatedEnvKeys } from '@swisshub/config';
 import { can } from '@swisshub/auth';
-import { prisma } from '@swisshub/database';
-import { discord } from '@swisshub/discord';
-import { listPermissions } from '@swisshub/permissions';
-import { getCoreSettings, getModuleSettings, jail } from '@swisshub/modules';
+import { getCoreSettings, getGuildConfig, getSystemHealth } from '@swisshub/modules';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ErrorState } from '@/components/shared/states';
 import { CoreSettingsForm } from '@/modules/settings/components/core-settings-form';
-import { JailSettingsForm } from '@/modules/settings/components/jail-settings-form';
-import { RoleEditor, type ManagedRoleView } from '@/modules/settings/components/role-editor';
 import { ReconciliationPanel } from '@/modules/settings/components/reconciliation-panel';
+import { SetupProgress } from '@/modules/configuration/components/setup-progress';
 import { csrfTokenFor, requirePagePermission } from '@/server/auth';
+import { loadDiscordOptions } from '@/server/configuration';
 
 export const metadata: Metadata = { title: 'Einstellungen' };
 export const dynamic = 'force-dynamic';
 
+const SHORTCUTS = [
+  {
+    href: '/server',
+    label: 'Server-Übersicht',
+    description: 'Verbundener Discord-Server und Einrichtungsstand.',
+  },
+  {
+    href: '/server/permissions',
+    label: 'Berechtigungen',
+    description: 'Welche Discord-Rolle im Dashboard was darf.',
+  },
+  { href: '/modules', label: 'Module', description: 'Module aktivieren und ihre Einstellungen pflegen.' },
+  {
+    href: '/system/discord',
+    label: 'Discord-Sync',
+    description: 'Rollen und Channels mit Discord abgleichen.',
+  },
+  { href: '/system/bot', label: 'Bot', description: 'Verbindung und Discord-Berechtigungen des Bots.' },
+];
+
+/**
+ * Systemeinstellungen.
+ *
+ * Enthält nur noch die anwendungsweiten Werte - Server, Rollen, Module und
+ * deren Einstellungen haben eigene Bereiche und werden hier verlinkt.
+ */
 export default async function SettingsPage(): Promise<React.JSX.Element> {
   const context = await requirePagePermission('settings.view');
   const csrfToken = csrfTokenFor(context);
 
   const canEditSettings = can(context, 'settings.edit');
-  const canManagePermissions = can(context, 'permissions.manage');
   const canManageSystem = can(context, 'system.manage');
-  const canEditJail = can(context, jail.JAIL_PERMISSIONS.settings);
 
-  const [coreSettings, jailSettings, managedRoles] = await Promise.all([
+  const [coreSettings, options, guild, health] = await Promise.all([
     getCoreSettings(),
-    getModuleSettings<jail.JailSettings>(jail.JAIL_MODULE_ID),
-    prisma.managedRole.findMany({
-      orderBy: { moderationLevel: 'desc' },
-      include: { permissions: { select: { permission: true } } },
-    }),
+    loadDiscordOptions(),
+    getGuildConfig(),
+    getSystemHealth(),
   ]);
 
-  // Discord-Daten sind optional: ohne Verbindung bleibt die Seite bedienbar.
-  const [discordRoles, discordChannels, botPosition] = await Promise.all([
-    discord.roles.list({ force: true }).catch(() => null),
-    discord.channels.list({ force: true }).catch(() => null),
-    discord.bot.highestRolePosition().catch(() => 0),
-  ]);
-
-  const roleViews: ManagedRoleView[] = managedRoles.map((role) => {
-    const discordRole = discordRoles?.find((entry) => entry.id === role.discordRoleId);
-    return {
-      discordRoleId: role.discordRoleId,
-      label: role.label,
-      isProtected: role.isProtected,
-      keepOnJail: role.keepOnJail,
-      moderationLevel: role.moderationLevel,
-      permissions: role.permissions.map((entry) => entry.permission),
-      discordName: discordRole?.name ?? null,
-      discordColor: discordRole?.color ?? 0,
-      existsOnDiscord: discordRoles === null || discordRole !== undefined,
-    };
-  });
-
-  const sortedRoles = (discordRoles ?? [])
-    .filter((role) => !role.managed && role.name !== '@everyone')
-    .sort((a, b) => b.position - a.position);
+  const deprecated = listDeprecatedEnvKeys();
 
   return (
     <>
-      {discordRoles === null ? (
+      {guild.guildId === null ? (
         <ErrorState
-          title="Discord derzeit nicht erreichbar"
-          description="Rollen und Channels können momentan nicht geladen werden. Bereits gespeicherte Einstellungen bleiben aktiv."
+          title="Kein Discord-Server verbunden"
+          description="Bitte zuerst den Einrichtungsassistenten unter /setup abschliessen."
         />
       ) : null}
 
       <Card>
         <CardHeader>
-          <CardTitle>Discord</CardTitle>
-          <CardDescription>
-            Verbindung zum SwissHub Discord-Server. Bot Token und Client Secret werden ausschliesslich über
-            Environment Variables gesetzt und sind hier bewusst nicht bearbeitbar.
-          </CardDescription>
+          <CardTitle>Einrichtungsstand</CardTitle>
+          <CardDescription>Was noch fehlt, damit alle Funktionen einsatzbereit sind.</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <dl className="grid gap-3 sm:grid-cols-2">
-            <div className="rounded-md border border-border px-3 py-2">
-              <dt className="text-xs uppercase tracking-wide text-muted-foreground">Guild ID</dt>
-              <dd className="font-mono text-sm">{env.DISCORD_GUILD_ID}</dd>
-            </div>
-            <div className="rounded-md border border-border px-3 py-2">
-              <dt className="text-xs uppercase tracking-wide text-muted-foreground">Bot-Rollenposition</dt>
-              <dd className="font-mono text-sm">{botPosition > 0 ? botPosition : 'unbekannt'}</dd>
-            </div>
-          </dl>
-          <p className="flex items-start gap-2 rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-warning">
-            <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
-            Secrets (Bot Token, Client Secret, AUTH_SECRET) gehören ausschliesslich in die Environment
-            Variables des Servers - niemals in die Datenbank oder das Frontend.
-          </p>
+        <CardContent>
+          <SetupProgress completeness={health.completeness} steps={health.steps} />
         </CardContent>
       </Card>
 
@@ -107,7 +85,7 @@ export default async function SettingsPage(): Promise<React.JSX.Element> {
         <CardContent>
           <CoreSettingsForm
             csrfToken={csrfToken}
-            channels={discordChannels ?? []}
+            channels={options.channels.filter((channel) => channel.kind === 'text')}
             settings={{
               moderationLogChannelId: coreSettings.moderationLogChannelId,
               timezone: coreSettings.timezone,
@@ -121,67 +99,71 @@ export default async function SettingsPage(): Promise<React.JSX.Element> {
 
       <Card>
         <CardHeader>
-          <CardTitle>Jail</CardTitle>
-          <CardDescription>Jail-Rolle, Channels und maximale Dauer des Jail-Moduls.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <JailSettingsForm
-            csrfToken={csrfToken}
-            roles={sortedRoles.map((role) => ({ id: role.id, name: role.name, position: role.position }))}
-            channels={discordChannels ?? []}
-            botHighestPosition={botPosition || Number.MAX_SAFE_INTEGER}
-            settings={{
-              jailRoleId: jailSettings.jailRoleId,
-              jailChannelId: jailSettings.jailChannelId,
-              moderationLogChannelId: jailSettings.moderationLogChannelId,
-              maxDurationSeconds: jailSettings.maxDurationSeconds,
-              postModerationLog: jailSettings.postModerationLog,
-              notifyInJailChannel: jailSettings.notifyInJailChannel,
-              keepRoleIds: jailSettings.keepRoleIds,
-            }}
-            disabled={!canEditJail}
-          />
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Rollen &amp; Berechtigungen</CardTitle>
+          <CardTitle>Weitere Bereiche</CardTitle>
           <CardDescription>
-            Discord-Rollen Berechtigungen zuordnen, Moderationsstufen festlegen und geschützte Rollen
-            definieren.
+            Konfiguration liegt vollständig in der Datenbank und wird hier im Dashboard gepflegt.
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <RoleEditor
-            csrfToken={csrfToken}
-            managedRoles={roleViews}
-            discordRoles={sortedRoles.map((role) => ({ id: role.id, name: role.name, color: role.color }))}
-            permissions={listPermissions().map((permission) => ({
-              key: permission.key,
-              label: permission.label,
-              description: permission.description,
-              module: permission.module,
-              critical: permission.critical,
-            }))}
-            canEdit={canManagePermissions}
-          />
+          <ul className="grid gap-2 sm:grid-cols-2">
+            {SHORTCUTS.map((shortcut) => (
+              <li key={shortcut.href}>
+                <Link
+                  href={shortcut.href}
+                  className="flex items-start gap-3 rounded-md border border-border px-3 py-2.5 text-sm transition-colors hover:border-primary/40"
+                >
+                  <span className="min-w-0 flex-1">
+                    <span className="block font-medium">{shortcut.label}</span>
+                    <span className="block text-xs text-muted-foreground">{shortcut.description}</span>
+                  </span>
+                  <ArrowRight className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+                </Link>
+              </li>
+            ))}
+          </ul>
         </CardContent>
       </Card>
 
       <Card>
         <CardHeader>
-          <CardTitle>Module</CardTitle>
-          <CardDescription>Module aktivieren oder deaktivieren.</CardDescription>
+          <CardTitle>Umgebungsvariablen</CardTitle>
+          <CardDescription>
+            Nur Infrastruktur-Secrets gehören noch in die <code>.env</code>. Alles andere wird hier
+            konfiguriert.
+          </CardDescription>
         </CardHeader>
-        <CardContent>
-          <Link
-            href="/modules"
-            className="inline-flex items-center gap-2 text-sm text-primary hover:underline"
-          >
-            Zur Modulverwaltung
-            <ExternalLink className="size-3.5" aria-hidden="true" />
-          </Link>
+        <CardContent className="space-y-3">
+          <div className="flex flex-wrap gap-2">
+            <Badge variant="outline">DATABASE_URL</Badge>
+            <Badge variant="outline">AUTH_SECRET</Badge>
+            <Badge variant="outline">DISCORD_BOT_TOKEN</Badge>
+            <Badge variant="outline">DISCORD_CLIENT_ID</Badge>
+            <Badge variant="outline">DISCORD_CLIENT_SECRET</Badge>
+            <Badge variant="outline">NEXT_PUBLIC_APP_URL</Badge>
+          </div>
+          <p className="flex items-start gap-2 rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-warning">
+            <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+            Bot Token und Client Secret sind bewusst nicht über die Oberfläche bearbeitbar. Sie werden nur
+            serverseitig gelesen und tauchen weder in Antworten noch im Audit Log auf.
+          </p>
+
+          {deprecated.length > 0 ? (
+            <div className="space-y-1.5 rounded-md border border-border px-3 py-2">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Abgelöste Variablen
+              </p>
+              <ul className="space-y-1 text-xs text-muted-foreground">
+                {deprecated.map((entry) => (
+                  <li key={entry.key}>
+                    <code>{entry.key}</code> – {entry.replacement}
+                  </li>
+                ))}
+              </ul>
+              <p className="text-xs text-muted-foreground">
+                Sie wurden in die Datenbank übernommen und können aus der <code>.env</code> entfernt werden.
+              </p>
+            </div>
+          ) : null}
         </CardContent>
       </Card>
 

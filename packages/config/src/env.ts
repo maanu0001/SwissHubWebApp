@@ -49,11 +49,19 @@ export const serverEnvSchema = z
     DISCORD_BOT_TOKEN: z.string().min(20, 'sieht nicht wie ein gültiger Bot Token aus'),
     DISCORD_CLIENT_ID: snowflake,
     DISCORD_CLIENT_SECRET: z.string().min(10, 'wird benötigt'),
-    DISCORD_GUILD_ID: snowflake,
 
-    /** Optional bootstrap IDs - can alternatively be configured in the UI. */
+    /**
+     * Bootstrap-Werte. Sie werden beim ersten Start einmalig in die Datenbank
+     * übernommen; danach gilt ausschliesslich die Konfiguration im Dashboard.
+     *
+     * @deprecated Der Discord-Server wird im Einrichtungsassistenten verbunden.
+     */
+    DISCORD_GUILD_ID: optionalSnowflake,
+    /** @deprecated Berechtigungen werden im Dashboard unter Server -> Berechtigungen vergeben. */
     DISCORD_ADMIN_ROLE_ID: optionalSnowflake,
+    /** @deprecated Die Jail-Rolle wird in den Moduleinstellungen gewählt. */
     DISCORD_JAIL_ROLE_ID: optionalSnowflake,
+    /** Notzugang: dieses Konto besitzt immer Vollzugriff (nicht über die UI änderbar). */
     SWISSHUB_OWNER_DISCORD_ID: optionalSnowflake,
 
     /** Secret used for session token hashing, CSRF tokens and IP hashing. */
@@ -165,6 +173,37 @@ export const env: ServerEnv = new Proxy({} as ServerEnv, {
     return { enumerable: true, configurable: true };
   },
 });
+
+/**
+ * Umgebungsvariablen, die durch die Dashboard-Konfiguration abgelöst wurden.
+ * Sie funktionieren weiterhin als Bootstrap, sollen aber nach der Übernahme in
+ * die Datenbank entfernt werden.
+ */
+export const DEPRECATED_ENV_KEYS = [
+  {
+    key: 'DISCORD_GUILD_ID',
+    replacement: 'Einrichtungsassistent (/setup) - der verbundene Server steht in der Datenbank.',
+  },
+  {
+    key: 'DISCORD_ADMIN_ROLE_ID',
+    replacement: 'Server -> Berechtigungen: Rollen im Dashboard Berechtigungen zuweisen.',
+  },
+  {
+    key: 'DISCORD_JAIL_ROLE_ID',
+    replacement: 'Module -> Jail: die Jail-Rolle wird in den Moduleinstellungen gewählt.',
+  },
+] as const;
+
+/** Gesetzte, aber abgelöste Variablen - für Startwarnung und Dashboard. */
+export function listDeprecatedEnvKeys(source: NodeJS.ProcessEnv = process.env): Array<{
+  key: string;
+  replacement: string;
+}> {
+  return DEPRECATED_ENV_KEYS.filter((entry) => {
+    const value = source[entry.key];
+    return typeof value === 'string' && value.trim() !== '';
+  }).map((entry) => ({ key: entry.key, replacement: entry.replacement }));
+}
 
 export const isProduction = (): boolean => assertServerEnv().NODE_ENV === 'production';
 export const isDevelopment = (): boolean => assertServerEnv().NODE_ENV === 'development';

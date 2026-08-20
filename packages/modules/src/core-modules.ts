@@ -79,6 +79,55 @@ registerModule({
 });
 
 registerModule({
+  id: 'server',
+  name: 'Server',
+  description: 'Verbundener Discord-Server: Übersicht, Rollen, Channels und Berechtigungen.',
+  icon: 'Server',
+  permissionPrefix: 'settings',
+  core: true,
+  defaultEnabled: true,
+  permissions: [],
+  navigation: [
+    {
+      href: '/server',
+      label: 'Übersicht',
+      description: 'Der verbundene Discord-Server auf einen Blick',
+      permission: 'settings.view',
+      icon: 'Server',
+      group: 'server',
+      order: 11,
+    },
+    {
+      href: '/server/roles',
+      label: 'Rollen',
+      description: 'Rollenhierarchie des Servers und was der Bot verwalten kann',
+      permission: 'settings.view',
+      icon: 'Shield',
+      group: 'server',
+      order: 12,
+    },
+    {
+      href: '/server/channels',
+      label: 'Channels',
+      description: 'Channels des Servers, wie sie in den Einstellungen zur Auswahl stehen',
+      permission: 'settings.view',
+      icon: 'Hash',
+      group: 'server',
+      order: 13,
+    },
+    {
+      href: '/server/permissions',
+      label: 'Berechtigungen',
+      description: 'Welche Discord-Rolle im Dashboard was darf',
+      permission: 'permissions.manage',
+      icon: 'KeyRound',
+      group: 'server',
+      order: 14,
+    },
+  ],
+});
+
+registerModule({
   id: 'audit',
   name: 'Audit Log',
   description: 'Manipulationsgeschütztes Protokoll sämtlicher sicherheitsrelevanter Aktionen.',
@@ -138,6 +187,24 @@ registerModule({
       entry.key === 'admin.full',
   ),
   navigation: [
+    {
+      href: '/system/bot',
+      label: 'Bot',
+      description: 'Status des Bots und seine Discord-Berechtigungen',
+      permission: 'settings.view',
+      icon: 'Bot',
+      group: 'system',
+      order: 78,
+    },
+    {
+      href: '/system/discord',
+      label: 'Discord-Sync',
+      description: 'Abgleich von Rollen und Channels mit Discord',
+      permission: 'settings.view',
+      icon: 'RefreshCw',
+      group: 'system',
+      order: 79,
+    },
     {
       href: '/settings',
       label: 'Einstellungen',

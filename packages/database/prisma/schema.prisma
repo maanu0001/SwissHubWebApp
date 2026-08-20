@@ -157,13 +157,97 @@ model SystemConfig {
   updatedBy String?
 }
 
-/// Aktivierungszustand und Einstellungen eines Moduls.
-model ModuleState {
-  moduleId  String   @id
-  enabled   Boolean  @default(true)
-  settings  Json     @default("{}")
+/// Konfiguration des SwissHub Discord-Servers.
+/// Nach dem Setup ist dies - nicht mehr die .env - die Quelle der Wahrheit.
+model GuildConfig {
+  id               String    @id @default("singleton")
+  guildId          String    @unique
+  name             String?
+  iconHash         String?
+  ownerId          String?
+  memberCount      Int?
+  presenceCount    Int?
+  /// Zeitpunkt der letzten erfolgreichen Discord-Synchronisation.
+  lastSyncedAt     DateTime?
+  /// Gesetzt, sobald der Setup-Assistent abgeschlossen wurde.
+  setupCompletedAt DateTime?
+  setupCompletedBy String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+}
+
+/// Zwischenspeicher der Discord-Rollen (fuer Auswahllisten, Hierarchie und
+/// Anzeige bei Discord-Ausfall). Wird vom Sync-Service gepflegt.
+model DiscordRoleCache {
+  roleId      String    @id
+  name        String
+  color       Int       @default(0)
+  position    Int       @default(0)
+  managed     Boolean   @default(false)
+  hoist       Boolean   @default(false)
+  /// Discord Permission Bits als String (BigInt-sicher).
+  permissions String    @default("0")
+  syncedAt    DateTime  @default(now())
+  /// Gesetzt, wenn die Rolle auf Discord nicht mehr existiert.
+  deletedAt   DateTime?
+
+  @@index([position])
+  @@index([deletedAt])
+}
+
+/// Zwischenspeicher der Discord-Channels.
+model DiscordChannelCache {
+  channelId String    @id
+  name      String
+  /// Discord Channel Type (0 = Text, 2 = Voice, 4 = Kategorie, 15 = Forum, ...).
+  type      Int
+  parentId  String?
+  position  Int       @default(0)
+  nsfw      Boolean   @default(false)
+  syncedAt  DateTime  @default(now())
+  deletedAt DateTime?
+
+  @@index([type])
+  @@index([deletedAt])
+}
+
+/// Zaehler, der bei jeder Konfigurationsaenderung erhoeht wird.
+/// Bot und WebApp erkennen daran, dass ihre Caches veraltet sind - dadurch
+/// wirken Aenderungen ohne Neustart.
+model ConfigRevision {
+  id        String   @id @default("singleton")
+  revision  BigInt   @default(1)
   updatedAt DateTime @updatedAt
   updatedBy String?
+  reason    String?
+}
+
+/// Protokoll der Discord-Synchronisationen.
+model SyncRun {
+  id              String    @id @default(cuid())
+  trigger         String
+  startedAt       DateTime  @default(now())
+  finishedAt      DateTime?
+  roles           Int       @default(0)
+  channels        Int       @default(0)
+  removedRoles    Int       @default(0)
+  removedChannels Int       @default(0)
+  success         Boolean   @default(true)
+  error           String?
+  triggeredBy     String?
+
+  @@index([startedAt])
+}
+
+/// Aktivierungszustand und Einstellungen eines Moduls.
+model ModuleState {
+  moduleId      String   @id
+  enabled       Boolean  @default(true)
+  settings      Json     @default("{}")
+  /// Schema-Version der gespeicherten Einstellungen (fuer Migrationen).
+  configVersion Int      @default(1)
+  updatedAt     DateTime @updatedAt
+  updatedBy     String?
 }
 
 /// Jail-Vorgang. Die Datenbank ist Source of Truth - der Bot leitet daraus

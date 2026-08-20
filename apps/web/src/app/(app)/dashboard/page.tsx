@@ -3,7 +3,13 @@ import Link from 'next/link';
 import { Activity, Blocks, Lock, ScrollText, Search, Settings, TrendingUp, Users } from 'lucide-react';
 import { branding } from '@swisshub/config/client';
 import { can } from '@swisshub/auth';
-import { enabledModuleIds, getModuleSettings, jail, listModuleStatus } from '@swisshub/modules';
+import {
+  enabledModuleIds,
+  getModuleSettings,
+  getSystemHealth,
+  jail,
+  listModuleStatus,
+} from '@swisshub/modules';
 import { formatDateTime, formatDayTime, formatRemaining, plural } from '@swisshub/shared';
 import { StatCard, StatDelta } from '@/components/shared/stat-card';
 import { Panel } from '@/components/shared/panel';
@@ -15,6 +21,7 @@ import { DiscordAvatar } from '@/components/shared/discord-avatar';
 import { EmptyState } from '@/components/shared/states';
 import { JailRowActions } from '@/modules/jail/components/jail-row-actions';
 import { CreateJailDialog } from '@/modules/jail/components/create-jail-dialog';
+import { SetupProgress } from '@/modules/configuration/components/setup-progress';
 import { csrfTokenFor, requirePagePermission } from '@/server/auth';
 import { loadDashboardData } from '@/server/dashboard';
 
@@ -34,11 +41,12 @@ export default async function DashboardPage(): Promise<React.JSX.Element> {
   const canManageModules = can(context, 'modules.manage');
   const canViewSettings = can(context, 'settings.view');
 
-  const [data, moduleStatus, moduleIds, jailSettings] = await Promise.all([
+  const [data, moduleStatus, moduleIds, jailSettings, health] = await Promise.all([
     loadDashboardData({ canViewJails, canViewAudit }),
     listModuleStatus(),
     enabledModuleIds(),
     getModuleSettings<jail.JailSettings>(jail.JAIL_MODULE_ID),
+    canViewSettings ? getSystemHealth() : Promise.resolve(null),
   ]);
 
   const csrfToken = csrfTokenFor(context);
@@ -58,6 +66,18 @@ export default async function DashboardPage(): Promise<React.JSX.Element> {
 
   return (
     <>
+      {health && health.completeness < 100 ? (
+        <section aria-label="Einrichtung" className="rounded-xl border border-warning/40 bg-warning/5 p-5">
+          <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
+            <h2 className="text-sm font-semibold">Einrichtung noch nicht abgeschlossen</h2>
+            <Link href="/setup" className="text-sm text-primary hover:underline">
+              Zum Einrichtungsassistenten
+            </Link>
+          </div>
+          <SetupProgress completeness={health.completeness} steps={health.steps} />
+        </section>
+      ) : null}
+
       <section aria-label="Kennzahlen" className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
           label="Mitglieder"

@@ -41,6 +41,19 @@ export const discordChannelSchema = z.object({
   name: z.string().nullish(),
   type: z.number(),
   guild_id: z.string().nullish(),
+  parent_id: z.string().nullish(),
+  position: z.number().nullish(),
+  nsfw: z.boolean().nullish(),
+});
+
+/** Guild aus Sicht des Bots (`GET /users/@me/guilds`). */
+export const botGuildSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  icon: z.string().nullish(),
+  owner: z.boolean().nullish(),
+  permissions: z.string().nullish(),
+  approximate_member_count: z.number().nullish(),
 });
 
 export const discordGuildSchema = z.object({
@@ -85,7 +98,19 @@ export interface GuildRole {
 export interface GuildChannel {
   id: string;
   name: string;
+  /** Discord Channel Type, siehe `CHANNEL_TYPES`. */
   type: number;
+  /** Kategorie, in der der Channel liegt. */
+  parentId: string | null;
+  position: number;
+  nsfw: boolean;
+}
+
+export interface BotGuild {
+  id: string;
+  name: string;
+  iconHash: string | null;
+  memberCount: number | null;
 }
 
 export interface GuildSummary {
@@ -104,5 +129,46 @@ export interface BotIdentity {
   avatarHash: string | null;
 }
 
-/** Discord Channel Types, die für Log-/Info-Nachrichten in Frage kommen. */
-export const TEXT_CHANNEL_TYPES = new Set([0, 5, 10, 11, 12, 15]);
+/** Discord Channel Types (Auszug). */
+export const CHANNEL_TYPES = {
+  text: 0,
+  dm: 1,
+  voice: 2,
+  category: 4,
+  announcement: 5,
+  announcementThread: 10,
+  publicThread: 11,
+  privateThread: 12,
+  stage: 13,
+  forum: 15,
+  media: 16,
+} as const;
+
+/** Channel-Typen, in die der Bot Nachrichten senden kann. */
+export const TEXT_CHANNEL_TYPES = new Set<number>([
+  CHANNEL_TYPES.text,
+  CHANNEL_TYPES.announcement,
+  CHANNEL_TYPES.announcementThread,
+  CHANNEL_TYPES.publicThread,
+  CHANNEL_TYPES.privateThread,
+  CHANNEL_TYPES.forum,
+]);
+
+/** Gruppen, die im Dashboard zur Auswahl angeboten werden. */
+export type ChannelKind = 'text' | 'voice' | 'category' | 'forum';
+
+export function channelKind(type: number): ChannelKind | null {
+  if (TEXT_CHANNEL_TYPES.has(type) && type !== CHANNEL_TYPES.forum) {
+    return 'text';
+  }
+  if (type === CHANNEL_TYPES.forum || type === CHANNEL_TYPES.media) {
+    return 'forum';
+  }
+  if (type === CHANNEL_TYPES.voice || type === CHANNEL_TYPES.stage) {
+    return 'voice';
+  }
+  if (type === CHANNEL_TYPES.category) {
+    return 'category';
+  }
+  return null;
+}

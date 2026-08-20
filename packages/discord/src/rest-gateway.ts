@@ -1,13 +1,14 @@
-import { discordConfig } from '@swisshub/config';
+import { resolveGuildId } from './guild-context';
 import { snowflakeToDate } from '@swisshub/shared';
 import { discordRequest } from './rest';
 import {
+  botGuildSchema,
   discordChannelSchema,
   discordGuildSchema,
   discordMemberSchema,
   discordRoleSchema,
   discordUserSchema,
-  TEXT_CHANNEL_TYPES,
+  type BotGuild,
   type GuildChannel,
   type GuildMember,
   type GuildRole,
@@ -63,13 +64,13 @@ function normaliseMember(raw: RawDiscordMember): GuildMember | null {
   };
 }
 
-const guildRoute = (): string => `/guilds/${discordConfig.guildId}`;
+const guildRoute = async (): Promise<string> => `/guilds/${await resolveGuildId()}`;
 
 export function createRestGateway(): DiscordGateway {
   const members: DiscordGateway['members'] = {
     async get(discordId) {
       try {
-        const raw = await discordRequest<unknown>(`${guildRoute()}/members/${discordId}`);
+        const raw = await discordRequest<unknown>(`${await guildRoute()}/members/${discordId}`);
         const parsed = discordMemberSchema.safeParse(raw);
         return parsed.success ? normaliseMember(parsed.data) : null;
       } catch (error) {
@@ -81,21 +82,21 @@ export function createRestGateway(): DiscordGateway {
     },
 
     async search(query, limit = 25) {
-      const raw = await discordRequest<unknown[]>(`${guildRoute()}/members/search`, {
+      const raw = await discordRequest<unknown[]>(`${await guildRoute()}/members/search`, {
         query: { query, limit: Math.min(Math.max(limit, 1), 100) },
       });
       return parseMembers(raw);
     },
 
     async list(options = {}) {
-      const raw = await discordRequest<unknown[]>(`${guildRoute()}/members`, {
+      const raw = await discordRequest<unknown[]>(`${await guildRoute()}/members`, {
         query: { limit: Math.min(Math.max(options.limit ?? 50, 1), 1000), after: options.after },
       });
       return parseMembers(raw);
     },
 
     async setRoles(discordId, roleIds, reason) {
-      await discordRequest(`${guildRoute()}/members/${discordId}`, {
+      await discordRequest(`${await guildRoute()}/members/${discordId}`, {
         method: 'PATCH',
         body: { roles: [...new Set(roleIds)] },
         auditLogReason: reason,
@@ -106,7 +107,7 @@ export function createRestGateway(): DiscordGateway {
   const roles: DiscordGateway['roles'] = {
     async list(options = {}) {
       return cached('roles', options.force ?? false, async () => {
-        const raw = await discordRequest<unknown[]>(`${guildRoute()}/roles`);
+        const raw = await discordRequest<unknown[]>(`${await guildRoute()}/roles`);
         return (Array.isArray(raw) ? raw : [])
           .map((entry) => discordRoleSchema.safeParse(entry))
           .filter((result) => result.success)
@@ -130,14 +131,14 @@ export function createRestGateway(): DiscordGateway {
     },
 
     async add(discordId, roleId, reason) {
-      await discordRequest(`${guildRoute()}/members/${discordId}/roles/${roleId}`, {
+      await discordRequest(`${await guildRoute()}/members/${discordId}/roles/${roleId}`, {
         method: 'PUT',
         auditLogReason: reason,
       });
     },
 
     async remove(discordId, roleId, reason) {
-      await discordRequest(`${guildRoute()}/members/${discordId}/roles/${roleId}`, {
+      await discordRequest(`${await guildRoute()}/members/${discordId}/roles/${roleId}`, {
         method: 'DELETE',
         auditLogReason: reason,
       });
@@ -147,17 +148,20 @@ export function createRestGateway(): DiscordGateway {
   const channels: DiscordGateway['channels'] = {
     async list(options = {}) {
       return cached('channels', options.force ?? false, async () => {
-        const raw = await discordRequest<unknown[]>(`${guildRoute()}/channels`);
+        const raw = await discordRequest<unknown[]>(`${await guildRoute()}/channels`);
         return (Array.isArray(raw) ? raw : [])
           .map((entry) => discordChannelSchema.safeParse(entry))
           .filter((result) => result.success)
           .map((result) => result.data)
-          .filter((channel) => TEXT_CHANNEL_TYPES.has(channel.type))
           .map((channel) => ({
             id: channel.id,
             name: channel.name ?? 'unbenannt',
             type: channel.type,
-          }));
+            parentId: channel.parent_id ?? null,
+            position: channel.position ?? 0,
+            nsfw: channel.nsfw ?? false,
+          }))
+          .sort((a, b) => a.position - b.position);
       });
     },
 
@@ -178,7 +182,7 @@ export function createRestGateway(): DiscordGateway {
   const guild: DiscordGateway['guild'] = {
     async get(): Promise<GuildSummary> {
       return cached('guild', false, async () => {
-        const raw = await discordRequest<unknown>(guildRoute(), {
+        const raw = await discordRequest<unknown>(await guildRoute(), {
           query: { with_counts: 'true' },
         });
         const parsed = discordGuildSchema.parse(raw);
@@ -196,6 +200,25 @@ export function createRestGateway(): DiscordGateway {
     async memberCount() {
       const summary = await guild.get();
       return summary.approximateMemberCount;
+    },
+
+    /**
+     * Guilds, in denen der Bot Mitglied ist. Grundlage der automatischen
+     * Server-Erkennung im Einrichtungsassistenten.
+     */
+    async listBotGuilds(): Promise<BotGuild[]> {
+      const raw = await discordRequest<unknown[]>('/users/@me/guilds', {
+        query: { with_counts: 'true' },
+      });
+      return (Array.isArray(raw) ? raw : [])
+        .map((entry) => botGuildSchema.safeParse(entry))
+        .filter((result) => result.success)
+        .map((result) => ({
+          id: result.data.id,
+          name: result.data.name,
+          iconHash: result.data.icon ?? null,
+          memberCount: result.data.approximate_member_count ?? null,
+        }));
     },
   };
 

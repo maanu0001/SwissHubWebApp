@@ -1,5 +1,8 @@
 import { registerPermissions, type PermissionDefinition } from '@swisshub/permissions';
+import type { DiscordPermissionName } from '@swisshub/discord';
 import type { z } from 'zod';
+import type { SettingsField } from './settings/fields';
+import type { ModuleHealthCheck, ModuleHealthContext } from './health/types';
 
 /**
  * Module Registry.
@@ -13,8 +16,9 @@ import type { z } from 'zod';
 /** Abschnitte der Seitenleiste (Reihenfolge = Anzeigereihenfolge). */
 export const NAVIGATION_GROUPS = [
   { id: 'overview', label: null },
-  { id: 'moderation', label: 'Mitglieder & Moderation' },
-  { id: 'modules', label: 'Bot Module' },
+  { id: 'server', label: 'Server' },
+  { id: 'modules', label: 'Module' },
+  { id: 'moderation', label: 'Moderation' },
   { id: 'system', label: 'System' },
 ] as const;
 
@@ -63,6 +67,17 @@ export interface ModuleDefinition {
   status?: ModuleStatus;
   /** Zod-Schema der Moduleinstellungen (optional). */
   settingsSchema?: z.ZodTypeAny;
+  /**
+   * Beschreibung der Einstellungen für die generische Oberfläche.
+   * Daraus entsteht die Settings-Seite - inklusive Rollen- und Channel-Auswahl.
+   */
+  settingsFields?: SettingsField[];
+  /** Schema-Version der Einstellungen (für spätere Migrationen). */
+  configVersion?: number;
+  /** Discord-Berechtigungen, die der Bot für dieses Modul benötigt. */
+  requiredDiscordPermissions?: DiscordPermissionName[];
+  /** Zusätzliche Prüfungen für die Modul-Gesundheit (siehe `health.ts`). */
+  healthChecks?: (context: ModuleHealthContext) => Promise<ModuleHealthCheck[]>;
   /** Sehr kurzer Text für Modulkacheln (Dashboard). */
   tagline?: string;
   /** Kurzbeschreibung des Status für die Modulkarte. */

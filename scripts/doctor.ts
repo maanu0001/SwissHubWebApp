@@ -17,7 +17,7 @@ import {
   loadRoleConfiguration,
   resolvePermissions,
 } from '@swisshub/permissions';
-import { readBotStatus } from '@swisshub/modules';
+import { getGuildConfig, getSyncStatus, readBotStatus } from '@swisshub/modules';
 import { formatDateTime, isSnowflake } from '@swisshub/shared';
 
 const OK = '[ ok ]';
@@ -56,7 +56,6 @@ async function main(): Promise<void> {
     `OAuth Redirect URI: ${discordConfig.redirectUri}`,
     'Muss im Discord Developer Portal exakt so hinterlegt sein.',
   );
-  line(OK, `Guild ID: ${discordConfig.guildId}`);
 
   if (bootstrapConfig.ownerDiscordId) {
     line(OK, `SWISSHUB_OWNER_DISCORD_ID: ${bootstrapConfig.ownerDiscordId}`);
@@ -109,6 +108,23 @@ async function main(): Promise<void> {
 
   // --- 3. Discord ----------------------------------------------------------
   section('Discord');
+  const guildConfig = await getGuildConfig({ force: true });
+  if (!guildConfig.guildId) {
+    line(
+      FAIL,
+      'Es ist kein Discord-Server verbunden',
+      'Im Dashboard den Einrichtungsassistenten unter /setup abschliessen.',
+    );
+  } else if (guildConfig.fromBootstrapEnv) {
+    line(
+      WARN,
+      `Guild ID ${guildConfig.guildId} stammt aus DISCORD_GUILD_ID`,
+      'Wird beim nächsten Start in die Datenbank übernommen; danach kann die Variable entfallen.',
+    );
+  } else {
+    line(OK, `Verbundener Server: ${guildConfig.name ?? 'unbenannt'} (${guildConfig.guildId})`);
+  }
+
   let guildOwnerId: string | null = null;
   try {
     const guild = await discord.guild.get();
@@ -127,6 +143,24 @@ async function main(): Promise<void> {
     }
   } catch (error) {
     line(FAIL, 'Bot-Identität nicht abrufbar', (error as Error).message);
+  }
+
+  const sync = await getSyncStatus().catch(() => null);
+  if (!sync || sync.roles === 0) {
+    line(
+      WARN,
+      'Rollen und Channels wurden noch nie synchronisiert',
+      'Im Dashboard unter System -> Discord auf "Jetzt synchronisieren" klicken.',
+    );
+  } else {
+    line(
+      OK,
+      `Sync-Cache: ${sync.roles} Rolle(n), ${sync.channels} Channel(s)` +
+        (sync.lastSyncedAt ? `, zuletzt ${formatDateTime(sync.lastSyncedAt)}` : ''),
+    );
+    if (sync.lastRun && !sync.lastRun.success) {
+      line(WARN, 'Letzter Sync-Lauf ist fehlgeschlagen', sync.lastRun.error ?? undefined);
+    }
   }
 
   // --- 4. Bot-Prozess ------------------------------------------------------

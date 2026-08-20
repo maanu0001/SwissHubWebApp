@@ -175,17 +175,59 @@ dauerhaft aussperren. Die Ereignisse dienen der Beobachtung und Nachverfolgung.
 
 ## 10. Secrets
 
-| Secret                                  | Ort         | Über UI änderbar            |
-| --------------------------------------- | ----------- | --------------------------- |
-| `DISCORD_BOT_TOKEN`                     | Environment | nein                        |
-| `DISCORD_CLIENT_SECRET`                 | Environment | nein                        |
-| `AUTH_SECRET`                           | Environment | nein                        |
-| `DATABASE_URL`                          | Environment | nein                        |
-| Jail-Rolle, Channels, Rollenzuordnungen | Datenbank   | ja (mit Permission + Audit) |
+| Secret                                                      | Ort         | Über UI änderbar            |
+| ----------------------------------------------------------- | ----------- | --------------------------- |
+| `DISCORD_BOT_TOKEN`                                         | Environment | nein                        |
+| `DISCORD_CLIENT_SECRET`                                     | Environment | nein                        |
+| `AUTH_SECRET`                                               | Environment | nein                        |
+| `DATABASE_URL`                                              | Environment | nein                        |
+| `SWISSHUB_OWNER_DISCORD_ID` (Notzugang)                     | Environment | nein                        |
+| Guild, Rollen, Channels, Berechtigungen, Moduleinstellungen | Datenbank   | ja (mit Permission + Audit) |
 
 `.env` ist per `.gitignore` ausgeschlossen; `.env.example` enthält ausschliesslich Platzhalter.
 Beim Start validiert Zod die Konfiguration - fehlende oder unsichere Werte (z.B. `http://` in
 Production, aktivierter Mock-Modus in Production) verhindern den Start.
+
+### Warum Secrets nicht ins Dashboard wandern
+
+Bot Token und Client Secret liessen sich technisch verschlüsselt (AES-256-GCM) in der
+Datenbank ablegen. Das wurde bewusst **nicht** getan:
+
+- Ein über die UI bearbeitbarer Token muss geladen, validiert und angezeigt werden - und
+  landet damit früher oder später in einer HTTP-Antwort, einem React-State oder einem Log.
+- Wer den Token wechseln kann, übernimmt den Bot. Diese Fähigkeit gehört an den Serverzugang,
+  nicht an eine Discord-Rolle.
+- Der Master Key müsste ohnehin in der Umgebung liegen; der Sicherheitsgewinn wäre gering,
+  die zusätzliche Angriffsfläche (UI, API, Cache, Audit) dagegen real.
+
+In der Datenbank liegen deshalb ausschliesslich IDs, Namen und Einstellungen - keine
+Zugangsdaten. Kommt später ein Drittanbieter-Secret dazu, ist AES-256-GCM mit
+`CONFIG_ENCRYPTION_KEY` aus der Umgebung der vorgesehene Weg.
+
+### Konfigurationsänderungen
+
+Jede Änderung läuft über eine Server Action und damit durch die vollständige Kette
+(Session → Mitgliedschaft → CSRF → Rate Limit → Zod → Berechtigung). Zusätzlich wird gegen den
+echten Discord-Zustand geprüft: existiert die Rolle noch, ist sie von Discord verwaltet, liegt
+sie unterhalb der Bot-Rolle, passt die Channel-Art. Schlägt eine Prüfung fehl, wird **nichts**
+gespeichert. Gespeichert wird mit Vorher/Nachher im Audit Log.
+
+Rollen- und Channel-Listen sind ausschliesslich für authentifizierte Benutzer mit
+`settings.view` abrufbar - es gibt keine offene API, die den Serveraufbau preisgibt.
+
+### Aussperrschutz
+
+Die letzte Discord-Rolle mit `permissions.manage` bzw. `admin.full` lässt sich weder entwerten
+noch löschen (`packages/permissions/src/lockout.ts`). Ist `SWISSHUB_OWNER_DISCORD_ID` gesetzt,
+gilt dieses Konto als Notzugang und die Sperre entfällt. Für den Ernstfall stehen
+`npm run doctor` und `npm run grant:admin` bereit.
+
+### Erstzugang
+
+Solange die Einrichtung nicht abgeschlossen ist, darf ein **Discord-Administrator** den
+Assistenten unter `/setup` bedienen - sonst käme der erste Administrator nie hinein. Danach
+gilt ausschliesslich `settings.edit` aus dem Dashboard. Discord-Serverownerschaft allein
+verleiht **keine** Rechte.
 
 ---
 

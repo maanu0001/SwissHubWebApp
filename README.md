@@ -158,26 +158,29 @@ cp .env.example .env
 
 Anschliessend ausfüllen:
 
-| Variable                    | Pflicht   | Beschreibung                                                              |
-| --------------------------- | --------- | ------------------------------------------------------------------------- |
-| `DATABASE_URL`              | ja        | PostgreSQL Connection String                                              |
-| `DISCORD_CLIENT_ID`         | ja        | Application -> OAuth2                                                     |
-| `DISCORD_CLIENT_SECRET`     | ja        | Application -> OAuth2                                                     |
-| `DISCORD_BOT_TOKEN`         | ja        | Application -> Bot                                                        |
-| `DISCORD_GUILD_ID`          | ja        | ID des SwissHub Servers (Entwicklermodus -> Rechtsklick auf Server -> ID) |
-| `AUTH_SECRET`               | ja        | >= 32 Zeichen, z.B. `openssl rand -base64 48`                             |
-| `NEXT_PUBLIC_APP_URL`       | ja        | Basis-URL der WebApp, in Production zwingend `https://`                   |
-| `DISCORD_ADMIN_ROLE_ID`     | empfohlen | erhält beim ersten Start automatisch `admin.full`                         |
-| `DISCORD_JAIL_ROLE_ID`      | optional  | Startwert für die Jail-Rolle (später im UI änderbar)                      |
-| `SWISSHUB_OWNER_DISCORD_ID` | optional  | Owner mit Sonderrechten für systemkritische Funktionen                    |
-| `TRUST_PROXY`               | optional  | `true`, wenn hinter nginx/Träfik (für `X-Forwarded-For`)                  |
-| `DEV_MOCK_DISCORD`          | optional  | nur Entwicklung; in Production wird der Start hart abgebrochen            |
+| Variable                    | Pflicht   | Beschreibung                                                            |
+| --------------------------- | --------- | ----------------------------------------------------------------------- |
+| `DATABASE_URL`              | ja        | PostgreSQL Connection String                                            |
+| `DISCORD_CLIENT_ID`         | ja        | Application -> OAuth2                                                   |
+| `DISCORD_CLIENT_SECRET`     | ja        | Application -> OAuth2                                                   |
+| `DISCORD_BOT_TOKEN`         | ja        | Application -> Bot                                                      |
+| `AUTH_SECRET`               | ja        | >= 32 Zeichen, z.B. `openssl rand -base64 48`                           |
+| `NEXT_PUBLIC_APP_URL`       | ja        | Basis-URL der WebApp, in Production zwingend `https://`                 |
+| `SWISSHUB_OWNER_DISCORD_ID` | empfohlen | Notzugang mit permanentem Vollzugriff (nicht über die WebApp vergebbar) |
+| `TRUST_PROXY`               | optional  | `true`, wenn hinter nginx/Traefik (für `X-Forwarded-For`)               |
+| `DEV_MOCK_DISCORD`          | optional  | nur Entwicklung; in Production wird der Start hart abgebrochen          |
+
+In der `.env` stehen ausschliesslich Infrastruktur-Secrets. **Discord-Server,
+Rollen, Channels, Berechtigungen und alle Moduleinstellungen werden im Dashboard
+konfiguriert** und liegen in der Datenbank - siehe
+[docs/CONFIGURATION.md](docs/CONFIGURATION.md).
 
 Die Konfiguration wird beim Start mit Zod validiert. Fehlt etwas, bricht der Start mit einer
 konkreten Meldung ab (`packages/config/src/env.ts`).
 
-> **Discord IDs finden:** Discord -> Einstellungen -> Erweitert -> _Entwicklermodus_ aktivieren.
-> Danach Rechtsklick auf Server/Rolle/Channel -> _ID kopieren_.
+> **Bestehende Installation?** `DISCORD_GUILD_ID`, `DISCORD_ADMIN_ROLE_ID` und
+> `DISCORD_JAIL_ROLE_ID` funktionieren weiterhin, werden beim Start einmalig in
+> die Datenbank übernommen und können danach entfernt werden.
 
 ---
 
@@ -340,17 +343,26 @@ Discord-Server; mit `enabled: false` verschwindet sie ganz.
 
 ## Erste Schritte in der WebApp
 
-1. **Anmelden**: `Mit Discord anmelden`. Nur Mitglieder des konfigurierten Servers erhalten Zugriff.
-2. **Berechtigungen vergeben**: _Einstellungen -> Rollen & Berechtigungen_. Ordne Discord-Rollen
-   Permissions zu, z.B.:
+1. **Anmelden**: `Mit Discord anmelden`. Nur Mitglieder des verbundenen Servers erhalten Zugriff.
+2. **Einrichten**: `/setup` führt in vier Schritten durch die Ersteinrichtung. Solange sie nicht
+   abgeschlossen ist, darf ein Discord-Administrator den Assistenten bedienen.
+   1. Discord-Server verbinden (Auswahl aus den Servern, auf denen der Bot Mitglied ist)
+   2. Rollen und Channels abgleichen
+   3. Berechtigungen vergeben
+   4. Module konfigurieren
+3. **Berechtigungen vergeben**: _Server -> Berechtigungen_. Ordne Discord-Rollen Permissions zu -
+   per Vorlage oder einzeln. Beispiele:
    - Administrator -> `admin.full`, geschützt, Moderationsstufe 100
    - Moderator -> `jail.view`, `jail.create`, `jail.release`, `members.view`, Stufe 50
    - Supporter -> `members.view`, Stufe 10
-3. **Jail konfigurieren**: _Einstellungen -> Jail_. Jail-Rolle, Channels und maximale Dauer setzen.
-   Die Auswahl bietet nur Rollen an, die der Bot tatsächlich verwalten kann.
-4. **Testen**: _Mitglieder_ -> Mitglied öffnen -> _Mitglied jailen_. Nach Ablauf gibt der Bot das
+
+   Die letzte verwaltende Rolle lässt sich nicht entwerten (Aussperrschutz).
+
+4. **Jail konfigurieren**: _Module -> Jail -> Einstellungen_. Jail-Rolle, Channels und maximale
+   Dauer setzen. Die Auswahl bietet nur Rollen an, die der Bot tatsächlich verwalten kann.
+5. **Testen**: _Mitglieder_ -> Mitglied öffnen -> _Mitglied jailen_. Nach Ablauf gibt der Bot das
    Mitglied automatisch frei und stellt die Rollen wieder her.
-5. **Nachvollziehen**: _Audit Log_ zeigt jede Aktion inklusive Integritätsprüfung der Hash-Chain.
+6. **Nachvollziehen**: _Audit Log_ zeigt jede Aktion inklusive Integritätsprüfung der Hash-Chain.
 
 ---
 
@@ -365,12 +377,15 @@ Discord-Server; mit `enabled: false` verschwindet sie ganz.
 | Login endet auf `/access-denied`                               | Discord-Konto ist (noch) kein Mitglied des konfigurierten Servers.                                                                                                        |
 | Angemeldet, aber "Keine Berechtigung"                          | Server-Ownerschaft allein gibt keine Rechte. `npm run doctor -- <DeineDiscordID>` zeigt die Ursache; beheben über `SWISSHUB_OWNER_DISCORD_ID` oder `npm run grant:admin`. |
 | Login-Fehler `state`                                           | Cookies blockiert oder Redirect URI stimmt nicht exakt mit `NEXT_PUBLIC_APP_URL` überein.                                                                                 |
-| Jail schlägt mit `CONFIGURATION_MISSING` fehl                  | Es ist keine Jail-Rolle hinterlegt (_Einstellungen -> Jail_).                                                                                                             |
+| Jail schlägt mit `CONFIGURATION_MISSING` fehl                  | Es ist keine Jail-Rolle hinterlegt (_Module -> Jail -> Einstellungen_).                                                                                                   |
+| `Es ist noch kein Discord-Server verbunden`                    | Einrichtungsassistent unter `/setup` abschliessen.                                                                                                                        |
+| Rollen-/Channel-Auswahl ist leer                               | Noch kein Abgleich gelaufen: _System -> Discord-Sync -> Jetzt synchronisieren_ (der Bot muss laufen).                                                                     |
 
 ---
 
 ## Weiterführende Dokumentation
 
+- [docs/CONFIGURATION.md](docs/CONFIGURATION.md) - Was in die `.env` gehört und was ins Dashboard
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) - Systemkomponenten, Datenfluss, Zustände
 - [docs/SECURITY.md](docs/SECURITY.md) - Authentifizierung, Autorisierung, Secrets, Annahmen
 - [docs/MODULES.md](docs/MODULES.md) - Schritt-für-Schritt: neues Modul entwickeln

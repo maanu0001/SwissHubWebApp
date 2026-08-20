@@ -671,7 +671,6 @@ registerModule({
   icon: 'TrendingUp',
   permissionPrefix: 'level',
   defaultEnabled: false,
-  status: 'available',
   configVersion: 1,
   requiredDiscordPermissions: ['MANAGE_ROLES', 'VIEW_CHANNEL', 'SEND_MESSAGES', 'EMBED_LINKS', 'ATTACH_FILES'],
   settingsSchema: levelSettingsSchema,

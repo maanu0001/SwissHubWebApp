@@ -45,12 +45,6 @@ export interface ModuleNavigationItem {
   counter?: 'activeJails';
 }
 
-/**
- * `available` = nutzbar, `planned` = vorbereitet und in der Navigation
- * sichtbar, aber noch nicht implementiert (nicht anklickbar).
- */
-export type ModuleStatus = 'available' | 'planned';
-
 export interface ModuleDefinition {
   id: string;
   name: string;
@@ -64,7 +58,6 @@ export interface ModuleDefinition {
   /** Kernbereiche können nicht deaktiviert werden. */
   core?: boolean;
   defaultEnabled: boolean;
-  status?: ModuleStatus;
   /** Zod-Schema der Moduleinstellungen (optional). */
   settingsSchema?: z.ZodTypeAny;
   /**
@@ -100,17 +93,16 @@ export function getModuleDefinition(id: string): ModuleDefinition | undefined {
   return modules.get(id);
 }
 
-export const isPlanned = (definition: ModuleDefinition): boolean => definition.status === 'planned';
-
 export interface NavigationEntry extends ModuleNavigationItem {
   moduleId: string;
-  /** Geplante Module werden angezeigt, sind aber nicht verlinkt. */
-  planned: boolean;
 }
 
 /**
  * Navigationseinträge aller aktivierten Module, gefiltert nach Permissions.
- * Geplante Module bleiben sichtbar (als Ausblick), sind aber nicht anklickbar.
+ *
+ * Es erscheint nur, was auch funktioniert: ein Eintrag entsteht ausschliesslich
+ * für ein eingeschaltetes Modul mit vorhandener Seite. Platzhalter, die zu
+ * einer leeren Seite führen, gibt es bewusst nicht.
  */
 export function buildNavigation(
   permissionKeys: readonly string[],
@@ -118,13 +110,9 @@ export function buildNavigation(
 ): NavigationEntry[] {
   const owned = new Set(permissionKeys);
   return listModuleDefinitions()
-    .filter((definition) => definition.core || isPlanned(definition) || enabledModuleIds.has(definition.id))
+    .filter((definition) => definition.core || enabledModuleIds.has(definition.id))
     .flatMap((definition) =>
-      definition.navigation.map((item) => ({
-        ...item,
-        moduleId: definition.id,
-        planned: isPlanned(definition),
-      })),
+      definition.navigation.map((item) => ({ ...item, moduleId: definition.id })),
     )
     .filter((item) => owned.has(item.permission))
     .sort((a, b) => a.order - b.order);

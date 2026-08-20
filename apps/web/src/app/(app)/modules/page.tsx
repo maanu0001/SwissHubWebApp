@@ -27,8 +27,7 @@ export default async function ModulesPage(): Promise<React.JSX.Element> {
   const csrfToken = csrfTokenFor(context);
   const healthById = new Map(health.map((entry) => [entry.moduleId, entry]));
 
-  const features = status.filter((entry) => !entry.definition.core && entry.definition.status !== 'planned');
-  const planned = status.filter((entry) => entry.definition.status === 'planned');
+  const features = status.filter((entry) => !entry.definition.core);
   const core = status.filter((entry) => entry.definition.core);
 
   return (
@@ -105,36 +104,6 @@ export default async function ModulesPage(): Promise<React.JSX.Element> {
           ))}
         </div>
       </section>
-
-      {planned.length > 0 ? (
-        <section className="space-y-4">
-          <SectionTitle>Geplante Module</SectionTitle>
-          <p className="text-sm text-muted-foreground">
-            Diese Module sind in der Navigation als Ausblick sichtbar, aber noch nicht implementiert. Die
-            technische Grundlage steht bereit - siehe{' '}
-            <code className="font-mono text-xs">docs/MODULES.md</code>.
-          </p>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {planned.map((entry) => (
-              <article
-                key={entry.definition.id}
-                className="flex items-start gap-3 rounded-xl border border-dashed border-border bg-card/50 p-4"
-              >
-                <span className="grid size-10 shrink-0 place-items-center rounded-xl border border-border bg-muted text-muted-foreground [&_svg]:size-4">
-                  <NavIcon name={entry.definition.icon} />
-                </span>
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2">
-                    <h3 className="truncate text-sm font-semibold">{entry.definition.name}</h3>
-                    <Badge variant="secondary">Geplant</Badge>
-                  </div>
-                  <p className="mt-1 text-xs text-muted-foreground">{entry.definition.description}</p>
-                </div>
-              </article>
-            ))}
-          </div>
-        </section>
-      ) : null}
 
       <section className="space-y-4">
         <SectionTitle>Kernbereiche</SectionTitle>

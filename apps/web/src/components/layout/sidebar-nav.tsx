@@ -12,9 +12,7 @@ export interface NavigationEntry {
   icon: string;
   moduleId: string;
   group: string;
-  /** Geplante Module werden angezeigt, sind aber nicht verlinkt. */
-  planned: boolean;
-  /** Statisches Label rechts im Eintrag (z.B. `NEU`, `Bald`). */
+  /** Statisches Label rechts im Eintrag, z.B. `NEU`. */
   badge?: string;
   /** Dynamischer Zähler (z.B. aktive Jails). */
   count?: number;
@@ -74,7 +72,6 @@ export function SidebarNav({
   const activeHref = useMemo(() => {
     const matches = groups
       .flatMap((group) => group.items)
-      .filter((item) => !item.planned)
       .map((item) => item.href)
       .filter((href) => pathname === href || pathname.startsWith(`${href}/`))
       .sort((a, b) => b.length - a.length);
@@ -92,29 +89,7 @@ export function SidebarNav({
           ) : null}
 
           {group.items.map((item) => {
-            const active = !item.planned && item.href === activeHref;
-
-            if (item.planned) {
-              return (
-                <span
-                  key={`${item.moduleId}-${item.href}`}
-                  title="Dieses Modul ist noch nicht verfügbar"
-                  aria-disabled="true"
-                  className={cn(
-                    'flex cursor-not-allowed items-center gap-3 rounded-lg px-3 py-1.5 text-sm font-medium text-muted-foreground/50',
-                    collapsed && 'justify-center px-2',
-                  )}
-                >
-                  <NavIcon name={item.icon} className="size-[1.05rem] shrink-0" />
-                  {collapsed ? null : (
-                    <>
-                      <span className="truncate">{item.label}</span>
-                      <ItemBadge entry={item} />
-                    </>
-                  )}
-                </span>
-              );
-            }
+            const active = item.href === activeHref;
 
             return (
               <Link

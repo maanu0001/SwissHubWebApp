@@ -43,7 +43,7 @@ export default async function ModuleSettingsPage({
 }): Promise<React.JSX.Element> {
   const { moduleId } = await params;
   const definition = getModuleDefinition(moduleId);
-  if (!definition || definition.status === 'planned') {
+  if (!definition) {
     notFound();
   }
 

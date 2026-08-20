@@ -59,8 +59,8 @@ export default async function DashboardPage(): Promise<React.JSX.Element> {
         entry.definition.navigation.some((item) => context.permissionKeys.includes(item.permission)),
     )
     .sort((a, b) => {
-      const rank = (entry: typeof a): number =>
-        entry.definition.status === 'planned' ? 1 : entry.enabled ? 0 : 0.5;
+      // Eingeschaltete Module zuerst - was abgeschaltet ist, steht hinten.
+      const rank = (entry: typeof a): number => (entry.enabled ? 0 : 1);
       return rank(a) - rank(b) || a.definition.name.localeCompare(b.definition.name);
     });
 
@@ -274,7 +274,6 @@ export default async function DashboardPage(): Promise<React.JSX.Element> {
                       name={entry.definition.name}
                       description={entry.definition.tagline ?? entry.definition.description}
                       icon={entry.definition.icon}
-                      planned={entry.definition.status === 'planned'}
                       enabled={entry.enabled && moduleIds.has(entry.definition.id)}
                       href={entry.enabled ? (entry.definition.navigation[0]?.href ?? null) : null}
                     />

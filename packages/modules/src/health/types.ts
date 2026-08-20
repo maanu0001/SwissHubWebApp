@@ -31,7 +31,6 @@ export interface ModuleHealthReport {
   moduleId: string;
   moduleName: string;
   enabled: boolean;
-  planned: boolean;
   status: HealthStatus;
   checks: ModuleHealthCheck[];
   settingsHref: string | null;

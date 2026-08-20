@@ -69,19 +69,16 @@ export default async function AppLayout({
       icon: item.icon,
       moduleId: item.moduleId,
       group: item.group,
-      planned: item.planned,
       badge: item.badge,
       count: item.counter === 'activeJails' ? (jailStats?.active ?? 0) : undefined,
     })),
   }));
 
-  const titles = navigation
-    .filter((item) => !item.planned)
-    .map((item) => ({
-      href: item.href,
-      label: item.label,
-      description: item.description,
-    }));
+  const titles = navigation.map((item) => ({
+    href: item.href,
+    label: item.label,
+    description: item.description,
+  }));
 
   return (
     <AppShell

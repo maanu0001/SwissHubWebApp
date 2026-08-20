@@ -3,7 +3,6 @@ import { getGuildConfig } from '../guild/config';
 import { inspectBotPermissions } from '../discord/inspector';
 import { listCachedChannels, listCachedRoles } from '../discord/sync';
 import { listModuleStatus } from '../module-state';
-import { isPlanned } from '../registry';
 import { worstStatus, type HealthStatus, type ModuleHealthContext, type ModuleHealthReport } from './types';
 
 /**
@@ -61,15 +60,13 @@ export async function getModuleHealth(context?: ModuleHealthContext): Promise<Mo
 
   return Promise.all(
     entries.map(async (entry): Promise<ModuleHealthReport> => {
-      const planned = isPlanned(entry.definition);
       const settingsHref = entry.definition.settingsFields?.length ? `/modules/${entry.definition.id}` : null;
 
-      if (planned || !entry.enabled || !entry.definition.healthChecks) {
+      if (!entry.enabled || !entry.definition.healthChecks) {
         return {
           moduleId: entry.definition.id,
           moduleName: entry.definition.name,
           enabled: entry.enabled,
-          planned,
           status: 'ok',
           checks: [],
           settingsHref,
@@ -81,7 +78,6 @@ export async function getModuleHealth(context?: ModuleHealthContext): Promise<Mo
         moduleId: entry.definition.id,
         moduleName: entry.definition.name,
         enabled: entry.enabled,
-        planned,
         status: worstStatus(checks),
         checks,
         settingsHref,

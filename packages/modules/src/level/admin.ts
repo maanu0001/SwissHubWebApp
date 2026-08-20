@@ -140,3 +140,8 @@ export async function removeNoXpChannel(actor: LevelActor, channelId: string): P
   });
   return true;
 }
+
+/** Aktuelle Einstellungen des Level-Systems. */
+export async function readLevelSettings(): Promise<LevelSettings> {
+  return readModuleSettings<LevelSettings>(LEVEL_MODULE_ID);
+}

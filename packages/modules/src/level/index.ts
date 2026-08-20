@@ -13,3 +13,4 @@ export * from './games';
 export * from './worker';
 export * from './game-session';
 export * from './admin';
+export * from './import';

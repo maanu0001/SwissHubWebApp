@@ -7,7 +7,8 @@
   "types": "./src/index.ts",
   "exports": {
     ".": "./src/index.ts",
-    "./jail": "./src/jail/index.ts"
+    "./jail": "./src/jail/index.ts",
+    "./level": "./src/level/index.ts"
   },
   "dependencies": {
     "@swisshub/config": "*",

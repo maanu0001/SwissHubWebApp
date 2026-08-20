@@ -6,11 +6,16 @@ import {
   handleSpielersucheAutocomplete,
   handleSpielersucheCommand,
 } from './spielersuche-commands';
+import { LEVEL_COMMAND_DEFINITIONS, LEVEL_COMMAND_NAMES, handleLevelCommand } from './level-commands';
 
 const log = createLogger('bot:commands:register');
 
 /** Alle Befehle der Anwendung - eine Liste, ein Registrierungsvorgang. */
-const ALL_COMMANDS = [...JAIL_COMMAND_DEFINITIONS, ...SPIELERSUCHE_COMMAND_DEFINITIONS];
+const ALL_COMMANDS = [
+  ...JAIL_COMMAND_DEFINITIONS,
+  ...SPIELERSUCHE_COMMAND_DEFINITIONS,
+  ...LEVEL_COMMAND_DEFINITIONS,
+];
 
 const SPIELERSUCHE_COMMANDS = new Set(
   SPIELERSUCHE_COMMAND_DEFINITIONS.map((definition) => definition.name as string),
@@ -69,6 +74,10 @@ export function registerCommandHandler(client: Client): void {
     }
     if (SPIELERSUCHE_COMMANDS.has(interaction.commandName)) {
       void handleSpielersucheCommand(interaction);
+      return;
+    }
+    if (LEVEL_COMMAND_NAMES.has(interaction.commandName)) {
+      void handleLevelCommand(interaction);
       return;
     }
     void handleJailCommand(interaction);

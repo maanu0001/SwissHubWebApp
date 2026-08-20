@@ -4,6 +4,7 @@ import './core-modules';
 import './jail/config';
 import './communication/config';
 import './spielersuche/config';
+import './level/config';
 import { registerGuildResolver } from './guild/config';
 
 // Ab hier löst jeder Discord-Aufruf die Guild aus der Datenbank auf.
@@ -24,6 +25,7 @@ export * as branding from './branding';
 export * as jail from './jail';
 export * as communication from './communication';
 export * as spielersuche from './spielersuche';
+export * as level from './level';
 export * from './bot-status';
 export * from './members/service';
 export * from './members/avatars';

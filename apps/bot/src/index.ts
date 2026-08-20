@@ -24,6 +24,13 @@ import { registerVoteJailHandler } from './vote-jail';
 import { registerCommandHandler, registerCommands } from './commands/register';
 import { registerSpielersucheButtons } from './spielersuche-buttons';
 import { recoverVoiceSessions, registerSpielersucheVoice } from './spielersuche-voice';
+import { registerLevelGameButtons } from './level-games';
+import {
+  recoverVoiceMembers,
+  registerLevelMessageXp,
+  registerLevelVoiceTracking,
+  runVoiceXpSweep,
+} from './level-events';
 
 const log = createLogger('bot');
 
@@ -62,7 +69,17 @@ async function main(): Promise<void> {
   }
 
   const client = new Client({
-    intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers],
+    intents: [
+      GatewayIntentBits.Guilds,
+      GatewayIntentBits.GuildMembers,
+      // Nachrichten-Ereignisse für XP im Chat. Der Inhalt wird nicht gelesen,
+      // deshalb reicht `GuildMessages` ohne das privilegierte MessageContent.
+      GatewayIntentBits.GuildMessages,
+      // Voice-Zustände: XP für Zeit im Sprachkanal und das Aufräumen der
+      // Spielersuche-Kanäle. Ohne dieses Intent liefert Discord die
+      // Ereignisse nicht - die Handler liefen bisher ins Leere.
+      GatewayIntentBits.GuildVoiceStates,
+    ],
   });
 
   const status = {
@@ -75,7 +92,10 @@ async function main(): Promise<void> {
     botUsername: mockMode ? 'swisshub-bot (Mock)' : (null as string | null),
   };
 
-  const jobs = createJobRunner(() => ({ ...status }));
+  const jobs = createJobRunner(
+    () => ({ ...status }),
+    () => runVoiceXpSweep(client, guildId),
+  );
 
   // Button-Klicks der Vote-Jail-Abstimmungen entgegennehmen.
   registerVoteJailHandler(client);
@@ -85,6 +105,10 @@ async function main(): Promise<void> {
   // Knöpfe und Voice-Tracking der Spielersuche.
   registerSpielersucheButtons(client);
   registerSpielersucheVoice(client);
+  // XP aus Nachrichten und Voice sowie die Knöpfe der XP-Spiele.
+  registerLevelMessageXp(client);
+  registerLevelVoiceTracking(client);
+  registerLevelGameButtons(client);
 
   /**
    * Aktive Guild-ID. Sie kann sich zur Laufzeit ändern (Einrichtungsassistent),
@@ -126,6 +150,13 @@ async function main(): Promise<void> {
 
       // Slash Commands für den verbundenen Server registrieren.
       await registerCommands(readyClient, guildId);
+
+      // Wer schon im Voice sitzt, soll nach einem Neustart weiter XP bekommen,
+      // ohne den Kanal erst verlassen zu müssen.
+      const inVoice = recoverVoiceMembers(readyClient, guildId);
+      if (inVoice > 0) {
+        log.info('Anwesende im Voice übernommen', { members: inVoice });
+      }
 
       // Voice-Sessions, die ein Neustart offen gelassen hat, sauber schliessen.
       await recoverVoiceSessions(readyClient, guildId).catch((error: unknown) =>

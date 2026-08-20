@@ -2,7 +2,7 @@ import { jobConfig } from '@swisshub/config';
 import { createLogger } from '@swisshub/logger';
 import { purgeExpiredIdempotencyKeys } from '@swisshub/database';
 import { purgeExpiredSessions } from '@swisshub/auth';
-import { jail, spielersuche, syncDiscord, writeHeartbeat } from '@swisshub/modules';
+import { jail, level, spielersuche, syncDiscord, writeHeartbeat } from '@swisshub/modules';
 
 const log = createLogger('bot:jobs');
 
@@ -34,6 +34,11 @@ export function createJobRunner(
     botUserId: string | null;
     botUsername: string | null;
   },
+  /**
+   * Ein Durchgang XP für Zeit im Sprachkanal. Wird von aussen übergeben, weil
+   * dafür der Discord-Client gebraucht wird - die übrigen Jobs kommen ohne aus.
+   */
+  runVoiceXp?: () => Promise<{ checked: number; granted: number; xp: number }>,
 ): JobRunner {
   const timers: NodeJS.Timeout[] = [];
   const running = new Set<string>();
@@ -98,6 +103,44 @@ export function createJobRunner(
       intervalMs: 60 * 1000,
       async run() {
         await spielersuche.runDailyOnboarding();
+      },
+    },
+    {
+      name: 'level-voice-xp',
+      // Wie beim Vorgänger zählt jeder Durchgang als eine Minute im Voice.
+      // Ausgefallene Durchgänge werden bewusst nicht nachgeholt - sonst
+      // entstünde nach einer Störung ein XP-Schub.
+      intervalMs: 60 * 1000,
+      async run() {
+        if (!runVoiceXp) {
+          return;
+        }
+        const result = await runVoiceXp();
+        if (result.granted > 0) {
+          log.debug('Voice-XP vergeben', { ...result });
+        }
+      },
+    },
+    {
+      name: 'level-decay',
+      // Inaktivitäts-Abzug. Das Intervall steht in den Moduleinstellungen;
+      // hier wird häufiger geprüft, der Lauf selbst rechnet in vollen Tagen
+      // und kann deshalb nicht zu viel abziehen.
+      intervalMs: 5 * 60 * 1000,
+      async run() {
+        const result = await level.runDecaySweep();
+        if (result.changed > 0) {
+          log.info('Inaktivitäts-Abzug verrechnet', { ...result });
+        }
+      },
+    },
+    {
+      name: 'level-game-cleanup',
+      // Partien freigeben, die nie zu Ende gespielt wurden. Ohne das blieben
+      // beide Beteiligten für neue Spiele gesperrt.
+      intervalMs: 60 * 1000,
+      async run() {
+        await level.runGameCleanup();
       },
     },
     {

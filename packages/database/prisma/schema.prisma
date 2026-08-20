@@ -765,25 +765,25 @@ model ReconciliationRun {
 /// Der alte Bot kannte Spiele nur pro Guild; diese Anwendung ist auf genau
 /// einen Server konfiguriert, deshalb genuegt der Name als Schluessel.
 model SpielersucheGame {
-  id            String                 @id @default(cuid())
-  name          String
+  id                 String                @id @default(cuid())
+  name               String
   /// Kleingeschriebener Name - macht die Eindeutigkeit unabhaengig von
   /// Gross-/Kleinschreibung (der alte Bot nutzte dafuer COLLATE NOCASE).
-  nameKey       String                 @unique
+  nameKey            String                @unique
   /// Rolle, die beim Start einer Suche erwaehnt wird.
-  roleId        String
-  bannerUrl     String?
+  roleId             String
+  bannerUrl          String?
   /// Maximale Gruppengroesse. NULL = unbegrenzt.
-  maxSquadSize  Int?
-  enabled       Boolean                @default(true)
-  sortOrder     Int                    @default(0)
+  maxSquadSize       Int?
+  enabled            Boolean               @default(true)
+  sortOrder          Int                   @default(0)
   /// `games.id` aus der Altdatenbank - macht den Import wiederholbar.
-  legacyId      Int?                   @unique
-  createdAt     DateTime               @default(now())
-  updatedAt     DateTime               @updatedAt
+  legacyId           Int?                  @unique
+  createdAt          DateTime              @default(now())
+  updatedAt          DateTime              @updatedAt
   createdByDiscordId String?
-  matches       SpielersucheMatch[]
-  rolePing      SpielersucheRolePing?
+  matches            SpielersucheMatch[]
+  rolePing           SpielersucheRolePing?
 
   @@index([enabled, name])
 }
@@ -940,20 +940,276 @@ model SpielersucheImport {
 
 /// Eine bewertete Zeile aus der Altdatenbank.
 model SpielersucheImportItem {
-  id         String                   @id @default(cuid())
-  importId   String
-  import     SpielersucheImport       @relation(fields: [importId], references: [id], onDelete: Cascade)
-  kind       SpielersucheImportKind
+  id        String                   @id @default(cuid())
+  importId  String
+  import    SpielersucheImport       @relation(fields: [importId], references: [id], onDelete: Cascade)
+  kind      SpielersucheImportKind
   /// Stabiler Schluessel der Legacy-Zeile, z.B. `game:18`.
-  legacyKey  String
-  label      String
-  action     SpielersucheImportAction
-  note       String?
+  legacyKey String
+  label     String
+  action    SpielersucheImportAction
+  note      String?
   /// Die gelesenen Werte - Grundlage fuer die Uebernahme und die Vorschau.
-  payload    Json
-  imported   Boolean                  @default(false)
-  targetId   String?
-  createdAt  DateTime                 @default(now())
+  payload   Json
+  imported  Boolean                  @default(false)
+  targetId  String?
+  createdAt DateTime                 @default(now())
+
+  @@unique([importId, legacyKey])
+  @@index([importId, kind, action])
+}
+
+// ---------------------------------------------------------------------------
+// Level-System
+//
+// Der alte Level-Bot fuehrte nur Endstaende (`levels.xp`). Wer wissen wollte,
+// woher eine Zahl kommt, musste die Discord-Logs durchsuchen. Hier ist jede
+// Aenderung eine Zeile in `XpTransaction`; `LevelProfile.xp` ist die Summe
+// daraus und wird in derselben Transaktion fortgeschrieben.
+// ---------------------------------------------------------------------------
+
+/// Woher eine XP-Buchung stammt.
+enum XpSource {
+  MESSAGE
+  VOICE
+  GAME_WIN
+  GAME_LOSS
+  /// Einsatz, der beim Start eines Spiels zurueckgelegt wird.
+  GAME_STAKE
+  /// Rueckgabe des Einsatzes bei Unentschieden, Abbruch oder Zeitablauf.
+  GAME_REFUND
+  ADMIN
+  DECAY
+  BOOST
+  MIGRATION
+  SYSTEM
+}
+
+enum XpGameKind {
+  XP_BATTLE
+  XP_SSP
+  XP_TTT
+  XP_4GEWINNT
+}
+
+enum XpGameStatus {
+  /// Herausgefordert, noch nicht angenommen.
+  PENDING
+  RUNNING
+  FINISHED
+  DRAW
+  DECLINED
+  TIMEOUT
+  CANCELLED
+}
+
+enum LevelImportStatus {
+  ANALYSED
+  CONFIRMED
+  IMPORTED
+  FAILED
+}
+
+enum LevelImportKind {
+  PROFILE
+  GAME_STATS
+  NO_XP_CHANNEL
+  CONFIG
+  GUILD_CONFIG
+  ENV_SETTING
+}
+
+enum LevelImportAction {
+  IMPORT
+  SKIP_DUPLICATE
+  SKIP_INVALID
+  SKIP_EMPTY
+  CONFLICT
+}
+
+/// XP-Stand einer Person.
+model LevelProfile {
+  id               String    @id @default(cuid())
+  discordId        String    @unique
+  username         String?
+  displayName      String?
+  avatarHash       String?
+  /// Nie negativ - der alte Bot klemmte mit `MAX(0, xp + delta)`.
+  xp               Int       @default(0)
+  messages         Int       @default(0)
+  voiceMinutes     Int       @default(0)
+  /// Setzt die Nachlassfrist zurueck (Nachricht oder Voice).
+  lastActivityAt   DateTime?
+  /// Bis hierhin wurde Inaktivitaets-Abzug bereits verrechnet.
+  lastDecayAt      DateTime?
+  lastMessageAt    DateTime?
+  lastVoiceAt      DateTime?
+  /// SHA-256 der `levels.db`, aus der dieser Stand uebernommen wurde.
+  /// Verhindert, dass dieselbe Datei zweimal XP setzt.
+  legacyImportSha  String?
+  legacyImportedAt DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  transactions XpTransaction[]
+  gameStats    LevelGameStats[]
+
+  @@index([xp])
+  @@index([lastActivityAt])
+  @@index([lastDecayAt])
+}
+
+/// Eine einzelne XP-Buchung. Fortlaufendes Journal, wird nie geaendert.
+model XpTransaction {
+  id             String          @id @default(cuid())
+  profileId      String
+  profile        LevelProfile    @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  discordId      String
+  source         XpSource
+  /// Tatsaechlich verbuchte Aenderung, nachdem auf >= 0 XP geklemmt wurde.
+  delta          Int
+  /// Angeforderte Aenderung vor der Klemmung. Weicht nur ab, wenn ein Abzug
+  /// groesser war als der Punktestand.
+  requestedDelta Int
+  xpBefore       Int
+  xpAfter        Int
+  levelBefore    Int
+  levelAfter     Int
+  reason         String?
+  actorDiscordId String?
+  channelId      String?
+  gameMatchId    String?
+  gameMatch      LevelGameMatch? @relation(fields: [gameMatchId], references: [id])
+  importId       String?
+  import         LevelImport?    @relation(fields: [importId], references: [id])
+  /// Schuetzt Wiederholungen vor Doppelbuchungen.
+  idempotencyKey String?         @unique
+  createdAt      DateTime        @default(now())
+
+  @@index([discordId, createdAt])
+  @@index([source, createdAt])
+  @@index([createdAt])
+  @@index([gameMatchId])
+}
+
+/// Eine Partie eines XP-Spiels.
+model LevelGameMatch {
+  id                  String       @id @default(cuid())
+  kind                XpGameKind
+  status              XpGameStatus @default(PENDING)
+  challengerDiscordId String
+  opponentDiscordId   String
+  bet                 Int
+  /// Auszahlung an den Gewinner: `floor(bet * 2 * 0.95)` wie beim Vorgaenger.
+  payout              Int
+  /// Einsaetze beider Seiten liegen bereits im Topf.
+  potHeld             Boolean      @default(false)
+  winnerDiscordId     String?
+  guildId             String?
+  channelId           String?
+  messageId           String?
+  createdAt           DateTime     @default(now())
+  startedAt           DateTime?
+  finishedAt          DateTime?
+  expiresAt           DateTime?
+  /// Solange eine Partie laeuft: die Discord-ID der jeweiligen Seite. Der
+  /// Vorgaenger merkte sich das nur im Arbeitsspeicher und vergass es beim
+  /// Neustart; hier haelt die Datenbank die Sperre.
+  activeChallengerKey String?      @unique
+  activeOpponentKey   String?      @unique
+  /// Spielstand laufender Partien (Spielfeld, Punkte, wer am Zug ist).
+  /// Beim Vorgaenger lag er im Arbeitsspeicher und ging bei jedem Neustart
+  /// verloren - mitsamt den bereits eingezogenen Einsaetzen.
+  state               Json?
+
+  transactions XpTransaction[]
+
+  @@index([kind, status])
+  @@index([status, expiresAt])
+  @@index([challengerDiscordId, createdAt])
+  @@index([opponentDiscordId, createdAt])
+}
+
+/// Bilanz einer Person je Spielart.
+model LevelGameStats {
+  id        String       @id @default(cuid())
+  profileId String
+  profile   LevelProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  discordId String
+  kind      XpGameKind
+  wins      Int          @default(0)
+  losses    Int          @default(0)
+  draws     Int          @default(0)
+  xpWon     Int          @default(0)
+  xpLost    Int          @default(0)
+  updatedAt DateTime     @updatedAt
+
+  @@unique([discordId, kind])
+  @@index([kind, wins])
+}
+
+/// Rolle, die ab einem bestimmten Level vergeben wird.
+///
+/// Loeste `MILESTONE_ROLES="5:ROLEID,10:ROLEID"` aus der alten `.env` ab.
+model LevelMilestoneRole {
+  id        String   @id @default(cuid())
+  level     Int      @unique
+  roleId    String
+  enabled   Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([enabled, level])
+}
+
+/// Ein Uebernahmelauf aus der alten `levels.db`.
+model LevelImport {
+  id                   String            @id @default(cuid())
+  fileName             String
+  fileBytes            Int
+  fileSha256           String
+  status               LevelImportStatus @default(ANALYSED)
+  schemaInfo           Json?
+  totalRows            Int               @default(0)
+  importableRows       Int               @default(0)
+  duplicateRows        Int               @default(0)
+  invalidRows          Int               @default(0)
+  conflictRows         Int               @default(0)
+  importedRows         Int               @default(0)
+  failedRows           Int               @default(0)
+  /// Bestaetigung, dass der alte Bot abgeschaltet ist. Ohne sie wuerden
+  /// beide Bots gleichzeitig XP vergeben.
+  legacyBotStopped     Boolean           @default(false)
+  uploadedByDiscordId  String
+  uploadedByUsername   String
+  confirmedByDiscordId String?
+  confirmedAt          DateTime?
+  errorMessage         String?
+  createdAt            DateTime          @default(now())
+  finishedAt           DateTime?
+
+  items        LevelImportItem[]
+  transactions XpTransaction[]
+
+  @@index([status, createdAt])
+  @@index([fileSha256])
+}
+
+/// Eine bewertete Zeile aus der Altdatenbank.
+model LevelImportItem {
+  id        String            @id @default(cuid())
+  importId  String
+  import    LevelImport       @relation(fields: [importId], references: [id], onDelete: Cascade)
+  kind      LevelImportKind
+  /// Stabiler Schluessel der Legacy-Zeile, z.B. `profile:123456789`.
+  legacyKey String
+  label     String
+  action    LevelImportAction
+  note      String?
+  payload   Json
+  imported  Boolean           @default(false)
+  targetId  String?
+  createdAt DateTime          @default(now())
 
   @@unique([importId, legacyKey])
   @@index([importId, kind, action])

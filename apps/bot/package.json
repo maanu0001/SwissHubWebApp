@@ -9,15 +9,16 @@
     "start": "tsx src/index.ts"
   },
   "dependencies": {
+    "@swisshub/auth": "*",
     "@swisshub/config": "*",
     "@swisshub/database": "*",
     "@swisshub/discord": "*",
     "@swisshub/logger": "*",
     "@swisshub/modules": "*",
+    "@swisshub/permissions": "*",
     "@swisshub/shared": "*",
     "discord.js": "14.27.0",
-    "tsx": "4.23.12",
-    "@swisshub/auth": "*",
-    "@swisshub/permissions": "*"
+    "sharp": "^0.34.4",
+    "tsx": "4.23.12"
   }
 }

@@ -23,12 +23,14 @@
     "typecheck": "npm run db:generate && tsc -p tsconfig.json --noEmit && tsc -p apps/web/tsconfig.json --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "db:generate": "npm run generate --workspace @swisshub/database",
-    "db:migrate": "npm run migrate --workspace @swisshub/database",
-    "db:deploy": "npm run deploy --workspace @swisshub/database",
-    "db:studio": "npm run studio --workspace @swisshub/database",
-    "db:seed": "npm run seed --workspace @swisshub/database",
-    "check": "npm run format:check && npm run lint && npm run typecheck && npm run test"
+    "db:generate": "prisma generate --schema packages/database/prisma/schema.prisma",
+    "db:migrate": "prisma migrate dev --schema packages/database/prisma/schema.prisma",
+    "db:deploy": "prisma migrate deploy --schema packages/database/prisma/schema.prisma",
+    "db:studio": "prisma studio --schema packages/database/prisma/schema.prisma",
+    "db:seed": "tsx packages/database/prisma/seed.ts",
+    "check": "npm run format:check && npm run lint && npm run typecheck && npm run test",
+    "doctor": "tsx scripts/doctor.ts",
+    "grant:admin": "tsx scripts/grant-admin.ts"
   },
   "devDependencies": {
     "@eslint/js": "9.39.5",
@@ -38,6 +40,7 @@
     "prettier": "3.9.6",
     "typescript": "5.9.3",
     "typescript-eslint": "8.67.0",
-    "vitest": "3.2.7"
+    "vitest": "3.2.7",
+    "tsx": "4.23.12"
   }
 }

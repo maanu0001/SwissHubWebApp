@@ -3,6 +3,12 @@
   "compilerOptions": {
     "types": ["node"]
   },
-  "include": ["packages/**/*.ts", "apps/bot/src/**/*.ts", "tests/**/*.ts", "vitest.config.ts"],
+  "include": [
+    "packages/**/*.ts",
+    "apps/bot/src/**/*.ts",
+    "scripts/**/*.ts",
+    "tests/**/*.ts",
+    "vitest.config.ts"
+  ],
   "exclude": ["node_modules", "**/dist", "**/.next"]
 }

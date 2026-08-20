@@ -301,21 +301,23 @@ tests/                     Unit- und Integrationstests (Vitest)
 
 ## Skripte
 
-| Befehl               | Wirkung                                       |
-| -------------------- | --------------------------------------------- |
-| `npm run dev`        | WebApp im Entwicklungsmodus                   |
-| `npm run dev:bot`    | Bot im Entwicklungsmodus (Watch)              |
-| `npm run build`      | Prisma Client, Next.js Build, Bot Typecheck   |
-| `npm run start`      | WebApp (Production)                           |
-| `npm run start:bot`  | Bot (Production)                              |
-| `npm run lint`       | ESLint über das gesamte Monorepo              |
-| `npm run typecheck`  | TypeScript strict über Pakete, Bot und WebApp |
-| `npm run test`       | Vitest (Unit + Integration)                   |
-| `npm run check`      | Format-Check, Lint, Typecheck, Tests          |
-| `npm run db:migrate` | Migration erstellen/anwenden (Entwicklung)    |
-| `npm run db:deploy`  | Migrationen anwenden (Production)             |
-| `npm run db:seed`    | Grundkonfiguration anlegen                    |
-| `npm run db:studio`  | Prisma Studio                                 |
+| Befehl                              | Wirkung                                                            |
+| ----------------------------------- | ------------------------------------------------------------------ |
+| `npm run dev`                       | WebApp im Entwicklungsmodus                                        |
+| `npm run dev:bot`                   | Bot im Entwicklungsmodus (Watch)                                   |
+| `npm run build`                     | Prisma Client, Next.js Build, Bot Typecheck                        |
+| `npm run start`                     | WebApp (Production)                                                |
+| `npm run start:bot`                 | Bot (Production)                                                   |
+| `npm run lint`                      | ESLint über das gesamte Monorepo                                   |
+| `npm run typecheck`                 | TypeScript strict über Pakete, Bot und WebApp                      |
+| `npm run test`                      | Vitest (Unit + Integration)                                        |
+| `npm run check`                     | Format-Check, Lint, Typecheck, Tests                               |
+| `npm run db:migrate`                | Migration erstellen/anwenden (Entwicklung)                         |
+| `npm run db:deploy`                 | Migrationen anwenden (Production)                                  |
+| `npm run db:seed`                   | Grundkonfiguration anlegen                                         |
+| `npm run db:studio`                 | Prisma Studio                                                      |
+| `npm run doctor -- <DiscordID>`     | Diagnose: Konfiguration, Discord, Bot und effektive Berechtigungen |
+| `npm run grant:admin -- <RollenID>` | Notfallzugang: einer Discord-Rolle `admin.full` geben              |
 
 ---
 
@@ -354,15 +356,16 @@ Discord-Server; mit `enabled: false` verschwindet sie ganz.
 
 ## Troubleshooting
 
-| Symptom                                                        | Ursache / Lösung                                                                          |
-| -------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
-| `Ungültige oder fehlende Umgebungsvariablen`                   | `.env` unvollständig - die Meldung nennt die betroffenen Variablen.                       |
-| `Der Bot besitzt möglicherweise nicht genügend Berechtigungen` | Bot-Rolle zu niedrig oder `Manage Roles` fehlt. Rollenreihenfolge prüfen.                 |
-| Mitgliedersuche liefert nichts                                 | **SERVER MEMBERS INTENT** im Developer Portal aktivieren.                                 |
-| `Bot derzeit nicht erreichbar`                                 | Bot-Prozess läuft nicht oder Heartbeat ist älter als 70 Sekunden.                         |
-| Login endet auf `/access-denied`                               | Discord-Konto ist (noch) kein Mitglied des konfigurierten Servers.                        |
-| Login-Fehler `state`                                           | Cookies blockiert oder Redirect URI stimmt nicht exakt mit `NEXT_PUBLIC_APP_URL` überein. |
-| Jail schlägt mit `CONFIGURATION_MISSING` fehl                  | Es ist keine Jail-Rolle hinterlegt (_Einstellungen -> Jail_).                             |
+| Symptom                                                        | Ursache / Lösung                                                                                                                                                          |
+| -------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Ungültige oder fehlende Umgebungsvariablen`                   | `.env` unvollständig - die Meldung nennt die betroffenen Variablen.                                                                                                       |
+| `Der Bot besitzt möglicherweise nicht genügend Berechtigungen` | Bot-Rolle zu niedrig oder `Manage Roles` fehlt. Rollenreihenfolge prüfen.                                                                                                 |
+| Mitgliedersuche liefert nichts                                 | **SERVER MEMBERS INTENT** im Developer Portal aktivieren.                                                                                                                 |
+| `Bot derzeit nicht erreichbar`                                 | Bot-Prozess läuft nicht oder Heartbeat ist älter als 70 Sekunden.                                                                                                         |
+| Login endet auf `/access-denied`                               | Discord-Konto ist (noch) kein Mitglied des konfigurierten Servers.                                                                                                        |
+| Angemeldet, aber "Keine Berechtigung"                          | Server-Ownerschaft allein gibt keine Rechte. `npm run doctor -- <DeineDiscordID>` zeigt die Ursache; beheben über `SWISSHUB_OWNER_DISCORD_ID` oder `npm run grant:admin`. |
+| Login-Fehler `state`                                           | Cookies blockiert oder Redirect URI stimmt nicht exakt mit `NEXT_PUBLIC_APP_URL` überein.                                                                                 |
+| Jail schlägt mit `CONFIGURATION_MISSING` fehl                  | Es ist keine Jail-Rolle hinterlegt (_Einstellungen -> Jail_).                                                                                                             |
 
 ---
 

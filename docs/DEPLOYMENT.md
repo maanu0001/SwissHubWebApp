@@ -269,6 +269,47 @@ curl -s https://system.swisshub.gg/api/health
 
 ---
 
+## 7a. Angemeldet, aber keine Rechte?
+
+Der häufigste Stolperstein beim ersten Start: **Discord-Server-Owner zu sein
+gibt in SwissHub noch keine Berechtigungen.** Die Permission Engine kennt nur
+zwei Quellen:
+
+1. `SWISSHUB_OWNER_DISCORD_ID` in der `.env` entspricht deiner **Discord-User-ID**
+   (nicht der Server-ID) - dieses Konto hat sofort Vollzugriff, ganz ohne Rolle.
+2. Eine deiner Discord-Rollen ist einer Berechtigung zugeordnet. Beim Start legt
+   die Anwendung dafür automatisch die Rolle aus `DISCORD_ADMIN_ROLE_ID` mit
+   `admin.full` an - vorausgesetzt, du **trägst diese Rolle auch selbst**.
+
+Diagnose (zeigt Konfiguration, Rollen und die effektiven Berechtigungen):
+
+```bash
+# Docker
+docker compose -f docker-compose.prod.yml exec web npm run doctor -- <DEINE_DISCORD_ID>
+
+# systemd / bare metal
+cd /opt/swisshub && npm run doctor -- <DEINE_DISCORD_ID>
+```
+
+Beheben - eine der beiden Varianten genügt:
+
+```bash
+# A) Owner-ID setzen (wirkt nach Neustart der Dienste)
+nano .env          # SWISSHUB_OWNER_DISCORD_ID=123456789012345678
+docker compose -f docker-compose.prod.yml up -d       # Container neu erzeugen
+# bzw. systemctl restart swisshub-web swisshub-bot
+
+# B) Einer Discord-Rolle Vollzugriff geben (wirkt sofort nach erneuter Anmeldung)
+docker compose -f docker-compose.prod.yml exec web npm run grant:admin -- <ROLLEN_ID>
+```
+
+> Eine `.env`-Änderung greift bei Docker erst, wenn der Container **neu erzeugt**
+> wird (`up -d`), nicht bei einem blossen `restart`.
+
+Danach abmelden und erneut anmelden - die Rollen werden dabei frisch von Discord
+geladen. Anschliessend unter _Einstellungen → Rollen & Berechtigungen_ die
+weiteren Rollen (Moderator, Supporter, ...) konfigurieren.
+
 ## 8. Betrieb
 
 ### Logs
@@ -352,18 +393,19 @@ genügt als vollständige Sicherung.
 
 ## 10. Troubleshooting
 
-| Symptom                                                        | Ursache / Lösung                                                             |
-| -------------------------------------------------------------- | ---------------------------------------------------------------------------- |
-| Container startet nicht, Log nennt Variablen                   | `.env` unvollständig - die Meldung listet die fehlenden Werte                |
-| `DEV_MOCK_DISCORD: darf in Production niemals aktiviert sein`  | In `.env` auf `false` setzen                                                 |
-| `NEXT_PUBLIC_APP_URL: muss in Production HTTPS verwenden`      | `https://system.swisshub.gg` eintragen                                       |
-| Login endet mit `?error=state`                                 | Redirect URI im Developer Portal weicht ab, oder Cookies werden blockiert    |
-| Login endet auf `/access-denied`                               | Konto ist kein Mitglied der konfigurierten Guild                             |
-| 502 Bad Gateway                                                | WebApp läuft nicht: `docker compose ps` bzw. `systemctl status swisshub-web` |
-| Bot offline im Dashboard                                       | Bot-Prozess prüfen; Heartbeat älter als 70 Sekunden gilt als offline         |
-| Mitgliedersuche leer                                           | _SERVER MEMBERS INTENT_ im Developer Portal aktivieren                       |
-| `Der Bot besitzt möglicherweise nicht genügend Berechtigungen` | Bot-Rolle auf Discord über die betroffenen Rollen ziehen                     |
-| Rate-Limit-Meldungen trotz weniger Zugriffe                    | `TRUST_PROXY=true` fehlt - alle Anfragen zählen sonst auf dieselbe IP        |
+| Symptom                                                        | Ursache / Lösung                                                                                                                           |
+| -------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| Container startet nicht, Log nennt Variablen                   | `.env` unvollständig - die Meldung listet die fehlenden Werte                                                                              |
+| `DEV_MOCK_DISCORD: darf in Production niemals aktiviert sein`  | In `.env` auf `false` setzen                                                                                                               |
+| `NEXT_PUBLIC_APP_URL: muss in Production HTTPS verwenden`      | `https://system.swisshub.gg` eintragen                                                                                                     |
+| Login endet mit `?error=state`                                 | Redirect URI im Developer Portal weicht ab, oder Cookies werden blockiert                                                                  |
+| Login endet auf `/access-denied`                               | Konto ist kein Mitglied der konfigurierten Guild                                                                                           |
+| Angemeldet, aber "Keine Berechtigung"                          | Weder `SWISSHUB_OWNER_DISCORD_ID` gesetzt noch eine Rollen-Zuordnung vorhanden - siehe Abschnitt 7a, Diagnose mit `npm run doctor -- <ID>` |
+| 502 Bad Gateway                                                | WebApp läuft nicht: `docker compose ps` bzw. `systemctl status swisshub-web`                                                               |
+| Bot offline im Dashboard                                       | Bot-Prozess prüfen; Heartbeat älter als 70 Sekunden gilt als offline                                                                       |
+| Mitgliedersuche leer                                           | _SERVER MEMBERS INTENT_ im Developer Portal aktivieren                                                                                     |
+| `Der Bot besitzt möglicherweise nicht genügend Berechtigungen` | Bot-Rolle auf Discord über die betroffenen Rollen ziehen                                                                                   |
+| Rate-Limit-Meldungen trotz weniger Zugriffe                    | `TRUST_PROXY=true` fehlt - alle Anfragen zählen sonst auf dieselbe IP                                                                      |
 
 Weitere Hintergründe: [ARCHITECTURE.md](ARCHITECTURE.md) und
 [SECURITY.md](SECURITY.md) (inkl. Sicherheitsannahmen und Checkliste).

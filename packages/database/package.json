@@ -9,15 +9,7 @@
     ".": "./src/index.ts"
   },
   "scripts": {
-    "generate": "prisma generate",
-    "migrate": "prisma migrate dev",
-    "deploy": "prisma migrate deploy",
-    "studio": "prisma studio",
-    "seed": "tsx prisma/seed.ts",
     "format": "prisma format"
-  },
-  "prisma": {
-    "seed": "tsx prisma/seed.ts"
   },
   "dependencies": {
     "@prisma/client": "6.19.3",

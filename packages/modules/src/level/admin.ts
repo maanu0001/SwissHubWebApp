@@ -5,6 +5,7 @@ import { LEVEL_MODULE_ID, type LevelSettings } from './config';
 import { loadLevelContext } from './context';
 import { applyXp, type ApplyXpResult } from './service';
 import { syncMilestoneRoles } from './milestones';
+import { logXpChange } from './notifications';
 
 /**
  * Verwaltende Eingriffe ins Level-System.
@@ -76,6 +77,18 @@ export async function adjustXp(
     rolesAdded = sync?.added ?? [];
     rolesRemoved = sync?.removed ?? [];
   }
+
+  // Zusätzlich zum Audit-Log ins Discord-Protokoll - das Team sieht die
+  // Änderung dort, ohne das Dashboard zu öffnen.
+  await logXpChange(context, {
+    discordId: input.target.discordId,
+    delta: result.delta,
+    xpAfter: result.xpAfter,
+    levelAfter: result.levelAfter,
+    source: 'ADMIN',
+    reason: input.reason ?? null,
+    actorDiscordId: actor.discordId,
+  });
 
   await safeRecordAudit({
     action: amount > 0 ? AUDIT_ACTIONS.LEVEL_XP_GRANTED : AUDIT_ACTIONS.LEVEL_XP_REVOKED,

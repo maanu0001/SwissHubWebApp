@@ -4,6 +4,7 @@ import { loadLevelContext, type LevelContext } from './context';
 import { settleDecayFor } from './service';
 import { syncMilestoneRoles } from './milestones';
 import { releaseStaleGames } from './games';
+import { logDecay } from './notifications';
 
 const logger = createLogger('level.worker');
 
@@ -64,6 +65,13 @@ export async function runDecaySweep(
       }
       changed += 1;
       totalDecayed += result.decayed;
+
+      await logDecay(context, {
+        discordId: candidate.discordId,
+        lost: result.decayed,
+        xpAfter: result.profile.xp,
+        lastActivityAt: result.profile.lastActivityAt,
+      });
 
       if (options.syncRoles !== false) {
         // Wer unter eine Schwelle fällt, verliert die zugehörige Rolle -

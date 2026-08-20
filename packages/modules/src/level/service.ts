@@ -3,7 +3,7 @@ import { prisma, type LevelProfile, type XpSource } from '@swisshub/database';
 import { createLogger } from '@swisshub/logger';
 import { conflict } from '@swisshub/shared';
 import { DEFAULT_MAX_LEVEL_TOTAL_XP, levelFromXp } from './curve';
-import { computeDecay, type DecayRules } from './decay';
+import { computeDecay, isInDecayPhase, type DecayRules } from './decay';
 import { DEFAULT_DECAY_RULES } from './decay';
 
 const logger = createLogger('level.service');
@@ -51,6 +51,11 @@ export interface ApplyXpResult {
   /** Vorher zusätzlich verrechneter Inaktivitäts-Abzug. */
   decayed: number;
   levelUp: boolean;
+  /**
+   * Die Person steckte vor dieser Buchung im Abzug und ist jetzt wieder aktiv.
+   * Der Vorgänger meldete genau diesen Moment im Protokoll.
+   */
+  decayEnded: boolean;
 }
 
 export interface XpEngineOptions {
@@ -189,11 +194,16 @@ export async function applyXp(input: ApplyXpInput, options: XpEngineOptions = {}
           skipped: true,
           decayed: 0,
           levelUp: false,
+          decayEnded: false,
         } satisfies ApplyXpResult;
       }
     }
 
     let profile = await lockProfile(tx, input);
+
+    // Vor dem Schreiben festhalten: steckte die Person gerade im Abzug?
+    const wasInDecay =
+      Boolean(input.touchActivity) && isInDecayPhase(profile.lastActivityAt, now, decayRules);
 
     let decayed = 0;
     if (options.applyDecayFirst) {
@@ -268,6 +278,7 @@ export async function applyXp(input: ApplyXpInput, options: XpEngineOptions = {}
       skipped: false,
       decayed,
       levelUp: levelAfter > levelBefore,
+      decayEnded: wasInDecay,
     } satisfies ApplyXpResult;
   });
 }
@@ -320,6 +331,7 @@ export async function setXp(
           skipped: true,
           decayed: 0,
           levelUp: false,
+          decayEnded: false,
         } satisfies ApplyXpResult;
       }
     }
@@ -377,6 +389,7 @@ export async function setXp(
       skipped: false,
       decayed: 0,
       levelUp: levelAfter > levelBefore,
+      decayEnded: false,
     } satisfies ApplyXpResult;
   });
 }
@@ -389,9 +402,25 @@ export async function setXp(
  */
 export async function touchActivity(
   identity: LevelIdentity,
-  options: { now?: Date; markMessage?: boolean; markVoice?: boolean } = {},
-): Promise<void> {
+  options: {
+    now?: Date;
+    markMessage?: boolean;
+    markVoice?: boolean;
+    decayRules?: DecayRules;
+  } = {},
+): Promise<{ decayEnded: boolean }> {
   const now = options.now ?? new Date();
+
+  const before = await prisma.levelProfile.findUnique({
+    where: { discordId: identity.discordId },
+    select: { lastActivityAt: true },
+  });
+  const decayEnded = isInDecayPhase(
+    before?.lastActivityAt ?? null,
+    now,
+    options.decayRules ?? DEFAULT_DECAY_RULES,
+  );
+
   await prisma.levelProfile.upsert({
     where: { discordId: identity.discordId },
     create: {
@@ -414,6 +443,8 @@ export async function touchActivity(
       ...(identity.avatarHash !== undefined ? { avatarHash: identity.avatarHash } : {}),
     },
   });
+
+  return { decayEnded };
 }
 
 export async function getProfile(discordId: string): Promise<LevelProfile | null> {

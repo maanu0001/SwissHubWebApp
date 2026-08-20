@@ -9,6 +9,7 @@ import { createLogger } from '@swisshub/logger';
 import { AppError } from '@swisshub/shared';
 import { isModuleEnabled, level } from '@swisshub/modules';
 import { renderLevelCard } from '../level-card';
+import { listMutedWithoutXp } from '../level-events';
 import { startGame } from '../level-games';
 import { NO_PERMISSION, buildCommandActor, type CommandActor } from './context';
 
@@ -835,6 +836,11 @@ async function handleVoiceMuteStatus(
     return;
   }
   const { settings } = context;
+
+  // Wie beim Vorgänger nicht nur die Einstellung, sondern auch, wen sie gerade
+  // betrifft - das ist die Frage, wegen der jemand den Befehl aufruft.
+  const muted = await listMutedWithoutXp(interaction.client, interaction.guildId).catch(() => []);
+
   await interaction.reply({
     embeds: [
       {
@@ -849,9 +855,20 @@ async function handleVoiceMuteStatus(
           { name: 'Nachlauf', value: `${settings.voiceMuteCooldownSeconds} s`, inline: true },
           { name: 'Was zellt', value: settings.voiceMuteMode, inline: true },
           { name: 'XP elei im Channel', value: settings.xpWhileAlone ? 'a' : 'us', inline: true },
+          {
+            name: `Grad ohni XP (${muted.length})`,
+            value:
+              muted.length === 0
+                ? 'Niemert.'
+                : muted
+                    .slice(0, 20)
+                    .map((entry) => `${entry.displayName} in <#${entry.channelId}>`)
+                    .join('\n'),
+          },
         ],
       },
     ],
+    allowedMentions: { parse: [] },
     ...ephemeral,
   });
 }

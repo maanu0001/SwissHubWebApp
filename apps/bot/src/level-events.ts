@@ -84,6 +84,10 @@ async function afterXp(
     })
     .catch((error: unknown) => log.warn('Meilenstein-Rollen fehlgeschlagen', { error }));
 
+  if (result.decayEnded) {
+    await level.logDecayEnded(context, member.id).catch(() => undefined);
+  }
+
   if (result.levelUp) {
     await announceLevelUp(client, member, result.levelAfter, context);
   }
@@ -116,7 +120,13 @@ export function registerLevelMessageXp(client: Client): void {
       if (!decision.grant) {
         // Auch ohne XP zählt die Nachricht als Lebenszeichen. Sonst würde
         // jemand, der nur in Channels ohne XP schreibt, dem Abzug verfallen.
-        await level.touchActivity(identity, { markMessage: true });
+        const touched = await level.touchActivity(identity, {
+          markMessage: true,
+          decayRules: context.decayRules,
+        });
+        if (touched.decayEnded) {
+          await level.logDecayEnded(context, member.id).catch(() => undefined);
+        }
         return;
       }
 
@@ -171,7 +181,13 @@ export function registerLevelVoiceTracking(client: Client): void {
         if (!before.channelId || before.channelId !== after.channelId) {
           const context = await level.loadLevelContext();
           if (context.enabled) {
-            await level.touchActivity(identityOf(member), { markVoice: true });
+            const touched = await level.touchActivity(identityOf(member), {
+              markVoice: true,
+              decayRules: context.decayRules,
+            });
+            if (touched.decayEnded) {
+              await level.logDecayEnded(context, member.id).catch(() => undefined);
+            }
           }
         }
       } else {
@@ -287,6 +303,72 @@ export async function runVoiceXpSweep(client: Client, guildId: string | null): P
   }
 
   return { checked, granted, xp };
+}
+
+export interface MutedWithoutXp {
+  discordId: string;
+  displayName: string;
+  channelId: string;
+}
+
+/**
+ * Wer gerade im Voice sitzt und wegen Stummschaltung kein XP bekommt.
+ *
+ * Grundlage für `/xp_voicemute_status`. Die Entscheidung trifft dieselbe
+ * Funktion wie der Voice-Durchgang - eine zweite Regelauslegung gäbe es sonst
+ * genau dort, wo jemand nachfragt, warum er kein XP bekommt.
+ */
+export async function listMutedWithoutXp(client: Client, guildId: string | null): Promise<MutedWithoutXp[]> {
+  if (!guildId) {
+    return [];
+  }
+  const guild = client.guilds.cache.get(guildId);
+  if (!guild) {
+    return [];
+  }
+
+  const context = await level.loadLevelContext();
+  const now = Date.now();
+  const result: MutedWithoutXp[] = [];
+
+  for (const memberId of [...activeVoice]) {
+    const member = guild.members.cache.get(memberId);
+    const voice = member?.voice;
+    if (!member || member.user.bot || !voice?.channelId) {
+      continue;
+    }
+
+    const channel = voice.channel;
+    const others =
+      channel && channel.type === ChannelType.GuildVoice
+        ? channel.members.filter((entry) => !entry.user.bot && entry.id !== member.id).size
+        : 0;
+    const since = mutedSince.get(`${guild.id}:${member.id}`);
+
+    const decision = level.decideVoiceXp(
+      {
+        channelId: voice.channelId,
+        roleIds: [...member.roles.cache.keys()],
+        selfMuted: Boolean(voice.selfMute),
+        selfDeafened: Boolean(voice.selfDeaf),
+        serverMuted: Boolean(voice.mute),
+        serverDeafened: Boolean(voice.deaf),
+        secondsSinceMuted: since === undefined ? null : (now - since) / 1000,
+        otherHumansInChannel: others,
+      },
+      context.settings,
+    );
+
+    if (!decision.grant && decision.reason === 'muted') {
+      result.push({
+        discordId: member.id,
+        displayName: member.displayName,
+        channelId: voice.channelId,
+      });
+    }
+  }
+
+  return result;
 }
 
 /**

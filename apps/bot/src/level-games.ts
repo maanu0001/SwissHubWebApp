@@ -208,6 +208,40 @@ async function handleAccept(interaction: ButtonInteraction, matchId: string, con
   await renderBoard(interaction, started, context, null);
 }
 
+/**
+ * Schreibt Gewinn und Verlust ins XP-Protokoll.
+ *
+ * Der Vorgänger protokollierte XP-Battle und Schere-Stei-Papier; hier gilt es
+ * für alle vier Spiele - der Grund, XP zu verlieren, ist überall derselbe.
+ */
+async function logGameResult(context: Ctx, result: level.FinishGameResult): Promise<void> {
+  const label = level.GAME_LABELS[result.match.kind as level.GameKind];
+  await level
+    .logXpChange(context, {
+      discordId: result.winnerDiscordId,
+      delta: result.net,
+      xpAfter: result.xpAfterWinner,
+      levelAfter: level.levelFromXp(result.xpAfterWinner, context.settings.maxLevelTotalXp),
+      source: 'GAME_WIN',
+      reason: `${label}: gwunne`,
+    })
+    .catch(() => undefined);
+
+  const loser = await level.getProfile(result.loserDiscordId);
+  if (loser) {
+    await level
+      .logXpChange(context, {
+        discordId: result.loserDiscordId,
+        delta: -result.match.bet,
+        xpAfter: loser.xp,
+        levelAfter: level.levelFromXp(loser.xp, context.settings.maxLevelTotalXp),
+        source: 'GAME_LOSS',
+        reason: `${label}: verlore`,
+      })
+      .catch(() => undefined);
+  }
+}
+
 /** Kleiner Helfer, damit die Spielart typsicher bleibt. */
 const match0Kind = (match: LevelGameMatch): level.GameKind => match.kind as level.GameKind;
 
@@ -249,6 +283,7 @@ async function resolveBattle(
     decayRules: context.decayRules,
     maxLevelTotalXp: context.settings.maxLevelTotalXp,
   });
+  await logGameResult(context, result);
 
   await interaction.editReply({
     content: '',
@@ -285,6 +320,7 @@ async function handleSsp(
       decayRules: context.decayRules,
       maxLevelTotalXp: context.settings.maxLevelTotalXp,
     });
+    await logGameResult(context, result);
     await interaction.editReply({
       content: '',
       embeds: [
@@ -465,6 +501,7 @@ async function finishOrRender(
     decayRules: context.decayRules,
     maxLevelTotalXp: context.settings.maxLevelTotalXp,
   });
+  await logGameResult(context, result);
 
   await interaction.editReply({
     content: '',

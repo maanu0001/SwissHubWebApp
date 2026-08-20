@@ -11,13 +11,7 @@ interface ModuleCardProps {
 }
 
 /** Modulkachel im SwissHub-Design (Icon, Name, Kurztext, Statuspunkt). */
-export function ModuleCard({
-  name,
-  description,
-  icon,
-  enabled,
-  href,
-}: ModuleCardProps): React.JSX.Element {
+export function ModuleCard({ name, description, icon, enabled, href }: ModuleCardProps): React.JSX.Element {
   const status = enabled ? 'Aktiv' : 'Deaktiviert';
   const statusClasses = enabled ? 'text-success' : 'text-destructive';
   const dotClasses = enabled ? 'bg-success' : 'bg-destructive';

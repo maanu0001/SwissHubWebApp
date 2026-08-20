@@ -111,11 +111,7 @@ export async function updateLevelSettings(
   patch: Partial<LevelSettings>,
 ): Promise<LevelSettings> {
   const current = await readModuleSettings<LevelSettings>(LEVEL_MODULE_ID);
-  const result = await writeModuleSettings<LevelSettings>(
-    LEVEL_MODULE_ID,
-    { ...current, ...patch },
-    actor,
-  );
+  const result = await writeModuleSettings<LevelSettings>(LEVEL_MODULE_ID, { ...current, ...patch }, actor);
   return result.settings;
 }
 

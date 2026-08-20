@@ -314,9 +314,7 @@ const ephemeral = { flags: MessageFlags.Ephemeral } as const;
 
 async function replyError(interaction: ChatInputCommandInteraction, error: unknown): Promise<void> {
   const message =
-    error instanceof AppError
-      ? error.userMessage
-      : 'Das het nid klappet. Bitte spöter nomal probiere.';
+    error instanceof AppError ? error.userMessage : 'Das het nid klappet. Bitte spöter nomal probiere.';
   if (!(error instanceof AppError)) {
     log.error('Level-Befehl fehlgeschlagen', { error, command: interaction.commandName });
   }
@@ -374,9 +372,15 @@ export async function handleLevelCommand(interaction: ChatInputCommandInteractio
         await handleAdjust(interaction, actor);
         return;
       case 'set_xp_boost':
-        await handleSetting(interaction, actor, P.rulesManage, {
-          xpBoost: interaction.options.getNumber('wert', true),
-        }, (value) => `XP-Boost stoht jetzt uf **${value.xpBoost}**.`);
+        await handleSetting(
+          interaction,
+          actor,
+          P.rulesManage,
+          {
+            xpBoost: interaction.options.getNumber('wert', true),
+          },
+          (value) => `XP-Boost stoht jetzt uf **${value.xpBoost}**.`,
+        );
         return;
       case 'add_noxp_channel':
         await handleNoXpChannel(interaction, actor, 'add');
@@ -388,38 +392,68 @@ export async function handleLevelCommand(interaction: ChatInputCommandInteractio
         await handleListNoXp(interaction, actor, context);
         return;
       case 'set_announce_levels':
-        await handleSetting(interaction, actor, P.rulesManage, {
-          announceLevels: interaction.options.getString('level') ?? '',
-        }, (value) =>
-          value.announceLevels
-            ? `Es werde nur no die Level agkündet: **${value.announceLevels}**.`
-            : 'Es wird jetzt **jede** Levelufstig agkündet.');
+        await handleSetting(
+          interaction,
+          actor,
+          P.rulesManage,
+          {
+            announceLevels: interaction.options.getString('level') ?? '',
+          },
+          (value) =>
+            value.announceLevels
+              ? `Es werde nur no die Level agkündet: **${value.announceLevels}**.`
+              : 'Es wird jetzt **jede** Levelufstig agkündet.',
+        );
         return;
       case 'xp_voicemute':
-        await handleSetting(interaction, actor, P.rulesManage, {
-          voiceMuteBlocksXp: interaction.options.getString('status', true) === 'on',
-        }, (value) =>
-          value.voiceMuteBlocksXp
-            ? 'Bi Stummschaltig gits **kei** XP meh.'
-            : 'Bi Stummschaltig gits **wiiter** XP.');
+        await handleSetting(
+          interaction,
+          actor,
+          P.rulesManage,
+          {
+            voiceMuteBlocksXp: interaction.options.getString('status', true) === 'on',
+          },
+          (value) =>
+            value.voiceMuteBlocksXp
+              ? 'Bi Stummschaltig gits **kei** XP meh.'
+              : 'Bi Stummschaltig gits **wiiter** XP.',
+        );
         return;
       case 'xp_voicemute_cooldown':
-        await handleSetting(interaction, actor, P.rulesManage, {
-          voiceMuteCooldownSeconds: interaction.options.getInteger('sekunde', true),
-        }, (value) => `Nachlauf bi Stummschaltig: **${value.voiceMuteCooldownSeconds} Sekunde**.`);
+        await handleSetting(
+          interaction,
+          actor,
+          P.rulesManage,
+          {
+            voiceMuteCooldownSeconds: interaction.options.getInteger('sekunde', true),
+          },
+          (value) => `Nachlauf bi Stummschaltig: **${value.voiceMuteCooldownSeconds} Sekunde**.`,
+        );
         return;
       case 'xp_mutelevels':
-        await handleSetting(interaction, actor, P.rulesManage, {
-          voiceMuteMode: interaction.options.getString('modus', true) as 'sound' | 'voice' | 'beide',
-        }, (value) => `Es zellt jetzt: **${value.voiceMuteMode}**.`);
+        await handleSetting(
+          interaction,
+          actor,
+          P.rulesManage,
+          {
+            voiceMuteMode: interaction.options.getString('modus', true) as 'sound' | 'voice' | 'beide',
+          },
+          (value) => `Es zellt jetzt: **${value.voiceMuteMode}**.`,
+        );
         return;
       case 'xp_getxpwhilealone':
-        await handleSetting(interaction, actor, P.rulesManage, {
-          xpWhileAlone: interaction.options.getString('status', true) === 'on',
-        }, (value) =>
-          value.xpWhileAlone
-            ? 'Es git au XP, wenn me elei im Voice isch.'
-            : 'Elei im Voice gits **kei** XP meh.');
+        await handleSetting(
+          interaction,
+          actor,
+          P.rulesManage,
+          {
+            xpWhileAlone: interaction.options.getString('status', true) === 'on',
+          },
+          (value) =>
+            value.xpWhileAlone
+              ? 'Es git au XP, wenn me elei im Voice isch.'
+              : 'Elei im Voice gits **kei** XP meh.',
+        );
         return;
       case 'xp_voicemute_status':
         await handleVoiceMuteStatus(interaction, actor, context);
@@ -594,8 +628,7 @@ async function handleCheckUser(
     return;
   }
 
-  const relative = (date: Date | null): string =>
-    date ? `<t:${Math.floor(date.getTime() / 1000)}:R>` : '—';
+  const relative = (date: Date | null): string => (date ? `<t:${Math.floor(date.getTime() / 1000)}:R>` : '—');
 
   const inDecay = level.isInDecayPhase(stats.lastActivityAt, new Date(), context.decayRules);
 
@@ -669,10 +702,7 @@ async function handleGameStart(
   });
 }
 
-async function handleAdjust(
-  interaction: ChatInputCommandInteraction,
-  actor: CommandActor,
-): Promise<void> {
+async function handleAdjust(interaction: ChatInputCommandInteraction, actor: CommandActor): Promise<void> {
   if (!actor.can(P.membersManage)) {
     await interaction.reply({ content: NO_PERMISSION, ...ephemeral });
     return;

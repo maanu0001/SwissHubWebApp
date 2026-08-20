@@ -218,14 +218,15 @@ Details: [CONFIGURATION.md](CONFIGURATION.md).
 | `modules`    | Bot Module              | Feature-Module                             |
 | `system`     | System                  | Audit Log, Module, Einstellungen, Branding |
 
-### Geplante Module
+### Kein Platz für Ausblicke
 
-Module mit `status: 'planned'` erscheinen in der Navigation als Ausblick
-(ausgegraut, Label "Bald") und in der Modulverwaltung unter _Geplante Module_ -
-sie sind bewusst **nicht** verlinkt und besitzen keine Berechtigungen. So bleibt
-die Roadmap sichtbar, ohne Schaltflächen ohne Funktion zu erzeugen. Sobald das
-Modul implementiert ist, wird `status` entfernt und die vollständige Definition
-(Permissions, Einstellungen, Seiten) ergänzt.
+In der Navigation erscheint ausschliesslich, was auch funktioniert: ein Eintrag
+entsteht nur für ein registriertes, eingeschaltetes Modul mit vorhandener Seite.
+
+Es gab dafür einmal einen Ausblick-Modus (`status: 'planned'`, ausgegraut, Label
+"Bald"). Er ist entfernt worden, weil er in der Praxis das Gegenteil bewirkte:
+Die Einträge sahen aus wie Funktionen und waren keine. Ein Modul wird sichtbar,
+sobald es fertig ist - vorher steht es auf der Roadmap, nicht in der Seitenleiste.
 
 ---
 

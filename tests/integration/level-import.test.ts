@@ -68,13 +68,7 @@ async function buildLegacyDatabase(
     'INSERT INTO levels (user_id, xp, messages, voice_minutes, last_activity_at) VALUES (?, ?, ?, ?, ?)',
   );
   for (const row of rows) {
-    insert.run(
-      BigInt(row.userId),
-      row.xp,
-      row.messages ?? 0,
-      row.voiceMinutes ?? 0,
-      row.lastActivityAt ?? 0,
-    );
+    insert.run(BigInt(row.userId), row.xp, row.messages ?? 0, row.voiceMinutes ?? 0, row.lastActivityAt ?? 0);
   }
 
   db.prepare('INSERT INTO config (id, xp_boost, announce_levels) VALUES (1, ?, ?)').run(

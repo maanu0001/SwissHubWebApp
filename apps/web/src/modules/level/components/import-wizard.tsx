@@ -77,8 +77,7 @@ export function LevelImportUpload({
           levels.db hochladen
         </CardTitle>
         <CardDescription>
-          Die Datei wird nur gelesen und danach wieder gelöscht. Übernommen wird erst im nächsten
-          Schritt.
+          Die Datei wird nur gelesen und danach wieder gelöscht. Übernommen wird erst im nächsten Schritt.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">
@@ -182,8 +181,8 @@ export function LevelImportConfirm({
       <CardHeader>
         <CardTitle>Vorschau: {summary.fileName}</CardTitle>
         <CardDescription>
-          {summary.counts.importable} von {summary.counts.total} Einträgen werden übernommen -
-          zusammen {summary.totalXp} XP, höchstes Level {summary.highestLevel}.
+          {summary.counts.importable} von {summary.counts.total} Einträgen werden übernommen - zusammen{' '}
+          {summary.totalXp} XP, höchstes Level {summary.highestLevel}.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -210,9 +209,7 @@ export function LevelImportConfirm({
                 </Badge>
                 <div className="min-w-0">
                   <p className="truncate">{row.label}</p>
-                  {row.note ? (
-                    <p className="truncate text-xs text-muted-foreground">{row.note}</p>
-                  ) : null}
+                  {row.note ? <p className="truncate text-xs text-muted-foreground">{row.note}</p> : null}
                 </div>
               </li>
             ))}
@@ -223,8 +220,8 @@ export function LevelImportConfirm({
           <p className="flex items-start gap-2 text-sm">
             <ShieldAlert className="mt-0.5 size-4 shrink-0 text-warning" aria-hidden="true" />
             <span>
-              Der alte Level-Bot muss abgeschaltet sein. Läuft er weiter, vergeben zwei Bots
-              gleichzeitig XP und die übernommenen Stände sind sofort wieder falsch.
+              Der alte Level-Bot muss abgeschaltet sein. Läuft er weiter, vergeben zwei Bots gleichzeitig XP
+              und die übernommenen Stände sind sofort wieder falsch.
             </span>
           </p>
           <div className="flex items-center gap-2">
@@ -232,11 +229,7 @@ export function LevelImportConfirm({
             <Label htmlFor="legacy-stopped">Der alte Level-Bot ist abgeschaltet</Label>
           </div>
           <div className="flex items-center gap-2">
-            <Switch
-              id="import-settings"
-              checked={importSettings}
-              onCheckedChange={setImportSettings}
-            />
+            <Switch id="import-settings" checked={importSettings} onCheckedChange={setImportSettings} />
             <Label htmlFor="import-settings">
               Einstellungen mit übernehmen (XP-Boost, Channels ohne XP, Voice-Regeln)
             </Label>
@@ -315,9 +308,7 @@ export function LevelEnvImport({ csrfToken }: { csrfToken: string }): React.JSX.
       }
 
       setPreview(payload.data);
-      setSelected(
-        new Set(payload.data.settings.filter((entry) => entry.valid).map((entry) => entry.key)),
-      );
+      setSelected(new Set(payload.data.settings.filter((entry) => entry.valid).map((entry) => entry.key)));
     } catch {
       setError('Die Datei konnte nicht übertragen werden.');
     } finally {
@@ -349,8 +340,8 @@ export function LevelEnvImport({ csrfToken }: { csrfToken: string }): React.JSX.
           <code className="font-mono text-xs">BOT_TOKEN</code>,{' '}
           <code className="font-mono text-xs">AUTH_SECRET</code>,{' '}
           <code className="font-mono text-xs">DATABASE_URL</code> und{' '}
-          <code className="font-mono text-xs">REDIS_URL</code> werden nicht ausgewertet und tauchen
-          hier nicht auf.
+          <code className="font-mono text-xs">REDIS_URL</code> werden nicht ausgewertet und tauchen hier nicht
+          auf.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">
@@ -376,8 +367,8 @@ export function LevelEnvImport({ csrfToken }: { csrfToken: string }): React.JSX.
         ) : (
           <>
             <p className="text-sm text-muted-foreground">
-              {preview.applicable} übernehmbare Werte gefunden. {preview.ignoredKeys} weitere Einträge
-              wurden nicht ausgewertet.
+              {preview.applicable} übernehmbare Werte gefunden. {preview.ignoredKeys} weitere Einträge wurden
+              nicht ausgewertet.
             </p>
             <ul className="divide-y divide-border rounded-lg border border-border text-sm">
               {preview.settings.map((entry) => (
@@ -395,9 +386,7 @@ export function LevelEnvImport({ csrfToken }: { csrfToken: string }): React.JSX.
                     <span className="block truncate font-mono text-xs text-muted-foreground">
                       {entry.key} = {entry.display}
                     </span>
-                    {entry.note ? (
-                      <span className="block text-xs text-destructive">{entry.note}</span>
-                    ) : null}
+                    {entry.note ? <span className="block text-xs text-destructive">{entry.note}</span> : null}
                   </label>
                 </li>
               ))}

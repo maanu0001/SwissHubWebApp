@@ -1,4 +1,11 @@
-import { AUDIT_ACTIONS, prisma, safeRecordAudit, type LevelImport, type LevelImportItem, type Prisma } from '@swisshub/database';
+import {
+  AUDIT_ACTIONS,
+  prisma,
+  safeRecordAudit,
+  type LevelImport,
+  type LevelImportItem,
+  type Prisma,
+} from '@swisshub/database';
 import { createLogger } from '@swisshub/logger';
 import { AppError, conflict, notFound } from '@swisshub/shared';
 import { readModuleSettings } from '../../settings/service';
@@ -341,26 +348,22 @@ export async function executeLevelImport(
           const seconds = (value: number | null): Date | null =>
             value === null ? null : new Date(value * 1000);
 
-          await setXp(
-            { discordId: payload.userId },
-            payload.xp,
-            {
-              source: 'MIGRATION',
-              reason: `Übernahme aus ${run.fileName}`,
-              actorDiscordId: actor.discordId,
-              importId: run.id,
-              // Zweiter Riegel neben der Prüfsumme am Profil: dieselbe Zeile
-              // aus demselben Lauf kann nie doppelt buchen.
-              idempotencyKey: `level-import:${run.id}:${item.legacyKey}`,
-              messages: payload.messages,
-              voiceMinutes: payload.voiceMinutes,
-              lastActivityAt: seconds(payload.lastActivityAt),
-              lastDecayAt: seconds(payload.lastDecayAt),
-              lastMessageAt: seconds(payload.lastMessageAt),
-              lastVoiceAt: seconds(payload.lastVoiceAt),
-              legacyImportSha: run.fileSha256,
-            },
-          );
+          await setXp({ discordId: payload.userId }, payload.xp, {
+            source: 'MIGRATION',
+            reason: `Übernahme aus ${run.fileName}`,
+            actorDiscordId: actor.discordId,
+            importId: run.id,
+            // Zweiter Riegel neben der Prüfsumme am Profil: dieselbe Zeile
+            // aus demselben Lauf kann nie doppelt buchen.
+            idempotencyKey: `level-import:${run.id}:${item.legacyKey}`,
+            messages: payload.messages,
+            voiceMinutes: payload.voiceMinutes,
+            lastActivityAt: seconds(payload.lastActivityAt),
+            lastDecayAt: seconds(payload.lastDecayAt),
+            lastMessageAt: seconds(payload.lastMessageAt),
+            lastVoiceAt: seconds(payload.lastVoiceAt),
+            legacyImportSha: run.fileSha256,
+          });
           totalXp += payload.xp;
           imported += 1;
           break;
@@ -439,7 +442,12 @@ export async function executeLevelImport(
           settingsPatch.voiceMuteCooldownSeconds = payload.voiceMuteCooldownSeconds;
           settingsPatch.voiceMuteMode = payload.muteLevels;
           settingsPatch.xpWhileAlone = payload.xpWhileAlone;
-          settingsChanged.push('voiceMuteBlocksXp', 'voiceMuteCooldownSeconds', 'voiceMuteMode', 'xpWhileAlone');
+          settingsChanged.push(
+            'voiceMuteBlocksXp',
+            'voiceMuteCooldownSeconds',
+            'voiceMuteMode',
+            'xpWhileAlone',
+          );
           imported += 1;
           break;
         }

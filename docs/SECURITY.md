@@ -326,6 +326,68 @@ Zusätzlich:
 - **Bestätigung ist Pflicht**, dass der alte Bot gestoppt ist - zwei laufende
   Bots würden doppelte Suchen, Pings und Sprachkanäle erzeugen.
 
+### Übernahme der alten Level-Datenbank und der alten `.env`
+
+Für `levels.db` gelten dieselben Regeln wie für die beiden anderen
+Altdatenbanken (`packages/modules/src/level/import/reader.ts`): nur lesend
+geöffnet, ausschliesslich die fünf erwarteten Tabellen mit fest im Code
+stehendem SQL, keine Extensions, kein Pfad aus dem Browser, temporäre Kopie in
+einem zufällig benannten Verzeichnis mit Modus `0600`, Löschung in jedem Fall,
+Grössenlimit 64 MB, Signaturprüfung. Discord-IDs werden als BigInt gelesen -
+als JavaScript-Zahl entstünden falsche IDs und damit XP für die falsche Person.
+
+Zusätzlich:
+
+- **XP werden gesetzt, nicht addiert.** Der Stand aus der Altdatenbank gilt; er
+  wird nicht aus Nachrichten und Voice-Minuten neu berechnet.
+- **Dieselbe Datei zählt nur einmal.** Jedes übernommene Profil merkt sich die
+  SHA-256-Prüfsumme der Datei, aus der sein Stand stammt; zusätzlich trägt jede
+  Buchung einen Schlüssel aus Lauf-ID und Legacy-Zeile. Ein zweiter Durchgang
+  bucht dadurch nichts doppelt.
+- **Bestätigung ist Pflicht**, dass der alte Bot gestoppt ist - zwei laufende
+  Bots würden für dieselbe Nachricht zweimal XP vergeben.
+
+Die alte `.env` lässt sich getrennt hochladen, um Einstellungen zu übernehmen.
+Gelesen wird über eine **Positivliste**: ausgewertet wird ausschliesslich, was
+im Code als Level-Einstellung eingetragen ist
+(`packages/modules/src/level/import/env-reader.ts`).
+
+`BOT_TOKEN`, `AUTH_SECRET`, `DATABASE_URL` und `REDIS_URL` stehen nicht auf
+dieser Liste. Sie werden nicht ausgewertet, nicht zurückgegeben, nicht
+protokolliert und nicht gespeichert; die Vorschau nennt nur die **Anzahl** der
+übersprungenen Einträge, nicht deren Namen. Eine Sperrliste wäre hier der
+falsche Ansatz - sie müsste jeden künftigen Namen kennen, und ein vergessener
+Eintrag würde ein Geheimnis durchlassen. `tests/integration/level-import.test.ts`
+hält das fest. Fehler beim Verarbeiten der Datei werden bewusst ohne Details
+protokolliert.
+
+Der Token des alten Bots sollte im Discord Developer Portal rotiert werden;
+siehe [LEVEL_MIGRATION.md](./LEVEL_MIGRATION.md).
+
+### Level-System
+
+- **Berechtigungen statt fester Rollen.** Der Vorgänger prüfte vier fest
+  eingetragene Rollen-IDs (`LEVEL_MANAGER_ROLE_ID`, `LEVEL5_ROLE_ID`,
+  `LEVEL10_ROLE_ID`, `ALLOWED_ROLES`). Hier entscheidet ausschliesslich die
+  Zuordnung im Dashboard (`level.*`) - für Dashboard und Slash Commands
+  gleichermassen.
+- **Ein XP-Stand ändert sich an genau einer Stelle.** Nachrichten, Voice,
+  Spiele, Slash Commands, Dashboard und Import gehen alle durch `applyXp`.
+  Dort passiert die Klemmung auf nicht-negative Werte, dort entsteht der
+  Journaleintrag, und dort wird das Profil per Zeilensperre geschützt.
+- **Einsätze werden beim Annehmen abgebucht.** Der Vorgänger prüfte nur den
+  Punktestand und buchte erst beim Abrechnen ab - derselbe Punktestand liess
+  sich dadurch gleichzeitig in mehreren Partien einsetzen.
+- **Laufende Partien stehen in der Datenbank.** Zwei Unique-Indizes verhindern,
+  dass jemand in zwei Partien gleichzeitig steckt. Beim Vorgänger lag diese
+  Sperre im Arbeitsspeicher und war nach einem Neustart weg.
+- **Mentions bleiben stumm.** Spielverläufe nennen beide Beteiligten mehrfach;
+  benachrichtigt wird nur, wer herausgefordert wurde.
+- **Bilder für die Levelkarte** werden nur über `https` und nur von einer
+  Positivliste an Hosts geladen, mit Grössenlimit und Zeitgrenze. Sie werden
+  vor dem Einbetten neu gerastert, damit kein SVG in die Karte gerät, das
+  seinerseits Inhalte nachlädt.
+
 ### Spielersuche
 
 - **Berechtigungen statt fester Rollen.** Der Vorgänger prüfte zwei fest

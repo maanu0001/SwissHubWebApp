@@ -32,13 +32,7 @@ export const MAX_LEGACY_DB_BYTES = 64 * 1024 * 1024;
 
 const SQLITE_MAGIC = 'SQLite format 3\0';
 
-export const EXPECTED_TABLES = [
-  'levels',
-  'config',
-  'no_xp_channels',
-  'game_wins',
-  'guild_config',
-] as const;
+export const EXPECTED_TABLES = ['levels', 'config', 'no_xp_channels', 'game_wins', 'guild_config'] as const;
 
 export interface LegacyLevelRow {
   userId: string;
@@ -173,9 +167,7 @@ export async function readLegacyLevelDatabase(data: Uint8Array): Promise<LegacyL
   const sha256 = createHash('sha256').update(data).digest('hex');
   const { DatabaseSync } = await import('node:sqlite');
 
-  const directory = await mkdtemp(
-    join(tmpdir(), `swisshub-level-import-${randomBytes(8).toString('hex')}-`),
-  );
+  const directory = await mkdtemp(join(tmpdir(), `swisshub-level-import-${randomBytes(8).toString('hex')}-`));
   const file = join(directory, 'legacy.db');
 
   try {
@@ -287,7 +279,9 @@ export async function readLegacyLevelDatabase(data: Uint8Array): Promise<LegacyL
         : [];
 
       const configRow = tables.includes('config')
-        ? query(`SELECT ${optional('config', 'xp_boost')}, ${optional('config', 'announce_levels')} FROM "config" LIMIT 1`)[0]
+        ? query(
+            `SELECT ${optional('config', 'xp_boost')}, ${optional('config', 'announce_levels')} FROM "config" LIMIT 1`,
+          )[0]
         : undefined;
       const config: LegacyConfig | null = configRow
         ? {

@@ -111,9 +111,7 @@ export function buildNavigation(
   const owned = new Set(permissionKeys);
   return listModuleDefinitions()
     .filter((definition) => definition.core || enabledModuleIds.has(definition.id))
-    .flatMap((definition) =>
-      definition.navigation.map((item) => ({ ...item, moduleId: definition.id })),
-    )
+    .flatMap((definition) => definition.navigation.map((item) => ({ ...item, moduleId: definition.id })))
     .filter((item) => owned.has(item.permission))
     .sort((a, b) => a.order - b.order);
 }

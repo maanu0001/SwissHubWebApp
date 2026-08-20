@@ -2,14 +2,7 @@ import { BUTTON_STYLE, type DiscordActionRow, type DiscordEmbed } from '@swisshu
 import type { LevelGameMatch, XpGameKind } from '@swisshub/database';
 import { formatXp } from './card';
 import { levelProgress } from './curve';
-import {
-  C4_COLS,
-  GAME_LABELS,
-  SSP_LABELS,
-  type C4Board,
-  type SspChoice,
-  type TttBoard,
-} from './game-rules';
+import { C4_COLS, GAME_LABELS, SSP_LABELS, type C4Board, type SspChoice, type TttBoard } from './game-rules';
 
 /**
  * Nachrichten des Level-Systems.
@@ -82,10 +75,7 @@ const mention = (discordId: string): string => `<@${discordId}>`;
  */
 export const SILENT_MENTIONS = { parse: [] as Array<'users' | 'roles' | 'everyone'> };
 
-export function buildChallengeEmbed(
-  match: LevelGameMatch,
-  options: { accentColor: number },
-): DiscordEmbed {
+export function buildChallengeEmbed(match: LevelGameMatch, options: { accentColor: number }): DiscordEmbed {
   return {
     title: `${GAME_LABELS[match.kind]} – Herusforderig`,
     description:
@@ -148,7 +138,8 @@ export function buildTttButtons(matchId: string, board: TttBoard, disabled = fal
         const mark = board[index];
         return {
           type: 2 as const,
-          style: mark === 'X' ? BUTTON_STYLE.DANGER : mark === 'O' ? BUTTON_STYLE.PRIMARY : BUTTON_STYLE.SECONDARY,
+          style:
+            mark === 'X' ? BUTTON_STYLE.DANGER : mark === 'O' ? BUTTON_STYLE.PRIMARY : BUTTON_STYLE.SECONDARY,
           label: mark ?? '​',
           custom_id: BUTTON_IDS.ttt(matchId, index),
           disabled: disabled || mark !== null,
@@ -181,8 +172,9 @@ export function buildC4Buttons(matchId: string, board: C4Board, disabled = false
 const C4_PIECES = ['⚪', '🔴', '🟡'] as const;
 
 export function renderC4Board(board: C4Board): string {
-  const header = Array.from({ length: C4_COLS }, (_unused, column) =>
-    ['1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️⃣', '7️⃣'][column],
+  const header = Array.from(
+    { length: C4_COLS },
+    (_unused, column) => ['1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️⃣', '7️⃣'][column],
   ).join('');
   const grid = board.map((row) => row.map((piece) => C4_PIECES[piece]).join('')).join('\n');
   return `${header}\n${grid}`;
@@ -268,7 +260,14 @@ export function buildLevelEmbed(input: LevelEmbedInput, accentColor: number): Di
 }
 
 export function buildLeaderboardEmbed(
-  entries: ReadonlyArray<{ rank: number; discordId: string; displayName: string | null; username: string | null; xp: number; level: number }>,
+  entries: ReadonlyArray<{
+    rank: number;
+    discordId: string;
+    displayName: string | null;
+    username: string | null;
+    xp: number;
+    level: number;
+  }>,
   accentColor: number,
 ): DiscordEmbed {
   const medals = ['🥇', '🥈', '🥉'];
@@ -286,7 +285,15 @@ export function buildLeaderboardEmbed(
 }
 
 export function buildGameLeaderboardEmbed(
-  boards: ReadonlyArray<{ kind: XpGameKind; entries: ReadonlyArray<{ discordId: string; displayName: string | null; username: string | null; wins: number }> }>,
+  boards: ReadonlyArray<{
+    kind: XpGameKind;
+    entries: ReadonlyArray<{
+      discordId: string;
+      displayName: string | null;
+      username: string | null;
+      wins: number;
+    }>;
+  }>,
   accentColor: number,
 ): DiscordEmbed {
   return {

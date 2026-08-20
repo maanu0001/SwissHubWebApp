@@ -54,7 +54,8 @@ export default async function LevelImportPage({
       highestLevel: pending.items
         .filter((item) => item.kind === 'PROFILE')
         .reduce(
-          (best, item) => Math.max(best, level.levelFromXp(Number((item.payload as { xp?: number }).xp ?? 0))),
+          (best, item) =>
+            Math.max(best, level.levelFromXp(Number((item.payload as { xp?: number }).xp ?? 0))),
           1,
         ),
       rows: pending.items.map((item) => ({
@@ -107,17 +108,14 @@ export default async function LevelImportPage({
             {
               key: 'status',
               header: 'Stand',
-              render: (row) => (
-                <Badge variant="secondary">{STATUS_LABELS[row.status] ?? row.status}</Badge>
-              ),
+              render: (row) => <Badge variant="secondary">{STATUS_LABELS[row.status] ?? row.status}</Badge>,
             },
             {
               key: 'rows',
               header: 'Einträge',
               render: (row) => (
                 <span className="text-xs text-muted-foreground">
-                  {row.importedRows} übernommen · {row.duplicateRows} Duplikate ·{' '}
-                  {row.failedRows} Fehler
+                  {row.importedRows} übernommen · {row.duplicateRows} Duplikate · {row.failedRows} Fehler
                 </span>
               ),
             },

@@ -28,9 +28,8 @@ import {
  * nebenbei geschehen zu lassen.
  */
 const LEGACY_XP_REQUIREMENTS = [
-  0, 420, 880, 1380, 1920, 2500, 3120, 3780, 4480, 5220, 6000, 6820, 7680, 8580, 9520, 10500,
-  11520, 12580, 13680, 14820, 16000, 17220, 18480, 19780, 21120, 22500, 23920, 25380, 26880,
-  28420, 32500,
+  0, 420, 880, 1380, 1920, 2500, 3120, 3780, 4480, 5220, 6000, 6820, 7680, 8580, 9520, 10500, 11520, 12580,
+  13680, 14820, 16000, 17220, 18480, 19780, 21120, 22500, 23920, 25380, 26880, 28420, 32500,
 ];
 
 describe('XP-Kurve', () => {
@@ -140,12 +139,14 @@ describe('Inaktivitäts-Abzug', () => {
   });
 
   it('beginnt erst nach sieben vollen Tagen', () => {
-    expect(computeDecay({
-      xp: 5000,
-      lastActivityAt: base,
-      lastDecayAt: base,
-      now: new Date(base.getTime() + (7 * SECONDS_PER_DAY - 1) * 1000),
-    }).decayed).toBe(0);
+    expect(
+      computeDecay({
+        xp: 5000,
+        lastActivityAt: base,
+        lastDecayAt: base,
+        now: new Date(base.getTime() + (7 * SECONDS_PER_DAY - 1) * 1000),
+      }).decayed,
+    ).toBe(0);
     expect(run(5000, 0, 0, 7).decayed).toBe(0);
     expect(run(5000, 0, 0, 8).decayed).toBe(50);
   });

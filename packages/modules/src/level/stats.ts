@@ -108,7 +108,14 @@ export interface MemberStats {
   lastDecayAt: Date | null;
   /** XP-Gewinn und -Verlust je Quelle. */
   bySource: Array<{ source: XpSource; total: number; count: number }>;
-  gameStats: Array<{ kind: XpGameKind; wins: number; losses: number; draws: number; xpWon: number; xpLost: number }>;
+  gameStats: Array<{
+    kind: XpGameKind;
+    wins: number;
+    losses: number;
+    draws: number;
+    xpWon: number;
+    xpLost: number;
+  }>;
 }
 
 /** Werte einer einzelnen Person. Ersetzt `/level_stats` und `/check_user`. */

@@ -71,9 +71,7 @@ export default async function LevelPage(): Promise<React.JSX.Element> {
           label="Im Inaktivitäts-Abzug"
           value={level.formatXp(overview.inDecay)}
           hint={
-            settings.decayEnabled
-              ? `Schonfrist ${settings.decayGraceDays} Tage`
-              : 'Abzug ist abgeschaltet'
+            settings.decayEnabled ? `Schonfrist ${settings.decayGraceDays} Tage` : 'Abzug ist abgeschaltet'
           }
           icon={<Moon />}
           tone={overview.inDecay > 0 && settings.decayEnabled ? 'warning' : 'default'}

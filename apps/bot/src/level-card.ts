@@ -16,11 +16,7 @@ const log = createLogger('bot:level:card');
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 
 /** Nur diese Hosts liefern Bilder für die Karte. */
-const ALLOWED_IMAGE_HOSTS = new Set([
-  'cdn.discordapp.com',
-  'media.discordapp.net',
-  'i.imgur.com',
-]);
+const ALLOWED_IMAGE_HOSTS = new Set(['cdn.discordapp.com', 'media.discordapp.net', 'i.imgur.com']);
 
 const cache = new Map<string, string>();
 

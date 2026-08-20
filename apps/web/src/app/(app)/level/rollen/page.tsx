@@ -57,8 +57,8 @@ export default async function LevelRolesPage(): Promise<React.JSX.Element> {
       />
 
       <p className="text-xs text-muted-foreground">
-        Der Bot zieht Rollen bei jeder XP-Änderung nach. Wer seither keine XP mehr gesammelt hat,
-        bekommt eine neu eingerichtete Rolle erst über &quot;Alle abgleichen&quot;.
+        Der Bot zieht Rollen bei jeder XP-Änderung nach. Wer seither keine XP mehr gesammelt hat, bekommt eine
+        neu eingerichtete Rolle erst über &quot;Alle abgleichen&quot;.
       </p>
     </>
   );

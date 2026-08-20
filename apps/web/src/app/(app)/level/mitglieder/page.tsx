@@ -42,9 +42,7 @@ export default async function LevelMembersPage({
   const query = params.q?.trim() ?? '';
   const page = Math.max(Number.parseInt(params.page ?? '1', 10) || 1, 1);
   const sort =
-    params.sort === 'activity' || params.sort === 'messages' || params.sort === 'voice'
-      ? params.sort
-      : 'xp';
+    params.sort === 'activity' || params.sort === 'messages' || params.sort === 'voice' ? params.sort : 'xp';
 
   const settings = await level.readLevelSettings();
   const result = await level.listLevelMembers({
@@ -94,9 +92,7 @@ export default async function LevelMembersPage({
         getRowKey={(row) => row.discordId}
         emptyTitle="Keine Mitglieder gefunden"
         emptyDescription={
-          query
-            ? 'Zu dieser Suche gibt es keinen Treffer.'
-            : 'Sobald jemand XP sammelt, erscheint er hier.'
+          query ? 'Zu dieser Suche gibt es keinen Treffer.' : 'Sobald jemand XP sammelt, erscheint er hier.'
         }
         columns={[
           {

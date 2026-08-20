@@ -104,9 +104,7 @@ export default async function LevelStatsPage(): Promise<React.JSX.Element> {
           <div className="space-y-1.5 rounded-xl border border-border bg-card/60 p-4">
             {stats.levelDistribution.map((entry) => (
               <div key={entry.level} className="flex items-center gap-3 text-xs">
-                <span className="w-14 shrink-0 tabular-nums text-muted-foreground">
-                  Level {entry.level}
-                </span>
+                <span className="w-14 shrink-0 tabular-nums text-muted-foreground">Level {entry.level}</span>
                 <div className="h-2 flex-1 overflow-hidden rounded-full bg-muted">
                   <div
                     className="h-full rounded-full bg-primary/70"
@@ -132,33 +130,25 @@ export default async function LevelStatsPage(): Promise<React.JSX.Element> {
               key: 'created',
               header: 'Zeitpunkt',
               render: (row) => (
-                <span className="text-xs text-muted-foreground">
-                  {row.createdAt.toLocaleString('de-CH')}
-                </span>
+                <span className="text-xs text-muted-foreground">{row.createdAt.toLocaleString('de-CH')}</span>
               ),
             },
             {
               key: 'member',
               header: 'Mitglied',
-              render: (row) => (
-                <span className="font-mono text-xs">{row.discordId}</span>
-              ),
+              render: (row) => <span className="font-mono text-xs">{row.discordId}</span>,
             },
             {
               key: 'source',
               header: 'Quelle',
-              render: (row) => (
-                <span className="text-sm">{SOURCE_LABELS[row.source] ?? row.source}</span>
-              ),
+              render: (row) => <span className="text-sm">{SOURCE_LABELS[row.source] ?? row.source}</span>,
             },
             {
               key: 'delta',
               header: 'Änderung',
               render: (row) => (
                 <span
-                  className={
-                    row.delta >= 0 ? 'tabular-nums text-success' : 'tabular-nums text-destructive'
-                  }
+                  className={row.delta >= 0 ? 'tabular-nums text-success' : 'tabular-nums text-destructive'}
                 >
                   {row.delta >= 0 ? '+' : '−'}
                   {level.formatXp(Math.abs(row.delta))}

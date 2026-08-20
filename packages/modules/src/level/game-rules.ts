@@ -127,9 +127,7 @@ export const emptyC4Board = (): C4Board =>
 
 /** Spalten, in die noch ein Stein passt. */
 export const c4AvailableColumns = (board: C4Board): number[] =>
-  Array.from({ length: C4_COLS }, (_unused, column) => column).filter(
-    (column) => board[0]![column] === 0,
-  );
+  Array.from({ length: C4_COLS }, (_unused, column) => column).filter((column) => board[0]![column] === 0);
 
 /**
  * Wirft einen Stein in eine Spalte. Gibt die belegte Zelle zurück oder `null`,

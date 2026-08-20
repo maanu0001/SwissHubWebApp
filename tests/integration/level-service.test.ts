@@ -213,12 +213,18 @@ describeWithDatabase('XP-Spiele', () => {
     const match = await challenge();
 
     // Vor dem Annehmen ist noch nichts abgebucht.
-    expect((await prisma.levelProfile.findUniqueOrThrow({ where: { discordId: ALICE.discordId } })).xp).toBe(1000);
+    expect((await prisma.levelProfile.findUniqueOrThrow({ where: { discordId: ALICE.discordId } })).xp).toBe(
+      1000,
+    );
 
     await level.acceptChallenge(match.id, BOB);
 
-    expect((await prisma.levelProfile.findUniqueOrThrow({ where: { discordId: ALICE.discordId } })).xp).toBe(900);
-    expect((await prisma.levelProfile.findUniqueOrThrow({ where: { discordId: BOB.discordId } })).xp).toBe(900);
+    expect((await prisma.levelProfile.findUniqueOrThrow({ where: { discordId: ALICE.discordId } })).xp).toBe(
+      900,
+    );
+    expect((await prisma.levelProfile.findUniqueOrThrow({ where: { discordId: BOB.discordId } })).xp).toBe(
+      900,
+    );
   });
 
   it('zahlt dem Gewinner den Topf aus', async () => {
@@ -229,8 +235,12 @@ describeWithDatabase('XP-Spiele', () => {
     // 100 Einsatz, Topf 200, davon 95 Prozent = 190.
     expect(result.payout).toBe(190);
     expect(result.net).toBe(90);
-    expect((await prisma.levelProfile.findUniqueOrThrow({ where: { discordId: ALICE.discordId } })).xp).toBe(1090);
-    expect((await prisma.levelProfile.findUniqueOrThrow({ where: { discordId: BOB.discordId } })).xp).toBe(900);
+    expect((await prisma.levelProfile.findUniqueOrThrow({ where: { discordId: ALICE.discordId } })).xp).toBe(
+      1090,
+    );
+    expect((await prisma.levelProfile.findUniqueOrThrow({ where: { discordId: BOB.discordId } })).xp).toBe(
+      900,
+    );
   });
 
   it('lässt keine zwei Partien gleichzeitig zu', async () => {
@@ -252,16 +262,24 @@ describeWithDatabase('XP-Spiele', () => {
     await level.acceptChallenge(match.id, BOB);
     await level.closeGame(match.id, 'DRAW', 'Unentschieden');
 
-    expect((await prisma.levelProfile.findUniqueOrThrow({ where: { discordId: ALICE.discordId } })).xp).toBe(1000);
-    expect((await prisma.levelProfile.findUniqueOrThrow({ where: { discordId: BOB.discordId } })).xp).toBe(1000);
+    expect((await prisma.levelProfile.findUniqueOrThrow({ where: { discordId: ALICE.discordId } })).xp).toBe(
+      1000,
+    );
+    expect((await prisma.levelProfile.findUniqueOrThrow({ where: { discordId: BOB.discordId } })).xp).toBe(
+      1000,
+    );
   });
 
   it('bucht nichts ab, wenn die Herausforderung abgelehnt wird', async () => {
     const match = await challenge();
     await level.closeGame(match.id, 'DECLINED', 'Abgelehnt');
 
-    expect((await prisma.levelProfile.findUniqueOrThrow({ where: { discordId: ALICE.discordId } })).xp).toBe(1000);
-    expect((await prisma.levelProfile.findUniqueOrThrow({ where: { discordId: BOB.discordId } })).xp).toBe(1000);
+    expect((await prisma.levelProfile.findUniqueOrThrow({ where: { discordId: ALICE.discordId } })).xp).toBe(
+      1000,
+    );
+    expect((await prisma.levelProfile.findUniqueOrThrow({ where: { discordId: BOB.discordId } })).xp).toBe(
+      1000,
+    );
   });
 
   it('weist einen Einsatz über dem Guthaben ab', async () => {
@@ -294,7 +312,9 @@ describeWithDatabase('XP-Spiele', () => {
     await level.finishGame(match.id, ALICE.discordId);
 
     await expect(level.finishGame(match.id, ALICE.discordId)).rejects.toThrow(/scho abgrechnet/u);
-    expect((await prisma.levelProfile.findUniqueOrThrow({ where: { discordId: ALICE.discordId } })).xp).toBe(1090);
+    expect((await prisma.levelProfile.findUniqueOrThrow({ where: { discordId: ALICE.discordId } })).xp).toBe(
+      1090,
+    );
   });
 
   it('lässt Gewinn und Verlust in Summe kein XP entstehen', async () => {

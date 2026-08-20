@@ -106,8 +106,7 @@ export function registerLevelGameButtons(client: Client): void {
       return;
     }
     void handleButton(interaction, parsed).catch(async (error: unknown) => {
-      const message =
-        error instanceof AppError ? error.userMessage : 'Das het nid klappet.';
+      const message = error instanceof AppError ? error.userMessage : 'Das het nid klappet.';
       if (!(error instanceof AppError)) {
         log.error('Spielknopf fehlgeschlagen', { error, customId: interaction.customId });
       }
@@ -169,11 +168,7 @@ async function requireOpponent(
   return match;
 }
 
-async function handleAccept(
-  interaction: ButtonInteraction,
-  matchId: string,
-  context: Ctx,
-): Promise<void> {
+async function handleAccept(interaction: ButtonInteraction, matchId: string, context: Ctx): Promise<void> {
   const existing = await requireOpponent(interaction, matchId);
   if (!existing) {
     return;
@@ -208,11 +203,7 @@ async function handleAccept(
 /** Kleiner Helfer, damit die Spielart typsicher bleibt. */
 const match0Kind = (match: LevelGameMatch): level.GameKind => match.kind as level.GameKind;
 
-async function handleDecline(
-  interaction: ButtonInteraction,
-  matchId: string,
-  context: Ctx,
-): Promise<void> {
+async function handleDecline(interaction: ButtonInteraction, matchId: string, context: Ctx): Promise<void> {
   const match = await requireOpponent(interaction, matchId);
   if (!match) {
     return;
@@ -244,8 +235,7 @@ async function resolveBattle(
   match: LevelGameMatch,
   context: Ctx,
 ): Promise<void> {
-  const winnerDiscordId =
-    Math.random() < 0.5 ? match.challengerDiscordId : match.opponentDiscordId;
+  const winnerDiscordId = Math.random() < 0.5 ? match.challengerDiscordId : match.opponentDiscordId;
 
   const result = await level.finishGame(match.id, winnerDiscordId, {
     decayRules: context.decayRules,
@@ -338,7 +328,12 @@ async function handleTtt(
 ): Promise<void> {
   await interaction.deferUpdate();
   const move = await level.playTtt(matchId, interaction.user.id, cell);
-  await finishOrRender(interaction, move, context, level.buildTttButtons(matchId, move.state.board, move.finished));
+  await finishOrRender(
+    interaction,
+    move,
+    context,
+    level.buildTttButtons(matchId, move.state.board, move.finished),
+  );
 }
 
 async function handleC4(
@@ -349,7 +344,12 @@ async function handleC4(
 ): Promise<void> {
   await interaction.deferUpdate();
   const move = await level.playC4(matchId, interaction.user.id, column);
-  await finishOrRender(interaction, move, context, level.buildC4Buttons(matchId, move.state.board, move.finished));
+  await finishOrRender(
+    interaction,
+    move,
+    context,
+    level.buildC4Buttons(matchId, move.state.board, move.finished),
+  );
 }
 
 /** Zeichnet ein laufendes Spielfeld. */
@@ -414,8 +414,7 @@ async function finishOrRender(
   context: Ctx,
   components: ReturnType<typeof level.buildTttButtons>,
 ): Promise<void> {
-  const boardText =
-    move.state.kind === 'C4' ? level.renderC4Board(move.state.board) : undefined;
+  const boardText = move.state.kind === 'C4' ? level.renderC4Board(move.state.board) : undefined;
 
   if (!move.finished) {
     const turn = move.state.kind === 'TTT' || move.state.kind === 'C4' ? move.state.turn : null;

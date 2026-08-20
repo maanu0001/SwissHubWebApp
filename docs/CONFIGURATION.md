@@ -330,6 +330,38 @@ auch für `/spielersuche` und dessen Autocomplete.
 Übernahme der alten Datenbank:
 [SPIELERSUCHE_MIGRATION.md](SPIELERSUCHE_MIGRATION.md).
 
+### Level-System
+
+Unter **Level-System → XP-Regeln**, **→ Voice XP** und **→ Inaktivität** - oder
+gesammelt unter **Module → Level-System**. Der frühere Bot hatte diese Werte in
+seiner `.env`; eine Änderung brauchte dort einen Neustart.
+
+| Einstellung                    | Standard | Bedeutung                                                     |
+| ------------------------------ | -------- | ------------------------------------------------------------- |
+| XP pro Nachricht               | 10       | Vor Boost und Premium-Multiplikator                           |
+| Cooldown                       | 60 s     | Innerhalb dieser Zeit gibt es nur einmal XP                   |
+| Cooldown mit Premium-Rolle     | 60 s     | Eigener Wert für Mitglieder mit Premium-Rolle                 |
+| Premium-Multiplikator          | 1.0      | Faktor auf XP von Mitgliedern mit Premium-Rolle               |
+| Globaler XP-Boost              | 1.0      | Faktor auf jede XP-Vergabe aus Nachrichten und Voice          |
+| Channels ohne XP               | –        | Text- und Sprachkanäle, in denen keine XP vergeben wird       |
+| Rolle ohne XP                  | –        | Wer sie trägt, sammelt keine XP mehr                          |
+| XP pro Voice-Minute            | 10       | Ein Durchgang je Minute; ausgefallene werden nicht nachgeholt |
+| Sonder- / Bühnen-Multiplikator | 1.0      | Je Kanalgruppe                                                |
+| Kein XP bei Stummschaltung     | an       | Mit Nachlauf und wählbarer Art (`sound`, `voice`, `beide`)    |
+| XP auch alleine im Kanal       | an       | Abgeschaltet zählt nur Zeit mit anderen im Kanal              |
+| Level-Up-Channel               | –        | Ohne Auswahl gibt es keine Meldung                            |
+| Nur diese Level ankündigen     | –        | Leer = jeder Aufstieg                                         |
+| XP für das Höchstlevel         | 32 500   | Verschiebt Levelstände - mit Bedacht anfassen                 |
+| Inaktivitäts-Abzug             | an       | Schonfrist 7 Tage, dann 50 XP (Tag 1–4) bzw. 25 XP pro Tag    |
+| XP-Spiele                      | an       | Auszahlung 95 %, Einsatz 1 bis 5000 XP                        |
+| Hintergrund der Levelkarte     | –        | Bild-URL, eigener Hintergrund für Level 31 möglich            |
+
+Meilenstein-Rollen werden nicht hier, sondern unter **Level-System → Level &
+Rollen** gepflegt. Sie lösen `MILESTONE_ROLES="5:ROLEID,10:ROLEID"` aus der
+alten `.env` ab.
+
+Übernahme der alten Datenbank: [LEVEL_MIGRATION.md](LEVEL_MIGRATION.md).
+
 ### Kommunikation
 
 Unter **Module → Kommunikation**:

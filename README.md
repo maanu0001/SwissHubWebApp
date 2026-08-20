@@ -2,9 +2,9 @@
 
 Zentrale Administrations- und Moderationsoberfläche für den SwissHub Discord-Server.
 Die Anwendung besteht aus einer Next.js WebApp, einem discord.js Bot und einer PostgreSQL-Datenbank
-in einem TypeScript-Monorepo. Das erste vollständig implementierte Modul ist das **Jail-System**;
-die Architektur ist darauf ausgelegt, weitere Module (Warnings, Tickets, Giveaways, ...) ohne Umbau
-zu ergänzen.
+in einem TypeScript-Monorepo. Umgesetzt sind die Module **Jail**, **Kommunikation**,
+**Spielersuche** und **Level-System**; die Architektur ist darauf ausgelegt, weitere Module ohne
+Umbau zu ergänzen (siehe [docs/MODULES.md](docs/MODULES.md)).
 
 ```
 Login mit Discord  ->  Guild-Check  ->  Permission Engine  ->  Moderation Policy  ->  Discord-Aktion  ->  Audit Log
@@ -21,6 +21,10 @@ Login mit Discord  ->  Guild-Check  ->  Permission Engine  ->  Moderation Policy
 - **Spielersuche:** Mitspieler finden - `/spielersuche` und Dashboard nutzen dieselbe Engine,
   inklusive automatischem Sprachkanal, Rollen-Ping mit Sperrfrist und Statistik.
 - **Kommunikation:** Neuigkeiten, Events und Umfragen als Discord-Embeds mit Live-Vorschau.
+- **Level-System:** XP für Nachrichten und Zeit im Voice, Level-Rollen, Inaktivitäts-Abzug und
+  XP-Spiele. Jede Änderung steht als Zeile im XP-Journal - der Punktestand ist die Summe daraus.
+  Dazu `/level`, `/leaderboard`, `/level_stats`, `/global_stats`, `/check_user`,
+  `/game_leaderboard`, die XP-Spiele und die verwaltenden Befehle des alten Level-Bots.
 
 ---
 
@@ -154,7 +158,10 @@ Least Privilege - der Bot braucht **keine** Administratorrechte:
 
 Zusätzlich benötigt der Bot im Log-/Jail-Channel Lese- und Schreibrechte (Kanalrechte).
 
-Gateway Intents: `GUILDS`, `GUILD_MEMBERS` (privilegiert, siehe Schritt 3).
+Gateway Intents: `GUILDS`, `GUILD_MEMBERS` (privilegiert, siehe Schritt 3), `GUILD_MESSAGES`
+und `GUILD_VOICE_STATES`. Die beiden letzten sind **nicht** privilegiert und werden für XP aus
+Nachrichten und Voice sowie für die Sprachkanäle der Spielersuche gebraucht. Der Inhalt von
+Nachrichten wird nicht gelesen - `MESSAGE_CONTENT` bleibt deshalb aus.
 
 ---
 
@@ -297,7 +304,7 @@ packages/
   database/                Prisma Schema, Migrationen, Audit Log, Rate Limit, Idempotenz
   discord/                 Discord-Abstraktion (REST, Rate Limits, Fehler, Mock-Gateway)
   permissions/             Permission Registry, Permission Engine, Moderation Policy
-  modules/                 Module Registry, Kernbereiche, Jail-Modul, Mitglieder-Service
+  modules/                 Module Registry, Kernbereiche, Feature-Module, Mitglieder-Service
   auth/                    Discord OAuth2, Sessions, Identity-Refresh, CSRF
 
 docs/
@@ -308,6 +315,7 @@ docs/
   DEPLOYMENT.md            Produktivbetrieb auf einem eigenen Server
   JAIL_MIGRATION.md        Übernahme des alten Jail-Bots (bot.py / jail_data.db)
   SPIELERSUCHE_MIGRATION.md Übernahme des Spielersuche-Bots (matchmaking.db)
+  LEVEL_MIGRATION.md       Übernahme des Level-/XP-Bots (levels.db)
 
 tests/                     Unit- und Integrationstests (Vitest)
 ```
@@ -378,13 +386,17 @@ Discord-Server; mit `enabled: false` verschwindet sie ganz.
 5. **Spielersuche einrichten**: _Spielersuche -> Einstellungen_ (Channel und Voice-Kategorie),
    danach _Spielersuche -> Spiele_. Einen bestehenden Spielersuche-Bot löst
    _Spielersuche -> Import_ ab: [docs/SPIELERSUCHE_MIGRATION.md](docs/SPIELERSUCHE_MIGRATION.md).
-6. **Alten Jail-Bot ablösen** (nur bei einer bestehenden Installation): _Module -> Jail-Import_.
+6. **Level-System einrichten**: _Level-System -> XP-Regeln_ und _-> Voice XP_ (XP pro Nachricht,
+   Cooldowns, Channels ohne XP), danach _-> Level & Rollen_ für die Meilenstein-Rollen. Einen
+   bestehenden Level-Bot löst _Level-System -> Import_ ab:
+   [docs/LEVEL_MIGRATION.md](docs/LEVEL_MIGRATION.md).
+7. **Alten Jail-Bot ablösen** (nur bei einer bestehenden Installation): _Module -> Jail-Import_.
    Der Assistent liest `jail_data.db`, zeigt für jede Zeile, was mit ihr geschieht, und übernimmt
    sie erst nach ausdrücklicher Bestätigung. Vollständige Anleitung:
    [docs/JAIL_MIGRATION.md](docs/JAIL_MIGRATION.md).
-7. **Testen**: _Mitglieder_ -> Mitglied öffnen -> _Mitglied jailen_. Nach Ablauf gibt der Bot das
+8. **Testen**: _Mitglieder_ -> Mitglied öffnen -> _Mitglied jailen_. Nach Ablauf gibt der Bot das
    Mitglied automatisch frei und stellt die Rollen wieder her. Dasselbe über Discord: `/jail`.
-8. **Nachvollziehen**: _Audit Log_ zeigt jede Aktion inklusive Integritätsprüfung der Hash-Chain.
+9. **Nachvollziehen**: _Audit Log_ zeigt jede Aktion inklusive Integritätsprüfung der Hash-Chain.
 
 ---
 

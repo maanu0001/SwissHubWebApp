@@ -109,8 +109,7 @@ export function computeDecay(input: DecayInput, rules: DecayRules = DEFAULT_DECA
   const strongDays = Math.max(0, strongTo - strongFrom + 1);
   const remainingDays = days - strongDays;
 
-  const requestedDecay =
-    strongDays * Math.trunc(rules.day1To4) + remainingDays * Math.trunc(rules.day5Plus);
+  const requestedDecay = strongDays * Math.trunc(rules.day1To4) + remainingDays * Math.trunc(rules.day5Plus);
   const newXp = Math.max(0, xp - requestedDecay);
 
   return {
@@ -134,7 +133,5 @@ export function isInDecayPhase(
     return false;
   }
   const secondsPerDay = rules.secondsPerDay ?? SECONDS_PER_DAY;
-  return (
-    toSeconds(now) >= toSeconds(lastActivityAt) + Math.trunc(rules.graceDays) * secondsPerDay
-  );
+  return toSeconds(now) >= toSeconds(lastActivityAt) + Math.trunc(rules.graceDays) * secondsPerDay;
 }

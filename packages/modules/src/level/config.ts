@@ -41,8 +41,7 @@ export const LEVEL_PERMISSIONS = {
 /** Farbe der Level-Embeds. */
 export const DEFAULT_LEVEL_ACCENT_COLOR = '#83060A';
 
-export const DEFAULT_LEVEL_UP_MESSAGE =
-  '**Glückwunsch {mention}, du hesch Level {level} erreicht!**';
+export const DEFAULT_LEVEL_UP_MESSAGE = '**Glückwunsch {mention}, du hesch Level {level} erreicht!**';
 
 const hexColorSchema = z
   .string()
@@ -58,11 +57,7 @@ const announceLevelsSchema = z
   .max(200)
   .default('')
   .refine(
-    (value) =>
-      value.trim() === '' ||
-      value
-        .split(',')
-        .every((part) => /^\s*\d{1,3}\s*$/u.test(part)),
+    (value) => value.trim() === '' || value.split(',').every((part) => /^\s*\d{1,3}\s*$/u.test(part)),
     'Bitte Level durch Komma trennen, z.B. "5,10,31".',
   );
 
@@ -665,14 +660,19 @@ async function levelHealthChecks(context: ModuleHealthContext): Promise<ModuleHe
 registerModule({
   id: LEVEL_MODULE_ID,
   name: 'Level-System',
-  description:
-    'XP für Nachrichten und Voice, Level, Meilenstein-Rollen, Inaktivitäts-Abzug und XP-Spiele.',
+  description: 'XP für Nachrichten und Voice, Level, Meilenstein-Rollen, Inaktivitäts-Abzug und XP-Spiele.',
   tagline: 'XP, Level und Spiele',
   icon: 'TrendingUp',
   permissionPrefix: 'level',
   defaultEnabled: false,
   configVersion: 1,
-  requiredDiscordPermissions: ['MANAGE_ROLES', 'VIEW_CHANNEL', 'SEND_MESSAGES', 'EMBED_LINKS', 'ATTACH_FILES'],
+  requiredDiscordPermissions: [
+    'MANAGE_ROLES',
+    'VIEW_CHANNEL',
+    'SEND_MESSAGES',
+    'EMBED_LINKS',
+    'ATTACH_FILES',
+  ],
   settingsSchema: levelSettingsSchema,
   settingsFields: levelSettingsFields,
   healthChecks: levelHealthChecks,

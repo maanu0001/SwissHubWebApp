@@ -72,7 +72,11 @@ CMD ["npm", "run", "start", "--workspace", "@swisshub/web"]
 # --- Bot ---------------------------------------------------------------------
 FROM node:22-alpine AS bot
 WORKDIR /app
-RUN apk add --no-cache libc6-compat openssl tini && addgroup -S swisshub && adduser -S swisshub -G swisshub
+# font-dejavu und fontconfig werden fuer die Levelkarte gebraucht: sharp
+# rastert dafuer ein SVG mit Text, und ohne installierte Schrift bliebe die
+# Karte leer. DejaVu Sans ist dieselbe Schrift, die der alte Level-Bot nutzte.
+RUN apk add --no-cache libc6-compat openssl tini font-dejavu fontconfig \
+    && addgroup -S swisshub && adduser -S swisshub -G swisshub
 ENV NODE_ENV=production \
     TZ=Europe/Zurich
 

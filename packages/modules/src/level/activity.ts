@@ -9,13 +9,7 @@ import type { LevelSettings } from './config';
  */
 
 export type SkipReason =
-  | 'disabled'
-  | 'no-xp-channel'
-  | 'no-xp-role'
-  | 'cooldown'
-  | 'muted'
-  | 'alone'
-  | 'zero-amount';
+  'disabled' | 'no-xp-channel' | 'no-xp-role' | 'cooldown' | 'muted' | 'alone' | 'zero-amount';
 
 export interface XpDecision {
   grant: boolean;
@@ -42,8 +36,7 @@ export function decideMessageXp(input: MessageXpInput, settings: LevelSettings):
     return skip('no-xp-channel');
   }
 
-  const hasRole = (roleId: string | undefined): boolean =>
-    Boolean(roleId) && input.roleIds.includes(roleId!);
+  const hasRole = (roleId: string | undefined): boolean => Boolean(roleId) && input.roleIds.includes(roleId!);
 
   if (hasRole(settings.noXpRoleId)) {
     return skip('no-xp-role');
@@ -90,8 +83,7 @@ export function decideVoiceXp(input: VoiceXpInput, settings: LevelSettings): XpD
     return skip('no-xp-channel');
   }
 
-  const hasRole = (roleId: string | undefined): boolean =>
-    Boolean(roleId) && input.roleIds.includes(roleId!);
+  const hasRole = (roleId: string | undefined): boolean => Boolean(roleId) && input.roleIds.includes(roleId!);
 
   if (hasRole(settings.noXpRoleId)) {
     return skip('no-xp-role');

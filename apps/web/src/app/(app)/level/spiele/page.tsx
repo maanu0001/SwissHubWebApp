@@ -88,9 +88,7 @@ export default async function LevelGamesPage(): Promise<React.JSX.Element> {
             {
               key: 'kind',
               header: 'Spiel',
-              render: (row) => (
-                <span className="text-sm font-medium">{level.GAME_LABELS[row.kind]}</span>
-              ),
+              render: (row) => <span className="text-sm font-medium">{level.GAME_LABELS[row.kind]}</span>,
             },
             {
               key: 'players',
@@ -117,9 +115,7 @@ export default async function LevelGamesPage(): Promise<React.JSX.Element> {
                 <div className="space-y-1">
                   <Badge variant="secondary">{STATUS_LABELS[row.status] ?? row.status}</Badge>
                   {row.winnerDiscordId ? (
-                    <p className="font-mono text-xs text-muted-foreground">
-                      Gewinner {row.winnerDiscordId}
-                    </p>
+                    <p className="font-mono text-xs text-muted-foreground">Gewinner {row.winnerDiscordId}</p>
                   ) : null}
                 </div>
               ),
@@ -128,9 +124,7 @@ export default async function LevelGamesPage(): Promise<React.JSX.Element> {
               key: 'created',
               header: 'Gestartet',
               render: (row) => (
-                <span className="text-xs text-muted-foreground">
-                  {row.createdAt.toLocaleString('de-CH')}
-                </span>
+                <span className="text-xs text-muted-foreground">{row.createdAt.toLocaleString('de-CH')}</span>
               ),
             },
             ...(canManage

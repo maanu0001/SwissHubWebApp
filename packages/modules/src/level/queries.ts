@@ -31,32 +31,44 @@ export async function getLevelOverview(options: { decayRules?: DecayRules } = {}
   const graceDays = options.decayRules?.graceDays ?? 7;
   const decayCutoff = new Date(Date.now() - graceDays * 86_400_000);
 
-  const [aggregate, members, activeMembers, today, milestoneRoles, runningGames, gamesToday, inDecay, lastImport, profiles] =
-    await Promise.all([
-      prisma.levelProfile.aggregate({ _sum: { xp: true }, _max: { xp: true } }),
-      prisma.levelProfile.count(),
-      prisma.levelProfile.count({ where: { xp: { gt: 0 } } }),
-      prisma.xpTransaction.findMany({
-        where: { createdAt: { gte: since } },
-        select: { delta: true },
-      }),
-      prisma.levelMilestoneRole.count({ where: { enabled: true } }),
-      prisma.levelGameMatch.count({ where: { status: { in: ['PENDING', 'RUNNING'] } } }),
-      prisma.levelGameMatch.count({ where: { createdAt: { gte: since } } }),
-      prisma.levelProfile.count({
-        where: { xp: { gt: 0 }, lastActivityAt: { not: null, lte: decayCutoff } },
-      }),
-      prisma.levelImport.findFirst({
-        where: { status: 'IMPORTED' },
-        orderBy: { finishedAt: 'desc' },
-        select: { finishedAt: true },
-      }),
-      prisma.levelProfile.findMany({ select: { xp: true } }),
-    ]);
+  const [
+    aggregate,
+    members,
+    activeMembers,
+    today,
+    milestoneRoles,
+    runningGames,
+    gamesToday,
+    inDecay,
+    lastImport,
+    profiles,
+  ] = await Promise.all([
+    prisma.levelProfile.aggregate({ _sum: { xp: true }, _max: { xp: true } }),
+    prisma.levelProfile.count(),
+    prisma.levelProfile.count({ where: { xp: { gt: 0 } } }),
+    prisma.xpTransaction.findMany({
+      where: { createdAt: { gte: since } },
+      select: { delta: true },
+    }),
+    prisma.levelMilestoneRole.count({ where: { enabled: true } }),
+    prisma.levelGameMatch.count({ where: { status: { in: ['PENDING', 'RUNNING'] } } }),
+    prisma.levelGameMatch.count({ where: { createdAt: { gte: since } } }),
+    prisma.levelProfile.count({
+      where: { xp: { gt: 0 }, lastActivityAt: { not: null, lte: decayCutoff } },
+    }),
+    prisma.levelImport.findFirst({
+      where: { status: 'IMPORTED' },
+      orderBy: { finishedAt: 'desc' },
+      select: { finishedAt: true },
+    }),
+    prisma.levelProfile.findMany({ select: { xp: true } }),
+  ]);
 
   const levels = profiles.map((profile) => levelFromXp(profile.xp));
   const averageLevel =
-    levels.length > 0 ? Math.round((levels.reduce((sum, value) => sum + value, 0) / levels.length) * 10) / 10 : 0;
+    levels.length > 0
+      ? Math.round((levels.reduce((sum, value) => sum + value, 0) / levels.length) * 10) / 10
+      : 0;
 
   return {
     members,
@@ -95,13 +107,15 @@ export interface MemberListResult {
 }
 
 /** Mitgliederliste mit Suche und Seitenwechsel. */
-export async function listLevelMembers(options: {
-  query?: string;
-  page?: number;
-  pageSize?: number;
-  sort?: 'xp' | 'activity' | 'messages' | 'voice';
-  decayRules?: DecayRules;
-} = {}): Promise<MemberListResult> {
+export async function listLevelMembers(
+  options: {
+    query?: string;
+    page?: number;
+    pageSize?: number;
+    sort?: 'xp' | 'activity' | 'messages' | 'voice';
+    decayRules?: DecayRules;
+  } = {},
+): Promise<MemberListResult> {
   const pageSize = Math.min(Math.max(options.pageSize ?? 25, 1), 100);
   const page = Math.max(options.page ?? 1, 1);
   const query = options.query?.trim() ?? '';
@@ -181,9 +195,9 @@ export async function listXpTransactions(options: {
 }
 
 /** Laufende und beendete Partien. */
-export async function listGameMatches(options: { limit?: number; onlyRunning?: boolean } = {}): Promise<
-  LevelGameMatch[]
-> {
+export async function listGameMatches(
+  options: { limit?: number; onlyRunning?: boolean } = {},
+): Promise<LevelGameMatch[]> {
   return prisma.levelGameMatch.findMany({
     where: options.onlyRunning ? { status: { in: ['PENDING', 'RUNNING'] } } : {},
     orderBy: { createdAt: 'desc' },

@@ -31,9 +31,7 @@ export const DEFAULT_MAX_LEVEL_TOTAL_XP = 32_500;
  * Der Vorgänger baute die Liste so auf, dass Level 1 bei 0 XP beginnt und
  * jeder Aufstieg `420 + 40 * (n - 1)` kostet.
  */
-export function buildXpRequirements(
-  maxLevelTotalXp: number = DEFAULT_MAX_LEVEL_TOTAL_XP,
-): number[] {
+export function buildXpRequirements(maxLevelTotalXp: number = DEFAULT_MAX_LEVEL_TOTAL_XP): number[] {
   const requirements: number[] = [];
   let total = 0;
   for (let level = 1; level <= COMPUTED_LEVELS; level += 1) {

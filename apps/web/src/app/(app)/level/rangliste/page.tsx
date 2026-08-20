@@ -64,9 +64,7 @@ export default async function LevelLeaderboardPage({
             key: 'rank',
             header: 'Platz',
             className: 'w-20',
-            render: (row) => (
-              <span className="tabular-nums">{MEDALS[row.rank - 1] ?? `${row.rank}.`}</span>
-            ),
+            render: (row) => <span className="tabular-nums">{MEDALS[row.rank - 1] ?? `${row.rank}.`}</span>,
           },
           {
             key: 'member',
@@ -93,9 +91,7 @@ export default async function LevelLeaderboardPage({
           {
             key: 'xp',
             header: 'XP',
-            render: (row) => (
-              <span className="tabular-nums font-medium">{level.formatXp(row.xp)}</span>
-            ),
+            render: (row) => <span className="tabular-nums font-medium">{level.formatXp(row.xp)}</span>,
           },
           {
             key: 'activity',

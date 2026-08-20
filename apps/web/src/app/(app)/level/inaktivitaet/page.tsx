@@ -118,9 +118,7 @@ export default async function LevelDecayPage(): Promise<React.JSX.Element> {
               key: 'pending',
               header: 'Abzug',
               render: (row) => (
-                <span className="tabular-nums text-destructive">
-                  −{level.formatXp(row.pendingDecay)}
-                </span>
+                <span className="tabular-nums text-destructive">−{level.formatXp(row.pendingDecay)}</span>
               ),
             },
             {

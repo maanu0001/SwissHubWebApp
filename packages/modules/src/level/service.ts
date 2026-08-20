@@ -1,4 +1,4 @@
-import type { Prisma} from '@swisshub/database';
+import type { Prisma } from '@swisshub/database';
 import { prisma, type LevelProfile, type XpSource } from '@swisshub/database';
 import { createLogger } from '@swisshub/logger';
 import { conflict } from '@swisshub/shared';
@@ -165,10 +165,7 @@ async function settleDecay(
  * alle hier durch. Dadurch gibt es genau ein Journal, genau eine Klemmung auf
  * nicht-negative Werte und genau eine Level-Berechnung.
  */
-export async function applyXp(
-  input: ApplyXpInput,
-  options: XpEngineOptions = {},
-): Promise<ApplyXpResult> {
+export async function applyXp(input: ApplyXpInput, options: XpEngineOptions = {}): Promise<ApplyXpResult> {
   const maxLevelTotalXp = options.maxLevelTotalXp ?? DEFAULT_MAX_LEVEL_TOTAL_XP;
   const decayRules = options.decayRules ?? DEFAULT_DECAY_RULES;
   const now = options.now ?? new Date();

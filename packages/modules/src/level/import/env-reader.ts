@@ -35,7 +35,12 @@ interface EnvMapping {
 export const ENV_WHITELIST: readonly EnvMapping[] = [
   { key: 'MAIN_CHAT_ID', target: 'announceChannelId', kind: 'snowflake', label: 'Level-Up-Channel' },
   { key: 'LEVEL_LOG_CHANNEL_ID', target: 'levelLogChannelId', kind: 'snowflake', label: 'XP-Protokoll' },
-  { key: 'DECAY_LOG_CHANNEL_ID', target: 'decayLogChannelId', kind: 'snowflake', label: 'Inaktivitäts-Protokoll' },
+  {
+    key: 'DECAY_LOG_CHANNEL_ID',
+    target: 'decayLogChannelId',
+    kind: 'snowflake',
+    label: 'Inaktivitäts-Protokoll',
+  },
   { key: 'NO_XP_ROLE_ID', target: 'noXpRoleId', kind: 'snowflake', label: 'Rolle ohne XP' },
   { key: 'PREMIUM_ROLE_ID', target: 'premiumRoleId', kind: 'snowflake', label: 'Premium-Rolle' },
 
@@ -84,7 +89,12 @@ export const ENV_WHITELIST: readonly EnvMapping[] = [
     kind: 'snowflake-list',
     label: 'Bühnen-Kanäle',
   },
-  { key: 'STAGE_VOICE_MULTIPLIER', target: 'stageVoiceMultiplier', kind: 'float', label: 'Bühnen-Multiplikator' },
+  {
+    key: 'STAGE_VOICE_MULTIPLIER',
+    target: 'stageVoiceMultiplier',
+    kind: 'float',
+    label: 'Bühnen-Multiplikator',
+  },
 
   { key: 'DOT_GRACE_DAYS', target: 'decayGraceDays', kind: 'integer', label: 'Schonfrist' },
   { key: 'DOT_DECAY_DAY1_4', target: 'decayDay1To4', kind: 'integer', label: 'Abzug Tag 1 bis 4' },

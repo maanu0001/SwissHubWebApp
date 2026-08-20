@@ -53,9 +53,7 @@ export function decayRulesFrom(settings: LevelSettings): DecayRules {
   };
 }
 
-export async function loadLevelContext(
-  gateway: DiscordGateway = defaultDiscord,
-): Promise<LevelContext> {
+export async function loadLevelContext(gateway: DiscordGateway = defaultDiscord): Promise<LevelContext> {
   const settings = await getModuleSettings<LevelSettings>(LEVEL_MODULE_ID);
   return {
     gateway,

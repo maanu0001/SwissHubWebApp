@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { EmptyState } from '@/components/shared/states';
 import { SyncButton } from '@/modules/configuration/components/sync-button';
-import { csrfTokenFor, requirePagePermission } from '@/server/auth';
+import { csrfTokenFor, hasSetupAccess, requirePagePermission } from '@/server/auth';
 
 export const metadata: Metadata = { title: 'Discord-Sync' };
 export const dynamic = 'force-dynamic';
@@ -21,9 +21,9 @@ export const dynamic = 'force-dynamic';
  * Hier lässt sich der Abgleich zusätzlich von Hand anstossen und nachvollziehen.
  */
 export default async function DiscordSyncPage(): Promise<React.JSX.Element> {
-  const context = await requirePagePermission('settings.view');
+  const context = await requirePagePermission('settings.view', { allowDuringSetup: true });
   const csrfToken = csrfTokenFor(context);
-  const canSync = can(context, 'settings.edit');
+  const canSync = can(context, 'settings.edit') || (await hasSetupAccess());
 
   const [status, runs] = await Promise.all([
     getSyncStatus(),

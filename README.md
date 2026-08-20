@@ -345,7 +345,8 @@ Discord-Server; mit `enabled: false` verschwindet sie ganz.
 
 1. **Anmelden**: `Mit Discord anmelden`. Nur Mitglieder des verbundenen Servers erhalten Zugriff.
 2. **Einrichten**: `/setup` führt in vier Schritten durch die Ersteinrichtung. Solange sie nicht
-   abgeschlossen ist, darf ein Discord-Administrator den Assistenten bedienen.
+   abgeschlossen ist, darf ein Discord-Administrator den Assistenten bedienen und dort die ersten
+   Berechtigungen vergeben - ohne Dashboard-Berechtigung landest du automatisch dort.
    1. Discord-Server verbinden (Auswahl aus den Servern, auf denen der Bot Mitglied ist)
    2. Rollen und Channels abgleichen
    3. Berechtigungen vergeben
@@ -368,18 +369,18 @@ Discord-Server; mit `enabled: false` verschwindet sie ganz.
 
 ## Troubleshooting
 
-| Symptom                                                        | Ursache / Lösung                                                                                                                                                          |
-| -------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `Ungültige oder fehlende Umgebungsvariablen`                   | `.env` unvollständig - die Meldung nennt die betroffenen Variablen.                                                                                                       |
-| `Der Bot besitzt möglicherweise nicht genügend Berechtigungen` | Bot-Rolle zu niedrig oder `Manage Roles` fehlt. Rollenreihenfolge prüfen.                                                                                                 |
-| Mitgliedersuche liefert nichts                                 | **SERVER MEMBERS INTENT** im Developer Portal aktivieren.                                                                                                                 |
-| `Bot derzeit nicht erreichbar`                                 | Bot-Prozess läuft nicht oder Heartbeat ist älter als 70 Sekunden.                                                                                                         |
-| Login endet auf `/access-denied`                               | Discord-Konto ist (noch) kein Mitglied des konfigurierten Servers.                                                                                                        |
-| Angemeldet, aber "Keine Berechtigung"                          | Server-Ownerschaft allein gibt keine Rechte. `npm run doctor -- <DeineDiscordID>` zeigt die Ursache; beheben über `SWISSHUB_OWNER_DISCORD_ID` oder `npm run grant:admin`. |
-| Login-Fehler `state`                                           | Cookies blockiert oder Redirect URI stimmt nicht exakt mit `NEXT_PUBLIC_APP_URL` überein.                                                                                 |
-| Jail schlägt mit `CONFIGURATION_MISSING` fehl                  | Es ist keine Jail-Rolle hinterlegt (_Module -> Jail -> Einstellungen_).                                                                                                   |
-| `Es ist noch kein Discord-Server verbunden`                    | Einrichtungsassistent unter `/setup` abschliessen.                                                                                                                        |
-| Rollen-/Channel-Auswahl ist leer                               | Noch kein Abgleich gelaufen: _System -> Discord-Sync -> Jetzt synchronisieren_ (der Bot muss laufen).                                                                     |
+| Symptom                                                        | Ursache / Lösung                                                                                                                                                                                                 |
+| -------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Ungültige oder fehlende Umgebungsvariablen`                   | `.env` unvollständig - die Meldung nennt die betroffenen Variablen.                                                                                                                                              |
+| `Der Bot besitzt möglicherweise nicht genügend Berechtigungen` | Bot-Rolle zu niedrig oder `Manage Roles` fehlt. Rollenreihenfolge prüfen.                                                                                                                                        |
+| Mitgliedersuche liefert nichts                                 | **SERVER MEMBERS INTENT** im Developer Portal aktivieren.                                                                                                                                                        |
+| `Bot derzeit nicht erreichbar`                                 | Bot-Prozess läuft nicht oder Heartbeat ist älter als 70 Sekunden.                                                                                                                                                |
+| Login endet auf `/access-denied`                               | Discord-Konto ist (noch) kein Mitglied des konfigurierten Servers.                                                                                                                                               |
+| Angemeldet, aber "Keine Berechtigung"                          | Server-Ownerschaft allein gibt keine Rechte. Als Discord-Administrator führt dich `/setup` zur Vergabe; sonst `npm run doctor -- <DeineDiscordID>`, dann `SWISSHUB_OWNER_DISCORD_ID` oder `npm run grant:admin`. |
+| Login-Fehler `state`                                           | Cookies blockiert oder Redirect URI stimmt nicht exakt mit `NEXT_PUBLIC_APP_URL` überein.                                                                                                                        |
+| Jail schlägt mit `CONFIGURATION_MISSING` fehl                  | Es ist keine Jail-Rolle hinterlegt (_Module -> Jail -> Einstellungen_).                                                                                                                                          |
+| `Es ist noch kein Discord-Server verbunden`                    | Einrichtungsassistent unter `/setup` abschliessen.                                                                                                                                                               |
+| Rollen-/Channel-Auswahl ist leer                               | Noch kein Abgleich gelaufen: _System -> Discord-Sync -> Jetzt synchronisieren_ (der Bot muss laufen).                                                                                                            |
 
 ---
 

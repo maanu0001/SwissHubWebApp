@@ -33,7 +33,7 @@ function KindIcon({ kind }: { kind: string | null }): React.JSX.Element {
 
 /** Channels aus dem Sync-Cache - dieselbe Liste, die in den Einstellungen zur Auswahl steht. */
 export default async function ServerChannelsPage(): Promise<React.JSX.Element> {
-  await requirePagePermission('settings.view');
+  await requirePagePermission('settings.view', { allowDuringSetup: true });
 
   const channels = await listCachedChannels().catch(() => []);
   const categories = channels.filter((channel) => channel.kind === 'category');

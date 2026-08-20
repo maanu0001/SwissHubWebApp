@@ -19,7 +19,7 @@ export const dynamic = 'force-dynamic';
  * einsortiert ist.
  */
 export default async function ServerRolesPage(): Promise<React.JSX.Element> {
-  await requirePagePermission('settings.view');
+  await requirePagePermission('settings.view', { allowDuringSetup: true });
 
   const [jailSettings, managedRoles] = await Promise.all([
     getModuleSettings<jail.JailSettings>(jail.JAIL_MODULE_ID),

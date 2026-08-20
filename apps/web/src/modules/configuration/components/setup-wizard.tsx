@@ -181,10 +181,15 @@ export function SetupWizard({
           type="button"
           onClick={() => void finish()}
           loading={pending}
-          disabled={connectedGuildId === null || setupComplete}
+          disabled={connectedGuildId === null || setupComplete || !(permissionsStep?.done ?? false)}
         >
           {setupComplete ? 'Einrichtung bereits abgeschlossen' : 'Einrichtung abschliessen'}
         </Button>
+        {!setupComplete && !(permissionsStep?.done ?? false) ? (
+          <span className="text-xs text-warning">
+            Erst nach Schritt 3 möglich - sonst hätte nach dem Abschluss niemand mehr Zugriff.
+          </span>
+        ) : null}
         <Link
           href="/dashboard"
           className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"

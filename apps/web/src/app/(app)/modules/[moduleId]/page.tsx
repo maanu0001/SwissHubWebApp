@@ -15,7 +15,7 @@ import { Badge } from '@/components/ui/badge';
 import { EmptyState } from '@/components/shared/states';
 import { SettingsForm } from '@/modules/configuration/components/settings-form';
 import { HealthChecks } from '@/modules/configuration/components/health-checks';
-import { csrfTokenFor, requirePagePermission } from '@/server/auth';
+import { csrfTokenFor, hasSetupAccess, requirePagePermission } from '@/server/auth';
 import { loadDiscordOptions } from '@/server/configuration';
 
 export const dynamic = 'force-dynamic';
@@ -53,9 +53,9 @@ export default async function ModuleSettingsPage({
     ? `${definition.permissionPrefix}.settings`
     : 'modules.manage';
 
-  const context = await requirePagePermission('settings.view');
+  const context = await requirePagePermission('settings.view', { allowDuringSetup: true });
   const csrfToken = csrfTokenFor(context);
-  const canEdit = can(context, settingsPermission);
+  const canEdit = can(context, settingsPermission) || (await hasSetupAccess());
 
   const [enabled, options, values, healthContext] = await Promise.all([
     isModuleEnabled(moduleId),

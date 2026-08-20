@@ -7,7 +7,7 @@ import { PERMISSION_PRESETS, isRecoveryNeeded, listPermissions } from '@swisshub
 import { listModuleDefinitions } from '@swisshub/modules';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { PermissionMatrix } from '@/modules/configuration/components/permission-matrix';
-import { csrfTokenFor, requirePagePermission } from '@/server/auth';
+import { csrfTokenFor, hasSetupAccess, requirePagePermission } from '@/server/auth';
 import { loadDiscordOptions } from '@/server/configuration';
 
 export const metadata: Metadata = { title: 'Berechtigungen' };
@@ -21,16 +21,17 @@ export const dynamic = 'force-dynamic';
  * Zuordnung gepflegt.
  */
 export default async function ServerPermissionsPage(): Promise<React.JSX.Element> {
-  const context = await requirePagePermission('permissions.manage');
+  const context = await requirePagePermission('permissions.manage', { allowDuringSetup: true });
   const csrfToken = csrfTokenFor(context);
 
-  const [options, managedRoles, recoveryNeeded] = await Promise.all([
+  const [options, managedRoles, recoveryNeeded, setupAccess] = await Promise.all([
     loadDiscordOptions(),
     prisma.managedRole.findMany({
       orderBy: { moderationLevel: 'desc' },
       include: { permissions: { select: { permission: true } } },
     }),
     isRecoveryNeeded(),
+    hasSetupAccess(),
   ]);
 
   const moduleLabels: Record<string, string> = { core: 'Grundfunktionen' };
@@ -79,7 +80,7 @@ export default async function ServerPermissionsPage(): Promise<React.JSX.Element
         <CardContent>
           <PermissionMatrix
             csrfToken={csrfToken}
-            canEdit={can(context, 'permissions.manage')}
+            canEdit={can(context, 'permissions.manage') || setupAccess}
             roles={options.roles}
             managed={managedRoles.map((role) => ({
               discordRoleId: role.discordRoleId,

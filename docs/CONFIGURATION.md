@@ -154,10 +154,28 @@ konfigurierter Zwischenzustand.
 3. **Berechtigungen** – mindestens eine Discord-Rolle erhält Dashboard-Rechte.
 4. **Module** – z.B. die Jail-Rolle wählen.
 
-**Erstzugang:** Solange die Einrichtung nicht abgeschlossen ist, darf ein
-Discord-Administrator den Assistenten bedienen. Danach gilt ausschliesslich
-`settings.edit` aus dem Dashboard. Discord-Serverownerschaft allein verleiht
-**keine** Rechte im Dashboard - dafür gibt es `SWISSHUB_OWNER_DISCORD_ID`.
+### Erstzugang
+
+Berechtigungen werden im Dashboard vergeben - für das Dashboard braucht es aber
+Berechtigungen. Damit daraus kein Henne-Ei-Problem wird, gilt: **solange die
+Einrichtung nicht abgeschlossen ist, darf ein Discord-Administrator die
+Konfigurationsbereiche verwenden** (`/setup`, `/server/*`, `/system/*`,
+`/modules/*`) und dort die ersten Berechtigungen vergeben. Wer nach der
+Anmeldung noch keine Dashboard-Berechtigung hat, landet direkt im Assistenten
+statt auf einer 403-Seite.
+
+Diese Ausnahme endet mit dem Abschluss der Einrichtung; danach zählen
+ausschliesslich die Dashboard-Berechtigungen. Sie deckt nur Konfiguration ab -
+Moderationsbereiche wie Jail oder Mitglieder bleiben gesperrt. Jede Nutzung wird
+protokolliert.
+
+Der Abschluss ist gesperrt, solange keine Rolle „Berechtigungen verwalten“ bzw.
+„Vollzugriff“ besitzt und kein `SWISSHUB_OWNER_DISCORD_ID` gesetzt ist - sonst
+würde der Abschluss den Erstzugang beenden und niemanden zurücklassen.
+
+Discord-Serverownerschaft allein verleiht **keine** Rechte im Dashboard; sie
+zählt nur als Discord-Administrator für diesen Erstzugang. Dauerhafte
+Sonderrechte gibt es nur über `SWISSHUB_OWNER_DISCORD_ID`.
 
 ---
 

@@ -15,7 +15,7 @@ export const dynamic = 'force-dynamic';
 
 /** Übersicht des verbundenen Discord-Servers inklusive Einrichtungsfortschritt. */
 export default async function ServerOverviewPage(): Promise<React.JSX.Element> {
-  await requirePagePermission('settings.view');
+  await requirePagePermission('settings.view', { allowDuringSetup: true });
 
   const [guild, sync, health] = await Promise.all([getGuildConfig(), getSyncStatus(), getSystemHealth()]);
 

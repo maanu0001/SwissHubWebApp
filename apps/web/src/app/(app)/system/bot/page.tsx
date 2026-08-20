@@ -19,7 +19,7 @@ export const dynamic = 'force-dynamic';
  * brauchen?" - inklusive Einladungslink mit exakt den fehlenden Rechten.
  */
 export default async function BotSystemPage(): Promise<React.JSX.Element> {
-  await requirePagePermission('settings.view');
+  await requirePagePermission('settings.view', { allowDuringSetup: true });
 
   const [status, report, guild] = await Promise.all([
     readBotStatus(),

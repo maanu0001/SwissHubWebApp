@@ -22,7 +22,7 @@ function SectionTitle({ children }: { children: React.ReactNode }): React.JSX.El
 }
 
 export default async function ModulesPage(): Promise<React.JSX.Element> {
-  const context = await requirePagePermission('modules.manage');
+  const context = await requirePagePermission('modules.manage', { allowDuringSetup: true });
   const [status, health] = await Promise.all([listModuleStatus(), getModuleHealth()]);
   const csrfToken = csrfTokenFor(context);
   const healthById = new Map(health.map((entry) => [entry.moduleId, entry]));

@@ -224,10 +224,21 @@ gilt dieses Konto als Notzugang und die Sperre entfällt. Für den Ernstfall ste
 
 ### Erstzugang
 
-Solange die Einrichtung nicht abgeschlossen ist, darf ein **Discord-Administrator** den
-Assistenten unter `/setup` bedienen - sonst käme der erste Administrator nie hinein. Danach
-gilt ausschliesslich `settings.edit` aus dem Dashboard. Discord-Serverownerschaft allein
-verleiht **keine** Rechte.
+Solange die Einrichtung nicht abgeschlossen ist, darf ein **Discord-Administrator** die
+Konfigurationsbereiche verwenden (`/setup`, `/server/*`, `/system/*`, `/modules/*`) und dort
+die ersten Berechtigungen vergeben - sonst käme der erste Administrator nie hinein.
+
+Der Umfang ist bewusst eng gezogen:
+
+- Nur Konfiguration. Moderationsbereiche (Jail, Mitglieder, Audit Log) bleiben gesperrt.
+- Nur bis zum Abschluss der Einrichtung. Danach zählt ausschliesslich die
+  Dashboard-Berechtigung; der Abschluss selbst ist blockiert, solange er niemanden
+  zurückliesse (keine verwaltende Rolle und kein `SWISSHUB_OWNER_DISCORD_ID`).
+- Nur mit echtem Discord-Administratorrecht, frisch bei Discord geprüft.
+- Jede Nutzung wird protokolliert (`Konfigurationszugriff über den Erstzugang`).
+
+Discord-Serverownerschaft allein verleiht **keine** dauerhaften Rechte - dafür gibt es
+ausschliesslich `SWISSHUB_OWNER_DISCORD_ID`.
 
 ---
 

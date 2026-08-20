@@ -4,11 +4,13 @@ import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { AUDIT_ACTIONS, prisma, safeRecordAudit } from '@swisshub/database';
 import { clearGuildIdCache } from '@swisshub/discord';
+import { bootstrapConfig } from '@swisshub/config';
 import {
   checkLockout,
   getPermissionPreset,
   invalidateRoleConfiguration,
   isKnownPermission,
+  isRecoveryNeeded,
   resolvePreset,
 } from '@swisshub/permissions';
 import {
@@ -19,8 +21,11 @@ import {
   syncDiscord,
   writeModuleSettings,
 } from '@swisshub/modules';
+import { createLogger } from '@swisshub/logger';
 import { AppError, sanitizeText, snowflakeSchema } from '@swisshub/shared';
 import { defineAction } from '@/server/action';
+
+const log = createLogger('web:configuration');
 
 /**
  * Konfigurationsaktionen des Dashboards.
@@ -35,12 +40,13 @@ export const syncDiscordAction = defineAction(
   {
     name: 'configuration.discord.sync',
     module: 'settings',
-    permission: 'settings.edit',
     schema: z.object({}),
     rateLimit: 'discordSync',
     freshness: 'critical',
   },
   async ({ ctx }) => {
+    await assertConfigurationAccess(ctx, 'settings.edit');
+
     const summary = await syncDiscord({ trigger: 'manual', triggeredBy: ctx.user.discordId });
     if (!summary.success) {
       throw new AppError('DISCORD_UNAVAILABLE', {
@@ -112,6 +118,17 @@ export const completeSetupAction = defineAction(
   },
   async ({ ctx, metadata }) => {
     await assertSetupAccess(ctx.user.discordId, ctx.permissionKeys, ctx.user.isOwner);
+
+    // Mit dem Abschluss endet der Erstzugang für Discord-Administratoren. Wer
+    // vorher keiner Rolle Berechtigungen gegeben hat, käme danach nicht mehr
+    // hinein - deshalb hier blockieren statt aussperren.
+    if ((await isRecoveryNeeded()) && !bootstrapConfig.ownerDiscordId) {
+      throw new AppError('VALIDATION_FAILED', {
+        userMessage:
+          'Es darf noch keine Discord-Rolle das Dashboard verwalten. Bitte zuerst unter "Berechtigungen" eine Rolle mit Vollzugriff festlegen - sonst sperrst du dich mit dem Abschluss aus.',
+      });
+    }
+
     await completeSetup(ctx.user.discordId);
 
     await safeRecordAudit({
@@ -162,8 +179,7 @@ export const updateModuleSettingsAction = defineAction(
     )
       ? `${definition.permissionPrefix}.settings`
       : 'modules.manage';
-    const { assertPermission } = await import('@swisshub/auth');
-    await assertPermission(ctx, permission, { module: definition.id, path: 'configuration.module.settings' });
+    await assertConfigurationAccess(ctx, permission, definition.id);
 
     const result = await writeModuleSettings(input.moduleId, input.values, {
       discordId: ctx.user.discordId,
@@ -202,12 +218,13 @@ export const setRolePermissionsAction = defineAction(
   {
     name: 'configuration.permissions.set',
     module: 'settings',
-    permission: 'permissions.manage',
     schema: rolePermissionsSchema,
     rateLimit: 'settingsWrite',
     freshness: 'critical',
   },
   async ({ ctx, input, metadata }) => {
+    await assertConfigurationAccess(ctx, 'permissions.manage');
+
     const unknown = input.permissions.filter((permission) => !isKnownPermission(permission));
     if (unknown.length > 0) {
       throw new AppError('VALIDATION_FAILED', {
@@ -295,12 +312,13 @@ export const applyPermissionPresetAction = defineAction(
   {
     name: 'configuration.permissions.preset',
     module: 'settings',
-    permission: 'permissions.manage',
     schema: applyPresetSchema,
     rateLimit: 'settingsWrite',
     freshness: 'critical',
   },
   async ({ ctx, input, metadata }) => {
+    await assertConfigurationAccess(ctx, 'permissions.manage');
+
     const preset = getPermissionPreset(input.presetId);
     if (!preset) {
       throw new AppError('NOT_FOUND', { userMessage: 'Diese Vorlage existiert nicht.' });
@@ -390,6 +408,37 @@ export const removeManagedRoleAction = defineAction(
     return { removed: true };
   },
 );
+
+/**
+ * Berechtigungsprüfung für Konfigurationsaktionen.
+ *
+ * Normalfall: die genannte Dashboard-Berechtigung entscheidet. Solange die
+ * Einrichtung nicht abgeschlossen ist, darf zusätzlich ein Discord-Administrator
+ * konfigurieren - sonst könnte niemand die allerersten Berechtigungen vergeben
+ * (Henne-Ei-Problem). Die Ausnahme endet mit dem Abschluss der Einrichtung.
+ */
+async function assertConfigurationAccess(
+  ctx: { user: { discordId: string; username: string; isOwner: boolean }; permissionKeys: string[] },
+  permission: string,
+  module?: string,
+): Promise<void> {
+  if (ctx.user.isOwner || ctx.permissionKeys.includes(permission)) {
+    return;
+  }
+
+  const guild = await getGuildConfig();
+  if (guild.setupCompletedAt === null && (await isDiscordAdministrator(ctx.user.discordId))) {
+    log.warn('Konfigurationszugriff über den Erstzugang', {
+      discordId: ctx.user.discordId,
+      permission,
+      module: module ?? null,
+    });
+    return;
+  }
+
+  const { assertPermission } = await import('@swisshub/auth');
+  await assertPermission(ctx as never, permission, { module: module ?? null, path: 'configuration' });
+}
 
 /**
  * Erstzugang: vor Abschluss der Einrichtung genügt ein Discord-Administrator,

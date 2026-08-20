@@ -295,8 +295,14 @@ zwei Quellen:
    vorausgesetzt, du **trägst diese Rolle auch selbst**.
 
 Solange die Einrichtung nicht abgeschlossen ist, darf zusätzlich ein
-**Discord-Administrator** den Assistenten unter `/setup` bedienen. Danach zählt
-ausschliesslich die Dashboard-Berechtigung.
+**Discord-Administrator** den Assistenten unter `/setup` bedienen **und dort die
+ersten Berechtigungen vergeben** (Server → Berechtigungen). Wer nach der
+Anmeldung noch keine Dashboard-Berechtigung hat, wird automatisch dorthin
+geleitet. Nach dem Abschluss der Einrichtung zählt ausschliesslich die
+Dashboard-Berechtigung.
+
+Bist du weder Discord-Administrator noch Owner des Servers, hilft der Notzugang
+oder `npm run grant:admin` (siehe unten).
 
 Diagnose (zeigt Konfiguration, Rollen und die effektiven Berechtigungen):
 

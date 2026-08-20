@@ -264,6 +264,35 @@ describe('Bot-Berechtigungen und Hierarchie', () => {
   });
 });
 
+describe('Erstzugang zur Einrichtung', () => {
+  beforeEach(async () => {
+    await modules.connectGuild({ guildId: MOCK_GUILD_ID });
+    await modules.syncDiscord({ trigger: 'manual' });
+  });
+
+  // Ohne diese Ausnahme entstünde ein Henne-Ei-Problem: Berechtigungen werden
+  // im Dashboard vergeben, für das Dashboard braucht es aber Berechtigungen.
+  it('erkennt den Discord-Serverowner als Administrator', async () => {
+    // Mock-Guild: 100000000000000001 ist Owner.
+    expect(await modules.isDiscordAdministrator('100000000000000001')).toBe(true);
+  });
+
+  it('erkennt ein Mitglied ohne Administratorrechte nicht als Administrator', async () => {
+    // spammer99 trägt nur die Member-Rolle ohne Berechtigungsbits.
+    expect(await modules.isDiscordAdministrator('100000000000000004')).toBe(false);
+  });
+
+  it('erkennt Nicht-Mitglieder nicht als Administrator', async () => {
+    expect(await modules.isDiscordAdministrator('999999999999999999')).toBe(false);
+  });
+
+  it('meldet vor dem Abschluss der Einrichtung, dass noch niemand verwalten darf', async () => {
+    const { isRecoveryNeeded } = await import('@swisshub/permissions');
+    expect(await modules.isSetupComplete()).toBe(false);
+    expect(await isRecoveryNeeded()).toBe(true);
+  });
+});
+
 describe('Aussperrschutz', () => {
   it('verhindert das Entziehen der letzten verwaltenden Rolle', async () => {
     const { checkLockout } = await import('@swisshub/permissions');

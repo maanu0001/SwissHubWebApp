@@ -81,10 +81,50 @@ export async function requireMember(): Promise<AuthContext> {
   return context;
 }
 
+/**
+ * Erstzugang zur Einrichtung.
+ *
+ * Ohne diese Ausnahme entstünde ein Henne-Ei-Problem: Berechtigungen werden im
+ * Dashboard vergeben, aber für das Dashboard braucht es Berechtigungen. Solange
+ * die Einrichtung nicht abgeschlossen ist, darf deshalb ein
+ * Discord-Administrator die Konfigurationsbereiche verwenden. Danach - und für
+ * alle anderen Bereiche - gelten ausschliesslich die Dashboard-Berechtigungen.
+ */
+export const hasSetupAccess = cache(async (): Promise<boolean> => {
+  const context = await getOptionalAuthContext();
+  if (!context?.isMember) {
+    return false;
+  }
+  if (context.user.isOwner || can(context, 'settings.edit') || can(context, 'admin.full')) {
+    return true;
+  }
+
+  const { getGuildConfig, isDiscordAdministrator } = await import('@swisshub/modules');
+  const guild = await getGuildConfig();
+  if (guild.setupCompletedAt !== null) {
+    return false;
+  }
+  return isDiscordAdministrator(context.user.discordId).catch(() => false);
+});
+
+export interface PagePermissionOptions {
+  /**
+   * Bereich gehört zum Einrichtungsassistenten und ist deshalb vor Abschluss
+   * der Einrichtung auch für Discord-Administratoren erreichbar.
+   */
+  allowDuringSetup?: boolean;
+}
+
 /** Seitenschutz: leitet ohne passende Berechtigung auf die 403-Seite. */
-export async function requirePagePermission(permission: string): Promise<AuthContext> {
+export async function requirePagePermission(
+  permission: string,
+  options: PagePermissionOptions = {},
+): Promise<AuthContext> {
   const context = await requireMember();
   if (!can(context, permission)) {
+    if (options.allowDuringSetup && (await hasSetupAccess())) {
+      return context;
+    }
     redirect(`/403?permission=${encodeURIComponent(permission)}`);
   }
   return context;

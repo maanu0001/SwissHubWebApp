@@ -10,7 +10,7 @@ import {
   readBotStatus,
 } from '@swisshub/modules';
 import { AppShell } from '@/components/layout/app-shell';
-import { csrfTokenFor, requireMember } from '@/server/auth';
+import { csrfTokenFor, hasSetupAccess, requireMember } from '@/server/auth';
 
 const APP_ROLE_LABEL: Record<string, string> = {
   OWNER: 'Owner',
@@ -46,7 +46,18 @@ export default async function AppLayout({
   // aktuellen Anzeigedaten und darf ausfallen.
   const guildId = guild?.id ?? guildConfig.guildId;
 
-  const navigation = buildNavigation(context.permissionKeys, moduleIds);
+  /**
+   * Während der Einrichtung besitzt ein Discord-Administrator noch keine
+   * Dashboard-Berechtigungen. Damit die Seitenleiste nicht leer bleibt, werden
+   * für die Navigation die Konfigurationsbereiche ergänzt. Das ist reine
+   * Darstellung - jede Seite und jede Aktion prüft weiterhin serverseitig.
+   */
+  const setupAccess = await hasSetupAccess();
+  const navigationKeys = setupAccess
+    ? [...new Set([...context.permissionKeys, 'settings.view', 'permissions.manage', 'modules.manage'])]
+    : context.permissionKeys;
+
+  const navigation = buildNavigation(navigationKeys, moduleIds);
   const groups = groupNavigation(navigation).map((group) => ({
     id: group.id,
     label: group.label,

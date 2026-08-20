@@ -1,4 +1,4 @@
-import { prisma } from '@swisshub/database';
+import { bumpConfigRevision, prisma } from '@swisshub/database';
 import { createLogger } from '@swisshub/logger';
 import { getModuleDefinition, listModuleDefinitions, type ModuleDefinition } from './registry';
 
@@ -57,6 +57,12 @@ export async function setModuleEnabled(moduleId: string, enabled: boolean, updat
     create: { moduleId, enabled, updatedBy },
     update: { enabled, updatedBy },
   });
+
+  // Der Zähler verwirft die Caches von Bot und WebApp. Ohne ihn würde ein
+  // abgeschaltetes Modul weiterlaufen, bis der jeweilige Cache von selbst
+  // abläuft - beim Level-System hiesse das: weiter XP vergeben.
+  await bumpConfigRevision(`module.${moduleId}.enabled`, updatedBy);
+
   log.info('Modulzustand geändert', { moduleId, enabled, updatedBy });
 }
 

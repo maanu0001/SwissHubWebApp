@@ -7,7 +7,7 @@ import {
 } from 'discord.js';
 import { createLogger } from '@swisshub/logger';
 import { AppError } from '@swisshub/shared';
-import { isModuleEnabled, level } from '@swisshub/modules';
+import { level } from '@swisshub/modules';
 import { renderLevelCard } from '../level-card';
 import { listMutedWithoutXp } from '../level-events';
 import { startGame } from '../level-games';
@@ -26,7 +26,6 @@ const log = createLogger('bot:commands:level');
  * nichts ändert.
  */
 
-const MODULE = level.LEVEL_MODULE_ID;
 const P = level.LEVEL_PERMISSIONS;
 
 const userOption = (description: string, required = false) =>
@@ -352,13 +351,13 @@ const toLevelActor = (actor: CommandActor): level.LevelActor => ({
 });
 
 export async function handleLevelCommand(interaction: ChatInputCommandInteraction): Promise<void> {
-  if (!(await isModuleEnabled(MODULE))) {
+  const context = await level.loadLevelContext();
+  if (!context.enabled) {
     await interaction.reply({ content: 'S Level-System isch grad usgschalte.', ...ephemeral });
     return;
   }
 
   const actor = await buildCommandActor(interaction);
-  const context = await level.loadLevelContext();
 
   try {
     switch (interaction.commandName) {

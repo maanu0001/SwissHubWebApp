@@ -8,7 +8,7 @@ import {
 } from 'discord.js';
 import { createLogger } from '@swisshub/logger';
 import { AppError } from '@swisshub/shared';
-import { isModuleEnabled, level } from '@swisshub/modules';
+import { level } from '@swisshub/modules';
 import type { LevelGameMatch } from '@swisshub/database';
 import { buildCommandActor } from './commands/context';
 
@@ -131,12 +131,11 @@ async function handleButton(
   interaction: ButtonInteraction,
   parsed: NonNullable<ReturnType<typeof level.parseButtonId>>,
 ): Promise<void> {
-  if (!(await isModuleEnabled(level.LEVEL_MODULE_ID))) {
+  const context = await level.loadLevelContext();
+  if (!context.enabled) {
     await interaction.reply({ content: 'S Level-System isch grad usgschalte.', ...ephemeral });
     return;
   }
-
-  const context = await level.loadLevelContext();
 
   switch (parsed.action) {
     case 'accept':

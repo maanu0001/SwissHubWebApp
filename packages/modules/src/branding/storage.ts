@@ -180,12 +180,39 @@ export async function storeLogoUpload(
     throw new AppError('VALIDATION_FAILED', { userMessage: 'Das Bild ist zu gross (maximal 4096x4096).' });
   }
 
-  await mkdir(UPLOAD_DIR, { recursive: true });
-
   // Zufälliger Name, feste Endung: der Name aus dem Browser wird verworfen.
   const fileName = `logo-${randomBytes(16).toString('hex')}.${EXTENSION[format]}`;
-  // `mode` 0o640: lesbar für den Dienst, nicht ausführbar.
-  await writeFile(join(UPLOAD_DIR, fileName), data, { mode: 0o640 });
+
+  try {
+    await mkdir(UPLOAD_DIR, { recursive: true });
+    // `mode` 0o640: lesbar für den Dienst, nicht ausführbar.
+    await writeFile(join(UPLOAD_DIR, fileName), data, { mode: 0o640 });
+  } catch (error) {
+    // Der häufigste Fall im Betrieb: das Verzeichnis existiert, gehört aber
+    // root (frisch angelegtes Docker-Volume), während der Dienst als
+    // unprivilegierter Benutzer läuft. Ohne diese Meldung wäre nur ein
+    // generischer Fehler sichtbar und die Ursache kaum zu erraten.
+    const code = (error as NodeJS.ErrnoException).code;
+    log.error('Upload-Verzeichnis nicht beschreibbar', { error, uploadDir: UPLOAD_DIR, code });
+
+    if (code === 'EACCES' || code === 'EPERM' || code === 'EROFS') {
+      throw new AppError('INTERNAL', {
+        userMessage:
+          'Das Upload-Verzeichnis auf dem Server ist nicht beschreibbar. Bitte die Rechte von SWISSHUB_UPLOAD_DIR prüfen.',
+        internalMessage: `${code} beim Schreiben nach ${UPLOAD_DIR}`,
+      });
+    }
+    if (code === 'ENOSPC') {
+      throw new AppError('INTERNAL', {
+        userMessage: 'Auf dem Server ist kein Speicherplatz mehr frei.',
+        internalMessage: `ENOSPC beim Schreiben nach ${UPLOAD_DIR}`,
+      });
+    }
+    throw new AppError('INTERNAL', {
+      userMessage: 'Die Datei konnte auf dem Server nicht gespeichert werden.',
+      internalMessage: `${code ?? 'unbekannt'} beim Schreiben nach ${UPLOAD_DIR}`,
+    });
+  }
 
   const version = createHash('sha256').update(data).digest('hex').slice(0, 12);
   log.info('Branding-Upload gespeichert', { fileName, bytes: data.byteLength, format });

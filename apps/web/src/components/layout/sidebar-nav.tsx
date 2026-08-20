@@ -1,5 +1,6 @@
 'use client';
 
+import { useMemo } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { NavIcon } from './nav-icon';
@@ -63,6 +64,23 @@ export function SidebarNav({
 }): React.JSX.Element {
   const pathname = usePathname();
 
+  /**
+   * Genau ein Eintrag ist aktiv - der mit dem längsten passenden Pfad.
+   *
+   * Ohne diese Regel würde `/settings/branding` auch `/settings` markieren und
+   * `/communication/history` zusätzlich `/communication`; die Seitenleiste
+   * zeigte dann zwei aktive Punkte gleichzeitig.
+   */
+  const activeHref = useMemo(() => {
+    const matches = groups
+      .flatMap((group) => group.items)
+      .filter((item) => !item.planned)
+      .map((item) => item.href)
+      .filter((href) => pathname === href || pathname.startsWith(`${href}/`))
+      .sort((a, b) => b.length - a.length);
+    return matches[0] ?? null;
+  }, [groups, pathname]);
+
   return (
     <nav aria-label="Hauptnavigation" className="flex flex-col gap-4">
       {groups.map((group) => (
@@ -74,7 +92,7 @@ export function SidebarNav({
           ) : null}
 
           {group.items.map((item) => {
-            const active = !item.planned && (pathname === item.href || pathname.startsWith(`${item.href}/`));
+            const active = !item.planned && item.href === activeHref;
 
             if (item.planned) {
               return (

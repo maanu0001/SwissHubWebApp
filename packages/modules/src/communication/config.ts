@@ -218,6 +218,9 @@ export const communicationModule: ModuleDefinition = registerModule({
       critical: true,
     },
   ],
+  // Ein Eintrag pro Modul. Der Verlauf ist eine Unterseite und wird innerhalb
+  // des Moduls über die Bereichsnavigation erreicht - die Seitenleiste bleibt
+  // dadurch übersichtlich.
   navigation: [
     {
       href: '/communication',
@@ -227,15 +230,6 @@ export const communicationModule: ModuleDefinition = registerModule({
       icon: 'Megaphone',
       group: 'modules',
       order: 45,
-    },
-    {
-      href: '/communication/history',
-      label: 'Gesendete Nachrichten',
-      description: 'Bereits gesendete Nachrichten',
-      permission: COMMUNICATION_PERMISSIONS.history,
-      icon: 'ScrollText',
-      group: 'modules',
-      order: 46,
     },
   ],
 });

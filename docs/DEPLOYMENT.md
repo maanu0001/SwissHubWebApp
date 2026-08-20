@@ -166,6 +166,10 @@ SWISSHUB_OWNER_DISCORD_ID=...
 
 AUTH_SECRET=<openssl rand -base64 48>
 
+# Ablage fuer hochgeladene Dateien (WebApp-Logo). Muss dem Dienstbenutzer
+# gehoeren - sonst schlaegt der Upload mit "permission denied" fehl.
+SWISSHUB_UPLOAD_DIR=/var/lib/swisshub/uploads
+
 NEXT_PUBLIC_APP_URL=https://system.swisshub.gg
 TRUST_PROXY=true
 
@@ -336,6 +340,31 @@ geladen. Anschliessend unter _Server → Berechtigungen_ die weiteren Rollen
 > Die letzte Rolle mit „Berechtigungen verwalten“ bzw. „Vollzugriff“ lässt sich
 > im Dashboard nicht entwerten - dieser Aussperrschutz verhindert genau diese
 > Situation für die Zukunft.
+
+### Upload-Verzeichnis (Logo)
+
+Das WebApp-Logo wird als Datei abgelegt, nicht in der Datenbank. Das Verzeichnis
+muss dem Benutzer gehoeren, unter dem die WebApp laeuft:
+
+```bash
+# Variante A (Docker): das Image legt das Verzeichnis an und uebergibt es dem
+# Dienstbenutzer. Ein bereits bestehendes Volume gehoert aber noch root -
+# einmalig korrigieren:
+sudo docker compose -f docker-compose.prod.yml run --rm --user root web \
+  chown -R swisshub:swisshub /var/lib/swisshub/uploads
+
+# Variante B (systemd / bare metal):
+sudo mkdir -p /var/lib/swisshub/uploads
+sudo chown -R swisshub:swisshub /var/lib/swisshub
+```
+
+Pruefen laesst sich das mit `npm run doctor` - der Abschnitt **Uploads** meldet,
+ob das Verzeichnis wirklich beschreibbar ist.
+
+> **Hinter einem Reverse Proxy:** `client_max_body_size` muss groesser sein als
+> das Upload-Limit der Anwendung (5 MB). Die mitgelieferte nginx-Konfiguration
+> setzt 8 MB. Ist der Wert zu klein, lehnt nginx die Datei mit **413** ab, bevor
+> die Anwendung sie sieht.
 
 ## 8. Betrieb
 

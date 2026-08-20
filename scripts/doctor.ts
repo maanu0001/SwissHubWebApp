@@ -17,7 +17,9 @@ import {
   loadRoleConfiguration,
   resolvePermissions,
 } from '@swisshub/permissions';
-import { getGuildConfig, getSyncStatus, readBotStatus } from '@swisshub/modules';
+import { mkdir, rm, writeFile } from 'node:fs/promises';
+import { join } from 'node:path';
+import { branding, getGuildConfig, getSyncStatus, readBotStatus } from '@swisshub/modules';
 import { formatDateTime, isSnowflake } from '@swisshub/shared';
 
 const OK = '[ ok ]';
@@ -161,6 +163,26 @@ async function main(): Promise<void> {
     if (sync.lastRun && !sync.lastRun.success) {
       line(WARN, 'Letzter Sync-Lauf ist fehlgeschlagen', sync.lastRun.error ?? undefined);
     }
+  }
+
+  // --- 3b. Uploads ---------------------------------------------------------
+  section('Uploads');
+  const uploadDir = branding.UPLOAD_DIR;
+  try {
+    await mkdir(uploadDir, { recursive: true });
+    // Schreibrecht wirklich prüfen - ein vorhandenes Verzeichnis sagt nichts
+    // darüber aus, ob der Dienstbenutzer hineinschreiben darf.
+    const probe = join(uploadDir, `.doctor-${Date.now()}`);
+    await writeFile(probe, 'ok');
+    await rm(probe, { force: true });
+    line(OK, `Upload-Verzeichnis beschreibbar: ${uploadDir}`);
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code ?? 'unbekannt';
+    line(
+      FAIL,
+      `Upload-Verzeichnis nicht beschreibbar: ${uploadDir} (${code})`,
+      'Der Logo-Upload schlägt damit fehl. In Docker: Volume-Rechte prüfen; sonst SWISSHUB_UPLOAD_DIR dem Dienstbenutzer zuweisen.',
+    );
   }
 
   // --- 4. Bot-Prozess ------------------------------------------------------

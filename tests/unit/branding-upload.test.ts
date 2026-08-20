@@ -1,7 +1,7 @@
 import { mkdtemp, readdir, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import type * as Modules from '@swisshub/modules';
 
 /**
@@ -131,6 +131,35 @@ describe('Upload speichern', () => {
     await expect(storage.storeLogoUpload(pngBytes(8000, 8000), 'image/png')).rejects.toMatchObject({
       code: 'VALIDATION_FAILED',
     });
+  });
+});
+
+describe('Unbrauchbares Upload-Verzeichnis', () => {
+  it('meldet einen Schreibfehler mit Pfadangabe statt generisch zu scheitern', async () => {
+    // Im Betrieb ist der häufigste Fall EACCES (Docker-Volume gehört root,
+    // der Dienst läuft unprivilegiert). Als root im Test lässt sich das nicht
+    // nachstellen, deshalb hier ENOTDIR: ein Verzeichnispfad unterhalb einer
+    // Datei scheitert für jeden Benutzer. Beide Fälle laufen durch dieselbe
+    // Fehlerbehandlung.
+    const blocker = join(await mkdtemp(join(tmpdir(), 'swisshub-blocker-')), 'datei');
+    await writeFile(blocker, 'keine Datei-Ablage');
+    const impossible = join(blocker, 'uploads');
+
+    const previous = process.env.SWISSHUB_UPLOAD_DIR;
+    process.env.SWISSHUB_UPLOAD_DIR = impossible;
+    // Das Modul liest den Pfad beim Laden - deshalb frisch importieren.
+    vi.resetModules();
+    const isolated = (await import('@swisshub/modules')).branding;
+
+    const error = await isolated.storeLogoUpload(pngBytes(), 'image/png').catch((caught: unknown) => caught);
+
+    expect(error).toMatchObject({ code: 'INTERNAL' });
+    // Der Pfad steht in der internen Meldung - ohne ihn wäre der Fehler auf
+    // dem Server kaum zu deuten.
+    expect((error as { internalMessage?: string }).internalMessage).toContain(impossible);
+
+    process.env.SWISSHUB_UPLOAD_DIR = previous;
+    vi.resetModules();
   });
 });
 

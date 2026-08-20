@@ -7,7 +7,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ErrorState } from '@/components/shared/states';
 import { ComposeForm } from '@/modules/communication/components/compose-form';
+import { CommunicationSectionNav } from '@/modules/communication/components/section-nav';
 import { csrfTokenFor, requirePagePermission } from '@/server/auth';
+import { communicationSections } from '@/server/communication';
 import { loadDiscordOptions } from '@/server/configuration';
 
 export const metadata: Metadata = { title: 'Kommunikation' };
@@ -36,9 +38,17 @@ export default async function CommunicationPage({
     params.vorlage ? communication.getCommunicationMessage(params.vorlage) : Promise.resolve(null),
   ]);
 
+  const sections = <CommunicationSectionNav sections={communicationSections(context)} />;
+
   if (!enabled) {
     return (
-      <ErrorState title="Modul deaktiviert" description="Das Kommunikationsmodul ist derzeit deaktiviert." />
+      <>
+        {sections}
+        <ErrorState
+          title="Modul deaktiviert"
+          description="Das Kommunikationsmodul ist derzeit deaktiviert."
+        />
+      </>
     );
   }
 
@@ -67,15 +77,20 @@ export default async function CommunicationPage({
 
   if (!canNews && !canEvent && !canPoll) {
     return (
-      <ErrorState
-        title="Keine Sendeberechtigung"
-        description="Du darfst den Verlauf ansehen, aber keine Nachrichten senden."
-      />
+      <>
+        {sections}
+        <ErrorState
+          title="Keine Sendeberechtigung"
+          description="Du darfst den Verlauf ansehen, aber keine Nachrichten senden."
+        />
+      </>
     );
   }
 
   return (
     <>
+      {sections}
+
       {template ? (
         <p className="flex items-start gap-2 rounded-md border border-primary/40 bg-primary/10 px-3 py-2 text-xs">
           <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden="true" />

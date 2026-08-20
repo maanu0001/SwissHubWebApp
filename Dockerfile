@@ -50,7 +50,14 @@ RUN apk add --no-cache libc6-compat openssl tini && addgroup -S swisshub && addu
 ENV NODE_ENV=production \
     NEXT_TELEMETRY_DISABLED=1 \
     TZ=Europe/Zurich \
-    PORT=3000
+    PORT=3000 \
+    SWISSHUB_UPLOAD_DIR=/var/lib/swisshub/uploads
+
+# Ablage fuer hochgeladene Dateien (Logo). Sie muss dem Dienstbenutzer gehoeren:
+# ein Docker-Volume wird sonst als root angelegt und der Upload scheitert mit
+# "permission denied". Die Rechte des Verzeichnisses bleiben beim Mounten eines
+# leeren Volumes erhalten.
+RUN mkdir -p /var/lib/swisshub/uploads && chown -R swisshub:swisshub /var/lib/swisshub
 
 COPY --from=builder --chown=swisshub:swisshub /app/node_modules ./node_modules
 COPY --from=builder --chown=swisshub:swisshub /app/package.json ./package.json

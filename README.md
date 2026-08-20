@@ -386,6 +386,10 @@ Discord-Server; mit `enabled: false` verschwindet sie ganz.
 | Jail schlägt mit `CONFIGURATION_MISSING` fehl                  | Es ist keine Jail-Rolle hinterlegt (_Module -> Jail -> Einstellungen_).                                                                                                                                          |
 | `Es ist noch kein Discord-Server verbunden`                    | Einrichtungsassistent unter `/setup` abschliessen.                                                                                                                                                               |
 | Rollen-/Channel-Auswahl ist leer                               | Noch kein Abgleich gelaufen: _System -> Discord-Sync -> Jetzt synchronisieren_ (der Bot muss laufen).                                                                                                            |
+| Vote Jail lässt sich nicht starten                             | Vote Jail deaktiviert oder kein Channel gewählt (_Module -> Jail_); zum Starten wird `jail.vote.start` benötigt.                                                                                                 |
+| Nachricht wird nicht gesendet                                  | Der Bot darf im Zielchannel nicht schreiben - _System -> Bot_ zeigt die fehlenden Rechte. Channels ohne Berechtigung sind in der Auswahl deaktiviert.                                                            |
+| Logo-Upload schlägt fehl                                       | `npm run doctor` prüft im Abschnitt _Uploads_, ob das Verzeichnis beschreibbar ist. Hinter nginx zusätzlich `client_max_body_size` (mindestens 8m) kontrollieren.                                                |
+| Hochgeladenes Logo verschwindet nach einem Rebuild             | `SWISSHUB_UPLOAD_DIR` zeigt nicht auf ein persistentes Volume (siehe `docker-compose.prod.yml`).                                                                                                                 |
 
 ---
 

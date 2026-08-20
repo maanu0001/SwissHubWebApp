@@ -73,6 +73,22 @@ export function BrandingForm({
 
     try {
       const response = await fetch('/api/branding/upload', { method: 'POST', body });
+
+      // Ein Reverse Proxy kann die Anfrage abweisen, bevor sie die Anwendung
+      // erreicht (z.B. 413 bei zu kleinem `client_max_body_size`). Dann kommt
+      // HTML statt JSON zurück - ohne diese Behandlung bliebe nur eine
+      // nichtssagende Fehlermeldung.
+      const contentType = response.headers.get('content-type') ?? '';
+      if (!contentType.includes('application/json')) {
+        const message =
+          response.status === 413
+            ? 'Die Datei wurde vom Server abgewiesen, weil sie zu gross ist. Bitte ein kleineres Bild wählen oder das Upload-Limit des Reverse Proxy erhöhen.'
+            : `Der Server hat den Upload abgelehnt (HTTP ${response.status}).`;
+        setError(message);
+        toast.error(message);
+        return;
+      }
+
       const result = (await response.json()) as { ok: true } | { ok: false; error: { message: string } };
 
       if (result.ok) {

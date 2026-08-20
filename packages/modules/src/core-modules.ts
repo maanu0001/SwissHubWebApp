@@ -283,17 +283,6 @@ const plannedModules: Array<{
     tagline: 'Spieler zusammenbringen',
   },
   {
-    id: 'vote-jail',
-    name: 'Vote Jail',
-    description: 'Community Vote System für Jail-Strafen.',
-    icon: 'Gavel',
-    href: '/vote-jail',
-    group: 'modules',
-    order: 51,
-    permission: 'dashboard.view',
-    tagline: 'Community Vote System',
-  },
-  {
     id: 'voice-manager',
     name: 'Voice Manager',
     description: 'Temporäre Voice Channels verwalten.',

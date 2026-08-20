@@ -317,6 +317,21 @@ describeWithDatabase('XP-Spiele', () => {
     );
   });
 
+  it('zahlt nichts aus, wenn der Einsatz nie eingezogen wurde', async () => {
+    // Ohne eingezogenen Topf gäbe es sonst XP aus dem Nichts.
+    const match = await challenge();
+
+    await expect(level.finishGame(match.id, ALICE.discordId)).rejects.toThrow(/nid richtig gstartet/u);
+
+    const total = await prisma.levelProfile.aggregate({ _sum: { xp: true } });
+    expect(total._sum.xp).toBe(2000);
+
+    const closed = await prisma.levelGameMatch.findUniqueOrThrow({ where: { id: match.id } });
+    expect(closed.status).toBe('CANCELLED');
+    // Und beide Seiten sind wieder frei für eine neue Partie.
+    expect(await level.findActiveGame(ALICE.discordId)).toBeNull();
+  });
+
   it('lässt Gewinn und Verlust in Summe kein XP entstehen', async () => {
     const match = await challenge();
     await level.acceptChallenge(match.id, BOB);

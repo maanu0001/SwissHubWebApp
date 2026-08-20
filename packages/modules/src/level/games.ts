@@ -1,7 +1,10 @@
 import { Prisma, prisma, type LevelGameMatch, type XpGameKind } from '@swisshub/database';
+import { createLogger } from '@swisshub/logger';
 import { conflict, notFound } from '@swisshub/shared';
 import { DEFAULT_PAYOUT_FACTOR, GAME_LABELS, payoutFor } from './game-rules';
 import { applyXp, reserveStake, type LevelIdentity, type XpEngineOptions } from './service';
+
+const logger = createLogger('level.games');
 
 /**
  * Ablauf der XP-Spiele.
@@ -233,7 +236,6 @@ export async function closeGame(
   reason: string,
   options: XpEngineOptions = {},
 ): Promise<LevelGameMatch> {
-  void reason;
   const match = await prisma.levelGameMatch.findUnique({ where: { id: matchId } });
   if (!match) {
     throw notFound('Spiel nicht gefunden', 'Das Spiel gits nümme.');
@@ -250,6 +252,14 @@ export async function closeGame(
   if (status === 'DRAW') {
     await recordDraw(match);
   }
+
+  logger.info('Partie ohne Sieger beendet', {
+    matchId,
+    kind: match.kind,
+    status,
+    reason,
+    refunded: match.potHeld,
+  });
 
   return prisma.levelGameMatch.update({
     where: { id: matchId },
@@ -296,29 +306,17 @@ export async function finishGame(
   const loserDiscordId =
     winnerDiscordId === match.challengerDiscordId ? match.opponentDiscordId : match.challengerDiscordId;
 
-  // Falls der Topf nie eingezogen wurde, holen wir das jetzt nach - sonst
-  // entstünde bei der Auszahlung XP aus dem Nichts.
+  // Ohne eingezogenen Topf gibt es nichts auszuzahlen. Die Auszahlung trotzdem
+  // vorzunehmen hiesse, XP aus dem Nichts zu erzeugen - dann lieber die Partie
+  // ergebnislos beenden und den Fall sichtbar machen.
   if (!match.potHeld) {
-    await reserveStake(
-      { discordId: match.challengerDiscordId },
-      match.bet,
-      {
-        gameMatchId: match.id,
-        reason: `${GAME_LABELS[match.kind]}: Einsatz`,
-        idempotencyKey: stakeKey(match.id, match.challengerDiscordId),
-      },
-      options,
-    ).catch(() => undefined);
-    await reserveStake(
-      { discordId: match.opponentDiscordId },
-      match.bet,
-      {
-        gameMatchId: match.id,
-        reason: `${GAME_LABELS[match.kind]}: Einsatz`,
-        idempotencyKey: stakeKey(match.id, match.opponentDiscordId),
-      },
-      options,
-    ).catch(() => undefined);
+    logger.error('Partie ohne eingezogenen Einsatz abgerechnet - wird verworfen', {
+      matchId,
+      kind: match.kind,
+      status: match.status,
+    });
+    await closeGame(matchId, 'CANCELLED', 'Einsatz war nicht eingezogen', options);
+    throw conflict('S Spiel isch nid richtig gstartet worde. Es isch kei XP bewegt worde.');
   }
 
   const result = await applyXp(

@@ -54,12 +54,15 @@ export interface LevelCardInput {
   /** Akzentfarbe als Hex, z.B. `#83060A`. */
   accentColor?: string;
   /**
-   * Avatar als `data:`-URI. Bewusst keine URL: beim Rastern dürfen keine
-   * Netzwerkzugriffe aus der Bilddatei heraus passieren.
+   * Quelle des Avatars.
+   *
+   * Im Browser (Dashboard-Vorschau) darf hier eine Adresse stehen. Beim
+   * Rastern im Bot muss es ein `data:`-URI sein: aus der Bilddatei heraus soll
+   * dort kein Netzwerkzugriff passieren.
    */
-  avatarDataUri?: string | null;
-  /** Hintergrundbild als `data:`-URI. */
-  bannerDataUri?: string | null;
+  avatarSrc?: string | null;
+  /** Quelle des Hintergrundbilds - dieselbe Regel wie beim Avatar. */
+  bannerSrc?: string | null;
   maxLevelTotalXp?: number;
 }
 
@@ -105,14 +108,14 @@ export function renderLevelCardSvg(input: LevelCardInput): string {
   const barWidth = Math.max(120, percentX - 14 - barX);
   const fillWidth = Math.round(barWidth * progress.progress);
 
-  const background = input.bannerDataUri
-    ? `<image href="${escapeXml(input.bannerDataUri)}" x="0" y="0" width="${width}" height="${height}" preserveAspectRatio="xMidYMid slice" />
+  const background = input.bannerSrc
+    ? `<image href="${escapeXml(input.bannerSrc)}" x="0" y="0" width="${width}" height="${height}" preserveAspectRatio="xMidYMid slice" />
     <rect x="0" y="0" width="${width}" height="${height}" fill="#000000" opacity="${prestige ? 0.27 : 0.37}" />`
     : `<rect x="0" y="0" width="${width}" height="${height}" fill="${accent}" />
     <rect x="0" y="0" width="${width}" height="${height}" fill="#000000" opacity="0.35" />`;
 
-  const avatar = input.avatarDataUri
-    ? `<image href="${escapeXml(input.avatarDataUri)}" x="${avatarX}" y="${avatarY}" width="${avatarSize}" height="${avatarSize}" clip-path="url(#avatarClip)" preserveAspectRatio="xMidYMid slice" />`
+  const avatar = input.avatarSrc
+    ? `<image href="${escapeXml(input.avatarSrc)}" x="${avatarX}" y="${avatarY}" width="${avatarSize}" height="${avatarSize}" clip-path="url(#avatarClip)" preserveAspectRatio="xMidYMid slice" />`
     : `<circle cx="${avatarX + avatarSize / 2}" cy="${avatarY + avatarSize / 2}" r="${avatarSize / 2}" fill="#1F2023" />`;
 
   const fontStack = 'DejaVu Sans, Noto Sans, Helvetica, Arial, sans-serif';

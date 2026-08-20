@@ -30,6 +30,7 @@ export function levelSections(context: AuthContext): LevelSection[] {
     sections.push(
       { href: '/level/regeln', label: 'XP-Regeln', icon: 'rules' },
       { href: '/level/voice', label: 'Voice XP', icon: 'voice' },
+      { href: '/level/karte', label: 'Levelkarte', icon: 'card' },
     );
   }
   if (can(context, permissions.decayManage) || can(context, permissions.settingsView)) {

@@ -75,36 +75,62 @@ async function fetchAsDataUri(url: string, allowAnyHost = false): Promise<string
   }
 }
 
+/**
+ * Liest einen im Dashboard hochgeladenen Hintergrund von der Platte.
+ *
+ * Der Bot teilt sich das Upload-Verzeichnis mit der WebApp (nur lesend). Ist
+ * es nicht eingehängt, fällt die Karte auf die Adresse bzw. die Akzentfarbe
+ * zurück, statt zu scheitern.
+ */
+async function uploadedBannerAsDataUri(
+  slot: level.CardBannerSlot,
+  settings: level.LevelSettings,
+): Promise<string | null> {
+  const file = await level.readCardBanner(slot, settings).catch(() => null);
+  if (!file) {
+    return null;
+  }
+  try {
+    const png = await sharp(file.data).png().toBuffer();
+    return `data:image/png;base64,${png.toString('base64')}`;
+  } catch (error) {
+    log.warn('Hochgeladener Kartenhintergrund konnte nicht gelesen werden', { slot, error });
+    return null;
+  }
+}
+
 export interface LevelCardRequest {
   displayName: string;
   avatarUrl: string | null;
   xp: number;
   rank: number;
-  accentColor: string;
-  bannerUrl: string;
-  prestigeBannerUrl: string;
-  maxLevelTotalXp: number;
+  settings: level.LevelSettings;
 }
 
 /** Erzeugt die Levelkarte als PNG-Puffer. */
 export async function renderLevelCard(request: LevelCardRequest): Promise<Buffer> {
-  const isPrestige = level.levelFromXp(request.xp, request.maxLevelTotalXp) >= level.MAX_LEVEL;
-  const bannerSource =
-    isPrestige && request.prestigeBannerUrl ? request.prestigeBannerUrl : request.bannerUrl;
+  const { settings } = request;
+  const prestige = level.levelFromXp(request.xp, settings.maxLevelTotalXp) >= level.MAX_LEVEL;
+  const banner = level.resolveCardBanner(settings, prestige);
 
-  const [avatarDataUri, bannerDataUri] = await Promise.all([
+  const [avatarSrc, bannerSrc] = await Promise.all([
     request.avatarUrl ? fetchAsDataUri(request.avatarUrl) : Promise.resolve(null),
-    bannerSource ? fetchAsDataUri(bannerSource) : Promise.resolve(null),
+    // Die hochgeladene Datei hat Vorrang vor der Adresse.
+    banner.path
+      ? uploadedBannerAsDataUri(prestige ? 'prestige' : 'normal', settings)
+      : banner.url
+        ? fetchAsDataUri(banner.url)
+        : Promise.resolve(null),
   ]);
 
   const svg = level.renderLevelCardSvg({
     displayName: request.displayName,
     xp: request.xp,
     rank: request.rank,
-    accentColor: request.accentColor,
-    avatarDataUri,
-    bannerDataUri,
-    maxLevelTotalXp: request.maxLevelTotalXp,
+    accentColor: settings.accentColor,
+    avatarSrc,
+    bannerSrc,
+    maxLevelTotalXp: settings.maxLevelTotalXp,
   });
 
   return sharp(Buffer.from(svg)).png().toBuffer();

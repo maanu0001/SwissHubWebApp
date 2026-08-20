@@ -87,6 +87,11 @@ services:
     environment:
       NODE_ENV: production
       TZ: Europe/Zurich
+      # Der Bot liest die im Dashboard hochgeladenen Hintergrundbilder der
+      # Levelkarte von hier - schreiben tut ausschliesslich die WebApp.
+      SWISSHUB_UPLOAD_DIR: /var/lib/swisshub/uploads
+    volumes:
+      - swisshub-uploads:/var/lib/swisshub/uploads:ro
     depends_on:
       postgres:
         condition: service_healthy

@@ -371,7 +371,7 @@ export async function handleLevelCommand(interaction: ChatInputCommandInteractio
         await handleLevelStats(interaction, context);
         return;
       case 'global_stats':
-        await handleGlobalStats(interaction, context);
+        await handleGlobalStats(interaction, actor, context);
         return;
       case 'check_user':
         await handleCheckUser(interaction, actor, context);
@@ -510,10 +510,7 @@ async function handleLevel(interaction: ChatInputCommandInteraction, context: Ct
       avatarUrl: target.displayAvatarURL({ extension: 'png', size: 256 }),
       xp,
       rank: rank || 1,
-      accentColor: context.settings.accentColor,
-      bannerUrl: context.settings.cardBannerUrl,
-      prestigeBannerUrl: context.settings.cardPrestigeBannerUrl,
-      maxLevelTotalXp: context.settings.maxLevelTotalXp,
+      settings: context.settings,
     });
     await interaction.editReply({ files: [{ attachment: png, name: 'level.png' }] });
   } catch (error) {
@@ -541,11 +538,32 @@ async function handleLevel(interaction: ChatInputCommandInteraction, context: Ct
 
 async function handleLeaderboard(interaction: ChatInputCommandInteraction, context: Ctx): Promise<void> {
   const limit = interaction.options.getInteger('azahl') ?? 10;
+  await interaction.deferReply();
+
+  // Wie beim Vorgänger: für die angezeigten Plätze den fälligen
+  // Inaktivitäts-Abzug nachholen, bevor sortiert wird. Sonst stünde jemand
+  // oben, dessen Vorsprung nur daher rührt, dass der Hintergrundlauf ihn noch
+  // nicht erreicht hat.
+  if (context.settings.decayEnabled) {
+    const preview = await level.getLeaderboard({
+      limit,
+      maxLevelTotalXp: context.settings.maxLevelTotalXp,
+    });
+    for (const entry of preview.entries) {
+      await level
+        .settleDecayFor(entry.discordId, {
+          decayRules: context.decayRules,
+          maxLevelTotalXp: context.settings.maxLevelTotalXp,
+        })
+        .catch(() => undefined);
+    }
+  }
+
   const board = await level.getLeaderboard({
     limit,
     maxLevelTotalXp: context.settings.maxLevelTotalXp,
   });
-  await interaction.reply({
+  await interaction.editReply({
     embeds: [level.buildLeaderboardEmbed(board.entries, context.accentColor)],
     allowedMentions: { parse: [] },
   });
@@ -606,7 +624,23 @@ async function handleLevelStats(interaction: ChatInputCommandInteraction, contex
   });
 }
 
-async function handleGlobalStats(interaction: ChatInputCommandInteraction, context: Ctx): Promise<void> {
+/**
+ * Serverweite Kennzahlen.
+ *
+ * Beim Vorgänger war der Befehl der Level-Manager-Rolle vorbehalten. Die
+ * Einschränkung bleibt - sie hängt jetzt an `level.stats.view` statt an einer
+ * fest eingetragenen Rollen-ID.
+ */
+async function handleGlobalStats(
+  interaction: ChatInputCommandInteraction,
+  actor: CommandActor,
+  context: Ctx,
+): Promise<void> {
+  if (!actor.can(P.statsView)) {
+    await interaction.reply({ content: NO_PERMISSION, ...ephemeral });
+    return;
+  }
+
   const stats = await level.getGlobalStats({ maxLevelTotalXp: context.settings.maxLevelTotalXp });
   await interaction.reply({
     embeds: [

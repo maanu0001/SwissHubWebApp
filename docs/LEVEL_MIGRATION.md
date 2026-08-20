@@ -48,7 +48,7 @@ in der Laufzeitkonfiguration und wirken sofort:
 | `DOT_SWEEP_INTERVAL_SECONDS`                | Prüfintervall                                                     |
 | `MAX_LEVEL_TOTAL_XP`                        | XP für das Höchstlevel                                            |
 | `MILESTONE_ROLES="5:ID,10:ID"`              | Level-System → Level & Rollen                                     |
-| `BANNER_URL` / `BANNER_PATH`                | Hintergrund der Levelkarte                                        |
+| `BANNER_URL` / `BANNER_PATH`                | Level-System → Levelkarte (hochladen statt Pfad)                  |
 | `config.xp_boost` (SQLite)                  | Globaler XP-Boost                                                 |
 | `config.announce_levels` (SQLite)           | Nur diese Level ankündigen                                        |
 | `no_xp_channels` (SQLite)                   | Channels ohne XP                                                  |
@@ -83,9 +83,10 @@ für Dashboard und Slash Commands.
 | `level.settings.view/manage` | Einstellungen ansehen / ändern                       |
 | `level.import`               | Altdaten übernehmen                                  |
 
-`/level`, `/leaderboard`, `/level_stats`, `/global_stats` und
-`/game_leaderboard` bleiben wie beim Vorgänger für alle Mitglieder offen und
-verlangen keine Berechtigung.
+`/level`, `/leaderboard`, `/level_stats` und `/game_leaderboard` bleiben wie
+beim Vorgänger für alle Mitglieder offen und verlangen keine Berechtigung.
+`/check_user` und `/global_stats` waren dort der Level-Manager-Rolle
+vorbehalten; sie hängen jetzt an `level.members.view` bzw. `level.stats.view`.
 
 ---
 
@@ -165,6 +166,17 @@ deshalb nie. Einmalig **Level & Rollen → Alle abgleichen** ausführen.
 
 Der Bot muss in der Rollenhierarchie **über** allen Level-Rollen stehen. Rollen,
 die er nicht vergeben kann, sind in der Liste markiert.
+
+### Levelkarten-Hintergründe hochladen
+
+Der alte Bot las `banner.png` und `lvl31_banner.png` aus dem Projektordner.
+Diese beiden Bilder werden jetzt unter **Level-System → Levelkarte**
+hochgeladen - eines für die normale Karte (900 × 225), eines für das
+Höchstlevel (900 × 341). Die Seite zeigt eine Vorschau derselben Karte, die
+später im Chat erscheint.
+
+Wer die Bilder lieber anderswo hostet, kann stattdessen eine `https`-Adresse in
+den Einstellungen eintragen. Eine hochgeladene Datei hat Vorrang.
 
 ### Discord-Rechte prüfen
 

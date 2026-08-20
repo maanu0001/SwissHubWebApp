@@ -136,9 +136,19 @@ export const levelSettingsSchema = z.object({
 
   // --- Levelkarte ----------------------------------------------------------
   accentColor: hexColorSchema,
-  /** Hintergrund der Levelkarte (früher `BANNER_URL` / `BANNER_PATH`). */
+  /**
+   * Hochgeladener Hintergrund der Levelkarte (Dateiname im Upload-Verzeichnis).
+   *
+   * Er hat Vorrang vor der Adresse: wer eine Datei hochlädt, will sie sehen.
+   * Verwaltet wird das Feld über die Seite "Levelkarte", nicht von Hand -
+   * deshalb steht es nicht in `levelSettingsFields`.
+   */
+  cardBannerPath: z.string().max(120).default(''),
+  /** Hintergrund der Levelkarte als Adresse (früher `BANNER_URL`). */
   cardBannerUrl: z.string().max(1000).default(''),
-  /** Eigener Hintergrund für das Höchstlevel (früher `lvl31_banner.png`). */
+  /** Hochgeladener Hintergrund für das Höchstlevel (früher `lvl31_banner.png`). */
+  cardPrestigeBannerPath: z.string().max(120).default(''),
+  /** Hintergrund für das Höchstlevel als Adresse. */
   cardPrestigeBannerUrl: z.string().max(1000).default(''),
 });
 
@@ -509,15 +519,15 @@ export const levelSettingsFields: SettingsField[] = [
   {
     key: 'cardBannerUrl',
     type: 'text',
-    label: 'Hintergrund der Levelkarte',
-    description: 'Bild-URL. Leer lässt die Karte einfarbig.',
+    label: 'Hintergrund der Levelkarte (Adresse)',
+    description: 'Alternative zum Hochladen unter "Levelkarte". Eine hochgeladene Datei hat Vorrang.',
     group: 'Levelkarte',
     maxLength: 1000,
   },
   {
     key: 'cardPrestigeBannerUrl',
     type: 'text',
-    label: 'Hintergrund im Höchstlevel',
+    label: 'Hintergrund im Höchstlevel (Adresse)',
     description: 'Eigenes Bild für Level 31. Leer nutzt den normalen Hintergrund.',
     group: 'Levelkarte',
     maxLength: 1000,

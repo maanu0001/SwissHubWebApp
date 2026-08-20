@@ -142,19 +142,32 @@ export interface StoredUpload {
 }
 
 /**
+ * Namensraum eines Uploads.
+ *
+ * Der Präfix steckt im erzeugten Dateinamen und wird beim Lesen wieder
+ * geprüft. Dadurch lässt sich ein Logo nicht als Levelkarten-Hintergrund
+ * ausliefern und umgekehrt.
+ */
+export const UPLOAD_KINDS = ['logo', 'levelcard'] as const;
+export type UploadKind = (typeof UPLOAD_KINDS)[number];
+
+/**
  * Speichert einen Upload und gibt den erzeugten Dateinamen zurück.
  * Wirft `VALIDATION_FAILED`, wenn die Datei nicht akzeptiert wird.
  */
 export async function storeLogoUpload(
   data: Uint8Array,
   declaredMimeType: string | null,
+  kind: UploadKind = 'logo',
+  limits: { maxBytes?: number; minSize?: number; maxSize?: number } = {},
 ): Promise<StoredUpload> {
   if (data.byteLength === 0) {
     throw new AppError('VALIDATION_FAILED', { userMessage: 'Die Datei ist leer.' });
   }
-  if (data.byteLength > MAX_UPLOAD_BYTES) {
+  const maxBytes = limits.maxBytes ?? MAX_UPLOAD_BYTES;
+  if (data.byteLength > maxBytes) {
     throw new AppError('VALIDATION_FAILED', {
-      userMessage: `Die Datei ist zu gross (maximal ${Math.round(MAX_UPLOAD_BYTES / 1024 / 1024)} MB).`,
+      userMessage: `Die Datei ist zu gross (maximal ${Math.round(maxBytes / 1024 / 1024)} MB).`,
     });
   }
 
@@ -172,16 +185,22 @@ export async function storeLogoUpload(
     });
   }
 
+  const minSize = limits.minSize ?? 16;
+  const maxSize = limits.maxSize ?? 4096;
   const size = readImageSize(data, format);
-  if (size && (size.width < 16 || size.height < 16)) {
-    throw new AppError('VALIDATION_FAILED', { userMessage: 'Das Bild ist zu klein (mindestens 16x16).' });
+  if (size && (size.width < minSize || size.height < minSize)) {
+    throw new AppError('VALIDATION_FAILED', {
+      userMessage: `Das Bild ist zu klein (mindestens ${minSize}x${minSize}).`,
+    });
   }
-  if (size && (size.width > 4096 || size.height > 4096)) {
-    throw new AppError('VALIDATION_FAILED', { userMessage: 'Das Bild ist zu gross (maximal 4096x4096).' });
+  if (size && (size.width > maxSize || size.height > maxSize)) {
+    throw new AppError('VALIDATION_FAILED', {
+      userMessage: `Das Bild ist zu gross (maximal ${maxSize}x${maxSize}).`,
+    });
   }
 
   // Zufälliger Name, feste Endung: der Name aus dem Browser wird verworfen.
-  const fileName = `logo-${randomBytes(16).toString('hex')}.${EXTENSION[format]}`;
+  const fileName = `${kind}-${randomBytes(16).toString('hex')}.${EXTENSION[format]}`;
 
   try {
     await mkdir(UPLOAD_DIR, { recursive: true });
@@ -215,7 +234,7 @@ export async function storeLogoUpload(
   }
 
   const version = createHash('sha256').update(data).digest('hex').slice(0, 12);
-  log.info('Branding-Upload gespeichert', { fileName, bytes: data.byteLength, format });
+  log.info('Upload gespeichert', { fileName, bytes: data.byteLength, format, kind });
 
   return {
     fileName,
@@ -261,10 +280,10 @@ export async function deleteUpload(fileName: string): Promise<void> {
 
 /** Erlaubt ausschliesslich die selbst erzeugten Namen. */
 function assertSafeFileName(fileName: string): LogoFormat {
-  const match = /^logo-[0-9a-f]{32}\.(png|jpg|webp)$/u.exec(fileName);
+  const match = /^(logo|levelcard)-[0-9a-f]{32}\.(png|jpg|webp)$/u.exec(fileName);
   if (!match) {
     throw new AppError('VALIDATION_FAILED', { userMessage: 'Ungültiger Dateiname.' });
   }
-  const extension = match[1];
+  const extension = match[2];
   return extension === 'jpg' ? 'jpeg' : (extension as LogoFormat);
 }

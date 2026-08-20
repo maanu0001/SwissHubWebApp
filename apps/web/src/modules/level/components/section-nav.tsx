@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import {
   Database,
   Dice5,
+  IdCard,
   Gauge,
   LayoutDashboard,
   Mic,
@@ -37,6 +38,7 @@ const ICONS = {
   roles: Shield,
   rules: Gauge,
   voice: Mic,
+  card: IdCard,
   decay: Moon,
   stats: LayoutDashboard,
   import: Database,

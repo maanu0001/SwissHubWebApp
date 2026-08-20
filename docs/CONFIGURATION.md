@@ -356,6 +356,13 @@ seiner `.env`; eine Änderung brauchte dort einen Neustart.
 | XP-Spiele                      | an       | Auszahlung 95 %, Einsatz 1 bis 5000 XP                        |
 | Hintergrund der Levelkarte     | –        | Bild-URL, eigener Hintergrund für Level 31 möglich            |
 
+Die Hintergrundbilder der Levelkarte werden unter **Level-System →
+Levelkarte** hochgeladen (900 × 225 für die normale Karte, 900 × 341 für das
+Höchstlevel). Eine hochgeladene Datei hat Vorrang vor der Adresse. Die Dateien
+liegen im Upload-Verzeichnis (`SWISSHUB_UPLOAD_DIR`); der Bot liest sie von
+dort nur lesend mit - im Docker-Betrieb ist das Volume dafür auch am
+Bot-Container eingehängt.
+
 Meilenstein-Rollen werden nicht hier, sondern unter **Level-System → Level &
 Rollen** gepflegt. Sie lösen `MILESTONE_ROLES="5:ROLEID,10:ROLEID"` aus der
 alten `.env` ab.

@@ -49,6 +49,24 @@ export interface DiscordGateway {
      */
     botPermissions(channelId: string): Promise<bigint>;
   };
+  /**
+   * Sprachkanäle, die diese Anwendung selbst anlegt und verwaltet.
+   *
+   * Bewusst getrennt von `channels`: dort geht es um bestehende Channels und
+   * Nachrichten, hier um den Lebenszyklus eigener Kanäle.
+   */
+  voice: {
+    /** Legt einen Sprachkanal in einer Kategorie an. */
+    create(input: CreateVoiceChannelInput): Promise<GuildChannel>;
+    /** Setzt eine Berechtigungsausnahme für ein Mitglied oder eine Rolle. */
+    setOverwrite(channelId: string, overwrite: ChannelOverwrite, reason?: string): Promise<void>;
+    /** Entfernt eine Berechtigungsausnahme wieder. */
+    clearOverwrite(channelId: string, targetId: string, reason?: string): Promise<void>;
+    /** Löscht einen Sprachkanal. */
+    remove(channelId: string, reason?: string): Promise<void>;
+    /** Einzelner Channel; `null`, wenn es ihn nicht mehr gibt. */
+    get(channelId: string): Promise<GuildChannel | null>;
+  };
   guild: {
     get(): Promise<GuildSummary>;
     memberCount(): Promise<number | null>;
@@ -107,6 +125,30 @@ export interface DiscordButton {
 export interface DiscordActionRow {
   type: 1;
   components: DiscordButton[];
+}
+
+export interface CreateVoiceChannelInput {
+  name: string;
+  /** Kategorie, in der der Kanal entsteht. */
+  parentId: string;
+  /** Teilnehmerlimit; `null` = unbegrenzt. */
+  userLimit?: number | null;
+  overwrites?: ChannelOverwrite[];
+  reason?: string;
+}
+
+/**
+ * Berechtigungsausnahme eines Channels.
+ *
+ * `allow`/`deny` sind Discord-Berechtigungsbits. Was weder erlaubt noch
+ * verboten ist, erbt der Kanal von der Kategorie - genau wie auf Discord.
+ */
+export interface ChannelOverwrite {
+  id: string;
+  /** 0 = Rolle, 1 = Mitglied (Discord-Konvention). */
+  type: 0 | 1;
+  allow: bigint;
+  deny: bigint;
 }
 
 export interface SentMessage {

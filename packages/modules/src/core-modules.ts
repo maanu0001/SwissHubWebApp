@@ -271,18 +271,6 @@ const plannedModules: Array<{
     tagline: 'Meldungen bearbeiten',
   },
   {
-    id: 'player-search',
-    name: 'Spielersuche',
-    description: 'Spieler zusammenbringen und Sessions finden.',
-    icon: 'UserSearch',
-    href: '/player-search',
-    group: 'modules',
-    order: 50,
-    permission: 'dashboard.view',
-    badge: 'NEU',
-    tagline: 'Spieler zusammenbringen',
-  },
-  {
     id: 'voice-manager',
     name: 'Voice Manager',
     description: 'Temporäre Voice Channels verwalten.',

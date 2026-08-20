@@ -2,7 +2,7 @@ import { jobConfig } from '@swisshub/config';
 import { createLogger } from '@swisshub/logger';
 import { purgeExpiredIdempotencyKeys } from '@swisshub/database';
 import { purgeExpiredSessions } from '@swisshub/auth';
-import { jail, syncDiscord, writeHeartbeat } from '@swisshub/modules';
+import { jail, spielersuche, syncDiscord, writeHeartbeat } from '@swisshub/modules';
 
 const log = createLogger('bot:jobs');
 
@@ -79,6 +79,25 @@ export function createJobRunner(
       runOnStart: true,
       async run() {
         await jail.expireVoteJails();
+      },
+    },
+    {
+      name: 'spielersuche-expiry',
+      // Abgelaufene Suchen beenden. Die Datenbank ist Source of Truth - ein
+      // Neustart verliert dadurch keine Ablaufzeit.
+      intervalMs: 60 * 1000,
+      runOnStart: true,
+      async run() {
+        await spielersuche.expireSearches();
+      },
+    },
+    {
+      name: 'spielersuche-onboarding',
+      // Minütlich prüfen, ob die tägliche Hinweisnachricht fällig ist. Der
+      // Versand selbst merkt sich den Tag und passiert höchstens einmal.
+      intervalMs: 60 * 1000,
+      async run() {
+        await spielersuche.runDailyOnboarding();
       },
     },
     {

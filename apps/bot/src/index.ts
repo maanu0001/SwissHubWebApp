@@ -21,7 +21,9 @@ import {
 } from '@swisshub/modules';
 import { createJobRunner } from './jobs';
 import { registerVoteJailHandler } from './vote-jail';
-import { registerCommandHandler, registerJailCommands } from './commands/register';
+import { registerCommandHandler, registerCommands } from './commands/register';
+import { registerSpielersucheButtons } from './spielersuche-buttons';
+import { recoverVoiceSessions, registerSpielersucheVoice } from './spielersuche-voice';
 
 const log = createLogger('bot');
 
@@ -80,6 +82,9 @@ async function main(): Promise<void> {
   // Slash Commands (/jail, /jail_free, /vote_jail, ...). Die Befehle sind
   // reine Adapter auf dieselben Services, die auch das Dashboard nutzt.
   registerCommandHandler(client);
+  // Knöpfe und Voice-Tracking der Spielersuche.
+  registerSpielersucheButtons(client);
+  registerSpielersucheVoice(client);
 
   /**
    * Aktive Guild-ID. Sie kann sich zur Laufzeit ändern (Einrichtungsassistent),
@@ -120,7 +125,12 @@ async function main(): Promise<void> {
       }
 
       // Slash Commands für den verbundenen Server registrieren.
-      await registerJailCommands(readyClient, guildId);
+      await registerCommands(readyClient, guildId);
+
+      // Voice-Sessions, die ein Neustart offen gelassen hat, sauber schliessen.
+      await recoverVoiceSessions(readyClient, guildId).catch((error: unknown) =>
+        log.warn('Voice-Sessions konnten nicht bereinigt werden', { error }),
+      );
 
       // Beim Start einmal synchronisieren, damit Rollen- und Channel-Auswahl
       // im Dashboard sofort aktuell sind.
@@ -259,7 +269,7 @@ async function main(): Promise<void> {
       if (guildId) {
         await syncDiscord({ trigger: 'event' }).catch(() => undefined);
         // Die Befehle hängen an der Guild - nach einem Wechsel neu setzen.
-        await registerJailCommands(client, guildId).catch(() => undefined);
+        await registerCommands(client, guildId).catch(() => undefined);
       }
     })();
   }, 60_000);

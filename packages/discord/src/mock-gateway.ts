@@ -2,7 +2,7 @@ import { snowflakeToDate } from '@swisshub/shared';
 import { createLogger } from '@swisshub/logger';
 import { DISCORD_PERMISSIONS } from './permissions';
 import type { DiscordGateway } from './gateway';
-import type { GuildMember, GuildRole } from './types';
+import type { GuildChannel, GuildMember, GuildRole } from './types';
 
 const log = createLogger('discord:mock');
 
@@ -106,6 +106,10 @@ export function createMockGateway(): DiscordGateway {
   const state = new Map(MOCK_MEMBERS.map((member) => [member.discordId, { ...member }]));
   const sentMessages = new Map<string, { channelId: string }>();
   let messageCounter = 0;
+  // Vom Mock erstellte Sprachkanäle - damit `voice.get` nach dem Anlegen
+  // dasselbe liefert wie Discord.
+  const voiceChannels = new Map<string, GuildChannel>();
+  let voiceCounter = 0;
   log.warn('Discord Mock-Modus aktiv - es werden KEINE echten Discord-Aktionen ausgeführt');
 
   return {
@@ -208,8 +212,40 @@ export function createMockGateway(): DiscordGateway {
           DISCORD_PERMISSIONS.EMBED_LINKS |
           DISCORD_PERMISSIONS.ADD_REACTIONS |
           DISCORD_PERMISSIONS.READ_MESSAGE_HISTORY |
-          DISCORD_PERMISSIONS.MANAGE_ROLES
+          DISCORD_PERMISSIONS.MANAGE_ROLES |
+          DISCORD_PERMISSIONS.MANAGE_CHANNELS |
+          DISCORD_PERMISSIONS.CONNECT |
+          DISCORD_PERMISSIONS.MOVE_MEMBERS
         );
+      },
+    },
+    voice: {
+      async create(input) {
+        voiceCounter += 1;
+        const channel = {
+          id: `${900000000000000000n + BigInt(voiceCounter)}`,
+          name: input.name,
+          type: 2,
+          parentId: input.parentId,
+          position: voiceCounter,
+          nsfw: false,
+        };
+        voiceChannels.set(channel.id, channel);
+        log.info('Mock: Sprachkanal erstellt', { name: input.name, id: channel.id });
+        return channel;
+      },
+      async setOverwrite(channelId, overwrite) {
+        log.debug('Mock: Channel-Berechtigung gesetzt', { channelId, target: overwrite.id });
+      },
+      async clearOverwrite(channelId, targetId) {
+        log.debug('Mock: Channel-Berechtigung entfernt', { channelId, targetId });
+      },
+      async remove(channelId) {
+        voiceChannels.delete(channelId);
+        log.info('Mock: Sprachkanal gelöscht', { channelId });
+      },
+      async get(channelId) {
+        return voiceChannels.get(channelId) ?? null;
       },
     },
     guild: {

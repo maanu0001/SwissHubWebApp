@@ -17,6 +17,9 @@ Login mit Discord  ->  Guild-Check  ->  Permission Engine  ->  Moderation Policy
 - **Vote Jail:** Community-Abstimmung, die bei Erfolg über dieselbe Jail-Engine ausgeführt wird.
 - **Slash Commands:** `/jail`, `/silent_jail`, `/jail_free`, `/jail_list` und `/vote_jail` als
   Adapter auf genau dieselben Dienste wie das Dashboard - kein zweites Jail-System.
+  Dazu `/spielersuche`, `/spielersuche-hilf`, `/spielersuche-stats` und `/spielersucheadmin`.
+- **Spielersuche:** Mitspieler finden - `/spielersuche` und Dashboard nutzen dieselbe Engine,
+  inklusive automatischem Sprachkanal, Rollen-Ping mit Sperrfrist und Statistik.
 - **Kommunikation:** Neuigkeiten, Events und Umfragen als Discord-Embeds mit Live-Vorschau.
 
 ---
@@ -304,6 +307,7 @@ docs/
   CONFIGURATION.md         Was in die .env gehört und was ins Dashboard
   DEPLOYMENT.md            Produktivbetrieb auf einem eigenen Server
   JAIL_MIGRATION.md        Übernahme des alten Jail-Bots (bot.py / jail_data.db)
+  SPIELERSUCHE_MIGRATION.md Übernahme des Spielersuche-Bots (matchmaking.db)
 
 tests/                     Unit- und Integrationstests (Vitest)
 ```
@@ -371,13 +375,16 @@ Discord-Server; mit `enabled: false` verschwindet sie ganz.
    Dauer setzen. Die Auswahl bietet nur Rollen an, die der Bot tatsächlich verwalten kann.
    Im selben Bereich lässt sich **Vote Jail** aktivieren (Channel, benötigte Stimmen, Laufzeit,
    Jail-Dauer bei Erfolg - Standard: 5 Stimmen in 5 Minuten ergeben 30 Minuten Jail).
-5. **Alten Jail-Bot ablösen** (nur bei einer bestehenden Installation): _Module -> Jail-Import_.
+5. **Spielersuche einrichten**: _Spielersuche -> Einstellungen_ (Channel und Voice-Kategorie),
+   danach _Spielersuche -> Spiele_. Einen bestehenden Spielersuche-Bot löst
+   _Spielersuche -> Import_ ab: [docs/SPIELERSUCHE_MIGRATION.md](docs/SPIELERSUCHE_MIGRATION.md).
+6. **Alten Jail-Bot ablösen** (nur bei einer bestehenden Installation): _Module -> Jail-Import_.
    Der Assistent liest `jail_data.db`, zeigt für jede Zeile, was mit ihr geschieht, und übernimmt
    sie erst nach ausdrücklicher Bestätigung. Vollständige Anleitung:
    [docs/JAIL_MIGRATION.md](docs/JAIL_MIGRATION.md).
-6. **Testen**: _Mitglieder_ -> Mitglied öffnen -> _Mitglied jailen_. Nach Ablauf gibt der Bot das
+7. **Testen**: _Mitglieder_ -> Mitglied öffnen -> _Mitglied jailen_. Nach Ablauf gibt der Bot das
    Mitglied automatisch frei und stellt die Rollen wieder her. Dasselbe über Discord: `/jail`.
-7. **Nachvollziehen**: _Audit Log_ zeigt jede Aktion inklusive Integritätsprüfung der Hash-Chain.
+8. **Nachvollziehen**: _Audit Log_ zeigt jede Aktion inklusive Integritätsprüfung der Hash-Chain.
 
 ---
 
@@ -398,6 +405,9 @@ Discord-Server; mit `enabled: false` verschwindet sie ganz.
 | Vote Jail lässt sich nicht starten                             | Vote Jail deaktiviert oder kein Channel gewählt (_Module -> Jail_); zum Starten wird `jail.vote.start` benötigt.                                                                                                 |
 | Nachricht wird nicht gesendet                                  | Der Bot darf im Zielchannel nicht schreiben - _System -> Bot_ zeigt die fehlenden Rechte. Channels ohne Berechtigung sind in der Auswahl deaktiviert.                                                            |
 | Logo-Upload schlägt fehl                                       | `npm run doctor` prüft im Abschnitt _Uploads_, ob das Verzeichnis beschreibbar ist. Hinter nginx zusätzlich `client_max_body_size` (mindestens 8m) kontrollieren.                                                |
+| `/spielersuche` findet keine Spiele                            | Unter _Spielersuche -> Spiele_ ist kein aktives Spiel hinterlegt.                                                                                                                                                |
+| Spielersuche erstellt keinen Sprachkanal                       | Voice-Kategorie fehlt (_Spielersuche -> Einstellungen_) oder dem Bot fehlt dort `Kanäle verwalten`.                                                                                                              |
+| Spielrolle wird nicht gepingt                                  | Sperrfrist je Spiel (Standard 5 Minuten). Die Suche entsteht trotzdem; die Rückmeldung nennt die verbleibende Zeit.                                                                                              |
 | Slash Commands erscheinen nicht auf Discord                    | Der Bot muss mit dem Scope `applications.commands` eingeladen sein; die Befehle werden beim Start pro Server registriert (Bot-Log prüfen).                                                                       |
 | `/jail` meldet "kei Berächtigung"                              | Die Berechtigungen sind dieselben wie im Dashboard: _Server -> Berechtigungen_, Rolle mit `jail.create` bzw. `jail.release` versehen.                                                                            |
 | Import meldet "Das ist keine SQLite-Datenbank"                 | Es wurde eine andere Datei gewählt - erwartet wird `jail_data.db`. `bot.py` wird nicht hochgeladen (sie enthält den alten Bot-Token im Klartext).                                                                |

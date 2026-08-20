@@ -16,6 +16,7 @@ import {
   type GuildRole,
   type GuildSummary,
   type BotIdentity,
+  CHANNEL_TYPES,
   channelOverwritesSchema,
   discordMessageSchema,
   type RawDiscordMember,
@@ -289,6 +290,89 @@ export function createRestGateway(): DiscordGateway {
     },
   };
 
+  /**
+   * Sprachkanäle des Moduls Spielersuche.
+   *
+   * Der Kanal-Cache oben wird nach dem Anlegen und Löschen gezielt entwertet:
+   * sonst würde die Auswahl im Dashboard einen gerade erstellten Kanal noch
+   * eine Minute lang nicht kennen.
+   */
+  const voice: DiscordGateway['voice'] = {
+    async create(input) {
+      const raw = await discordRequest<unknown>(`${await guildRoute()}/channels`, {
+        method: 'POST',
+        body: {
+          name: input.name,
+          type: CHANNEL_TYPES.voice,
+          parent_id: input.parentId,
+          user_limit: input.userLimit ?? 0,
+          permission_overwrites: (input.overwrites ?? []).map((entry) => ({
+            id: entry.id,
+            type: entry.type,
+            allow: entry.allow.toString(),
+            deny: entry.deny.toString(),
+          })),
+        },
+        auditLogReason: input.reason,
+      });
+
+      cache.delete('channels');
+      const parsed = discordChannelSchema.parse(raw);
+      return {
+        id: parsed.id,
+        name: parsed.name ?? input.name,
+        type: parsed.type,
+        parentId: parsed.parent_id ?? null,
+        position: parsed.position ?? 0,
+        nsfw: parsed.nsfw ?? false,
+      };
+    },
+
+    async setOverwrite(channelId, overwrite, reason) {
+      await discordRequest(`/channels/${channelId}/permissions/${overwrite.id}`, {
+        method: 'PUT',
+        body: {
+          type: overwrite.type,
+          allow: overwrite.allow.toString(),
+          deny: overwrite.deny.toString(),
+        },
+        auditLogReason: reason,
+      });
+    },
+
+    async clearOverwrite(channelId, targetId, reason) {
+      await discordRequest(`/channels/${channelId}/permissions/${targetId}`, {
+        method: 'DELETE',
+        auditLogReason: reason,
+      });
+    },
+
+    async remove(channelId, reason) {
+      await discordRequest(`/channels/${channelId}`, { method: 'DELETE', auditLogReason: reason });
+      cache.delete('channels');
+    },
+
+    async get(channelId) {
+      try {
+        const raw = await discordRequest<unknown>(`/channels/${channelId}`);
+        const parsed = discordChannelSchema.parse(raw);
+        return {
+          id: parsed.id,
+          name: parsed.name ?? 'unbenannt',
+          type: parsed.type,
+          parentId: parsed.parent_id ?? null,
+          position: parsed.position ?? 0,
+          nsfw: parsed.nsfw ?? false,
+        };
+      } catch (error) {
+        if (error instanceof DiscordApiError && error.status === 404) {
+          return null;
+        }
+        throw error;
+      }
+    },
+  };
+
   const guild: DiscordGateway['guild'] = {
     async get(): Promise<GuildSummary> {
       return cached('guild', false, async () => {
@@ -358,7 +442,7 @@ export function createRestGateway(): DiscordGateway {
     },
   };
 
-  return { members, roles, channels, guild, bot, isMock: false };
+  return { members, roles, channels, voice, guild, bot, isMock: false };
 }
 
 function parseMembers(raw: unknown): GuildMember[] {

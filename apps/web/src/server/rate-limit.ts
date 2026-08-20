@@ -22,6 +22,8 @@ export const RATE_LIMITS = {
   communicationSend: { limit: 15, windowMs: 10 * 60 * 1000 },
   brandingUpload: { limit: 10, windowMs: 30 * 60 * 1000 },
   jailImport: { limit: 10, windowMs: 30 * 60 * 1000 },
+  spielersucheCreate: { limit: 10, windowMs: 10 * 60 * 1000 },
+  spielersucheWrite: { limit: 40, windowMs: 5 * 60 * 1000 },
 } as const satisfies Record<string, RateLimitRule>;
 
 export type RateLimitName = keyof typeof RATE_LIMITS;

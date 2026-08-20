@@ -94,6 +94,50 @@ enum JailImportRowAction {
   CONFLICT
 }
 
+/// Zustand einer Spielersuche.
+enum SpielersucheStatus {
+  OPEN
+  COMPLETE
+  CLOSED
+  EXPIRED
+}
+
+/// Woher eine Suche stammt. Dashboard und Slash Command durchlaufen denselben
+/// Service - die Quelle ist reine Herkunftsinformation.
+enum SpielersucheSource {
+  DASHBOARD
+  SLASH_COMMAND
+  LEGACY_IMPORT
+}
+
+enum SpielersucheImportStatus {
+  ANALYSED
+  CONFIRMED
+  IMPORTING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+/// Datenart einer Zeile aus der alten Spielersuche-Datenbank.
+enum SpielersucheImportKind {
+  SETTINGS
+  GAME
+  MATCH
+  PARTICIPANT
+  USAGE
+  VOICE_SESSION
+  ROLE_PING
+}
+
+enum SpielersucheImportAction {
+  IMPORT
+  SKIP_DUPLICATE
+  SKIP_INVALID
+  SKIP_OTHER_GUILD
+  CONFLICT
+}
+
 enum CommunicationType {
   NEWS
   EVENT
@@ -714,4 +758,203 @@ model ReconciliationRun {
   details     Json               @default("{}")
 
   @@index([module, startedAt])
+}
+
+/// Ein im Dashboard gepflegtes Spiel.
+///
+/// Der alte Bot kannte Spiele nur pro Guild; diese Anwendung ist auf genau
+/// einen Server konfiguriert, deshalb genuegt der Name als Schluessel.
+model SpielersucheGame {
+  id            String                 @id @default(cuid())
+  name          String
+  /// Kleingeschriebener Name - macht die Eindeutigkeit unabhaengig von
+  /// Gross-/Kleinschreibung (der alte Bot nutzte dafuer COLLATE NOCASE).
+  nameKey       String                 @unique
+  /// Rolle, die beim Start einer Suche erwaehnt wird.
+  roleId        String
+  bannerUrl     String?
+  /// Maximale Gruppengroesse. NULL = unbegrenzt.
+  maxSquadSize  Int?
+  enabled       Boolean                @default(true)
+  sortOrder     Int                    @default(0)
+  /// `games.id` aus der Altdatenbank - macht den Import wiederholbar.
+  legacyId      Int?                   @unique
+  createdAt     DateTime               @default(now())
+  updatedAt     DateTime               @updatedAt
+  createdByDiscordId String?
+  matches       SpielersucheMatch[]
+  rolePing      SpielersucheRolePing?
+
+  @@index([enabled, name])
+}
+
+/// Eine Spielersuche.
+model SpielersucheMatch {
+  id                 String                     @id @default(cuid())
+  creatorDiscordId   String
+  creatorUsername    String
+  creatorDisplayName String?
+  creatorAvatarHash  String?
+  gameId             String?
+  game               SpielersucheGame?          @relation(fields: [gameId], references: [id])
+  /// Name zum Zeitpunkt der Suche - bleibt lesbar, auch wenn das Spiel
+  /// spaeter umbenannt oder geloescht wird.
+  gameName           String
+  pingRoleId         String?
+  /// Wurde die Spielrolle bei dieser Suche tatsaechlich erwaehnt?
+  rolePinged         Boolean                    @default(false)
+  bannerUrl          String?
+  /// Zusaetzlich gesuchte Spieler. Der Ersteller zaehlt bereits als Teilnehmer.
+  requestedPlayers   Int
+  comment            String?
+  status             SpielersucheStatus         @default(OPEN)
+  source             SpielersucheSource         @default(SLASH_COMMAND)
+  channelId          String?
+  messageId          String?                    @unique
+  voiceChannelId     String?
+  voiceChannelName   String?
+  /// Squad-Groesse des Spiels zum Zeitpunkt der Suche (NULL = unbegrenzt).
+  maxSquadSize       Int?
+  createdAt          DateTime                   @default(now())
+  expiresAt          DateTime
+  closedAt           DateTime?
+  closedByDiscordId  String?
+  closeReason        String?
+  /// Gesetzt, solange die Suche laeuft: `<creatorDiscordId>#<Platznummer>`.
+  /// Der Unique-Index begrenzt dadurch die Zahl gleichzeitiger Suchen pro
+  /// Person auf Datenbankebene - nicht nur im Anwendungscode.
+  activeCreatorKey   String?                    @unique
+  idempotencyKey     String?                    @unique
+  /// `matches.id` aus der Altdatenbank.
+  legacyId           Int?                       @unique
+  importId           String?
+  import             SpielersucheImport?        @relation(fields: [importId], references: [id])
+  participants       SpielersucheParticipant[]
+  voiceSessions      SpielersucheVoiceSession[]
+
+  @@index([status, expiresAt])
+  @@index([creatorDiscordId, createdAt])
+  @@index([gameId])
+  @@index([voiceChannelId])
+  @@index([createdAt])
+}
+
+/// Teilnahme an einer Suche.
+///
+/// Ein Austritt loescht die Zeile nicht, sondern setzt `leftAt`. Dadurch
+/// bleibt die Teilnahmehistorie erhalten und der Unique-Index verhindert
+/// trotzdem zuverlaessig doppelte Teilnahmen.
+model SpielersucheParticipant {
+  id          String            @id @default(cuid())
+  matchId     String
+  match       SpielersucheMatch @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  discordId   String
+  username    String?
+  displayName String?
+  avatarHash  String?
+  isCreator   Boolean           @default(false)
+  joinedAt    DateTime          @default(now())
+  leftAt      DateTime?
+
+  @@unique([matchId, discordId])
+  @@index([discordId, joinedAt])
+  @@index([matchId, leftAt])
+}
+
+/// Letzter Rollen-Ping je Spiel - Grundlage des Ping-Cooldowns.
+model SpielersucheRolePing {
+  id       String           @id @default(cuid())
+  gameId   String           @unique
+  game     SpielersucheGame @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  roleId   String
+  pingedAt DateTime
+
+  @@index([pingedAt])
+}
+
+/// Nutzung der Spielersuche - Grundlage der Statistik und der Rangliste.
+model SpielersucheUsage {
+  id        String             @id @default(cuid())
+  discordId String
+  /// Immer `spielersuche`; das Feld bleibt fuer spaetere Befehle offen.
+  command   String             @default("spielersuche")
+  source    SpielersucheSource @default(SLASH_COMMAND)
+  usedAt    DateTime           @default(now())
+  legacyId  Int?               @unique
+
+  @@index([discordId, usedAt])
+  @@index([usedAt])
+}
+
+/// Zeit in einem von der Spielersuche erstellten Sprachkanal.
+model SpielersucheVoiceSession {
+  id              String             @id @default(cuid())
+  discordId       String
+  matchId         String?
+  match           SpielersucheMatch? @relation(fields: [matchId], references: [id])
+  voiceChannelId  String
+  joinedAt        DateTime
+  leftAt          DateTime?
+  durationSeconds Int                @default(0)
+  legacyId        Int?               @unique
+
+  @@index([discordId, joinedAt])
+  @@index([voiceChannelId, leftAt])
+  @@index([matchId])
+}
+
+/// Ein Durchlauf der Uebernahme aus `matchmaking.db`.
+model SpielersucheImport {
+  id                   String                   @id @default(cuid())
+  fileName             String
+  fileBytes            Int
+  fileSha256           String
+  status               SpielersucheImportStatus @default(ANALYSED)
+  schemaInfo           Json?
+  /// Guild, deren Daten uebernommen werden. Die Altdatenbank kann mehrere
+  /// Server enthalten (Test- und Produktivserver).
+  sourceGuildId        String?
+  totalRows            Int                      @default(0)
+  importableRows       Int                      @default(0)
+  duplicateRows        Int                      @default(0)
+  invalidRows          Int                      @default(0)
+  otherGuildRows       Int                      @default(0)
+  conflictRows         Int                      @default(0)
+  importedRows         Int                      @default(0)
+  failedRows           Int                      @default(0)
+  legacyBotStopped     Boolean                  @default(false)
+  reconciledAt         DateTime?
+  reconcileSummary     Json?
+  uploadedByDiscordId  String
+  uploadedByUsername   String
+  confirmedByDiscordId String?
+  confirmedAt          DateTime?
+  errorMessage         String?
+  createdAt            DateTime                 @default(now())
+  finishedAt           DateTime?
+  items                SpielersucheImportItem[]
+  matches              SpielersucheMatch[]
+
+  @@index([status, createdAt])
+}
+
+/// Eine bewertete Zeile aus der Altdatenbank.
+model SpielersucheImportItem {
+  id         String                   @id @default(cuid())
+  importId   String
+  import     SpielersucheImport       @relation(fields: [importId], references: [id], onDelete: Cascade)
+  kind       SpielersucheImportKind
+  /// Stabiler Schluessel der Legacy-Zeile, z.B. `game:18`.
+  legacyKey  String
+  label      String
+  action     SpielersucheImportAction
+  note       String?
+  /// Die gelesenen Werte - Grundlage fuer die Uebernahme und die Vorschau.
+  payload    Json
+  imported   Boolean                  @default(false)
+  targetId   String?
+  createdAt  DateTime                 @default(now())
+
+  @@unique([importId, legacyKey])
+  @@index([importId, kind, action])
 }

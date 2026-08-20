@@ -211,3 +211,88 @@ export async function previewMilestoneReconciliation(
     incomplete,
   };
 }
+
+// --- Verwaltung -------------------------------------------------------------
+
+export interface MilestoneInput {
+  level: number;
+  roleId: string;
+  enabled?: boolean;
+}
+
+/**
+ * Legt eine Level-Rolle an oder ändert sie.
+ *
+ * Ein Level trägt genau eine Rolle - deshalb ist `level` der Schlüssel.
+ */
+export async function upsertMilestone(input: MilestoneInput): Promise<LevelMilestoneRole> {
+  const { conflict } = await import('@swisshub/shared');
+  const level = Math.trunc(input.level);
+  if (level < 1 || level > 100) {
+    throw conflict('Das Level muss zwischen 1 und 100 liegen.');
+  }
+  return prisma.levelMilestoneRole.upsert({
+    where: { level },
+    create: { level, roleId: input.roleId, enabled: input.enabled ?? true },
+    update: { roleId: input.roleId, ...(input.enabled === undefined ? {} : { enabled: input.enabled }) },
+  });
+}
+
+export async function deleteMilestone(level: number): Promise<void> {
+  await prisma.levelMilestoneRole.deleteMany({ where: { level: Math.trunc(level) } });
+}
+
+export interface ReconciliationResult {
+  processed: number;
+  rolesAdded: number;
+  rolesRemoved: number;
+  failed: number;
+}
+
+/**
+ * Gleicht die Level-Rollen aller Mitglieder ab.
+ *
+ * Nötig, weil der Bot Rollen nur bei einer XP-Änderung nachzieht: wer seit der
+ * Einrichtung einer neuen Level-Rolle keine XP mehr gesammelt hat, bekäme sie
+ * sonst nie.
+ */
+export async function reconcileMilestones(
+  options: { gateway?: DiscordGateway; maxLevelTotalXp?: number; limit?: number } = {},
+): Promise<ReconciliationResult> {
+  const gateway = options.gateway ?? defaultDiscord;
+  const milestones = (await listMilestones()).filter((entry) => entry.enabled);
+  if (milestones.length === 0) {
+    return { processed: 0, rolesAdded: 0, rolesRemoved: 0, failed: 0 };
+  }
+
+  const profiles = await prisma.levelProfile.findMany({
+    orderBy: { xp: 'desc' },
+    take: options.limit ?? 2000,
+    select: { discordId: true, xp: true },
+  });
+
+  let processed = 0;
+  let rolesAdded = 0;
+  let rolesRemoved = 0;
+  let failed = 0;
+
+  for (const profile of profiles) {
+    const result = await syncMilestoneRoles(profile.discordId, profile.xp, {
+      gateway,
+      maxLevelTotalXp: options.maxLevelTotalXp,
+      milestones,
+      reason: 'Abgleich der Level-Rollen',
+    }).catch(() => null);
+
+    if (!result) {
+      failed += 1;
+      continue;
+    }
+    processed += 1;
+    rolesAdded += result.added.length;
+    rolesRemoved += result.removed.length;
+    failed += result.failed.length;
+  }
+
+  return { processed, rolesAdded, rolesRemoved, failed };
+}

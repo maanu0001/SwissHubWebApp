@@ -28,7 +28,8 @@ const log = createLogger('level:import');
  *    merkt sich die Prüfsumme der Datei, aus der sein Stand stammt.
  */
 
-export interface ImportActor extends LevelActor {}
+/** Wer die Übernahme auslöst - dieselbe Form wie bei den übrigen Eingriffen. */
+export type ImportActor = LevelActor;
 
 export interface ImportPreviewRow {
   legacyKey: string;

@@ -11,7 +11,6 @@ import { AppError, conflict, notFound } from '@swisshub/shared';
 import { readModuleSettings } from '../../settings/service';
 import { LEVEL_MODULE_ID, type LevelSettings } from '../config';
 import { levelFromXp } from '../curve';
-import { setXp } from '../service';
 import { updateLevelSettings, type LevelActor } from '../admin';
 import { readLegacyLevelDatabase, type LegacyLevelDatabase } from './reader';
 import { readLegacyEnv, type LegacyEnvContents } from './env-reader';
@@ -293,6 +292,128 @@ const GAME_COLUMN_TO_KIND = {
   xp4Gewinnt: 'XP_4GEWINNT',
 } as const;
 
+interface ProfilePayload {
+  userId: string;
+  xp: number;
+  messages: number;
+  voiceMinutes: number;
+  lastActivityAt: number | null;
+  lastDecayAt: number | null;
+  lastMessageAt: number | null;
+  lastVoiceAt: number | null;
+}
+
+/**
+ * Wie viele Profile eine Transaktion umfasst.
+ *
+ * Gross genug, damit der Aufwand pro Transaktion nicht ins Gewicht fällt,
+ * klein genug, dass eine Transaktion nicht minutenlang Zeilen sperrt.
+ */
+const PROFILE_CHUNK_SIZE = 100;
+
+/** `0` bedeutete beim Vorgänger "nie". */
+const secondsToDate = (value: number | null): Date | null => (value === null ? null : new Date(value * 1000));
+
+/**
+ * Übernimmt einen Stapel Profile in einer Transaktion.
+ *
+ * Der Weg über `setXp` je Zeile wäre einfacher, kostete auf der echten
+ * Datenbank aber rund zehn Millisekunden pro Person - bei ein paar tausend
+ * Mitgliedern läuft die Übernahme damit in einen Proxy-Timeout, und der
+ * Bildschirm zeigt einen Fehler, während im Hintergrund weitergeschrieben
+ * wird. Hier passiert dasselbe, nur gebündelt.
+ */
+async function importProfileChunk(
+  run: LevelImport,
+  actor: ImportActor,
+  items: readonly LevelImportItem[],
+): Promise<{ imported: number; totalXp: number }> {
+  const payloads = items.map((item) => ({ item, payload: item.payload as unknown as ProfilePayload }));
+  const discordIds = payloads.map((entry) => entry.payload.userId);
+
+  return prisma.$transaction(
+    async (tx) => {
+      // Vorhandene Zeilen sperren, damit ein gleichzeitig laufender Bot den
+      // Stand nicht zwischen Lesen und Schreiben verändert.
+      await tx.$executeRaw`
+        SELECT "id" FROM "LevelProfile" WHERE "discordId" = ANY(${discordIds}::text[]) FOR UPDATE
+      `;
+
+      const existing = await tx.levelProfile.findMany({
+        where: { discordId: { in: discordIds } },
+        select: { id: true, discordId: true, xp: true },
+      });
+      const byDiscordId = new Map(existing.map((entry) => [entry.discordId, entry]));
+
+      const journal: Prisma.XpTransactionCreateManyInput[] = [];
+      let imported = 0;
+      let totalXp = 0;
+
+      for (const { item, payload } of payloads) {
+        const target = Math.max(0, Math.trunc(payload.xp));
+        const before = byDiscordId.get(payload.userId);
+        const fields = {
+          xp: target,
+          messages: payload.messages,
+          voiceMinutes: payload.voiceMinutes,
+          lastActivityAt: secondsToDate(payload.lastActivityAt),
+          lastDecayAt: secondsToDate(payload.lastDecayAt),
+          lastMessageAt: secondsToDate(payload.lastMessageAt),
+          lastVoiceAt: secondsToDate(payload.lastVoiceAt),
+          legacyImportSha: run.fileSha256,
+          legacyImportedAt: new Date(),
+        };
+
+        const profile = await tx.levelProfile.upsert({
+          where: { discordId: payload.userId },
+          create: { discordId: payload.userId, ...fields },
+          update: fields,
+          select: { id: true },
+        });
+
+        const xpBefore = before?.xp ?? 0;
+        const delta = target - xpBefore;
+        if (delta !== 0) {
+          journal.push({
+            profileId: profile.id,
+            discordId: payload.userId,
+            source: 'MIGRATION',
+            delta,
+            requestedDelta: delta,
+            xpBefore,
+            xpAfter: target,
+            levelBefore: levelFromXp(xpBefore),
+            levelAfter: levelFromXp(target),
+            reason: `Übernahme aus ${run.fileName}`,
+            actorDiscordId: actor.discordId,
+            importId: run.id,
+            // Zweiter Riegel neben der Prüfsumme am Profil: dieselbe Zeile aus
+            // demselben Lauf kann nie doppelt buchen.
+            idempotencyKey: `level-import:${run.id}:${item.legacyKey}`,
+          });
+        }
+
+        imported += 1;
+        totalXp += target;
+      }
+
+      if (journal.length > 0) {
+        // `skipDuplicates` hält den Schlüssel wirksam, auch wenn ein Lauf
+        // wiederholt wird.
+        await tx.xpTransaction.createMany({ data: journal, skipDuplicates: true });
+      }
+
+      await tx.levelImportItem.updateMany({
+        where: { id: { in: items.map((item) => item.id) } },
+        data: { imported: true },
+      });
+
+      return { imported, totalXp };
+    },
+    { timeout: 60_000, maxWait: 15_000 },
+  );
+}
+
 /**
  * Übernimmt die zuvor bewerteten Zeilen.
  *
@@ -327,48 +448,37 @@ export async function executeLevelImport(
   let imported = 0;
   let failed = 0;
   let totalXp = 0;
+
+  // Profile zuerst und gebündelt: sie machen den Grossteil der Zeilen aus, und
+  // die übrigen Arten hängen teilweise an ihnen (die Siegbilanz braucht ein
+  // vorhandenes Profil).
+  const profileItems = items.filter((item) => item.kind === 'PROFILE');
+  for (let offset = 0; offset < profileItems.length; offset += PROFILE_CHUNK_SIZE) {
+    const chunk = profileItems.slice(offset, offset + PROFILE_CHUNK_SIZE);
+    try {
+      const result = await importProfileChunk(run, actor, chunk);
+      imported += result.imported;
+      totalXp += result.totalXp;
+    } catch (error) {
+      failed += chunk.length;
+      log.warn('Stapel konnte nicht übernommen werden', {
+        importId,
+        from: chunk[0]?.legacyKey,
+        count: chunk.length,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
   const settingsChanged: string[] = [];
   const settingsPatch: Partial<LevelSettings> = {};
   const current = await readModuleSettings<LevelSettings>(LEVEL_MODULE_ID);
 
   for (const item of items) {
+    if (item.kind === 'PROFILE') {
+      continue;
+    }
     try {
       switch (item.kind) {
-        case 'PROFILE': {
-          const payload = item.payload as {
-            userId: string;
-            xp: number;
-            messages: number;
-            voiceMinutes: number;
-            lastActivityAt: number | null;
-            lastDecayAt: number | null;
-            lastMessageAt: number | null;
-            lastVoiceAt: number | null;
-          };
-          const seconds = (value: number | null): Date | null =>
-            value === null ? null : new Date(value * 1000);
-
-          await setXp({ discordId: payload.userId }, payload.xp, {
-            source: 'MIGRATION',
-            reason: `Übernahme aus ${run.fileName}`,
-            actorDiscordId: actor.discordId,
-            importId: run.id,
-            // Zweiter Riegel neben der Prüfsumme am Profil: dieselbe Zeile
-            // aus demselben Lauf kann nie doppelt buchen.
-            idempotencyKey: `level-import:${run.id}:${item.legacyKey}`,
-            messages: payload.messages,
-            voiceMinutes: payload.voiceMinutes,
-            lastActivityAt: seconds(payload.lastActivityAt),
-            lastDecayAt: seconds(payload.lastDecayAt),
-            lastMessageAt: seconds(payload.lastMessageAt),
-            lastVoiceAt: seconds(payload.lastVoiceAt),
-            legacyImportSha: run.fileSha256,
-          });
-          totalXp += payload.xp;
-          imported += 1;
-          break;
-        }
-
         case 'GAME_STATS': {
           const payload = item.payload as Record<keyof typeof GAME_COLUMN_TO_KIND | 'userId', never> & {
             userId: string;

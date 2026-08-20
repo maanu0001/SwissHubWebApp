@@ -267,6 +267,37 @@ describeWithDatabase('Übernahme der alten levels.db', () => {
     expect((await level.readLevelSettings()).noXpChannelIds).toEqual([]);
   });
 
+  it('übernimmt auch mehr Zeilen, als in einen Stapel passen', async () => {
+    // Profile werden gebündelt geschrieben. Der Test geht bewusst über die
+    // Stapelgrösse hinaus, damit die Grenze zwischen zwei Transaktionen
+    // mitgeprüft wird.
+    const rows = Array.from({ length: 250 }, (_unused, index) => ({
+      userId: `3000000000000${(index + 100).toString().padStart(5, '0')}`,
+      xp: (index + 1) * 7,
+    }));
+    const data = await buildLegacyDatabase(rows);
+
+    const analysis = await level.analyseLevelImport(ACTOR, { name: 'levels.db', data });
+    const result = await level.executeLevelImport(ACTOR, analysis.importId, {
+      legacyBotStopped: true,
+    });
+
+    const expectedXp = rows.reduce((sum, row) => sum + row.xp, 0);
+    expect(result.failed).toBe(0);
+    expect(result.totalXp).toBe(expectedXp);
+    // Die Zahl liegt über 250, weil die Vorlage zusätzlich eine Zeile mit
+    // Einstellungen enthält.
+    expect(result.imported).toBeGreaterThanOrEqual(250);
+
+    const stored = await prisma.levelProfile.aggregate({ _sum: { xp: true }, _count: { _all: true } });
+    expect(stored._count._all).toBe(250);
+    expect(stored._sum.xp).toBe(expectedXp);
+
+    // Und das Journal deckt sich weiterhin mit den Ständen.
+    const ledger = await prisma.xpTransaction.aggregate({ _sum: { delta: true } });
+    expect(ledger._sum.delta).toBe(expectedXp);
+  });
+
   it('lässt sich verwerfen, ohne etwas zu übernehmen', async () => {
     const data = await buildLegacyDatabase([{ userId: '200000000000000001', xp: 100 }]);
     const analysis = await level.analyseLevelImport(ACTOR, { name: 'levels.db', data });

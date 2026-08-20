@@ -118,6 +118,13 @@ Der Stand aus der Altdatenbank gilt. Er wird **nicht** aus Nachrichten und
 Voice-Minuten neu berechnet - das ergäbe andere Zahlen, weil Boost, Cooldowns
 und der Inaktivitäts-Abzug über die Jahre unterschiedlich gewirkt haben.
 
+### Wie lange es dauert
+
+Profile werden in Stapeln von 100 geschrieben, jeder Stapel in einer
+Transaktion. Ein Auszug mit rund 1500 Mitgliedern braucht damit einige
+Sekunden. Bricht ein Stapel ab, sind nur dessen Zeilen betroffen; die
+Zusammenfassung nennt die Zahl, und der Lauf lässt sich wiederholen.
+
 ### Dieselbe Datei zählt nur einmal
 
 Jedes übernommene Profil merkt sich die SHA-256-Prüfsumme der Datei, aus der

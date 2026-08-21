@@ -146,6 +146,23 @@ mehreren Instanzen und über Prozessneustarts hinweg.
 - Transaktionen kommen dort zum Einsatz, wo mehrere Tabellen konsistent geändert werden
   (Rollen/Permissions, Audit Log).
 
+### XP-Verlosungen
+
+- `XpRaffleEntry` ist über `@@unique([raffleId, discordId])` eindeutig. Zusammen mit der
+  Zeilensperre auf dem Profil kann ein Doppelklick nicht zweimal XP abbuchen.
+- Abbuchung, Teilnahme und Journalzeile entstehen in **einer** Transaktion
+  (`applyXpWithin`). Es gibt keinen Zustand, in dem XP fehlen, ohne dass eine Teilnahme
+  existiert - oder umgekehrt.
+- `XpRaffleRefund.entryId` ist `UNIQUE`. Ein Abbruch, der nach einem Neustart erneut
+  anläuft, zahlt deshalb nur das aus, was noch offen ist.
+- Der Gewinner entsteht ausschliesslich serverseitig aus `crypto.randomInt`
+  (Verwerfungsverfahren, kein Modulo). Das Rad im Browser zeigt ein Ergebnis, das zu
+  diesem Zeitpunkt bereits gespeichert ist - es bestimmt nichts.
+- Vor der Ziehung wird ein unveränderlicher Auszug der Teilnahmen festgehalten; die
+  Verlosung wechselt vorher nach `DRAWING` und nimmt niemanden mehr auf.
+- Es gibt keinen Weg, einen bestimmten Gewinner auszuwählen. Eine Neuziehung verlangt
+  einen Pflichtgrund und eine eigene Berechtigung (`level.raffle.redraw`).
+
 ---
 
 ## 7. Audit Log

@@ -600,6 +600,40 @@ Entscheidende Punkte:
 Details zur Ablösung des Vorgängersystems:
 [SPIELERSUCHE_MIGRATION.md](./SPIELERSUCHE_MIGRATION.md).
 
+## 10e. Beispiel: XP-Verlosungen - ein Aufsatz mit eigener Mitgliederseite
+
+Die XP-Verlosungen (`packages/modules/src/level/raffle/`) zeigen drei Muster,
+die bei einer Erweiterung eines bestehenden Moduls wiederkehren.
+
+**Kein zweites Konto.** Eine Verlosung bewegt XP, führt sie aber nicht selbst.
+Gebucht wird über `applyXpWithin` - denselben Code, den Nachrichten, Voice und
+die XP-Spiele verwenden. Wer eine zweite Tabelle mit Punkteständen anlegt, hat
+ab dem ersten Tag zwei Wahrheiten.
+
+**Eine fremde Transaktion mitbenutzen.** Abbuchung und Teilnahme müssen
+zusammen stehen oder fallen. `applyXp` öffnet dafür eine eigene Transaktion -
+zu wenig, wenn noch etwas anderes dazugehört. Der Kern liegt deshalb in
+`applyXpWithin(tx, ...)`, das eine laufende Transaktion entgegennimmt. Ein
+verschachteltes `prisma.$transaction` wäre kein Ersatz: es liefe auf einer
+zweiten Verbindung und könnte sich mit der äusseren Zeilensperre verklemmen.
+
+**Eine eigene Seite ausserhalb des Verwaltungsbereichs.** `/xp-gluecksrad`
+richtet sich an alle Mitglieder, nicht an die Verwaltung. Der Eintrag steht
+deshalb im Navigationsabschnitt `overview` statt unter `modules`, und die Seite
+verwendet bewusst kein Verwaltungslayout. Fachlich gehört sie trotzdem zum
+Level-Modul - es gibt kein zweites Modul "Gewinnspiel".
+
+Dazu zwei Fallstricke, die erst im Browser sichtbar wurden und für jede
+Komponente gelten, die Server und Client teilen:
+
+- `toLocaleString('de-CH')` liefert je nach ICU-Fassung einen anderen
+  Apostroph. Für geteilte Formatierer `formatSwissNumber` aus
+  `@swisshub/shared` verwenden.
+- `Math.cos`/`Math.sin` weichen zwischen Node und Browser im letzten Bit ab.
+  Werte, die in Attribute geschrieben werden, vorher runden.
+
+Beides führt sonst zu einem Hydration-Fehler, der nur in der Konsole steht.
+
 ## 11. Konventionen
 
 1. **Keine Discord-Aufrufe ausserhalb der Service-Schicht.** UI und Route Handler rufen Services auf.

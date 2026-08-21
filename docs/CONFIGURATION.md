@@ -369,6 +369,23 @@ alten `.env` ab.
 
 Übernahme der alten Datenbank: [LEVEL_MIGRATION.md](LEVEL_MIGRATION.md).
 
+### XP-Verlosungen
+
+Verlosungen werden vollständig im Dashboard verwaltet
+(**Level-System → XP-Glücksrad**). Es gibt dafür bewusst **keine** Werte in der
+`.env`: Einsatz, Zeitraum, Channel und Gewinn gehören zur einzelnen Verlosung,
+nicht zur Installation.
+
+Zwei Berechtigungen müssen der Mitglieder-Rolle unter
+**Server → Berechtigungen** ausdrücklich zugewiesen werden, sonst sieht
+niemand die Seite `/xp-gluecksrad`:
+
+- `level.raffle.view`
+- `level.raffle.participate`
+
+Einzelheiten zu Einsatzmodellen, Fairness und Ziehung:
+[XP_RAFFLE.md](XP_RAFFLE.md).
+
 ### Kommunikation
 
 Unter **Module → Kommunikation**:

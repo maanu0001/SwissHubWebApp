@@ -316,6 +316,7 @@ docs/
   JAIL_MIGRATION.md        Übernahme des alten Jail-Bots (bot.py / jail_data.db)
   SPIELERSUCHE_MIGRATION.md Übernahme des Spielersuche-Bots (matchmaking.db)
   LEVEL_MIGRATION.md       Übernahme des Level-/XP-Bots (levels.db)
+  XP_RAFFLE.md             XP-Verlosungen: Einsatzmodelle, Fairness, Ziehung
 
 tests/                     Unit- und Integrationstests (Vitest)
 ```
@@ -435,3 +436,4 @@ Discord-Server; mit `enabled: false` verschwindet sie ganz.
 - [docs/SECURITY.md](docs/SECURITY.md) - Authentifizierung, Autorisierung, Secrets, Annahmen
 - [docs/MODULES.md](docs/MODULES.md) - Schritt-für-Schritt: neues Modul entwickeln
 - [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) - Produktivbetrieb auf einem eigenen Server
+- [docs/XP_RAFFLE.md](docs/XP_RAFFLE.md) - XP-Verlosungen: Einsatzmodelle, Fairness, Ziehung, Rückzahlungen

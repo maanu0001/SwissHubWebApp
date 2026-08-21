@@ -351,3 +351,68 @@ export function buildEntryPrompt(raffle: XpRaffle, currentXp: number): string {
 
   return lines.join('\n');
 }
+
+/**
+ * Vergibt eine Discord-Rolle als Gewinn.
+ *
+ * Erst nach der Bestätigung durch die Verwaltung, nie schon beim Ziehen -
+ * bis dahin kann noch neu gezogen werden.
+ *
+ * Die Rangfolge wird vorher geprüft: Discord lässt einen Bot nur Rollen
+ * vergeben, die unter seiner höchsten eigenen Rolle stehen. Ohne die Prüfung
+ * käme eine nichtssagende Fehlermeldung von Discord zurück, statt einer
+ * Erklärung, woran es liegt.
+ */
+export async function awardRolePrize(
+  raffleId: string,
+  gateway: DiscordGateway = defaultDiscord,
+): Promise<{ awarded: boolean; reason?: string }> {
+  const raffle = await requireRaffle(raffleId);
+  if (raffle.prizeKind !== 'ROLE_PRIZE' || !raffle.prizeRoleId) {
+    return { awarded: false, reason: 'Kein Rollen-Gewinn hinterlegt.' };
+  }
+
+  const draw = await latestDraw(raffleId);
+  if (!draw) {
+    return { awarded: false, reason: 'Keine Ziehung vorhanden.' };
+  }
+
+  const [role, botPosition] = await Promise.all([
+    gateway.roles.get(raffle.prizeRoleId).catch(() => null),
+    gateway.bot.highestRolePosition().catch(() => 0),
+  ]);
+
+  if (!role) {
+    logger.warn('Gewinn-Rolle gibt es nicht mehr', { raffleId, roleId: raffle.prizeRoleId });
+    return { awarded: false, reason: 'Diese Rolle gibt es auf Discord nicht mehr.' };
+  }
+  if (role.managed) {
+    return {
+      awarded: false,
+      reason: 'Diese Rolle wird von Discord verwaltet und lässt sich nicht vergeben.',
+    };
+  }
+  if (role.position >= botPosition) {
+    return {
+      awarded: false,
+      reason: `Die Rolle "${role.name}" steht über der höchsten Rolle des Bots und lässt sich deshalb nicht vergeben.`,
+    };
+  }
+
+  try {
+    await gateway.roles.add(
+      draw.winnerDiscordId,
+      raffle.prizeRoleId,
+      `XP-Glücksrad gewonnen: ${raffle.title}`,
+    );
+    logger.info('Gewinn-Rolle vergeben', {
+      raffleId,
+      roleId: raffle.prizeRoleId,
+      discordId: draw.winnerDiscordId,
+    });
+    return { awarded: true };
+  } catch (error) {
+    logger.warn('Gewinn-Rolle konnte nicht vergeben werden', { raffleId, error });
+    return { awarded: false, reason: 'Discord hat die Rolle abgelehnt.' };
+  }
+}

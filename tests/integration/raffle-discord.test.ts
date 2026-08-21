@@ -249,4 +249,87 @@ describeWithDatabase('XP-Verlosungen auf Discord', () => {
     );
     expect(R.describeEntryCost(percentage)).toBe('5 % vo dine XP · min. 100 XP');
   });
+
+  it('vergibt eine Rolle als Gewinn erst nach der Bestätigung', async () => {
+    const vergeben: Array<{ discordId: string; roleId: string }> = [];
+    const gateway = {
+      roles: {
+        async get(roleId: string) {
+          return { id: roleId, name: 'Gewinner', position: 5, managed: false };
+        },
+        async add(discordId: string, roleId: string) {
+          vergeben.push({ discordId, roleId });
+        },
+      },
+      bot: {
+        async highestRolePosition() {
+          return 10;
+        },
+      },
+    } as never;
+
+    const created = await R.createRaffle(
+      ADMIN,
+      draft({ prizeKind: 'ROLE_PRIZE', prizeRoleId: '900000000000000042' }),
+    );
+    await R.publishRaffle(ADMIN, created.id);
+    for (const discordId of ['910000000000000201', '910000000000000202']) {
+      await giveXp(discordId, 5000);
+      await R.enterRaffle({ discordId }, created.id);
+    }
+    await R.closeEntries(ADMIN, created.id);
+    const { draw } = await R.startDraw(ADMIN, created.id);
+
+    // Vor der Bestätigung wird nichts vergeben - es liesse sich noch neu ziehen.
+    expect(vergeben).toHaveLength(0);
+
+    await R.confirmWinner(ADMIN, created.id);
+    const result = await R.awardRolePrize(created.id, gateway);
+
+    expect(result.awarded).toBe(true);
+    expect(vergeben).toEqual([{ discordId: draw.winnerDiscordId, roleId: '900000000000000042' }]);
+  });
+
+  it('vergibt keine Rolle über der eigenen Rangfolge', async () => {
+    const gateway = {
+      roles: {
+        // Die Rolle steht über der höchsten Rolle des Bots.
+        async get(roleId: string) {
+          return { id: roleId, name: 'Admin', position: 20, managed: false };
+        },
+        async add() {
+          throw new Error('darf nicht aufgerufen werden');
+        },
+      },
+      bot: {
+        async highestRolePosition() {
+          return 10;
+        },
+      },
+    } as never;
+
+    const created = await R.createRaffle(
+      ADMIN,
+      draft({ prizeKind: 'ROLE_PRIZE', prizeRoleId: '900000000000000043' }),
+    );
+    await R.publishRaffle(ADMIN, created.id);
+    for (const discordId of ['910000000000000301', '910000000000000302']) {
+      await giveXp(discordId, 5000);
+      await R.enterRaffle({ discordId }, created.id);
+    }
+    await R.closeEntries(ADMIN, created.id);
+    await R.startDraw(ADMIN, created.id);
+    await R.confirmWinner(ADMIN, created.id);
+
+    const result = await R.awardRolePrize(created.id, gateway);
+    expect(result.awarded).toBe(false);
+    expect(result.reason).toMatch(/über der höchsten Rolle des Bots/u);
+  });
+
+  it('vergibt keine Rolle, wenn der Gewinn keine ist', async () => {
+    const created = await R.createRaffle(ADMIN, draft());
+    const result = await R.awardRolePrize(created.id);
+    expect(result.awarded).toBe(false);
+    expect(result.reason).toMatch(/Kein Rollen-Gewinn/u);
+  });
 });

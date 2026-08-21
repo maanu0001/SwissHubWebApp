@@ -244,6 +244,13 @@ Verlosung eigens festgelegt:
 | `ROLE_PRIZE`     | Discord-Rolle, vergeben nach der Bestätigung      |
 | `TEXT_ONLY`      | reine Ankündigung                                 |
 
+Bei `ROLE_PRIZE` vergibt der Bot die Rolle erst **nach** der Bestätigung durch
+die Verwaltung – vorher liesse sich noch neu ziehen, und die Rolle wäre bei der
+falschen Person. Vor der Vergabe wird die Rangfolge geprüft: Discord lässt
+einen Bot nur Rollen vergeben, die unter seiner höchsten eigenen Rolle stehen.
+Scheitert es daran, bleibt die Verlosung gültig und das Dashboard nennt den
+Grund.
+
 Externe Gutscheine oder Zahlungen werden nicht versendet – das System verwaltet
 und zeigt sie nur an. Es gibt ausschliesslich interne XP, keine Echtgeld-Käufe
 und keine Möglichkeit, Teilnahmen zu kaufen.

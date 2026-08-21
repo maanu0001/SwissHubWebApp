@@ -155,7 +155,28 @@ export function RaffleControls({
         <Button
           disabled={busy}
           onClick={() =>
-            void run('confirm', () => confirmWinnerAction({ csrfToken, raffleId }), 'Gewinner bestätigt.')
+            void (async () => {
+              setPending('confirm');
+              try {
+                const result = await confirmWinnerAction({ csrfToken, raffleId });
+                if (!result.ok) {
+                  toast.error(result.error.message);
+                  return;
+                }
+                toast.success('Gewinner bestätigt.');
+                // Eine Rolle als Gewinn kann trotz bestätigtem Gewinner
+                // scheitern - etwa weil sie auf Discord über der höchsten
+                // Rolle des Bots steht. Das darf nicht untergehen.
+                if (result.data.roleProblem) {
+                  toast.warning(`Rolle nicht vergeben: ${result.data.roleProblem}`);
+                } else if (result.data.roleAwarded) {
+                  toast.success('Gewinn-Rolle vergeben.');
+                }
+                router.refresh();
+              } finally {
+                setPending(null);
+              }
+            })()
           }
         >
           <CheckCircle2 aria-hidden="true" />

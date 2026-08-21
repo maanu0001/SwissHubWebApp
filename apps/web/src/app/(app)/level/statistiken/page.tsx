@@ -45,10 +45,11 @@ export default async function LevelStatsPage(): Promise<React.JSX.Element> {
   }
 
   const settings = await level.readLevelSettings();
-  const [stats, trend, journal] = await Promise.all([
+  const [stats, trend, journal, raffleStats] = await Promise.all([
     level.getGlobalStats({ maxLevelTotalXp: settings.maxLevelTotalXp }),
     level.getXpTrend(30),
     level.listXpTransactions({ limit: 25 }),
+    level.raffle.getRaffleStats(),
   ]);
 
   const maxDay = Math.max(1, ...trend.map((point) => point.gained));
@@ -68,6 +69,43 @@ export default async function LevelStatsPage(): Promise<React.JSX.Element> {
         <StatCard label="XP im Schnitt" value={level.formatXp(stats.averageXp)} />
         <StatCard label="Höchstes Level" value={stats.highestLevel} />
       </div>
+
+      {raffleStats.totalRaffles > 0 ? (
+        <section className="space-y-3">
+          <h3 className="text-sm font-semibold">XP-Verlosungen</h3>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <StatCard
+              label="Verlosungen"
+              value={raffleStats.totalRaffles.toString()}
+              hint={`${raffleStats.completedRaffles} abgeschlossen`}
+            />
+            <StatCard
+              label="Teilnahmen"
+              value={raffleStats.totalEntries.toString()}
+              hint={`${raffleStats.uniqueParticipants} verschiedene Mitglieder`}
+            />
+            <StatCard
+              label="Eingesetzte XP"
+              value={level.formatXp(raffleStats.totalEntryXp)}
+              hint={`im Schnitt ${level.formatXp(raffleStats.averageEntryXp)} je Teilnahme`}
+            />
+            <StatCard
+              label="Einsatzmodelle"
+              value={`${raffleStats.fixedRaffles} / ${raffleStats.percentageRaffles}`}
+              hint="Festbetrag / Anteil"
+            />
+          </div>
+          {raffleStats.refundedXp > 0 ? (
+            <p className="text-xs text-muted-foreground">
+              {level.formatXp(raffleStats.refundedXp)} wurden zurückgezahlt – aus abgebrochenen Verlosungen
+              und entfernten Teilnahmen.
+            </p>
+          ) : null}
+          <p className="text-xs text-muted-foreground">
+            Ausgewertet wird nur, was seit der Einführung stattgefunden hat.
+          </p>
+        </section>
+      ) : null}
 
       <section className="space-y-3">
         <h3 className="text-sm font-semibold">XP der letzten 30 Tage</h3>

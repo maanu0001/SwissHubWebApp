@@ -188,6 +188,17 @@ export const confirmWinnerAction = defineAction(
     await assertModuleEnabled(MODULE_ID);
     const actor = { discordId: ctx.user.discordId, username: ctx.user.username };
     const result = await R.confirmWinner(actor, input.raffleId);
+
+    // Eine Rolle als Gewinn wird erst jetzt vergeben - vorher liesse sich noch
+    // neu ziehen, und die Rolle wäre bei der falschen Person.
+    const role =
+      result.raffle.prizeKind === 'ROLE_PRIZE'
+        ? await R.awardRolePrize(input.raffleId).catch(() => ({
+            awarded: false,
+            reason: 'Discord war nicht erreichbar.',
+          }))
+        : null;
+
     const announced = result.raffle.autoAnnounceWinner
       ? await R.announceWinner(input.raffleId).catch(() => null)
       : null;
@@ -196,6 +207,8 @@ export const confirmWinnerAction = defineAction(
       winnerDiscordId: result.draw.winnerDiscordId,
       prizeXpAwarded: result.prizeXpAwarded,
       announced: announced !== null,
+      roleAwarded: role?.awarded ?? null,
+      roleProblem: role && !role.awarded ? (role.reason ?? null) : null,
     };
   },
 );

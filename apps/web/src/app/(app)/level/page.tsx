@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { Dice5, Moon, Shield, TrendingUp, Trophy, Users } from 'lucide-react';
+import { Dice5, Moon, Shield, Ticket, TrendingUp, Trophy, Users } from 'lucide-react';
 import { can } from '@swisshub/auth';
 import { isModuleEnabled, level } from '@swisshub/modules';
 import { buttonVariants } from '@/components/ui/button';
@@ -8,6 +8,7 @@ import { PageHeader } from '@/components/shared/page-header';
 import { StatCard } from '@/components/shared/stat-card';
 import { ErrorState } from '@/components/shared/states';
 import { LevelSectionNav } from '@/modules/level/components/section-nav';
+import { RAFFLE_STATUS_LABEL } from '@/modules/level/components/raffle-shared';
 import { requirePagePermission } from '@/server/auth';
 import { levelSections } from '@/server/level';
 import { cn } from '@/lib/utils';
@@ -34,6 +35,9 @@ export default async function LevelPage(): Promise<React.JSX.Element> {
 
   const settings = await level.readLevelSettings();
   const overview = await level.getLevelOverview({ decayRules: level.decayRulesFrom(settings) });
+  const raffles = can(context, level.LEVEL_PERMISSIONS.raffleView)
+    ? await level.raffle.getRaffleOverview()
+    : null;
 
   return (
     <>
@@ -107,6 +111,39 @@ export default async function LevelPage(): Promise<React.JSX.Element> {
           tone={settings.messageXpEnabled ? 'default' : 'warning'}
         />
       </div>
+
+      {raffles ? (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <StatCard
+            label="Aktive Verlosung"
+            value={raffles.active ? raffles.active.title : '—'}
+            hint={raffles.active ? RAFFLE_STATUS_LABEL[raffles.active.status] : 'Zurzeit läuft keine'}
+            icon={<Ticket />}
+          />
+          <StatCard
+            label="Teilnehmende"
+            value={(raffles.active?.entryCount ?? 0).toString()}
+            hint="In der aktiven Verlosung"
+            icon={<Ticket />}
+          />
+          <StatCard
+            label="XP im aktuellen Topf"
+            value={level.formatXp(raffles.active?.potXp ?? 0)}
+            hint="Summe aller Einsätze"
+            icon={<Ticket />}
+          />
+          <StatCard
+            label="Verlosungen gesamt"
+            value={raffles.totalRaffles.toString()}
+            hint={
+              raffles.nextDrawAt
+                ? `Nächste Ziehung ${raffles.nextDrawAt.toLocaleDateString('de-CH', { timeZone: 'Europe/Zurich' })}`
+                : `${raffles.completedCount} abgeschlossen`
+            }
+            icon={<Ticket />}
+          />
+        </div>
+      ) : null}
 
       <div className="flex flex-wrap gap-2">
         {can(context, level.LEVEL_PERMISSIONS.leaderboardView) ? (

@@ -62,6 +62,7 @@ beforeEach(async () => {
   state = fake.state as State;
   state.audits.length = 0;
   state.communicationMessages.length = 0;
+  state.communicationDrafts.length = 0;
   state.idempotency.clear();
   state.roleCache.length = 0;
   state.channelCache.length = 0;
@@ -565,5 +566,76 @@ describe('Verlauf', () => {
     });
     expect(history.entries[0]?.deletedAt).not.toBeNull();
     expect(history.entries[0]?.discordUrl).toBeNull();
+  });
+});
+
+describe('Entwürfe', () => {
+  it('speichert einen Entwurf, ohne Discord zu berühren', async () => {
+    const send = vi.spyOn(gateway.channels, 'send');
+    const draft = await communication.saveDraft(
+      ACTOR,
+      communication.draftSchema.parse({
+        type: 'EVENT',
+        title: 'Noch nicht fertig',
+        content: 'Wird später ergänzt.',
+        location: 'Discord',
+      }),
+    );
+
+    expect(draft.title).toBe('Noch nicht fertig');
+    expect(draft.eventLocation).toBe('Discord');
+    // Ein Entwurf ist kein Versand.
+    expect(send).not.toHaveBeenCalled();
+    expect(state.communicationMessages).toHaveLength(0);
+  });
+
+  it('braucht weder Channel noch Datum', async () => {
+    // Ein Entwurf, der schon alle Pflichtfelder verlangt, wäre keiner.
+    const parsed = communication.draftSchema.safeParse({
+      type: 'EVENT',
+      title: 'Nur eine Idee',
+      content: 'Mehr weiss ich noch nicht.',
+    });
+    expect(parsed.success).toBe(true);
+  });
+
+  it('überschreibt einen bestehenden Entwurf, statt einen zweiten anzulegen', async () => {
+    const first = await communication.saveDraft(
+      ACTOR,
+      communication.draftSchema.parse({ type: 'NEWS', title: 'Erste Fassung', content: 'Text' }),
+    );
+    const second = await communication.saveDraft(
+      ACTOR,
+      communication.draftSchema.parse({
+        id: first.id,
+        type: 'NEWS',
+        title: 'Zweite Fassung',
+        content: 'Text',
+      }),
+    );
+
+    expect(second.id).toBe(first.id);
+    expect(second.title).toBe('Zweite Fassung');
+    expect(await communication.listDrafts(ACTOR.discordId)).toHaveLength(1);
+  });
+
+  it('lässt niemanden fremde Entwürfe ändern', async () => {
+    const draft = await communication.saveDraft(
+      ACTOR,
+      communication.draftSchema.parse({ type: 'NEWS', title: 'Meins', content: 'Text' }),
+    );
+    const fremd = { ...ACTOR, discordId: '100000000000000099', isOwner: false };
+
+    await expect(
+      communication.saveDraft(
+        fremd,
+        communication.draftSchema.parse({
+          id: draft.id,
+          type: 'NEWS',
+          title: 'Übernommen',
+          content: 'Text',
+        }),
+      ),
+    ).rejects.toMatchObject({ code: 'FORBIDDEN' });
   });
 });

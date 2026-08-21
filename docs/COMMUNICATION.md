@@ -149,6 +149,29 @@ gelöscht, im Verlauf als solches gekennzeichnet.
 
 ---
 
+## 6a. Entwürfe
+
+Eine Nachricht lässt sich vorbereiten, ohne sie zu senden – **Entwurf
+speichern** neben dem Sende-Knopf. Ein Entwurf berührt Discord nicht und
+lässt sich deshalb auch dann schreiben, wenn Discord nicht erreichbar ist.
+
+Für einen Entwurf reichen Titel und Text. Channel, Datum und die übrigen
+Pflichtfelder des Versands gelten hier nicht – ein Entwurf, der schon alles
+verlangt, wäre keiner.
+
+Entwürfe sind persönlich: Jede Person sieht und ändert nur die eigenen.
+Berechtigung: `communication.draft`.
+
+## 6b. Bearbeiten
+
+Eine bereits gesendete Nachricht lässt sich mit `communication.manage`
+nachträglich ändern. Discord erlaubt das nur für Nachrichten, die der Bot
+selbst gesendet hat.
+
+Beim Bearbeiten wird niemand erneut angepingt. Der Verlaufseintrag wird als
+bearbeitet gekennzeichnet, damit erkennbar bleibt, dass der Text im Kanal
+nicht mehr der ursprüngliche ist.
+
 ## 7. Fehlerbehandlung
 
 **Zeitlimit.** Ein Versand bricht nach 15 Sekunden ab. Die Discord-Anbindung

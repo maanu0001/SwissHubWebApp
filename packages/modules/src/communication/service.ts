@@ -645,3 +645,127 @@ export async function buildLink(record: CommunicationMessage): Promise<string | 
   const guildId = await tryResolveGuildId();
   return guildId ? messageLink(guildId, record.discordChannelId, record.discordMessageId) : null;
 }
+
+/**
+ * Bearbeitet eine bereits gesendete Nachricht auf Discord.
+ *
+ * Nur Nachrichten, die dieser Bot selbst gesendet hat und die noch existieren
+ * - Discord lässt einen Bot keine fremden Nachrichten ändern. Der
+ * Verlaufseintrag wird mitgeführt und als bearbeitet gekennzeichnet, damit
+ * später erkennbar bleibt, dass der Text im Kanal nicht mehr der ursprüngliche
+ * ist.
+ */
+export async function editCommunicationMessage(
+  id: string,
+  input: { title: string; content: string; bannerUrl?: string | null },
+  actor: CommunicationActor,
+  options: SendOptions = {},
+): Promise<CommunicationMessage> {
+  const gateway = options.gateway ?? defaultDiscord;
+  const record = await prisma.communicationMessage.findUnique({ where: { id } });
+
+  if (!record) {
+    throw new AppError('NOT_FOUND', { userMessage: 'Diese Nachricht gibt es nicht.' });
+  }
+  if (record.status !== 'SENT' || !record.discordMessageId) {
+    throw new AppError('VALIDATION_FAILED', {
+      userMessage: 'Nur gesendete Nachrichten lassen sich bearbeiten.',
+    });
+  }
+
+  const settings = await getModuleSettings<CommunicationSettings>(COMMUNICATION_MODULE_ID);
+  const warnings: string[] = [];
+
+  // Der Embed wird vollständig neu gebaut - aus den gespeicherten Angaben
+  // plus dem geänderten Text. Dadurch gilt dieselbe Regel wie beim Senden.
+  const base: CommunicationPayloadBase = {
+    title: input.title,
+    content: input.content,
+    bannerUrl: input.bannerUrl ?? record.bannerUrl ?? defaultBannerFor(record.type, settings),
+    footerText: settings.footerText,
+    // Beim Bearbeiten wird niemand erneut angepingt. Discord würde das zwar
+    // nicht tun, aber der Inhalt soll auch nicht so aussehen.
+    mention: null,
+  };
+
+  const payload =
+    record.type === 'NEWS'
+      ? buildNewsPayload(base)
+      : record.type === 'POLL'
+        ? buildPollPayload(base)
+        : buildEventPayload({
+            ...base,
+            startsAt: record.eventStartsAt,
+            startsAtText: record.eventDateText,
+            location: record.eventLocation,
+            responsibleDiscordId: record.eventResponsibleId,
+            registration: registrationFromRecord(record, settings, warnings),
+          });
+
+  try {
+    await withTimeout(
+      gateway.channels.edit(record.discordChannelId, record.discordMessageId, payload),
+      options.timeoutMs ?? SEND_TIMEOUT_MS,
+      'Discord',
+    );
+  } catch (error) {
+    log.warn('Nachricht konnte nicht bearbeitet werden', { id, error });
+    throw new AppError('DISCORD_UNAVAILABLE', {
+      userMessage:
+        'Die Nachricht konnte nicht bearbeitet werden. Möglicherweise wurde sie auf Discord gelöscht.',
+    });
+  }
+
+  const updated = await prisma.communicationMessage.update({
+    where: { id },
+    data: {
+      title: input.title,
+      content: input.content,
+      bannerUrl: input.bannerUrl ?? record.bannerUrl,
+      editedAt: new Date(),
+      editedByDiscordId: actor.discordId,
+    },
+  });
+
+  await safeRecordAudit({
+    action: AUDIT_ACTIONS.COMMUNICATION_MESSAGE_EDITED,
+    module: COMMUNICATION_MODULE_ID,
+    actorDiscordId: actor.discordId,
+    actorUsername: actor.username,
+    targetLabel: `#${record.discordChannelName ?? record.discordChannelId}`,
+    success: true,
+    metadata: { messageId: id, discordMessageId: record.discordMessageId, type: record.type },
+    ipHash: options.metadata?.ipHash,
+    userAgent: options.metadata?.userAgent,
+  });
+
+  return updated;
+}
+
+/** Die gespeicherte Anmeldeangabe für das erneute Bauen des Embeds. */
+function registrationFromRecord(
+  record: CommunicationMessage,
+  settings: CommunicationSettings,
+  warnings: string[],
+): RegistrationInfo {
+  switch (record.registrationType) {
+    case 'TICKET':
+      // Ein inzwischen geänderter Ticket-Channel wirkt auch hier - genau das
+      // ist der Sinn einer Einstellung.
+      if (!settings.ticketChannelId) {
+        warnings.push('Es ist kein Ticket-Channel konfiguriert.');
+        return { kind: 'none' };
+      }
+      return { kind: 'channel', channelId: settings.ticketChannelId };
+    case 'CHANNEL':
+      return record.registrationValue
+        ? { kind: 'channel', channelId: record.registrationValue }
+        : { kind: 'none' };
+    case 'URL':
+      return record.registrationValue ? { kind: 'url', value: record.registrationValue } : { kind: 'none' };
+    case 'TEXT':
+      return record.registrationValue ? { kind: 'text', value: record.registrationValue } : { kind: 'none' };
+    default:
+      return { kind: 'none' };
+  }
+}

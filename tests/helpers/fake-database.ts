@@ -156,6 +156,7 @@ export interface FakeState {
   jailImports: Array<Record<string, unknown>>;
   jailImportRows: Array<Record<string, unknown>>;
   communicationMessages: Array<Record<string, unknown>>;
+  communicationDrafts: Array<Record<string, unknown>>;
   managedRoles: FakeManagedRole[];
   rolePermissions: Array<{ discordRoleId: string; permission: string }>;
   moduleSettings: Record<string, unknown>;
@@ -194,6 +195,7 @@ export function createFakeState(): FakeState {
     jailImports: [],
     jailImportRows: [],
     communicationMessages: [],
+    communicationDrafts: [],
     guildConfig: null,
     roleCache: [],
     channelCache: [],
@@ -1037,6 +1039,48 @@ export function createFakeDatabaseModule(state: FakeState) {
       },
     },
 
+    communicationDraft: {
+      async create({ data }: { data: Record<string, unknown> }) {
+        state.sequence += 1;
+        const entry = {
+          // Wie in der echten Datenbank eine CUID - die Eingabepruefung
+          // erwartet dieses Format, und ein Test soll daran nicht scheitern,
+          // sondern es mitpruefen.
+          id: `c${state.sequence.toString().padStart(24, 'a')}`,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          ...data,
+        };
+        state.communicationDrafts.push(entry);
+        return { ...entry };
+      },
+      async findUnique({ where }: { where: { id: string } }) {
+        const entry = state.communicationDrafts.find((item) => item.id === where.id);
+        return entry ? { ...entry } : null;
+      },
+      async findMany({ where, take }: { where?: Filter; take?: number; orderBy?: unknown } = {}) {
+        const owner = (where as { createdByDiscordId?: string } | undefined)?.createdByDiscordId;
+        const all = state.communicationDrafts.filter(
+          (entry) => owner === undefined || entry.createdByDiscordId === owner,
+        );
+        return (take ? all.slice(0, take) : all).map((entry) => ({ ...entry }));
+      },
+      async update({ where, data }: { where: { id: string }; data: Record<string, unknown> }) {
+        const entry = state.communicationDrafts.find((item) => item.id === where.id);
+        if (!entry) {
+          throw new FakeKnownRequestError('P2025', 'Record not found');
+        }
+        Object.assign(entry, data, { updatedAt: new Date() });
+        return { ...entry };
+      },
+      async delete({ where }: { where: { id: string } }) {
+        const index = state.communicationDrafts.findIndex((item) => item.id === where.id);
+        if (index >= 0) {
+          state.communicationDrafts.splice(index, 1);
+        }
+        return {};
+      },
+    },
     communicationMessage: {
       async create({ data }: { data: Record<string, unknown> }) {
         const key = data.idempotencyKey as string | undefined;

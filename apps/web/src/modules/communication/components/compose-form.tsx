@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { AlertTriangle, CheckCircle2, ExternalLink, Send } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, ExternalLink, FileText, Send } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input, Textarea } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -19,7 +19,12 @@ import {
 } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { MemberPicker, type PickedMember } from '@/modules/members/components/member-picker';
-import { sendEventAction, sendNewsAction, sendPollAction } from '@/modules/communication/actions';
+import {
+  saveDraftAction,
+  sendEventAction,
+  sendNewsAction,
+  sendPollAction,
+} from '@/modules/communication/actions';
 import { runSubmit } from '@/modules/communication/submit';
 import { EmbedPreview, type PreviewType } from './embed-preview';
 
@@ -62,6 +67,8 @@ export interface ComposeTemplate {
   registrationType?: RegistrationType;
   registrationValue?: string;
   responsibleDiscordId?: string;
+  /** Gesetzt, wenn ein bestehender Entwurf geladen wurde. */
+  draftId?: string;
 }
 
 /** Discord-Grenzen, gespiegelt aus dem Modul - für die Zeichenzähler. */
@@ -80,6 +87,7 @@ export function ComposeForm({
   allowEveryone,
   ticketChannel,
   currentUserName,
+  canDraft = false,
   template,
 }: {
   csrfToken: string;
@@ -95,6 +103,8 @@ export function ComposeForm({
   ticketChannel?: { id: string; name: string } | null;
   /** Wer gerade angemeldet ist - ohne Auswahl die verantwortliche Person. */
   currentUserName: string;
+  /** Darf Entwürfe anlegen. */
+  canDraft?: boolean;
   template?: ComposeTemplate | null;
 }): React.JSX.Element {
   const router = useRouter();
@@ -125,6 +135,8 @@ export function ComposeForm({
   const [idempotencyKey, setIdempotencyKey] = useState<string | null>(null);
   /** Nach dem Senden: Erfolgsanzeige mit Verweis auf Discord. */
   const [sent, setSent] = useState<{ discordUrl: string | null; channelName: string } | null>(null);
+  const [savingDraft, setSavingDraft] = useState(false);
+  const [draftId, setDraftId] = useState<string | null>(template?.draftId ?? null);
 
   /**
    * Beim Verlassen warnen, wenn etwas eingetippt wurde.
@@ -305,6 +317,53 @@ export function ComposeForm({
           // Nachricht meinen und nicht doppelt posten. Der Formularinhalt
           // bleibt ebenfalls stehen, damit sich der Fehler beheben lässt.
         },
+      },
+    );
+  }
+
+  /**
+   * Entwurf speichern.
+   *
+   * Berührt Discord nicht - das geht auch dann, wenn Discord gerade nicht
+   * erreichbar ist. Die Pflichtfelder des Versands gelten hier nicht: ein
+   * Entwurf darf unvollständig sein, sonst wäre er keiner.
+   */
+  async function handleSaveDraft(): Promise<void> {
+    if (title.trim().length < 3 || content.trim().length < 3) {
+      toast.error('Für einen Entwurf braucht es mindestens Titel und Text.');
+      return;
+    }
+    setSavingDraft(true);
+    await runSubmit(
+      () =>
+        saveDraftAction({
+          csrfToken,
+          id: draftId ?? undefined,
+          type,
+          title: title.trim(),
+          content: content.trim(),
+          bannerUrl: bannerUrl.trim() === '' ? undefined : bannerUrl.trim(),
+          channelId: channelId || undefined,
+          mention: mention === MENTION_NONE ? 'none' : mention,
+          mentionTarget:
+            mention === 'role' ? mentionTarget : mention === 'user' ? mentionUser?.discordId : undefined,
+          location: location.trim() === '' ? undefined : location.trim(),
+          startsAt: startsAt ? startsAt.toISOString() : undefined,
+          responsibleDiscordId: responsible?.discordId,
+          registrationType,
+          registrationValue:
+            registrationType === 'NONE' || registrationType === 'TICKET'
+              ? undefined
+              : registrationValue.trim() || undefined,
+        }),
+      {
+        settle: () => setSavingDraft(false),
+        onSuccess: (data) => {
+          setDraftId(data.id);
+          toast.success('Entwurf gespeichert.');
+          router.refresh();
+        },
+        onError: (outcome) => toast.error(outcome.message),
       },
     );
   }
@@ -593,10 +652,18 @@ export function ComposeForm({
           </p>
         ) : null}
 
-        <Button onClick={handleContinue} disabled={pending || usable.length === 0}>
-          <Send aria-hidden="true" />
-          Weiter zur Bestätigung
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button onClick={handleContinue} disabled={pending || usable.length === 0}>
+            <Send aria-hidden="true" />
+            Weiter zur Bestätigung
+          </Button>
+          {canDraft ? (
+            <Button variant="outline" onClick={() => void handleSaveDraft()} disabled={savingDraft}>
+              <FileText aria-hidden="true" />
+              {savingDraft ? 'Speichern …' : draftId ? 'Entwurf aktualisieren' : 'Entwurf speichern'}
+            </Button>
+          ) : null}
+        </div>
       </div>
 
       <div className="lg:sticky lg:top-4 lg:self-start">

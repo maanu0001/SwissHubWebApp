@@ -22,6 +22,17 @@ export const dynamic = 'force-dynamic';
  * Die drei Nachrichtenarten teilen sich Formular und Vorschau; unterschiedlich
  * sind nur die Zusatzfelder und die nötige Berechtigung.
  */
+/** Zeitpunkt als Wert für ein `datetime-local`-Feld (Europe/Zurich). */
+function toLocalInput(value: Date): string {
+  return new Intl.DateTimeFormat('sv-SE', {
+    timeZone: 'Europe/Zurich',
+    dateStyle: 'short',
+    timeStyle: 'short',
+  })
+    .format(value)
+    .replace(' ', 'T');
+}
+
 /** Rollenfarbe von Discord (0 = keine) als CSS-Wert. */
 const roleColor = (value: number): string | null =>
   value === 0 ? null : `#${value.toString(16).padStart(6, '0')}`;
@@ -45,7 +56,7 @@ const mentionValue = (type: string): string => {
 export default async function CommunicationPage({
   searchParams,
 }: {
-  searchParams: Promise<{ vorlage?: string }>;
+  searchParams: Promise<{ vorlage?: string; entwurf?: string }>;
 }): Promise<React.JSX.Element> {
   const context = await requirePagePermission(communication.COMMUNICATION_PERMISSIONS.view);
   const csrfToken = csrfTokenFor(context);
@@ -62,6 +73,12 @@ export default async function CommunicationPage({
     params.vorlage ? communication.getCommunicationMessage(params.vorlage) : Promise.resolve(null),
     communicationHealth().catch(() => ({ checks: [], discordReachable: false })),
   ]);
+
+  // Entwürfe berühren Discord nicht und dürfen die Seite nie aufhalten.
+  const drafts = can(context, communication.COMMUNICATION_PERMISSIONS.draft)
+    ? await communication.listDrafts(context.user.discordId, 10).catch(() => [])
+    : [];
+  const loadedDraft = params.entwurf ? await communication.getDraft(params.entwurf).catch(() => null) : null;
 
   const sections = <CommunicationSectionNav sections={communicationSections(context)} />;
 
@@ -89,6 +106,25 @@ export default async function CommunicationPage({
    * dabei nichts. Das Datum bleibt bewusst leer: ein vergangener Termin wäre
    * beim erneuten Verwenden fast immer falsch.
    */
+  /** Einen gespeicherten Entwurf ins Formular laden. */
+  function fromDraft(draft: NonNullable<typeof loadedDraft>) {
+    return {
+      draftId: draft.id,
+      title: draft.title,
+      content: draft.content,
+      bannerUrl: draft.bannerUrl,
+      mention: mentionValue(draft.mentionType),
+      mentionTarget: draft.mentionTarget ?? undefined,
+      location: draft.eventLocation ?? undefined,
+      // Anders als bei einer Vorlage bleibt hier das Datum erhalten - ein
+      // Entwurf wurde ja mit Absicht so gespeichert.
+      startsAtLocal: draft.eventStartsAt ? toLocalInput(draft.eventStartsAt) : undefined,
+      registrationType: draft.registrationType,
+      registrationValue: draft.registrationValue ?? undefined,
+      responsibleDiscordId: draft.eventResponsibleId ?? undefined,
+    };
+  }
+
   function toTemplate(entry: NonNullable<typeof template>) {
     return {
       title: entry.title,
@@ -121,13 +157,13 @@ export default async function CommunicationPage({
     canMention,
     // @everyone erfordert beides: die eigene Berechtigung und die Einstellung.
     allowEveryone:
-      settings.allowEveryoneMention &&
-      can(context, communication.COMMUNICATION_PERMISSIONS.mentionEveryone),
+      settings.allowEveryoneMention && can(context, communication.COMMUNICATION_PERMISSIONS.mentionEveryone),
     currentUserName: context.user.displayName ?? context.user.username,
+    canDraft: can(context, communication.COMMUNICATION_PERMISSIONS.draft),
     ticketChannel: settings.ticketChannelId
       ? (channels.find((entry) => entry.id === settings.ticketChannelId) ?? null)
       : null,
-    template: template ? toTemplate(template) : null,
+    template: loadedDraft ? fromDraft(loadedDraft) : template ? toTemplate(template) : null,
   };
 
   if (!canNews && !canEvent && !canPoll) {
@@ -160,6 +196,24 @@ export default async function CommunicationPage({
       ) : null}
 
       <CommunicationHealth checks={health.checks} discordReachable={health.discordReachable} />
+
+      {drafts.length > 0 ? (
+        <section className="rounded-lg border border-border bg-card/60 p-4">
+          <h3 className="text-sm font-semibold">Deine Entwürfe</h3>
+          <ul className="mt-2 space-y-1.5">
+            {drafts.map((draft) => (
+              <li key={draft.id} className="flex flex-wrap items-center gap-2 text-sm">
+                <Link href={`/communication?entwurf=${draft.id}`} className="font-medium hover:underline">
+                  {draft.title}
+                </Link>
+                <span className="text-xs text-muted-foreground">
+                  {draft.type === 'NEWS' ? 'Neuigkeiten' : draft.type === 'EVENT' ? 'Event' : 'Umfrage'}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
 
       <Card>
         <CardHeader>

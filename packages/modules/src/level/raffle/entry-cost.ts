@@ -1,4 +1,5 @@
 import type { XpRaffleEntryModel } from '@swisshub/database';
+import { formatSwissPercent } from '@swisshub/shared';
 
 /**
  * Was eine Teilnahme kostet.
@@ -102,5 +103,4 @@ export function winChance(weight: number, totalWeight: number): number {
 }
 
 /** Prozentwert für die Anzeige, auf zwei Nachkommastellen. */
-export const formatChance = (chance: number): string =>
-  `${(chance * 100).toLocaleString('de-CH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} %`;
+export const formatChance = (chance: number): string => formatSwissPercent(chance);

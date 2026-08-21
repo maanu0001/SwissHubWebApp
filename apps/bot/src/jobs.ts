@@ -135,6 +135,33 @@ export function createJobRunner(
       },
     },
     {
+      name: 'xp-raffle-schedule',
+      // Zeitsteuerung der Verlosungen: Teilnahme öffnen und schliessen, wenn
+      // die hinterlegten Zeitpunkte erreicht sind. Bewusst hier statt über
+      // Zeitgeber im Arbeitsspeicher - ein Neustart würde die sonst
+      // verlieren, und eine Verlosung stünde nach einem Ausfall über Nacht
+      // immer noch offen.
+      intervalMs: 30 * 1000,
+      async run() {
+        const result = await level.raffle.runRaffleTick();
+        for (const raffleId of [...result.opened, ...result.closed]) {
+          await level.raffle.refreshAnnouncement(raffleId).catch(() => undefined);
+        }
+
+        // Verlosungen, bei denen die Verwaltung die Ziehung selbsttätig
+        // wünscht. Der Gewinner entsteht auch hier ausschliesslich im
+        // Server-Verfahren - die Zeitsteuerung drückt nur den Knopf.
+        for (const raffle of result.readyToDraw) {
+          try {
+            await level.raffle.startDraw({ discordId: 'system', username: 'Zeitsteuerung' }, raffle.id);
+            log.info('Ziehung selbsttätig gestartet', { raffleId: raffle.id });
+          } catch (error) {
+            log.warn('Selbsttätige Ziehung nicht möglich', { raffleId: raffle.id, error });
+          }
+        }
+      },
+    },
+    {
       name: 'level-game-cleanup',
       // Partien freigeben, die nie zu Ende gespielt wurden. Ohne das blieben
       // beide Beteiligten für neue Spiele gesperrt.

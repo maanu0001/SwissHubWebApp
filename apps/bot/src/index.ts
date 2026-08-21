@@ -23,6 +23,7 @@ import { createJobRunner } from './jobs';
 import { registerVoteJailHandler } from './vote-jail';
 import { registerCommandHandler, registerCommands } from './commands/register';
 import { registerSpielersucheButtons } from './spielersuche-buttons';
+import { registerRaffleButtons } from './raffle-buttons';
 import { recoverVoiceSessions, registerSpielersucheVoice } from './spielersuche-voice';
 import { registerLevelGameButtons } from './level-games';
 import {
@@ -104,6 +105,7 @@ async function main(): Promise<void> {
   registerCommandHandler(client);
   // Knöpfe und Voice-Tracking der Spielersuche.
   registerSpielersucheButtons(client);
+  registerRaffleButtons(client);
   registerSpielersucheVoice(client);
   // XP aus Nachrichten und Voice sowie die Knöpfe der XP-Spiele.
   registerLevelMessageXp(client);

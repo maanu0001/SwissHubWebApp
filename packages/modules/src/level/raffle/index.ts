@@ -6,3 +6,4 @@ export * from './random';
 export * from './schemas';
 export * from './service';
 export * from './worker';
+export * from './discord';

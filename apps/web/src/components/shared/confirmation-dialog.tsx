@@ -21,6 +21,13 @@ interface ConfirmationDialogProps {
   cancelLabel?: string;
   destructive?: boolean;
   onConfirm(): Promise<void> | void;
+  /**
+   * Zusätzliche Felder im Dialog - etwa ein Pflichtgrund.
+   *
+   * Wirft `onConfirm`, bleibt der Dialog offen und die Eingabe erhalten;
+   * sonst müsste man nach einer abgewiesenen Eingabe von vorne beginnen.
+   */
+  children?: React.ReactNode;
 }
 
 /**
@@ -37,6 +44,7 @@ export function ConfirmationDialog({
   cancelLabel = 'Abbrechen',
   destructive = false,
   onConfirm,
+  children,
 }: ConfirmationDialogProps): React.JSX.Element {
   const [pending, setPending] = useState(false);
 
@@ -48,6 +56,10 @@ export function ConfirmationDialog({
     try {
       await onConfirm();
       onOpenChange(false);
+    } catch {
+      // Bewusst geschluckt: die aufrufende Stelle hat den Grund bereits
+      // gemeldet. Der Dialog bleibt offen, damit die Eingabe erhalten bleibt
+      // und sich der Fehler beheben lässt.
     } finally {
       setPending(false);
     }
@@ -65,6 +77,7 @@ export function ConfirmationDialog({
             <div className="space-y-2 text-sm text-muted-foreground">{description}</div>
           </DialogDescription>
         </DialogHeader>
+        {children ? <div className="space-y-3 py-2">{children}</div> : null}
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={pending}>
             {cancelLabel}

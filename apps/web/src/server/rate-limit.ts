@@ -25,6 +25,17 @@ export const RATE_LIMITS = {
   spielersucheCreate: { limit: 10, windowMs: 10 * 60 * 1000 },
   spielersucheWrite: { limit: 40, windowMs: 5 * 60 * 1000 },
   levelWrite: { limit: 40, windowMs: 5 * 60 * 1000 },
+  /**
+   * Teilnahme an einer Verlosung.
+   *
+   * Knapp bemessen: eine Person nimmt pro Verlosung genau einmal teil, mehr
+   * als eine Handvoll Versuche gibt es also nicht zu tun. Gegen den
+   * Doppelklick wirkt ohnehin schon der eindeutige Schlüssel.
+   */
+  raffleEnter: { limit: 10, windowMs: 5 * 60 * 1000 },
+  raffleManage: { limit: 40, windowMs: 5 * 60 * 1000 },
+  /** Ziehen und neu ziehen - selten und folgenreich. */
+  raffleDraw: { limit: 10, windowMs: 10 * 60 * 1000 },
 } as const satisfies Record<string, RateLimitRule>;
 
 export type RateLimitName = keyof typeof RATE_LIMITS;

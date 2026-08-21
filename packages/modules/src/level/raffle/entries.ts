@@ -1,7 +1,7 @@
 import { AUDIT_ACTIONS, Prisma, prisma, safeRecordAudit } from '@swisshub/database';
 import type { XpRaffle, XpRaffleEntry } from '@swisshub/database';
 import { createLogger } from '@swisshub/logger';
-import { conflict, forbidden, notFound } from '@swisshub/shared';
+import { conflict, forbidden, formatSwissNumber, notFound } from '@swisshub/shared';
 import { LEVEL_MODULE_ID } from '../config';
 import { applyXpWithin, type LevelIdentity, type XpEngineOptions } from '../service';
 import { calculateEntryCost, winChance, type EntryCost } from './entry-cost';
@@ -170,7 +170,7 @@ export async function enterRaffle(
       const cost = calculateEntryCost(entryCostRules(raffle), profile.xp);
       if (profile.xp < cost.entryXp) {
         throw conflict(
-          `Du hesch nid gnueg XP. D Teilnahm choscht ${cost.entryXp.toLocaleString('de-CH')} XP, du hesch ${profile.xp.toLocaleString('de-CH')} XP.`,
+          `Du hesch nid gnueg XP. D Teilnahm choscht ${formatSwissNumber(cost.entryXp)} XP, du hesch ${formatSwissNumber(profile.xp)} XP.`,
         );
       }
 

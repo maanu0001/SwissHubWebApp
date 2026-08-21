@@ -888,5 +888,21 @@ registerModule({
       group: 'modules',
       order: 54,
     },
+    {
+      /**
+       * Die Mitgliederseite des Glücksrads.
+       *
+       * Bewusst im obersten Abschnitt statt unter "Module": sie richtet sich
+       * an alle Mitglieder, nicht an die Verwaltung. Wer nur
+       * `level.raffle.view` hat, sieht ausschliesslich diesen Eintrag.
+       */
+      href: '/xp-gluecksrad',
+      label: 'XP-Glücksrad',
+      description: 'Aktuelle XP-Verlosung, Teilnahme und vergangene Ziehungen',
+      permission: LEVEL_PERMISSIONS.raffleView,
+      icon: 'Ticket',
+      group: 'overview',
+      order: 20,
+    },
   ],
 });

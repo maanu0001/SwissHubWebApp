@@ -1,12 +1,12 @@
 import { AUDIT_ACTIONS, prisma, safeRecordAudit } from '@swisshub/database';
 import type { XpRaffle, XpRaffleDraw } from '@swisshub/database';
 import { createLogger } from '@swisshub/logger';
-import { conflict, notFound } from '@swisshub/shared';
+import { conflict } from '@swisshub/shared';
 import { LEVEL_MODULE_ID } from '../config';
 import { applyXpWithin, type XpEngineOptions } from '../service';
 import { refundEntry } from './entries';
 import { drawWeighted, secureRandom, type RandomSource, type WeightedTicket } from './random';
-import { canTransition, raffleStatusLabel, refreshCounters, requireRaffle } from './service';
+import { canTransition, lockRaffle, raffleStatusLabel, refreshCounters, requireRaffle } from './service';
 import type { RaffleActor } from './schemas';
 
 const logger = createLogger('level.raffle.draw');
@@ -52,12 +52,18 @@ export async function startDraw(
   const now = options.now ?? new Date();
 
   const result = await prisma.$transaction(async (tx) => {
-    const raffle = await tx.xpRaffle.findUnique({ where: { id: raffleId } });
-    if (!raffle) {
-      throw notFound(`Verlosung ${raffleId} nicht gefunden`, 'Diese Verlosung gibt es nicht.');
-    }
+    const raffle = await lockRaffle(tx, raffleId);
     if (raffle.status === 'DRAWING') {
       throw conflict('Die Ziehung läuft bereits.');
+    }
+    // Aus `WINNER_PENDING` führt zwar ein erlaubter Übergang zurück nach
+    // `DRAWING` - der gehört aber `redraw`, das eine Begründung verlangt und
+    // den bisherigen Gewinner protokolliert. Ohne diese Prüfung zöge ein
+    // zweiter Aufruf von `startDraw` still einen neuen Gewinner.
+    if (raffle.status === 'WINNER_PENDING') {
+      throw conflict(
+        'Für diese Verlosung wurde bereits gezogen. Zum Wiederholen bitte "Neu ziehen" verwenden.',
+      );
     }
     if (!canTransition(raffle.status, 'DRAWING')) {
       throw conflict(
@@ -179,10 +185,7 @@ export async function redraw(
   const now = options.now ?? new Date();
 
   const result = await prisma.$transaction(async (tx) => {
-    const raffle = await tx.xpRaffle.findUnique({ where: { id: raffleId } });
-    if (!raffle) {
-      throw notFound(`Verlosung ${raffleId} nicht gefunden`, 'Diese Verlosung gibt es nicht.');
-    }
+    const raffle = await lockRaffle(tx, raffleId);
     if (raffle.status !== 'WINNER_PENDING') {
       throw conflict('Neu ziehen geht nur, solange der Gewinner noch nicht bestätigt ist.');
     }
@@ -281,10 +284,7 @@ export async function confirmWinner(
   const now = options.now ?? new Date();
 
   const result = await prisma.$transaction(async (tx) => {
-    const raffle = await tx.xpRaffle.findUnique({ where: { id: raffleId } });
-    if (!raffle) {
-      throw notFound(`Verlosung ${raffleId} nicht gefunden`, 'Diese Verlosung gibt es nicht.');
-    }
+    const raffle = await lockRaffle(tx, raffleId);
     if (raffle.status === 'COMPLETED') {
       throw conflict('Diese Verlosung ist bereits abgeschlossen.');
     }

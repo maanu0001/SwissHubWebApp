@@ -165,7 +165,7 @@ export default async function DashboardPage(): Promise<React.JSX.Element> {
                   description="Aktuell ist kein Mitglied gejailt."
                 />
               ) : (
-                <div className="overflow-x-auto scrollbar-slim">
+                <div className="relative overflow-x-auto scrollbar-slim">
                   <table className="w-full text-sm">
                     <caption className="sr-only">Aktive Jail-Strafen</caption>
                     <thead>

@@ -319,6 +319,61 @@ describeWithDatabase('XP-Verlosungen', () => {
     expect(await prisma.xpRaffleDraw.count()).toBe(1);
   });
 
+  it('zieht nach einer abgeschlossenen Ziehung nicht einfach neu', async () => {
+    // Der Zustandsautomat erlaubt den Weg von WINNER_PENDING zurück nach
+    // DRAWING - der gehört aber `redraw` mit Begründung und Protokoll. Ein
+    // zweiter Aufruf von `startDraw` zog sonst still einen neuen Gewinner.
+    const created = await openRaffle();
+    for (const discordId of ['900000000000001051', '900000000000001052']) {
+      await giveXp(discordId, 5000);
+      await R.enterRaffle({ discordId }, created.id);
+    }
+    await R.closeEntries(ADMIN, created.id);
+    await R.startDraw(ADMIN, created.id);
+
+    await expect(R.startDraw(ADMIN, created.id)).rejects.toThrow(/bereits gezogen/u);
+    expect(await prisma.xpRaffleDraw.count()).toBe(1);
+  });
+
+  it('schreibt einen gleichzeitig bestätigten Gewinn nur einmal gut', async () => {
+    // `confirmWinner` schreibt den XP-Gewinn gut. Ohne Zeilensperre lasen zwei
+    // gleichzeitige Bestätigungen beide WINNER_PENDING - und zahlten beide aus.
+    const created = await openRaffle({ prizeKind: 'XP_PRIZE', prizeXp: 10_000 });
+    for (const discordId of ['900000000000001061', '900000000000001062']) {
+      await giveXp(discordId, 5000);
+      await R.enterRaffle({ discordId }, created.id);
+    }
+    await R.closeEntries(ADMIN, created.id);
+    const { draw } = await R.startDraw(ADMIN, created.id);
+    const gewinner = await prisma.xpRaffleEntry.findUniqueOrThrow({
+      where: { id: draw.winnerEntryId },
+    });
+    const vorher = await xpOf(gewinner.discordId);
+
+    const results = await Promise.allSettled([
+      R.confirmWinner(ADMIN, created.id),
+      R.confirmWinner(ADMIN, created.id),
+    ]);
+    expect(results.filter((result) => result.status === 'fulfilled')).toHaveLength(1);
+    expect(await xpOf(gewinner.discordId)).toBe(vorher + 10_000);
+  });
+
+  it('lässt während einer laufenden Ziehung niemanden mehr teilnehmen', async () => {
+    const created = await openRaffle();
+    for (const discordId of ['900000000000001071', '900000000000001072']) {
+      await giveXp(discordId, 5000);
+      await R.enterRaffle({ discordId }, created.id);
+    }
+    await R.closeEntries(ADMIN, created.id);
+    await R.startDraw(ADMIN, created.id);
+
+    await giveXp('900000000000001073', 5000);
+    const vorher = await xpOf('900000000000001073');
+    await expect(R.enterRaffle({ discordId: '900000000000001073' }, created.id)).rejects.toThrow();
+    // Vor allem: kein Einsatz abgebucht.
+    expect(await xpOf('900000000000001073')).toBe(vorher);
+  });
+
   it('zieht nur unter den gültigen Teilnahmen', async () => {
     const created = await openRaffle();
     const ids = ['900000000000001101', '900000000000001102', '900000000000001103'];

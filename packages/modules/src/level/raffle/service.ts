@@ -70,6 +70,37 @@ export async function getRaffle(id: string): Promise<XpRaffle | null> {
   return prisma.xpRaffle.findUnique({ where: { id } });
 }
 
+/** Eine Transaktion, wie Prisma sie an den Rumpf von `$transaction` übergibt. */
+export type RaffleTx = Parameters<Parameters<typeof prisma.$transaction>[0]>[0];
+
+/**
+ * Die Verlosung gesperrt lesen.
+ *
+ * Jeder Zustandswechsel einer Verlosung - Ziehung starten, neu ziehen,
+ * Gewinner bestätigen, teilnehmen - muss dies zuerst tun. Ohne die Sperre
+ * lesen zwei gleichzeitige Anfragen denselben Zustand, halten beide ihre
+ * Prüfung für bestanden und führen beide aus.
+ *
+ * Bei der Ziehung fing der eindeutige Schlüssel auf `(raffleId, version)` das
+ * nur ab, solange beide dieselbe Version errechneten. Kam die zweite Anfrage
+ * erst nach dem Festschreiben der ersten dazu, zählte sie auf die bereits
+ * vorhandene Ziehung hoch - und dieselbe Verlosung wurde zweimal gezogen. Beim
+ * Bestätigen des Gewinners wäre auf demselben Weg der Gewinn zweimal
+ * gutgeschrieben worden.
+ *
+ * `FOR UPDATE` reiht die Anfragen auf: die zweite wartet, bis die erste fertig
+ * ist, liest dann den neuen Zustand und scheitert an der Zustandsprüfung - mit
+ * einer verständlichen Meldung statt eines Datenbankfehlers.
+ */
+export async function lockRaffle(tx: RaffleTx, raffleId: string): Promise<XpRaffle> {
+  await tx.$queryRaw`SELECT "id" FROM "XpRaffle" WHERE "id" = ${raffleId} FOR UPDATE`;
+  const raffle = await tx.xpRaffle.findUnique({ where: { id: raffleId } });
+  if (!raffle) {
+    throw notFound(`Verlosung ${raffleId} nicht gefunden`, 'Diese Verlosung gibt es nicht.');
+  }
+  return raffle;
+}
+
 export async function requireRaffle(id: string): Promise<XpRaffle> {
   const raffle = await prisma.xpRaffle.findUnique({ where: { id } });
   if (!raffle) {

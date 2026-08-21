@@ -5,7 +5,7 @@ import { conflict, forbidden, formatSwissNumber, notFound } from '@swisshub/shar
 import { LEVEL_MODULE_ID } from '../config';
 import { applyXpWithin, type LevelIdentity, type XpEngineOptions } from '../service';
 import { calculateEntryCost, winChance, type EntryCost } from './entry-cost';
-import { assertEntryOpen, entryCostRules, refreshCounters, requireRaffle } from './service';
+import { assertEntryOpen, entryCostRules, lockRaffle, refreshCounters, requireRaffle } from './service';
 import type { RaffleActor } from './schemas';
 
 const logger = createLogger('level.raffle.entries');
@@ -107,11 +107,10 @@ export async function enterRaffle(
 
   try {
     return await prisma.$transaction(async (tx) => {
-      // Innerhalb der Transaktion frisch lesen: die Vorschau kann veraltet sein.
-      const raffle = await tx.xpRaffle.findUnique({ where: { id: raffleId } });
-      if (!raffle) {
-        throw notFound(`Verlosung ${raffleId} nicht gefunden`, 'Diese Verlosung gibt es nicht.');
-      }
+      // Innerhalb der Transaktion frisch und gesperrt lesen: die Vorschau kann
+      // veraltet sein, und eine Teilnahme darf nicht mehr durchgehen, waehrend
+      // nebenan bereits der Auszug fuer die Ziehung entsteht.
+      const raffle = await lockRaffle(tx, raffleId);
 
       const describeExisting = async (entry: XpRaffleEntry): Promise<EnterRaffleResult> => {
         const totals = await tx.xpRaffleEntry.aggregate({

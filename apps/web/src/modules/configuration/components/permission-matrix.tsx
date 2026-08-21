@@ -205,7 +205,7 @@ export function PermissionMatrix({
           <SelectTrigger id="permission-role">
             <SelectValue placeholder="Rolle wählen" />
           </SelectTrigger>
-          <SelectContent>
+          <SelectContent emptyHint="Noch keine Rollen synchronisiert - unter System → Discord-Sync abgleichen.">
             {roles.map((role) => (
               <SelectItem key={role.id} value={role.id}>
                 <span className="flex items-center gap-2">

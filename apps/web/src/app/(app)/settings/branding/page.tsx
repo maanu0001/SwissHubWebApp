@@ -1,5 +1,4 @@
 import type { Metadata } from 'next';
-import { branding as brandingConstants } from '@swisshub/config/client';
 import { can } from '@swisshub/auth';
 import { branding as brandingModule } from '@swisshub/modules';
 import { formatDateTime } from '@swisshub/shared';
@@ -27,7 +26,7 @@ export default async function BrandingPage(): Promise<React.JSX.Element> {
       <CardContent>
         <BrandingForm
           csrfToken={csrfTokenFor(context)}
-          currentLogoUrl={brandingModule.brandingLogoUrl(config, brandingConstants.logo.mark)}
+          currentLogoUrl={brandingModule.brandingLogoUrl(config)}
           hasCustomLogo={config.logoPath !== null}
           updatedAt={config.updatedAt ? formatDateTime(new Date(config.updatedAt)) : null}
           canManage={can(context, 'branding.manage')}

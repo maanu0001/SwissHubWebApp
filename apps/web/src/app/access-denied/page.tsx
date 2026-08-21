@@ -11,11 +11,8 @@ export const metadata: Metadata = { title: 'Kein Zugriff' };
 
 export default async function AccessDeniedPage(): Promise<React.JSX.Element> {
   const context = await getOptionalAuthContext();
-  // Logo aus der Branding-Konfiguration; ohne Upload greift das Standardlogo.
-  const logoUrl = brandingModule.brandingLogoUrl(
-    await brandingModule.getBrandingConfig(),
-    branding.logo.mark,
-  );
+  // Hochgeladenes Logo, sonst das mitgelieferte SwissHub-Logo.
+  const logoUrl = await brandingModule.currentLogoUrl();
 
   return (
     <main className="flex min-h-dvh items-center justify-center px-4 py-16">

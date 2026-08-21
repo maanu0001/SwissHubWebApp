@@ -170,7 +170,7 @@ export default async function MemberDetailPage({
                 {profile.jailHistory.map((entry) => (
                   <li key={entry.id} className="py-3 first:pt-0 last:pb-0">
                     <div className="flex flex-wrap items-center justify-between gap-2">
-                      <Link href={`/jail/${entry.id}`} className="font-medium hover:underline">
+                      <Link href={`/jail/${entry.id}`} className="inline-flex min-h-6 items-center font-medium hover:underline">
                         {formatDateTime(entry.startedAt)}
                       </Link>
                       <span className="flex items-center gap-2">

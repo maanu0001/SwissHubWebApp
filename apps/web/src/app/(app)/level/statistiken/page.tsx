@@ -63,7 +63,7 @@ export default async function LevelStatsPage(): Promise<React.JSX.Element> {
       />
       {sections}
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard label="Mitglieder mit XP" value={level.formatXp(stats.active)} />
         <StatCard label="XP insgesamt" value={level.formatXp(stats.totalXp)} />
         <StatCard label="XP im Schnitt" value={level.formatXp(stats.averageXp)} />
@@ -73,7 +73,7 @@ export default async function LevelStatsPage(): Promise<React.JSX.Element> {
       {raffleStats.totalRaffles > 0 ? (
         <section className="space-y-3">
           <h3 className="text-sm font-semibold">XP-Verlosungen</h3>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
             <StatCard
               label="Verlosungen"
               value={raffleStats.totalRaffles.toString()}

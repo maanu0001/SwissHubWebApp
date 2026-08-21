@@ -6,7 +6,6 @@ import { discord } from '@swisshub/discord';
 import { isModuleEnabled, spielersuche } from '@swisshub/modules';
 import { buttonVariants } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { PageHeader } from '@/components/shared/page-header';
 import { EmptyState, ErrorState } from '@/components/shared/states';
 import { MatchCard } from '@/modules/spielersuche/components/match-card';
 import { SpielersucheSectionNav } from '@/modules/spielersuche/components/section-nav';
@@ -48,10 +47,6 @@ export default async function SpielersuchePage(): Promise<React.JSX.Element> {
 
   return (
     <>
-      <PageHeader
-        title="Spielersuche"
-        description="Mitspieler finden, Gruppen füllen und Sprachkanäle automatisch verwalten."
-      />
       {sections}
 
       <dl className="grid gap-3 sm:grid-cols-3 lg:grid-cols-6">

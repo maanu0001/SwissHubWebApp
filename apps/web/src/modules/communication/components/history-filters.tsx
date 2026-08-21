@@ -105,7 +105,7 @@ export function HistoryFilters({
           <SelectTrigger id="history-channel">
             <SelectValue />
           </SelectTrigger>
-          <SelectContent>
+          <SelectContent emptyHint="Noch keine Channels synchronisiert - unter System → Discord-Sync abgleichen.">
             <SelectItem value={ALL}>Alle</SelectItem>
             {channels.map((channel) => (
               <SelectItem key={channel.id} value={channel.id}>

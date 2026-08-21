@@ -39,11 +39,8 @@ export default async function SetupPage(): Promise<React.JSX.Element> {
     }
   }
 
-  // Logo aus der Branding-Konfiguration; ohne Upload greift das Standardlogo.
-  const logoUrl = brandingModule.brandingLogoUrl(
-    await brandingModule.getBrandingConfig(),
-    branding.logo.mark,
-  );
+  // Hochgeladenes Logo, sonst das mitgelieferte SwissHub-Logo.
+  const logoUrl = await brandingModule.currentLogoUrl();
 
   const [health, botGuilds] = await Promise.all([
     getSystemHealth(),

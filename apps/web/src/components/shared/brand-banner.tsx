@@ -6,7 +6,14 @@ import { branding } from '@swisshub/config/client';
  * Rein visuelles Element: Logo, Claim und - falls vorhanden - die Grafik unter
  * `public/branding/banner.svg`. Austausch ohne Codeänderung möglich.
  */
-export function BrandBanner({ footnote }: { footnote?: string }): React.JSX.Element | null {
+export function BrandBanner({
+  footnote,
+  logoUrl,
+}: {
+  footnote?: string;
+  /** Hochgeladenes Logo; ohne Angabe das mitgelieferte SwissHub-Logo. */
+  logoUrl?: string | null;
+}): React.JSX.Element | null {
   if (!branding.banner.enabled) {
     return null;
   }
@@ -21,7 +28,7 @@ export function BrandBanner({ footnote }: { footnote?: string }): React.JSX.Elem
         <div className="flex min-w-0 items-center gap-5">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src={branding.logo.mark}
+            src={logoUrl ?? branding.logo.mark}
             alt=""
             width={56}
             height={56}

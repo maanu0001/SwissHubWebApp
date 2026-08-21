@@ -35,7 +35,7 @@ export function ChannelSelect({
         <SelectTrigger id={id}>
           <SelectValue placeholder={placeholder} />
         </SelectTrigger>
-        <SelectContent>
+        <SelectContent emptyHint="Noch keine Channels synchronisiert - unter System → Discord-Sync abgleichen.">
           <SelectItem value={NONE}>{placeholder}</SelectItem>
           {channels.map((channel) => (
             <SelectItem key={channel.id} value={channel.id}>

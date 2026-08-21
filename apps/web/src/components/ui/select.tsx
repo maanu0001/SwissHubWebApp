@@ -28,10 +28,18 @@ const SelectTrigger = React.forwardRef<
 ));
 SelectTrigger.displayName = SelectPrimitive.Trigger.displayName;
 
+/**
+ * Der aufgeklappte Inhalt einer Auswahl.
+ *
+ * Ist nichts zur Auswahl da, stand hier bisher ein leeres Kästchen ohne jede
+ * Erklärung - etwa in der Rollenauswahl, solange noch kein Discord-Abgleich
+ * gelaufen ist. Stattdessen erscheint jetzt ein Hinweis; `emptyHint` erlaubt
+ * einen passenderen Text mitsamt dem Weg zur Abhilfe.
+ */
 const SelectContent = React.forwardRef<
   React.ElementRef<typeof SelectPrimitive.Content>,
-  React.ComponentPropsWithoutRef<typeof SelectPrimitive.Content>
->(({ className, children, position = 'popper', ...props }, ref) => (
+  React.ComponentPropsWithoutRef<typeof SelectPrimitive.Content> & { emptyHint?: React.ReactNode }
+>(({ className, children, position = 'popper', emptyHint, ...props }, ref) => (
   <SelectPrimitive.Portal>
     <SelectPrimitive.Content
       ref={ref}
@@ -46,7 +54,13 @@ const SelectContent = React.forwardRef<
       <SelectPrimitive.Viewport
         className={cn('p-1', position === 'popper' && 'w-full min-w-[var(--radix-select-trigger-width)]')}
       >
-        {children}
+        {React.Children.toArray(children).length > 0 ? (
+          children
+        ) : (
+          <p className="px-3 py-2.5 text-sm text-muted-foreground">
+            {emptyHint ?? 'Nichts zur Auswahl vorhanden.'}
+          </p>
+        )}
       </SelectPrimitive.Viewport>
     </SelectPrimitive.Content>
   </SelectPrimitive.Portal>

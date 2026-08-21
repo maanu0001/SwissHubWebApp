@@ -64,16 +64,18 @@ export function AppHeader({
   return (
     <header className="sticky top-0 z-30 flex min-h-[4.5rem] items-center gap-3 border-b border-border bg-background/90 px-4 py-3 backdrop-blur sm:px-6">
       <div className="flex items-center gap-2 lg:hidden">
-        <MobileNav groups={groups} />
+        <MobileNav groups={groups} logoUrl={logoUrl} />
         <BrandMark size={30} withWordmark={false} logoUrl={logoUrl} />
       </div>
 
       <div className="min-w-0 flex-1">
-        <h1 className="truncate text-xl font-semibold tracking-tight sm:text-2xl">
+        <h1 className="truncate text-xl font-semibold tracking-tight sm:text-2xl" title={current?.label}>
           {current?.label ?? 'SwissHub'}
         </h1>
         {current?.description ? (
-          <p className="hidden truncate text-sm text-muted-foreground sm:block">{current.description}</p>
+          <p className="hidden truncate text-sm text-muted-foreground sm:block" title={current.description}>
+            {current.description}
+          </p>
         ) : null}
       </div>
 
@@ -92,7 +94,7 @@ export function AppHeader({
               ref={searchRef}
               name="q"
               type="search"
-              placeholder="Suche Mitglieder, ID, ..."
+              placeholder="Mitglied oder Discord-ID suchen"
               autoComplete="off"
               className={cn(
                 'h-10 w-64 rounded-lg border border-border bg-card/70 pl-9 pr-14 text-sm outline-none transition-colors',

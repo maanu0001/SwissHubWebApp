@@ -6,6 +6,21 @@
  * bundle. Only public/static values belong here.
  */
 
+/**
+ * Das SwissHub-Logo als lokale Datei.
+ *
+ * Bewusst ein Pfad in `public/`: das Logo gehoert zur Anwendung und darf nicht
+ * von einer Upload-Adresse oder einem temporaeren Verzeichnis abhaengen. Ein
+ * im Dashboard hochgeladenes Logo hat Vorrang - fehlt es, greift diese Datei.
+ */
+export const DEFAULT_SWISSHUB_LOGO = '/branding/swisshub-logo.png';
+
+/** Kleinere Fassungen desselben Logos fuer Favicon und Startbildschirm. */
+export const SWISSHUB_LOGO_SIZES = {
+  favicon: '/branding/swisshub-logo-32.png',
+  appleTouch: '/branding/swisshub-logo-180.png',
+} as const;
+
 export const branding = {
   /** Product name shown in the sidebar, page titles and emails. */
   name: 'SwissHub',
@@ -14,13 +29,14 @@ export const branding = {
   /** Short description used for metadata. */
   description: 'Administrations- und Moderationsoberfläche für den SwissHub Discord-Server.',
   /**
-   * Logo files. Drop a replacement at these paths to rebrand the app - no code
-   * change required. If the file is missing, the app falls back to the
-   * monogram defined below.
+   * Das Logo der Anwendung. Ein Austausch der Datei unter `public/branding/`
+   * genuegt zum Rebranding - Code muss dafuer nicht angefasst werden.
    */
   logo: {
-    full: '/branding/logo.svg',
-    mark: '/branding/logo-mark.svg',
+    mark: DEFAULT_SWISSHUB_LOGO,
+    favicon: SWISSHUB_LOGO_SIZES.favicon,
+    appleTouch: SWISSHUB_LOGO_SIZES.appleTouch,
+    /** Ersatzdarstellung, wo kein Bild geladen werden kann (z.B. Vorschauen). */
     monogram: 'SH',
   },
   /** Primary accent colour of the SwissHub brand. */

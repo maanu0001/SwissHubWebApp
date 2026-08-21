@@ -47,14 +47,6 @@ export default async function PublicRafflePage(): Promise<React.JSX.Element> {
 
   return (
     <div className="mx-auto w-full max-w-5xl space-y-10">
-      <header className="space-y-2 text-center">
-        <p className="text-sm font-medium text-primary">SwissHub</p>
-        <h1 className="text-3xl font-semibold sm:text-4xl">🎡 XP-Glücksrad</h1>
-        <p className="text-sm text-muted-foreground">
-          Setze deine XP als Einsatz und nimm an der Verlosung teil.
-        </p>
-      </header>
-
       {featured ? (
         <FeaturedRaffle
           raffleId={featured.id}

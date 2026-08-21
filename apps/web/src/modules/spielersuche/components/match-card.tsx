@@ -41,7 +41,7 @@ export function MatchCard({ match, guildId }: MatchCardProps): React.JSX.Element
     <article className="flex flex-col gap-3 rounded-xl border border-border bg-card/60 p-4">
       <header className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <Link href={`/spielersuche/${match.id}`} className="font-medium hover:underline">
+          <Link href={`/spielersuche/${match.id}`} className="inline-flex min-h-6 items-center font-medium hover:underline">
             {match.gameName}
           </Link>
           <p className="mt-0.5 text-xs text-muted-foreground">

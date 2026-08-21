@@ -4,6 +4,7 @@ import { Activity, Blocks, Lock, ScrollText, Search, Settings, TrendingUp, Users
 import { branding } from '@swisshub/config/client';
 import { can } from '@swisshub/auth';
 import {
+  branding as brandingModule,
   enabledModuleIds,
   getModuleSettings,
   getSystemHealth,
@@ -41,12 +42,13 @@ export default async function DashboardPage(): Promise<React.JSX.Element> {
   const canManageModules = can(context, 'modules.manage');
   const canViewSettings = can(context, 'settings.view');
 
-  const [data, moduleStatus, moduleIds, jailSettings, health] = await Promise.all([
+  const [data, moduleStatus, moduleIds, jailSettings, health, logoUrl] = await Promise.all([
     loadDashboardData({ canViewJails, canViewAudit }),
     listModuleStatus(),
     enabledModuleIds(),
     getModuleSettings<jail.JailSettings>(jail.JAIL_MODULE_ID),
     canViewSettings ? getSystemHealth() : Promise.resolve(null),
+    brandingModule.currentLogoUrl(),
   ]);
 
   const csrfToken = csrfTokenFor(context);
@@ -70,7 +72,7 @@ export default async function DashboardPage(): Promise<React.JSX.Element> {
         <section aria-label="Einrichtung" className="rounded-xl border border-warning/40 bg-warning/5 p-5">
           <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
             <h2 className="text-sm font-semibold">Einrichtung noch nicht abgeschlossen</h2>
-            <Link href="/setup" className="text-sm text-primary hover:underline">
+            <Link href="/setup" className="inline-flex min-h-6 items-center text-sm text-primary hover:underline">
               Zum Einrichtungsassistenten
             </Link>
           </div>
@@ -148,7 +150,7 @@ export default async function DashboardPage(): Promise<React.JSX.Element> {
       </section>
 
       <div className="grid gap-6 xl:grid-cols-3">
-        <div className="space-y-6 xl:col-span-2">
+        <div className="min-w-0 space-y-6 xl:col-span-2">
           {canViewJails ? (
             <Panel
               title="Aktive Jails"
@@ -285,7 +287,7 @@ export default async function DashboardPage(): Promise<React.JSX.Element> {
           </Panel>
         </div>
 
-        <div className="space-y-6">
+        <div className="min-w-0 space-y-6">
           {canViewAudit ? (
             <Panel
               title="Letzte Aktivitäten"
@@ -373,6 +375,7 @@ export default async function DashboardPage(): Promise<React.JSX.Element> {
       </div>
 
       <BrandBanner
+        logoUrl={logoUrl}
         footnote={
           data.bot.online
             ? `Bot online${data.bot.wsPingMs !== null ? ` · Ping ${data.bot.wsPingMs} ms` : ''} · Zeitzone ${branding.timezone}`

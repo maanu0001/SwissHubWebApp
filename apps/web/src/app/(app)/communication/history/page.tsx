@@ -113,13 +113,13 @@ export default async function CommunicationHistoryPage({
                     ) : null}
                   </div>
 
-                  <span className="flex shrink-0 items-center gap-2">
+                  <span className="flex flex-wrap items-center gap-x-3 gap-y-1.5 sm:shrink-0">
                     {entry.discordUrl ? (
                       <Link
                         href={entry.discordUrl}
                         target="_blank"
                         rel="noreferrer noopener"
-                        className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
+                        className="inline-flex min-h-6 items-center gap-1 text-sm text-primary hover:underline"
                       >
                         Auf Discord öffnen
                         <ExternalLink className="size-3.5" aria-hidden="true" />
@@ -127,7 +127,7 @@ export default async function CommunicationHistoryPage({
                     ) : null}
                     <Link
                       href={`/communication?vorlage=${entry.id}`}
-                      className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
+                      className="inline-flex min-h-6 items-center gap-1 text-sm text-primary hover:underline"
                     >
                       <RotateCcw className="size-3.5" aria-hidden="true" />
                       Als Vorlage verwenden

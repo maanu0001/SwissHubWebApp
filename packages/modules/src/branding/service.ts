@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { DEFAULT_SWISSHUB_LOGO } from '@swisshub/config';
 import {
   AUDIT_ACTIONS,
   bumpConfigRevision,
@@ -49,13 +50,19 @@ export async function getBrandingConfig(options: { force?: boolean } = {}): Prom
  *
  * Der Versionsparameter sorgt dafür, dass Browser nach einem Wechsel nicht das
  * alte Bild aus dem Cache zeigen. Ohne eigenes Logo wird das mitgelieferte
- * Standardlogo verwendet.
+ * SwissHub-Logo aus `public/branding/` verwendet - das Standardlogo steht
+ * bewusst nur hier, damit es keine Seite selbst wählen muss.
  */
-export function brandingLogoUrl(config: BrandingConfig, fallback: string): string {
+export function brandingLogoUrl(config: BrandingConfig, fallback: string = DEFAULT_SWISSHUB_LOGO): string {
   if (!config.logoPath) {
     return fallback;
   }
   return `/api/branding/logo?v=${encodeURIComponent(config.version ?? '1')}`;
+}
+
+/** Das aktuell gültige Logo - hochgeladenes Logo, sonst das Standardlogo. */
+export async function currentLogoUrl(): Promise<string> {
+  return brandingLogoUrl(await getBrandingConfig());
 }
 
 export interface BrandingActor {

@@ -353,16 +353,20 @@ Alle Marken-Elemente liegen zentral in `packages/config/src/client.ts` (`brandin
 
 | Wert                                                | Wirkung                                                                                       |
 | --------------------------------------------------- | --------------------------------------------------------------------------------------------- |
-| `logo.mark` / `logo.full`                           | Pfade zu den Logodateien (`apps/web/public/branding/`) - einfach ersetzen                     |
+| `logo.mark` / `logo.favicon` / `logo.appleTouch`    | Pfade zu den Logodateien (`apps/web/public/branding/`) - einfach ersetzen                     |
 | `banner.title` / `banner.subtitle` / `banner.image` | Banner am Fuss des Dashboards                                                                 |
 | `promo`                                             | Hinweiskarte in der Seitenleiste (`enabled`, `title`, `description`, `cta`, `href`)           |
 | `accent` / `accentBright`                           | Markenfarben (die Farbtöne selbst stehen als CSS-Variablen in `apps/web/src/app/globals.css`) |
 | `locale` / `timezone`                               | Zahlen- und Datumsformat (Standard `de-CH` / `Europe/Zurich`)                                 |
 
-Ein eigenes Logo wird also einfach als `apps/web/public/branding/logo-mark.svg`
-bzw. `logo.svg` abgelegt - Codeänderungen sind dafür nicht nötig. Ist bei
-`promo.href` nichts gesetzt, verlinkt die Karte auf den konfigurierten
-Discord-Server; mit `enabled: false` verschwindet sie ganz.
+Das mitgelieferte SwissHub-Logo liegt als
+`apps/web/public/branding/swisshub-logo.png` im Projekt. Es ist das
+Standardlogo (`DEFAULT_SWISSHUB_LOGO`) und wird überall dort verwendet, wo im
+Dashboard unter *Branding* kein eigenes Logo hochgeladen wurde - der Fallback
+steht ausschliesslich in `brandingLogoUrl()`, damit ihn keine Seite selbst
+wählen muss. Ein Austausch der Datei genügt zum Rebranding; Codeänderungen sind
+dafür nicht nötig. Ist bei `promo.href` nichts gesetzt, verlinkt die Karte auf
+den konfigurierten Discord-Server; mit `enabled: false` verschwindet sie ganz.
 
 ## Erste Schritte in der WebApp
 

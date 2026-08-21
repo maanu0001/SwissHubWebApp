@@ -146,7 +146,7 @@ export default async function LevelGamesPage(): Promise<React.JSX.Element> {
 
       <section className="space-y-3">
         <h3 className="text-sm font-semibold">Top-Spieler</h3>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           {boards.map((board) => (
             <div key={board.kind} className="rounded-xl border border-border bg-card/60 p-4">
               <p className="text-sm font-semibold">{level.GAME_LABELS[board.kind]}</p>

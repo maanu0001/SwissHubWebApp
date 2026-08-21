@@ -15,7 +15,15 @@ export function middleware(request: NextRequest): NextResponse {
     "default-src 'self'",
     `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${isDevelopment ? " 'unsafe-eval'" : ''}`,
     "style-src 'self' 'unsafe-inline'",
-    "img-src 'self' data: blob: https://cdn.discordapp.com",
+    // Bilder von beliebigen https-Adressen.
+    //
+    // Banner werden im Dashboard als https-Adresse eingetragen (geprüft in
+    // `bannerUrlSchema`) und anschliessend von Discord ausgeliefert. Ohne
+    // diese Freigabe zeigte die Vorschau ein Banner, das nicht auf Discords
+    // CDN liegt, schlicht nicht an - die Vorschau verschwieg damit, was nach
+    // dem Senden tatsächlich erscheint. Skripte bleiben davon unberührt:
+    // `script-src` ist weiterhin an die Nonce gebunden.
+    "img-src 'self' data: blob: https:",
     "font-src 'self' data:",
     `connect-src 'self'${isDevelopment ? ' ws: wss:' : ''}`,
     "form-action 'self'",

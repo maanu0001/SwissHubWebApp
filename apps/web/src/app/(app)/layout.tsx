@@ -35,13 +35,13 @@ export default async function AppLayout({
 }): Promise<React.JSX.Element> {
   const context = await requireMember();
 
-  const [moduleIds, bot, guild, guildConfig, jailStats, brandingConfig] = await Promise.all([
+  const [moduleIds, bot, guild, guildConfig, jailStats, logoUrl] = await Promise.all([
     enabledModuleIds(),
     readBotStatus(),
     discord.guild.get().catch(() => null),
     getGuildConfig(),
     jail.getJailStats().catch(() => null),
-    brandingModule.getBrandingConfig(),
+    brandingModule.currentLogoUrl(),
   ]);
 
   // Der verbundene Server steht in der Datenbank; Discord liefert nur die
@@ -87,7 +87,7 @@ export default async function AppLayout({
       permissions={context.permissionKeys}
       bot={{ online: bot.online, wsPingMs: bot.wsPingMs }}
       discordUrl={guildId ? `https://discord.com/channels/${guildId}` : 'https://discord.com/channels/@me'}
-      logoUrl={brandingModule.brandingLogoUrl(brandingConfig, branding.logo.mark)}
+      logoUrl={logoUrl}
       server={{
         name: guild?.name ?? guildConfig.name ?? branding.name,
         iconUrl: guildId ? guildIconUrl(guildId, guild?.iconHash ?? guildConfig.iconHash, 64) : null,

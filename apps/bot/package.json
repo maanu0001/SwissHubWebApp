@@ -18,7 +18,7 @@
     "@swisshub/permissions": "*",
     "@swisshub/shared": "*",
     "discord.js": "14.27.0",
-    "sharp": "^0.34.4",
+    "sharp": "^0.35.3",
     "tsx": "4.23.12"
   }
 }

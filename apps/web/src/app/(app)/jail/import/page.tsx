@@ -5,7 +5,6 @@ import { jail } from '@swisshub/modules';
 import { formatDateTime } from '@swisshub/shared';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { PageHeader } from '@/components/shared/page-header';
 import { DataTable } from '@/components/shared/data-table';
 import { EmptyState } from '@/components/shared/states';
 import { ImportConfirmStep, ImportUploadStep } from '@/modules/jail/components/import-wizard';
@@ -67,11 +66,6 @@ export default async function JailImportPage({
 
   return (
     <>
-      <PageHeader
-        title="Alte Jail-Datenbank übernehmen"
-        description="Einmalige Übernahme der Daten des früheren SwissHub Jail-Bots. Die Datei wird nur gelesen; bestehende Einträge werden nie überschrieben."
-      />
-
       {current === null || current.status === 'CANCELLED' ? (
         <ImportUploadStep csrfToken={csrfToken} maxBytes={jail.MAX_LEGACY_DB_BYTES} />
       ) : (

@@ -105,7 +105,7 @@ export default async function RaffleOverviewPage(): Promise<React.JSX.Element> {
               header: 'Verlosung',
               render: (row) => (
                 <div className="min-w-0">
-                  <Link href={`/level/gluecksrad/${row.id}`} className="font-medium hover:underline">
+                  <Link href={`/level/gluecksrad/${row.id}`} className="inline-flex min-h-6 items-center font-medium hover:underline">
                     {row.title}
                   </Link>
                   <p className="truncate text-xs text-muted-foreground">{row.prizeDescription}</p>

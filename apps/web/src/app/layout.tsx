@@ -10,7 +10,11 @@ export const metadata: Metadata = {
   },
   description: branding.description,
   robots: { index: false, follow: false },
-  icons: { icon: branding.logo.mark },
+  icons: {
+    icon: branding.logo.favicon,
+    shortcut: branding.logo.favicon,
+    apple: branding.logo.appleTouch,
+  },
 };
 
 export const viewport: Viewport = {

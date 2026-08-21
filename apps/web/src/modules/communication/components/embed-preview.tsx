@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { formatDateTime } from '@swisshub/shared';
 import { branding } from '@swisshub/config/client';
 import { cn } from '@/lib/utils';
@@ -125,17 +126,7 @@ export function EmbedPreview({
                 </div>
               ) : null}
 
-              {bannerUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={bannerUrl}
-                  alt=""
-                  className="mt-3 max-h-56 w-full rounded object-cover"
-                  onError={(event) => {
-                    event.currentTarget.style.display = 'none';
-                  }}
-                />
-              ) : null}
+              {bannerUrl ? <BannerPreview url={bannerUrl} /> : null}
 
               <p className="mt-3 text-xs opacity-70">{footerText}</p>
             </div>
@@ -149,5 +140,36 @@ export function EmbedPreview({
         </p>
       ) : null}
     </div>
+  );
+}
+
+/**
+ * Das Banner der Vorschau.
+ *
+ * Ein Banner, das sich nicht laden lässt, verschwand hier früher lautlos - die
+ * Vorschau sah dann aus wie eine Nachricht ohne Bild, obwohl Discord es sehr
+ * wohl anzeigen würde (oder eben auch nicht). Stattdessen steht jetzt an
+ * derselben Stelle ein Hinweis mit der Adresse.
+ */
+function BannerPreview({ url }: { url: string }): React.JSX.Element {
+  const [failed, setFailed] = useState(false);
+
+  if (failed) {
+    return (
+      <p className="mt-3 rounded border border-dashed border-white/25 px-3 py-2 text-xs opacity-80">
+        Das Banner liess sich nicht laden. Bitte die Adresse prüfen:{' '}
+        <span className="break-all font-mono">{url}</span>
+      </p>
+    );
+  }
+
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={url}
+      alt=""
+      className="mt-3 max-h-56 w-full rounded object-cover"
+      onError={() => setFailed(true)}
+    />
   );
 }

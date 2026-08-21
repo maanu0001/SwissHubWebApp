@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { getDiscordAvatarUrl } from '@swisshub/discord';
+import { getDiscordAvatarUrl } from '@swisshub/discord/cdn';
 
 /**
  * Das Glücksrad.

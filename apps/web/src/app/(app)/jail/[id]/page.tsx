@@ -89,7 +89,7 @@ export default async function JailDetailPage({
           <CardContent>
             <dl>
               <DetailRow label="Benutzer">
-                <Link href={`/members/${entry.targetDiscordId}`} className="font-medium hover:underline">
+                <Link href={`/members/${entry.targetDiscordId}`} className="inline-flex min-h-6 items-center font-medium hover:underline">
                   {entry.targetDisplayName ?? entry.targetUsername}
                 </Link>
                 <span className="ml-2 font-mono text-xs text-muted-foreground">{entry.targetDiscordId}</span>

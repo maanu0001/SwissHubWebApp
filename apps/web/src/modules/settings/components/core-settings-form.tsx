@@ -69,7 +69,7 @@ export function CoreSettingsForm({
             <SelectTrigger id="core-log-channel">
               <SelectValue placeholder="Kein Channel" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent emptyHint="Noch keine Channels synchronisiert - unter System → Discord-Sync abgleichen.">
               <SelectItem value={NONE}>Kein Channel</SelectItem>
               {channels.map((channel) => (
                 <SelectItem key={channel.id} value={channel.id}>

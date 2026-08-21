@@ -4,7 +4,6 @@ import { Dice5, Moon, Shield, Ticket, TrendingUp, Trophy, Users } from 'lucide-r
 import { can } from '@swisshub/auth';
 import { isModuleEnabled, level } from '@swisshub/modules';
 import { buttonVariants } from '@/components/ui/button';
-import { PageHeader } from '@/components/shared/page-header';
 import { StatCard } from '@/components/shared/stat-card';
 import { ErrorState } from '@/components/shared/states';
 import { LevelSectionNav } from '@/modules/level/components/section-nav';
@@ -41,13 +40,9 @@ export default async function LevelPage(): Promise<React.JSX.Element> {
 
   return (
     <>
-      <PageHeader
-        title="Level-System"
-        description="XP für Nachrichten und Voice, Level, Meilenstein-Rollen und XP-Spiele."
-      />
       {sections}
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
           label="Mitglieder mit XP"
           value={level.formatXp(overview.activeMembers)}
@@ -113,7 +108,7 @@ export default async function LevelPage(): Promise<React.JSX.Element> {
       </div>
 
       {raffles ? (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <StatCard
             label="Aktive Verlosung"
             value={raffles.active ? raffles.active.title : '—'}

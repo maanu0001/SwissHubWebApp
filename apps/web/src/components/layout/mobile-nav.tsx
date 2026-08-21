@@ -8,7 +8,13 @@ import { BrandMark } from '@/components/shared/brand-mark';
 import { SidebarNav, type NavigationGroup } from './sidebar-nav';
 
 /** Navigation als Drawer auf kleinen Bildschirmen. */
-export function MobileNav({ groups }: { groups: NavigationGroup[] }): React.JSX.Element {
+export function MobileNav({
+  groups,
+  logoUrl,
+}: {
+  groups: NavigationGroup[];
+  logoUrl?: string | null;
+}): React.JSX.Element {
   const [open, setOpen] = useState(false);
 
   return (
@@ -21,7 +27,7 @@ export function MobileNav({ groups }: { groups: NavigationGroup[] }): React.JSX.
       <DialogContent className="left-0 top-0 h-dvh max-w-xs translate-x-0 translate-y-0 overflow-y-auto rounded-none border-y-0 border-l-0 bg-sidebar scrollbar-slim sm:rounded-none">
         <DialogTitle className="sr-only">Navigation</DialogTitle>
         <div className="space-y-6">
-          <BrandMark />
+          <BrandMark logoUrl={logoUrl} />
           <SidebarNav groups={groups} onNavigate={() => setOpen(false)} />
         </div>
       </DialogContent>

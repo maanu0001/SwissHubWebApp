@@ -43,7 +43,7 @@ export function RoleSelect({
         <SelectTrigger id={id}>
           <SelectValue placeholder={placeholder} />
         </SelectTrigger>
-        <SelectContent>
+        <SelectContent emptyHint="Noch keine Rollen synchronisiert - unter System → Discord-Sync abgleichen.">
           <SelectItem value={NONE}>{placeholder}</SelectItem>
           {roles.map((role) => (
             <SelectItem

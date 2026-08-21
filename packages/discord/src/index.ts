@@ -58,3 +58,4 @@ export {
   messageLink,
   type AvatarSize,
 } from './cdn';
+export * from './channel-permissions';

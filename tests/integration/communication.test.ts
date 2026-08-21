@@ -38,6 +38,12 @@ const ACTOR = {
 
 const MENTION_ACTOR = { ...ACTOR, permissionKeys: [...ACTOR.permissionKeys, 'communication.mention'] };
 
+/** Darf zusätzlich den ganzen Server anpingen - das ist eine eigene Berechtigung. */
+const EVERYONE_ACTOR = {
+  ...MENTION_ACTOR,
+  permissionKeys: [...MENTION_ACTOR.permissionKeys, 'communication.mentionEveryone'],
+};
+
 let state: State;
 let gateway: ReturnType<typeof createMockGateway>;
 
@@ -96,8 +102,45 @@ describe('Validierung', () => {
   it('verlangt beim Event ein gültiges Datum', () => {
     expect(communication.sendEventSchema.safeParse(baseInput()).success).toBe(false);
     expect(
-      communication.sendEventSchema.safeParse(baseInput({ startsAt: '2026-09-01T18:00:00.000Z' })).success,
+      communication.sendEventSchema.safeParse(
+        baseInput({ startsAt: '2026-09-01T18:00:00.000Z', location: 'Discord Lounge' }),
+      ).success,
     ).toBe(true);
+  });
+
+  it('verlangt beim Event einen Treffpunkt', () => {
+    // Beim Vorgänger war das Feld ebenfalls Pflicht.
+    const ohne = communication.sendEventSchema.safeParse(baseInput({ startsAt: '2026-09-01T18:00:00.000Z' }));
+    expect(ohne.success).toBe(false);
+  });
+
+  it('nimmt beim Event auch freien Datumstext an', () => {
+    // Das Discord-Modal von `/post` kennt keinen Datumsauswähler. Was sich
+    // nicht zuverlässig deuten lässt, wird als Text übernommen.
+    const parsed = communication.sendEventSchema.safeParse(
+      baseInput({ startsAtText: '01.01.2026 18:00 Uhr', location: 'Bern' }),
+    );
+    expect(parsed.success).toBe(true);
+  });
+
+  it('verlangt bei "Anmeldung via Adresse" eine https-Adresse', () => {
+    const base = { startsAt: '2026-09-01T18:00:00.000Z', location: 'Discord' };
+    expect(
+      communication.sendEventSchema.safeParse(
+        baseInput({ ...base, registrationType: 'URL', registrationValue: 'javascript:alert(1)' }),
+      ).success,
+    ).toBe(false);
+    expect(
+      communication.sendEventSchema.safeParse(
+        baseInput({ ...base, registrationType: 'URL', registrationValue: 'https://swisshub.gg/anmeldung' }),
+      ).success,
+    ).toBe(true);
+  });
+
+  it('lehnt freien Text als Erwähnung ab', () => {
+    // Der alte Bot schrieb hier beliebigen Text unverändert in die Nachricht.
+    const parsed = communication.sendNewsSchema.safeParse(baseInput({ mention: '@everyone <@&123>' }));
+    expect(parsed.success).toBe(false);
   });
 
   it('erhält Zeilenumbrüche im Text', () => {
@@ -243,12 +286,27 @@ describe('Senden', () => {
     expect(send.mock.calls[0]?.[1].content).toBeUndefined();
   });
 
+  it('verlangt für @everyone eine eigene Berechtigung', async () => {
+    const send = vi.spyOn(gateway.channels, 'send');
+    state.moduleSettings.communication = {
+      ...(state.moduleSettings.communication as object),
+      allowEveryoneMention: true,
+    };
+
+    // Wer Erwähnungen senden darf, darf deshalb noch lange nicht den ganzen
+    // Server anpingen. Die Nachricht geht raus, sie pingt nur niemanden.
+    const input = communication.sendNewsSchema.parse(baseInput({ mention: 'everyone' }));
+    const result = await communication.sendNews(input, MENTION_ACTOR, { gateway });
+    expect(result.warnings.some((warning) => warning.includes('Berechtigung'))).toBe(true);
+    expect(send.mock.calls[0]?.[1].content).toBeUndefined();
+  });
+
   it('erlaubt @everyone nur, wenn Berechtigung UND Einstellung es zulassen', async () => {
     const send = vi.spyOn(gateway.channels, 'send');
 
     // Berechtigung vorhanden, Einstellung aus -> kein Ping.
     let input = communication.sendNewsSchema.parse(baseInput({ mention: 'everyone' }));
-    const blocked = await communication.sendNews(input, MENTION_ACTOR, { gateway });
+    const blocked = await communication.sendNews(input, EVERYONE_ACTOR, { gateway });
     expect(blocked.warnings.some((warning) => warning.includes('deaktiviert'))).toBe(true);
     expect(send.mock.calls[0]?.[1].content).toBeUndefined();
 
@@ -258,9 +316,23 @@ describe('Senden', () => {
       allowEveryoneMention: true,
     };
     input = communication.sendNewsSchema.parse(baseInput({ mention: 'everyone' }));
-    await communication.sendNews(input, MENTION_ACTOR, { gateway });
+    await communication.sendNews(input, EVERYONE_ACTOR, { gateway });
     expect(send.mock.calls[1]?.[1].content).toBe('@everyone');
     expect(send.mock.calls[1]?.[1].allowedMentions).toEqual({ parse: ['everyone'] });
+  });
+
+  it('gibt eine Personen-Erwähnung gezielt frei', async () => {
+    const send = vi.spyOn(gateway.channels, 'send');
+    const input = communication.sendNewsSchema.parse(
+      baseInput({ mention: 'user', mentionTarget: '100000000000000002' }),
+    );
+    await communication.sendNews(input, MENTION_ACTOR, { gateway });
+
+    expect(send.mock.calls[0]?.[1].content).toBe('<@100000000000000002>');
+    expect(send.mock.calls[0]?.[1].allowedMentions).toEqual({
+      parse: [],
+      users: ['100000000000000002'],
+    });
   });
 
   it('sendet bei gleichem Idempotency Key nur einmal', async () => {
@@ -285,7 +357,7 @@ describe('Senden', () => {
     expect(state.communicationMessages).toHaveLength(1);
   });
 
-  it('protokolliert einen Fehlschlag und gibt den Schlüssel wieder frei', async () => {
+  it('hält einen Fehlschlag im Verlauf fest und gibt den Schlüssel frei', async () => {
     vi.spyOn(gateway.channels, 'send').mockRejectedValueOnce(new Error('Missing Access'));
     const input = communication.sendNewsSchema.parse(baseInput());
 
@@ -293,7 +365,51 @@ describe('Senden', () => {
       code: 'DISCORD_UNAVAILABLE',
     });
     expect(state.audits.map((entry) => entry.action)).toContain('COMMUNICATION_SEND_FAILED');
-    expect(state.communicationMessages).toHaveLength(0);
+
+    // Ein gescheiterter Versand hinterlässt einen Eintrag - sonst wäre später
+    // nicht nachvollziehbar, dass überhaupt etwas versucht wurde.
+    expect(state.communicationMessages).toHaveLength(1);
+    expect(state.communicationMessages[0]?.status).toBe('FAILED');
+    expect(state.communicationMessages[0]?.discordMessageId).toBeNull();
+  });
+
+  it('bricht nach einer Frist ab, statt unbegrenzt zu warten', async () => {
+    // Discord antwortet nicht. Ohne Frist bliebe die Oberfläche hängen -
+    // genau das war der gemeldete Fehler.
+    vi.spyOn(gateway.channels, 'send').mockImplementationOnce(() => new Promise(() => undefined) as never);
+    const input = communication.sendNewsSchema.parse(baseInput());
+
+    await expect(communication.sendNews(input, ACTOR, { gateway, timeoutMs: 50 })).rejects.toMatchObject({
+      code: 'DISCORD_UNAVAILABLE',
+    });
+
+    expect(state.communicationMessages[0]?.status).toBe('FAILED');
+    expect(state.communicationMessages[0]?.failureCode).toBe('TIMEOUT');
+  });
+
+  it('sendet nach einem Timeout nicht versehentlich ein zweites Mal', async () => {
+    // Nach einem Timeout ist unklar, ob Discord die Nachricht doch bekommen
+    // hat. Ein erneuter Versuch mit demselben Schlüssel darf deshalb nicht
+    // noch einmal senden.
+    const key = crypto.randomUUID();
+    const send = vi
+      .spyOn(gateway.channels, 'send')
+      .mockImplementationOnce(() => new Promise(() => undefined) as never);
+
+    await expect(
+      communication.sendNews(communication.sendNewsSchema.parse(baseInput({ idempotencyKey: key })), ACTOR, {
+        gateway,
+        timeoutMs: 50,
+      }),
+    ).rejects.toMatchObject({ code: 'DISCORD_UNAVAILABLE' });
+
+    send.mockClear();
+    await expect(
+      communication.sendNews(communication.sendNewsSchema.parse(baseInput({ idempotencyKey: key })), ACTOR, {
+        gateway,
+      }),
+    ).rejects.toBeDefined();
+    expect(send).not.toHaveBeenCalled();
   });
 });
 
@@ -301,7 +417,12 @@ describe('Verlauf', () => {
   it('listet gesendete Nachrichten', async () => {
     await communication.sendNews(communication.sendNewsSchema.parse(baseInput()), ACTOR, { gateway });
 
-    const history = await communication.listCommunicationHistory({ type: 'ALL', page: 1, pageSize: 25 });
+    const history = await communication.listCommunicationHistory({
+      type: 'ALL',
+      status: 'ALL',
+      page: 1,
+      pageSize: 25,
+    });
     expect(history.total).toBe(1);
     expect(history.entries[0]?.title).toBe('Server Update');
     expect(history.entries[0]?.discordUrl).toContain('discord.com/channels/');
@@ -317,7 +438,12 @@ describe('Verlauf', () => {
     expect(state.communicationMessages).toHaveLength(1);
     expect(state.audits.map((entry) => entry.action)).toContain('COMMUNICATION_MESSAGE_DELETED');
 
-    const history = await communication.listCommunicationHistory({ type: 'ALL', page: 1, pageSize: 25 });
+    const history = await communication.listCommunicationHistory({
+      type: 'ALL',
+      status: 'ALL',
+      page: 1,
+      pageSize: 25,
+    });
     expect(history.entries[0]?.deletedAt).not.toBeNull();
     expect(history.entries[0]?.discordUrl).toBeNull();
   });

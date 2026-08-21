@@ -102,6 +102,18 @@ function buildMember(id: string, username: string, displayName: string, roleIds:
   };
 }
 
+/** Der Mock-Bot darf alles, was die Module brauchen. */
+const MOCK_BOT_PERMISSIONS =
+  DISCORD_PERMISSIONS.VIEW_CHANNEL |
+  DISCORD_PERMISSIONS.SEND_MESSAGES |
+  DISCORD_PERMISSIONS.EMBED_LINKS |
+  DISCORD_PERMISSIONS.ADD_REACTIONS |
+  DISCORD_PERMISSIONS.READ_MESSAGE_HISTORY |
+  DISCORD_PERMISSIONS.MANAGE_ROLES |
+  DISCORD_PERMISSIONS.MANAGE_CHANNELS |
+  DISCORD_PERMISSIONS.CONNECT |
+  DISCORD_PERMISSIONS.MOVE_MEMBERS;
+
 export function createMockGateway(): DiscordGateway {
   const state = new Map(MOCK_MEMBERS.map((member) => [member.discordId, { ...member }]));
   const sentMessages = new Map<string, { channelId: string }>();
@@ -166,7 +178,15 @@ export function createMockGateway(): DiscordGateway {
     channels: {
       async list() {
         return [
-          { id: '700000000000000010', name: 'Moderation', type: 4, parentId: null, position: 0, nsfw: false },
+          {
+            id: '700000000000000010',
+            name: 'Moderation',
+            type: 4,
+            parentId: null,
+            position: 0,
+            nsfw: false,
+            overwrites: [],
+          },
           {
             id: '700000000000000001',
             name: 'moderation-log',
@@ -174,6 +194,7 @@ export function createMockGateway(): DiscordGateway {
             parentId: '700000000000000010',
             position: 1,
             nsfw: false,
+            overwrites: [],
           },
           {
             id: '700000000000000002',
@@ -182,9 +203,26 @@ export function createMockGateway(): DiscordGateway {
             parentId: '700000000000000010',
             position: 2,
             nsfw: false,
+            overwrites: [],
           },
-          { id: '700000000000000003', name: 'allgemein', type: 0, parentId: null, position: 3, nsfw: false },
-          { id: '700000000000000004', name: 'Lounge', type: 2, parentId: null, position: 4, nsfw: false },
+          {
+            id: '700000000000000003',
+            name: 'allgemein',
+            type: 0,
+            parentId: null,
+            position: 3,
+            nsfw: false,
+            overwrites: [],
+          },
+          {
+            id: '700000000000000004',
+            name: 'Lounge',
+            type: 2,
+            parentId: null,
+            position: 4,
+            nsfw: false,
+            overwrites: [],
+          },
         ];
       },
       async send(channelId, payload) {
@@ -204,19 +242,15 @@ export function createMockGateway(): DiscordGateway {
       async react(channelId, messageId, emoji) {
         log.info('Mock: Reaktion hinzugefügt', { channelId, messageId, emoji });
       },
+      async botPermissionsForAll() {
+        const result = new Map<string, bigint>();
+        for (const channel of await this.list()) {
+          result.set(channel.id, MOCK_BOT_PERMISSIONS);
+        }
+        return result;
+      },
       async botPermissions() {
-        // Der Mock-Bot darf alles, was die Module brauchen.
-        return (
-          DISCORD_PERMISSIONS.VIEW_CHANNEL |
-          DISCORD_PERMISSIONS.SEND_MESSAGES |
-          DISCORD_PERMISSIONS.EMBED_LINKS |
-          DISCORD_PERMISSIONS.ADD_REACTIONS |
-          DISCORD_PERMISSIONS.READ_MESSAGE_HISTORY |
-          DISCORD_PERMISSIONS.MANAGE_ROLES |
-          DISCORD_PERMISSIONS.MANAGE_CHANNELS |
-          DISCORD_PERMISSIONS.CONNECT |
-          DISCORD_PERMISSIONS.MOVE_MEMBERS
-        );
+        return MOCK_BOT_PERMISSIONS;
       },
     },
     voice: {
@@ -229,6 +263,7 @@ export function createMockGateway(): DiscordGateway {
           parentId: input.parentId,
           position: voiceCounter,
           nsfw: false,
+          overwrites: [],
         };
         voiceChannels.set(channel.id, channel);
         log.info('Mock: Sprachkanal erstellt', { name: input.name, id: channel.id });

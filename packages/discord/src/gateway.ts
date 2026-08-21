@@ -48,6 +48,18 @@ export interface DiscordGateway {
      * anbieten, in denen der Bot wirklich schreiben darf.
      */
     botPermissions(channelId: string): Promise<bigint>;
+    /**
+     * Berechtigungen des Bots in **allen** Channels auf einmal.
+     *
+     * Discord liefert die Rechte-Ausnahmen beim Abruf der Kanalliste mit; die
+     * Rechnung passiert danach lokal. Der Aufwand wächst dadurch nicht mehr
+     * mit der Zahl der Channels - `botPermissions` je Channel aufzurufen liess
+     * Seiten mit vielen Channels minutenlang laden.
+     *
+     * Ist Discord nicht erreichbar, ist die Antwort leer statt fehlerhaft:
+     * die aufrufende Seite soll sich trotzdem öffnen lassen.
+     */
+    botPermissionsForAll(): Promise<Map<string, bigint>>;
   };
   /**
    * Sprachkanäle, die diese Anwendung selbst anlegt und verwaltet.

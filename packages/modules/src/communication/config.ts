@@ -17,13 +17,62 @@ export const COMMUNICATION_PERMISSIONS = {
   manage: 'communication.manage',
   /** Erlaubt @everyone/@here und Rollen-Pings. Bewusst getrennt vom Senden. */
   mention: 'communication.mention',
+  /**
+   * @everyone und @here im Besonderen.
+   *
+   * Getrennt von `mention`: eine Rolle anzupingen betrifft eine Gruppe, den
+   * ganzen Server anzupingen betrifft alle - das soll nicht dieselbe
+   * Berechtigung sein.
+   */
+  mentionEveryone: 'communication.mentionEveryone',
+  /** Entwürfe anlegen und bearbeiten. */
+  draft: 'communication.draft',
+  /** Einstellungen des Moduls ändern. */
+  settingsManage: 'communication.settings.manage',
 } as const;
+
+/**
+ * Eine Adresse, die im Browser geladen werden darf.
+ *
+ * Nur `https`. `javascript:`, `data:` und `file:` sind ausgeschlossen - sonst
+ * liesse sich über ein Banner Code einschleusen oder eine lokale Datei
+ * einbinden.
+ */
+const bannerUrlSchema = z
+  .string()
+  .trim()
+  .max(1000)
+  .default('')
+  .refine(
+    (value) => value === '' || /^https:\/\/[^\s]+$/iu.test(value),
+    'Bitte eine vollständige https-Adresse angeben.',
+  );
 
 export const communicationSettingsSchema = z.object({
   /** Vorausgewählter Channel im Formular. */
   defaultChannelId: optionalSnowflakeSchema,
+  /** Je Nachrichtenart ein eigener Vorschlag - leer heisst "Standard-Channel". */
+  defaultNewsChannelId: optionalSnowflakeSchema,
+  defaultEventChannelId: optionalSnowflakeSchema,
+  defaultPollChannelId: optionalSnowflakeSchema,
+  /**
+   * Channel für die Anmeldung per Ticket.
+   *
+   * Ersetzt die im alten Bot fest eingetragene Channel-ID. Wer beim Event
+   * "Anmeldung via Ticket" wählt, verweist auf diesen Channel.
+   */
+  ticketChannelId: optionalSnowflakeSchema,
   /** Fusszeile der Embeds. */
   footerText: z.string().max(120).default('SwissHub • Zäme hock, zäme zocke'),
+  /**
+   * Standardbanner je Nachrichtenart.
+   *
+   * Ersetzt den im alten Bot fest eingetragenen Imgur-Link. Ohne Eintrag
+   * erscheint das Embed ohne Bild.
+   */
+  defaultNewsBannerUrl: bannerUrlSchema,
+  defaultEventBannerUrl: bannerUrlSchema,
+  defaultPollBannerUrl: bannerUrlSchema,
   /** Reaktionen für Umfragen automatisch setzen. */
   autoPollReactions: z.boolean().default(true),
   /** @everyone/@here überhaupt zulassen (zusätzlich zur Berechtigung). */
@@ -40,6 +89,64 @@ export const communicationSettingsFields: SettingsField[] = [
     description: 'Im Formular vorausgewählt. Lässt sich pro Nachricht überschreiben.',
     group: 'Discord',
     channelKinds: ['text'],
+  },
+  {
+    key: 'defaultNewsChannelId',
+    type: 'discord-channel',
+    label: 'Channel für Neuigkeiten',
+    description: 'Leer lassen, um den Standard-Channel zu verwenden.',
+    group: 'Discord',
+    channelKinds: ['text'],
+  },
+  {
+    key: 'defaultEventChannelId',
+    type: 'discord-channel',
+    label: 'Channel für Events',
+    description: 'Leer lassen, um den Standard-Channel zu verwenden.',
+    group: 'Discord',
+    channelKinds: ['text'],
+  },
+  {
+    key: 'defaultPollChannelId',
+    type: 'discord-channel',
+    label: 'Channel für Umfragen',
+    description: 'Leer lassen, um den Standard-Channel zu verwenden.',
+    group: 'Discord',
+    channelKinds: ['text'],
+  },
+  {
+    key: 'ticketChannelId',
+    type: 'discord-channel',
+    label: 'Ticket-Channel',
+    description:
+      'Wird verwendet, wenn bei einem Event "Anmeldung via Ticket" gewählt ist. Ersetzt die früher fest im Bot eingetragene Channel-ID.',
+    group: 'Discord',
+    channelKinds: ['text'],
+  },
+  {
+    key: 'defaultEventBannerUrl',
+    type: 'text',
+    label: 'Standard-Banner für Events',
+    description:
+      'https-Adresse. Wird verwendet, wenn beim Event kein eigenes Banner angegeben ist. Leer lassen für kein Banner.',
+    group: 'Darstellung',
+    maxLength: 1000,
+  },
+  {
+    key: 'defaultNewsBannerUrl',
+    type: 'text',
+    label: 'Standard-Banner für Neuigkeiten',
+    description: 'https-Adresse. Leer lassen für kein Banner.',
+    group: 'Darstellung',
+    maxLength: 1000,
+  },
+  {
+    key: 'defaultPollBannerUrl',
+    type: 'text',
+    label: 'Standard-Banner für Umfragen',
+    description: 'https-Adresse. Leer lassen für kein Banner.',
+    group: 'Darstellung',
+    maxLength: 1000,
   },
   {
     key: 'footerText',
@@ -207,6 +314,27 @@ export const communicationModule: ModuleDefinition = registerModule({
       key: COMMUNICATION_PERMISSIONS.mention,
       label: 'Erwähnungen senden',
       description: '@everyone, @here und Rollen anpingen.',
+      module: COMMUNICATION_MODULE_ID,
+      critical: true,
+    },
+    {
+      key: COMMUNICATION_PERMISSIONS.mentionEveryone,
+      label: '@everyone und @here anpingen',
+      description:
+        'Den ganzen Server benachrichtigen. Bewusst getrennt von "Erwähnungen senden" - eine Rolle betrifft eine Gruppe, @everyone betrifft alle.',
+      module: COMMUNICATION_MODULE_ID,
+      critical: true,
+    },
+    {
+      key: COMMUNICATION_PERMISSIONS.draft,
+      label: 'Entwürfe bearbeiten',
+      description: 'Nachrichten vorbereiten, ohne sie zu senden.',
+      module: COMMUNICATION_MODULE_ID,
+    },
+    {
+      key: COMMUNICATION_PERMISSIONS.settingsManage,
+      label: 'Einstellungen ändern',
+      description: 'Standard-Channels, Ticket-Channel, Banner und Fusszeile ändern.',
       module: COMMUNICATION_MODULE_ID,
       critical: true,
     },

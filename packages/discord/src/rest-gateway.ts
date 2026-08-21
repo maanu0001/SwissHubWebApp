@@ -1,7 +1,9 @@
+import { createLogger } from '@swisshub/logger';
 import { resolveGuildId } from './guild-context';
 import { snowflakeToDate } from '@swisshub/shared';
 import { discordRequest } from './rest';
 import { DiscordApiError } from './errors';
+import { computeChannelPermissions } from './channel-permissions';
 import { DISCORD_PERMISSIONS, combinePermissions, toPermissionBits } from './permissions';
 import {
   botGuildSchema,
@@ -22,6 +24,8 @@ import {
   type RawDiscordMember,
 } from './types';
 import type { DiscordGateway, DiscordMessagePayload, SentMessage } from './gateway';
+
+const log = createLogger('discord:gateway');
 
 /** Discord-Payload aus unserer Abstraktion - Mentions sind per Default aus. */
 function toMessageBody(payload: DiscordMessagePayload): Record<string, unknown> {
@@ -194,6 +198,7 @@ export function createRestGateway(): DiscordGateway {
             parentId: channel.parent_id ?? null,
             position: channel.position ?? 0,
             nsfw: channel.nsfw ?? false,
+            overwrites: channel.permission_overwrites ?? [],
           }))
           .sort((a, b) => a.position - b.position);
       });
@@ -288,6 +293,46 @@ export function createRestGateway(): DiscordGateway {
 
       return total;
     },
+
+    async botPermissionsForAll(): Promise<Map<string, bigint>> {
+      const result = new Map<string, bigint>();
+      try {
+        const [identity, botMember, allRoles, guildId, allChannels] = await Promise.all([
+          bot.identity(),
+          bot.member(),
+          roles.list(),
+          resolveGuildId(),
+          channels.list(),
+        ]);
+        if (!botMember) {
+          return result;
+        }
+
+        const base = combinePermissions(
+          allRoles
+            .filter((role) => role.id === guildId || botMember.roleIds.includes(role.id))
+            .map((role) => role.permissions),
+        );
+
+        for (const channel of allChannels) {
+          result.set(
+            channel.id,
+            computeChannelPermissions({
+              basePermissions: base,
+              overwrites: channel.overwrites,
+              botRoleIds: botMember.roleIds,
+              guildId,
+              botUserId: identity.id,
+            }),
+          );
+        }
+      } catch (error) {
+        // Bewusst leer statt Fehler: die aufrufende Seite zeigt die Channels
+        // dann ohne Angaben zu den Berechtigungen an, statt gar nicht zu laden.
+        log.warn('Channel-Berechtigungen konnten nicht ermittelt werden', { error });
+      }
+      return result;
+    },
   };
 
   /**
@@ -325,6 +370,7 @@ export function createRestGateway(): DiscordGateway {
         parentId: parsed.parent_id ?? null,
         position: parsed.position ?? 0,
         nsfw: parsed.nsfw ?? false,
+        overwrites: parsed.permission_overwrites ?? [],
       };
     },
 
@@ -363,6 +409,7 @@ export function createRestGateway(): DiscordGateway {
           parentId: parsed.parent_id ?? null,
           position: parsed.position ?? 0,
           nsfw: parsed.nsfw ?? false,
+          overwrites: parsed.permission_overwrites ?? [],
         };
       } catch (error) {
         if (error instanceof DiscordApiError && error.status === 404) {

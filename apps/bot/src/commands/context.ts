@@ -25,6 +25,14 @@ export interface CommandActor {
   moderationLevel: number;
   /** Prüft eine Berechtigung gegen die Rollen des Aufrufers. */
   can(permission: string): boolean;
+  /**
+   * Die tatsächlich zugeteilten Berechtigungen.
+   *
+   * Manche Services entscheiden anhand der Liste selbst weiter - etwa das
+   * Kommunikationsmodul, das eine Erwähnung stillschweigend entfernt, statt
+   * den ganzen Versand abzulehnen.
+   */
+  permissionKeys: string[];
 }
 
 function memberRoleIds(interaction: Interaction): string[] {
@@ -52,6 +60,7 @@ export async function buildCommandActor(interaction: Interaction): Promise<Comma
     isOwner,
     moderationLevel: moderationLevelOf(roleIds, configuration.moderationLevels),
     can: (permission) => hasPermission(resolution, permission),
+    permissionKeys: [...resolution.granted],
   };
 }
 

@@ -71,8 +71,14 @@ export function validateBannerUrl(value: string): string | null {
   return null;
 }
 
-/** Wen die Nachricht anpingen darf. */
-export const mentionSchema = z.enum(['none', 'everyone', 'here', 'role']).default('none');
+/**
+ * Wen die Nachricht anpingen darf.
+ *
+ * Bewusst eine feste Auswahl statt eines Textfeldes: der alte Bot nahm hier
+ * beliebigen Text entgegen und schrieb ihn unverändert in die Nachricht -
+ * damit liess sich jede Rolle anpingen, unabhängig von der Berechtigung.
+ */
+export const mentionSchema = z.enum(['none', 'everyone', 'here', 'role', 'user']).default('none');
 
 const baseFields = {
   channelId: snowflakeSchema,
@@ -80,42 +86,122 @@ const baseFields = {
   content: contentSchema,
   bannerUrl: bannerUrlSchema,
   mention: mentionSchema,
+  /** Rollen- oder Benutzer-ID, je nach `mention`. */
+  mentionTarget: snowflakeSchema.optional(),
+  /** Alte Bezeichnung - bleibt, damit gespeicherte Formulare weiter passen. */
   mentionRoleId: snowflakeSchema.optional(),
   /** Verhindert doppeltes Senden bei Doppelklick oder Retry. */
   idempotencyKey: z.string().uuid('Ungültiger Idempotency Key'),
+  /** Verbindet Browser-Anfrage, Server Action, Discord-Aufruf und Audit-Eintrag. */
+  correlationId: z.string().max(64).optional(),
 };
 
-export const sendNewsSchema = z.object(baseFields).superRefine((value, ctx) => {
-  if (value.mention === 'role' && !value.mentionRoleId) {
+/** Ein Ziel muss da sein, wenn eine Rolle oder Person erwähnt werden soll. */
+function requireMentionTarget(
+  value: { mention: string; mentionTarget?: string; mentionRoleId?: string },
+  ctx: z.RefinementCtx,
+): void {
+  const target = value.mentionTarget ?? value.mentionRoleId;
+  if (value.mention === 'role' && !target) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
-      path: ['mentionRoleId'],
+      path: ['mentionTarget'],
       message: 'Bitte eine Rolle wählen.',
     });
   }
-});
+  if (value.mention === 'user' && !target) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['mentionTarget'],
+      message: 'Bitte eine Person wählen.',
+    });
+  }
+}
+
+/** Wie man sich zu einem Event anmeldet. */
+export const registrationTypeSchema = z.enum(['NONE', 'TEXT', 'TICKET', 'CHANNEL', 'URL']).default('NONE');
+
+/** Freitext, Channel-ID oder Adresse - je nach Anmeldungsart. */
+const registrationValueSchema = z
+  .string()
+  .trim()
+  .max(200)
+  .optional()
+  .transform((value) => (value && value.length > 0 ? sanitizeText(value, 200) : undefined));
+
+export const LOCATION_MAX = 200;
+
+const locationSchema = z
+  .string()
+  .trim()
+  .min(1, 'Bitte einen Treffpunkt angeben.')
+  .max(LOCATION_MAX)
+  .transform((value) => sanitizeText(value, LOCATION_MAX));
+
+export const sendNewsSchema = z.object(baseFields).superRefine(requireMentionTarget);
 
 export const sendEventSchema = z
   .object({
     ...baseFields,
-    /** ISO-Zeitpunkt in UTC. Die Oberfläche rechnet aus Europe/Zurich um. */
+    /** Treffpunkt - beim Vorgänger ein Pflichtfeld, hier ebenso. */
+    location: locationSchema,
+    /**
+     * ISO-Zeitpunkt in UTC. Die Oberfläche rechnet aus Europe/Zurich um.
+     *
+     * Der Slash Command darf stattdessen `startsAtText` liefern: das
+     * Discord-Modal kennt keinen Datumsauswähler, und freien Text lässt sich
+     * nicht zuverlässig deuten.
+     */
     startsAt: z
       .string()
       .datetime({ message: 'Bitte ein gültiges Datum und eine Uhrzeit wählen.' })
-      .transform((value) => new Date(value)),
+      .transform((value) => new Date(value))
+      .optional(),
+    startsAtText: z
+      .string()
+      .trim()
+      .max(120)
+      .optional()
+      .transform((value) => (value && value.length > 0 ? sanitizeText(value, 120) : undefined)),
     responsibleDiscordId: snowflakeSchema.optional(),
+    registrationType: registrationTypeSchema,
+    registrationValue: registrationValueSchema,
   })
   .superRefine((value, ctx) => {
-    if (value.mention === 'role' && !value.mentionRoleId) {
+    requireMentionTarget(value, ctx);
+
+    if (!value.startsAt && !value.startsAtText) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        path: ['mentionRoleId'],
-        message: 'Bitte eine Rolle wählen.',
+        path: ['startsAt'],
+        message: 'Bitte ein Datum und eine Uhrzeit wählen.',
       });
+    }
+    if (value.registrationType === 'TEXT' && !value.registrationValue) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['registrationValue'],
+        message: 'Bitte angeben, wie man sich anmeldet.',
+      });
+    }
+    if (value.registrationType === 'CHANNEL' && !value.registrationValue) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['registrationValue'],
+        message: 'Bitte einen Channel wählen.',
+      });
+    }
+    if (value.registrationType === 'URL') {
+      const issue = value.registrationValue
+        ? validateBannerUrl(value.registrationValue)
+        : 'Bitte eine Adresse angeben.';
+      if (issue) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['registrationValue'], message: issue });
+      }
     }
   });
 
-export const sendPollSchema = z.object(baseFields);
+export const sendPollSchema = z.object(baseFields).superRefine(requireMentionTarget);
 
 export type SendNewsInput = z.infer<typeof sendNewsSchema>;
 export type SendEventInput = z.infer<typeof sendEventSchema>;
@@ -123,8 +209,43 @@ export type SendPollInput = z.infer<typeof sendPollSchema>;
 
 export const communicationHistoryQuerySchema = z.object({
   type: z.enum(['ALL', 'NEWS', 'EVENT', 'POLL']).default('ALL'),
+  status: z.enum(['ALL', 'SENT', 'FAILED', 'DELETED']).default('ALL'),
+  channelId: z.string().optional(),
+  sentBy: z.string().optional(),
+  /** Freitextsuche über Titel und Inhalt. */
+  search: z.string().trim().max(120).optional(),
+  from: z.string().optional(),
+  to: z.string().optional(),
   page: z.coerce.number().int().min(1).max(1000).default(1),
   pageSize: z.coerce.number().int().min(5).max(100).default(25),
 });
+
+/** Ein Entwurf - dieselben Felder, aber nichts davon ist Pflicht ausser Titel und Text. */
+export const draftSchema = z.object({
+  id: z.string().cuid().optional(),
+  type: z.enum(['NEWS', 'EVENT', 'POLL']),
+  title: titleSchema,
+  content: contentSchema,
+  bannerUrl: bannerUrlSchema,
+  channelId: snowflakeSchema.optional(),
+  mention: mentionSchema,
+  mentionTarget: snowflakeSchema.optional(),
+  location: z
+    .string()
+    .trim()
+    .max(LOCATION_MAX)
+    .optional()
+    .transform((value) => (value && value.length > 0 ? sanitizeText(value, LOCATION_MAX) : undefined)),
+  startsAt: z
+    .string()
+    .datetime()
+    .transform((value) => new Date(value))
+    .optional(),
+  responsibleDiscordId: snowflakeSchema.optional(),
+  registrationType: registrationTypeSchema,
+  registrationValue: registrationValueSchema,
+});
+
+export type DraftInput = z.infer<typeof draftSchema>;
 
 export type CommunicationHistoryQuery = z.infer<typeof communicationHistoryQuerySchema>;

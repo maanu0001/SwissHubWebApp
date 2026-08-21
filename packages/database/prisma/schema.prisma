@@ -144,6 +144,43 @@ enum CommunicationType {
   POLL
 }
 
+/// Wo eine Kommunikation entstanden ist.
+enum CommunicationSource {
+  WEBAPP
+  /// Slash Command `/post` - der Nachfolger des alten Kommunikationsbots.
+  SLASH_COMMAND
+}
+
+enum CommunicationStatus {
+  /// Vorbereitet, noch nicht gesendet.
+  DRAFT
+  SENT
+  /// Discord hat den Versand abgelehnt oder nicht geantwortet.
+  FAILED
+  /// Auf Discord geloescht - der Eintrag bleibt fuer die Nachvollziehbarkeit.
+  DELETED
+}
+
+/// Wie man sich zu einem Event anmeldet (frueher das Freitextfeld "Ahmaeldig via").
+enum CommunicationRegistrationType {
+  NONE
+  TEXT
+  /// Der in den Einstellungen hinterlegte Ticket-Channel.
+  TICKET
+  /// Ein frei gewaehlter Discord-Channel.
+  CHANNEL
+  URL
+}
+
+/// Wen eine Nachricht erwaehnt.
+enum CommunicationMentionType {
+  NONE
+  EVERYONE
+  HERE
+  ROLE
+  USER
+}
+
 enum JailReleaseType {
   AUTOMATIC
   MANUAL
@@ -612,8 +649,10 @@ model VoteJailVote {
 
 /// Über die WebApp im Namen des Bots gesendete Discord-Nachrichten.
 model CommunicationMessage {
-  id                 String            @id @default(cuid())
+  id                 String              @id @default(cuid())
   type               CommunicationType
+  status             CommunicationStatus @default(SENT)
+  source             CommunicationSource @default(WEBAPP)
   title              String
   content            String
   bannerUrl          String?
@@ -623,18 +662,76 @@ model CommunicationMessage {
   sentByDiscordId    String
   sentByUsername     String
   sentByAvatarHash   String?
-  sentAt             DateTime          @default(now())
+  sentAt             DateTime            @default(now())
   /// Auf Discord gelöscht - der Verlaufseintrag bleibt für die Nachvollziehbarkeit.
   deletedAt          DateTime?
   deletedByDiscordId String?
-  /// Typspezifische Zusatzdaten (Event-Datum, Verantwortlicher, Mentions, ...).
-  metadata           Json              @default("{}")
+  editedAt           DateTime?
+  editedByDiscordId  String?
+
+  /// Fehlerklasse eines gescheiterten Versands - ohne Zugangsdaten.
+  failureCode    String?
+  failureMessage String?
+
+  mentionType   CommunicationMentionType @default(NONE)
+  /// Rollen- oder Benutzer-ID der Erwaehnung.
+  mentionTarget String?
+
+  /// --- Nur bei EVENT ---
+  eventLocation      String?
+  /// Zeitpunkt des Events. Der Slash Command laesst auch freien Text zu,
+  /// dann bleibt dieses Feld leer und `eventDateText` traegt die Angabe.
+  eventStartsAt      DateTime?
+  eventDateText      String?
+  eventResponsibleId String?
+  registrationType   CommunicationRegistrationType @default(NONE)
+  /// Freitext, Channel-ID oder Adresse - je nach `registrationType`.
+  registrationValue  String?
+
+  /// Typspezifische Zusatzdaten, die kein eigenes Feld brauchen.
+  metadata       Json    @default("{}")
   /// Verhindert doppeltes Senden bei Doppelklick oder Retry.
-  idempotencyKey     String?           @unique
+  idempotencyKey String? @unique
+  /// Verbindet Browser-Anfrage, Server Action, Discord-Aufruf und Audit-Eintrag.
+  correlationId  String?
 
   @@index([sentAt])
   @@index([type, sentAt])
+  @@index([status, sentAt])
   @@index([discordChannelId])
+  @@index([sentByDiscordId])
+}
+
+/// Ein vorbereiteter Beitrag, der noch nicht gesendet wurde.
+///
+/// Bewusst getrennt von `CommunicationMessage`: ein Entwurf hat weder Channel-
+/// noch Discord-Nachricht und wird beliebig oft ueberschrieben, waehrend ein
+/// gesendeter Eintrag unveraenderlich protokolliert, was tatsaechlich rausging.
+model CommunicationDraft {
+  id      String            @id @default(cuid())
+  type    CommunicationType
+  title   String
+  content String
+
+  bannerUrl        String?
+  discordChannelId String?
+
+  mentionType   CommunicationMentionType @default(NONE)
+  mentionTarget String?
+
+  eventLocation      String?
+  eventStartsAt      DateTime?
+  eventResponsibleId String?
+  registrationType   CommunicationRegistrationType @default(NONE)
+  registrationValue  String?
+
+  createdByDiscordId String
+  createdByUsername  String
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@index([createdByDiscordId, updatedAt])
+  @@index([updatedAt])
 }
 
 /// Modulunabhängige Moderationshistorie (Basis für Statistiken).

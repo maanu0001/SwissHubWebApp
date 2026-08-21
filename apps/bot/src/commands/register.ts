@@ -7,6 +7,13 @@ import {
   handleSpielersucheCommand,
 } from './spielersuche-commands';
 import { LEVEL_COMMAND_DEFINITIONS, LEVEL_COMMAND_NAMES, handleLevelCommand } from './level-commands';
+import {
+  COMMUNICATION_COMMAND_DEFINITIONS,
+  COMMUNICATION_COMMAND_NAMES,
+  handleCommunicationCommand,
+  handleCommunicationModal,
+  isCommunicationModal,
+} from './communication-commands';
 
 const log = createLogger('bot:commands:register');
 
@@ -15,6 +22,7 @@ const ALL_COMMANDS = [
   ...JAIL_COMMAND_DEFINITIONS,
   ...SPIELERSUCHE_COMMAND_DEFINITIONS,
   ...LEVEL_COMMAND_DEFINITIONS,
+  ...COMMUNICATION_COMMAND_DEFINITIONS,
 ];
 
 const SPIELERSUCHE_COMMANDS = new Set(
@@ -63,6 +71,13 @@ export async function registerCommands(client: Client, guildId: string): Promise
  */
 export function registerCommandHandler(client: Client): void {
   client.on(Events.InteractionCreate, (interaction) => {
+    // Das Modal von `/post` kommt als eigene Interaktion zurück.
+    if (interaction.isModalSubmit()) {
+      if (isCommunicationModal(interaction.customId)) {
+        void handleCommunicationModal(interaction);
+      }
+      return;
+    }
     if (interaction.isAutocomplete()) {
       if (SPIELERSUCHE_COMMANDS.has(interaction.commandName)) {
         void handleSpielersucheAutocomplete(interaction);
@@ -78,6 +93,10 @@ export function registerCommandHandler(client: Client): void {
     }
     if (LEVEL_COMMAND_NAMES.has(interaction.commandName)) {
       void handleLevelCommand(interaction);
+      return;
+    }
+    if (COMMUNICATION_COMMAND_NAMES.has(interaction.commandName)) {
+      void handleCommunicationCommand(interaction);
       return;
     }
     void handleJailCommand(interaction);

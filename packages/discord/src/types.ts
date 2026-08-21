@@ -1,3 +1,4 @@
+import type { ChannelOverwriteEntry } from './channel-permissions';
 import { z } from 'zod';
 
 /**
@@ -44,6 +45,19 @@ export const discordChannelSchema = z.object({
   parent_id: z.string().nullish(),
   position: z.number().nullish(),
   nsfw: z.boolean().nullish(),
+  // Discord liefert die Rechte-Ausnahmen beim Abruf der Kanalliste mit.
+  // Sie zu verwerfen zwang jede Berechtigungsprüfung zu einer eigenen
+  // Anfrage je Kanal.
+  permission_overwrites: z
+    .array(
+      z.object({
+        id: z.string(),
+        type: z.number(),
+        allow: z.string(),
+        deny: z.string(),
+      }),
+    )
+    .nullish(),
 });
 
 /** Guild aus Sicht des Bots (`GET /users/@me/guilds`). */
@@ -104,6 +118,14 @@ export interface GuildChannel {
   parentId: string | null;
   position: number;
   nsfw: boolean;
+  /**
+   * Rechte-Ausnahmen des Channels.
+   *
+   * Discord liefert sie beim Abruf der Kanalliste ohnehin mit. Sie hier
+   * mitzuführen erspart eine eigene Anfrage je Kanal, sobald irgendwo die
+   * Berechtigungen für viele Kanäle auf einmal gebraucht werden.
+   */
+  overwrites: ChannelOverwriteEntry[];
 }
 
 export interface BotGuild {

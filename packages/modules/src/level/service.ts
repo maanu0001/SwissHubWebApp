@@ -171,11 +171,31 @@ async function settleDecay(
  * nicht-negative Werte und genau eine Level-Berechnung.
  */
 export async function applyXp(input: ApplyXpInput, options: XpEngineOptions = {}): Promise<ApplyXpResult> {
+  return prisma.$transaction((tx) => applyXpWithin(tx, input, options));
+}
+
+/**
+ * Derselbe Vorgang innerhalb einer bereits laufenden Transaktion.
+ *
+ * Gedacht für Abläufe, bei denen die Buchung mit einem anderen Schreibvorgang
+ * zusammen stehen oder fallen muss - etwa eine Verlosungsteilnahme, bei der
+ * Abbuchung und Teilnahme unteilbar sein müssen. Ein verschachteltes
+ * `prisma.$transaction` wäre dafür kein Ersatz: es liefe auf einer zweiten
+ * Verbindung und könnte sich mit der äusseren Zeilensperre verklemmen.
+ *
+ * Die Regeln sind dieselben wie bei `applyXp` - es gibt bewusst nur eine
+ * Stelle, an der XP entstehen und verschwinden.
+ */
+export async function applyXpWithin(
+  tx: Prisma.TransactionClient,
+  input: ApplyXpInput,
+  options: XpEngineOptions = {},
+): Promise<ApplyXpResult> {
   const maxLevelTotalXp = options.maxLevelTotalXp ?? DEFAULT_MAX_LEVEL_TOTAL_XP;
   const decayRules = options.decayRules ?? DEFAULT_DECAY_RULES;
   const now = options.now ?? new Date();
 
-  return prisma.$transaction(async (tx) => {
+  {
     if (input.idempotencyKey) {
       const existing = await tx.xpTransaction.findUnique({
         where: { idempotencyKey: input.idempotencyKey },
@@ -280,7 +300,7 @@ export async function applyXp(input: ApplyXpInput, options: XpEngineOptions = {}
       levelUp: levelAfter > levelBefore,
       decayEnded: wasInDecay,
     } satisfies ApplyXpResult;
-  });
+  }
 }
 
 /**

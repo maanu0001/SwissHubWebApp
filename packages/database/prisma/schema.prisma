@@ -983,6 +983,12 @@ enum XpSource {
   BOOST
   MIGRATION
   SYSTEM
+  /// Einsatz fuer eine XP-Verlosung.
+  RAFFLE_ENTRY
+  /// Rueckzahlung eines Verlosungs-Einsatzes.
+  RAFFLE_REFUND
+  /// XP-Gewinn aus einer Verlosung.
+  RAFFLE_PRIZE
 }
 
 enum XpGameKind {
@@ -1213,4 +1219,247 @@ model LevelImportItem {
 
   @@unique([importId, legacyKey])
   @@index([importId, kind, action])
+}
+
+// ---------------------------------------------------------------------------
+// XP-Verlosungen ("XP-Gluecksrad")
+//
+// Gehoert fachlich zum Level-System: eingesetzt werden dieselben XP, gebucht
+// wird ueber dieselbe Engine, das Journal ist dasselbe `XpTransaction`. Es
+// gibt bewusst keine zweite Waehrung und keine getrennte Brieftasche.
+// ---------------------------------------------------------------------------
+
+enum XpRaffleStatus {
+  /// Entwurf. Alle Einstellungen sind noch frei aenderbar.
+  DRAFT
+  /// Veroeffentlicht, Teilnahme beginnt zum hinterlegten Zeitpunkt.
+  SCHEDULED
+  ENTRY_OPEN
+  ENTRY_CLOSED
+  /// Ziehung laeuft. Ab hier kommt niemand mehr dazu.
+  DRAWING
+  /// Gewinner steht fest, wartet auf Bestaetigung durch die Verwaltung.
+  WINNER_PENDING
+  COMPLETED
+  CANCELLED
+}
+
+enum XpRaffleEntryModel {
+  /// Alle zahlen denselben Betrag und haben dieselbe Chance.
+  FIXED
+  /// Anteil der eigenen XP; die Chance folgt dem Einsatz.
+  PERCENTAGE
+}
+
+enum XpRaffleEntryStatus {
+  ACTIVE
+  /// Einsatz zurueckgezahlt (Abbruch oder Entfernung durch die Verwaltung).
+  REFUNDED
+  /// Von der Ziehung ausgeschlossen, Einsatz zurueckgezahlt.
+  DISQUALIFIED
+  WINNER
+}
+
+enum XpRafflePrizeKind {
+  /// Sachpreis ausserhalb des Systems - nur Beschreibung und Verwaltung.
+  EXTERNAL_PRIZE
+  /// XP-Gutschrift an die gewinnende Person.
+  XP_PRIZE
+  /// Discord-Rolle, die der Bot nach Bestaetigung vergibt.
+  ROLE_PRIZE
+  /// Reine Ankuendigung ohne hinterlegten Preis.
+  TEXT_ONLY
+}
+
+enum XpRaffleRefundReason {
+  RAFFLE_CANCELLED
+  ENTRY_REMOVED
+  MINIMUM_NOT_REACHED
+}
+
+/// Eine Verlosung.
+model XpRaffle {
+  id          String  @id @default(cuid())
+  title       String
+  description String?
+  /// Hochgeladenes Banner (Dateiname im Upload-Verzeichnis).
+  bannerPath  String?
+  /// Banner als Adresse - Alternative zum Hochladen.
+  bannerUrl   String?
+
+  prizeKind        XpRafflePrizeKind @default(EXTERNAL_PRIZE)
+  prizeDescription String
+  /// Nur bei `XP_PRIZE`: Gutschrift an die gewinnende Person.
+  prizeXp          Int?
+  /// Nur bei `ROLE_PRIZE`.
+  prizeRoleId      String?
+
+  status     XpRaffleStatus     @default(DRAFT)
+  entryModel XpRaffleEntryModel
+
+  /// Nur bei `FIXED`.
+  fixedEntryXp          Int?
+  /// Nur bei `PERCENTAGE`: Anteil in Basispunkten (500 = 5,00 %).
+  /// Ganzzahlig, damit der Einsatz nicht von Gleitkomma-Rundung abhaengt.
+  percentageBasisPoints Int?
+  minimumEntryXp        Int?
+  maximumEntryXp        Int?
+
+  /// Ohne diese Zahl wird nicht gezogen.
+  minimumParticipants Int  @default(2)
+  maximumParticipants Int?
+
+  entryStartsAt   DateTime?
+  entryEndsAt     DateTime?
+  drawScheduledAt DateTime?
+  /// Ziehung zum geplanten Zeitpunkt selbst starten.
+  autoDraw        Boolean   @default(false)
+
+  /// Teilnehmerliste fuer angemeldete Mitglieder sichtbar machen.
+  participantsPublic Boolean @default(true)
+  /// Gewinner nach Bestaetigung selbst auf Discord veroeffentlichen.
+  autoAnnounceWinner Boolean @default(true)
+
+  discordChannelId      String?
+  discordMessageId      String?
+  /// Gesetzt, wenn die Ankuendigung auf Discord nicht mehr auffindbar ist.
+  discordMessageMissing Boolean @default(false)
+  winnerMessageId       String?
+
+  /// Zaehler fuer die Anzeige. Die Wahrheit sind die Zeilen in `entries`;
+  /// diese Felder ersparen der Uebersicht nur das Nachzaehlen.
+  entryCount Int @default(0)
+  potXp      Int @default(0)
+
+  createdByDiscordId String
+  publishedAt        DateTime?
+  entryOpenedAt      DateTime?
+  entryClosedAt      DateTime?
+  drawStartedAt      DateTime?
+  completedAt        DateTime?
+  cancelledAt        DateTime?
+  cancelReason       String?
+  /// Verhindert, dass ein wiederholter Abbruch zweimal auszahlt.
+  refundedAt         DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  entries XpRaffleEntry[]
+  draws   XpRaffleDraw[]
+  refunds XpRaffleRefund[]
+
+  /// Der gueltige Draw, nachdem er bestaetigt wurde.
+  confirmedDrawId String?       @unique
+  confirmedDraw   XpRaffleDraw? @relation("ConfirmedDraw", fields: [confirmedDrawId], references: [id])
+
+  @@index([status, entryEndsAt])
+  @@index([status, drawScheduledAt])
+  @@index([createdAt])
+}
+
+/// Die Teilnahme einer Person. Wird nach der Abbuchung nie geloescht.
+model XpRaffleEntry {
+  id        String   @id @default(cuid())
+  raffleId  String
+  raffle    XpRaffle @relation(fields: [raffleId], references: [id], onDelete: Cascade)
+  discordId String
+
+  /// Namensstand zum Zeitpunkt der Teilnahme - fuer die Nachvollziehbarkeit.
+  username    String?
+  displayName String?
+
+  /// XP-Stand unmittelbar vor der Abbuchung.
+  xpBeforeEntry Int
+  /// Tatsaechlich bezahlter Einsatz. Nach der Teilnahme unveraenderlich -
+  /// spaetere XP-Gewinne oder -Verluste beruehren ihn nicht.
+  entryXp       Int
+  /// Gewicht in der Ziehung: bei `FIXED` immer 1, bei `PERCENTAGE` der Einsatz.
+  weight        Int
+
+  status        XpRaffleEntryStatus @default(ACTIVE)
+  /// Pflichtgrund, wenn die Verwaltung eine Teilnahme entfernt.
+  removalReason String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  refunds  XpRaffleRefund[]
+  wonDraws XpRaffleDraw[]   @relation("DrawWinner")
+
+  /// Eine Teilnahme pro Person und Verlosung - auf Datenbankebene, nicht nur
+  /// im Anwendungscode. Zwei gleichzeitige Anfragen koennen damit nicht
+  /// beide durchkommen.
+  @@unique([raffleId, discordId])
+  @@index([raffleId, status])
+  @@index([discordId, createdAt])
+}
+
+/// Eine Ziehung. Jeder Versuch - auch eine Neuziehung - ist eine eigene Zeile.
+model XpRaffleDraw {
+  id       String   @id @default(cuid())
+  raffleId String
+  raffle   XpRaffle @relation(fields: [raffleId], references: [id], onDelete: Cascade)
+
+  /// Fortlaufend ab 1. Eine Neuziehung erhoeht die Nummer.
+  version Int
+
+  /// Unveraenderlicher Auszug der gueltigen Teilnahmen zum Zeitpunkt der
+  /// Ziehung: `[{ entryId, discordId, weight }]`. Ohne ihn liesse sich
+  /// spaeter nicht mehr pruefen, worauf die Ziehung beruhte.
+  snapshot Json
+
+  participantCount Int
+  totalWeight      Int
+
+  winnerEntryId   String
+  winnerEntry     XpRaffleEntry @relation("DrawWinner", fields: [winnerEntryId], references: [id])
+  winnerDiscordId String
+
+  /// Der gezogene Punkt auf der Gewichtsachse - zusammen mit dem Auszug laesst
+  /// sich die Ziehung damit nachrechnen.
+  drawnTicket      Int
+  /// Zufallswert der Ziehung, hexadezimal. Dient der Nachvollziehbarkeit.
+  entropy          String
+  /// Damit eine spaetere Aenderung am Verfahren alte Ziehungen nicht
+  /// unerklaerbar macht.
+  algorithmVersion Int    @default(1)
+  /// Steuert die Animation im Browser. Hat keinen Einfluss auf den Gewinner.
+  animationSeed    String
+
+  /// Nur gesetzt, wenn diese Ziehung eine fruehere ersetzt.
+  redrawReason     String?
+  /// Teilnahmen, die in dieser Ziehung nicht mehr antreten durften.
+  excludedEntryIds String[]
+
+  startedByDiscordId   String
+  confirmedByDiscordId String?
+  confirmedAt          DateTime?
+  createdAt            DateTime  @default(now())
+
+  confirmedFor XpRaffle? @relation("ConfirmedDraw")
+
+  @@unique([raffleId, version])
+  @@index([raffleId, createdAt])
+}
+
+/// Eine Rueckzahlung. Getrennt gefuehrt, damit ein wiederholter Abbruch nicht
+/// zweimal auszahlt und jede Zahlung einzeln nachvollziehbar bleibt.
+model XpRaffleRefund {
+  id       String        @id @default(cuid())
+  raffleId String
+  raffle   XpRaffle      @relation(fields: [raffleId], references: [id], onDelete: Cascade)
+  entryId  String
+  entry    XpRaffleEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+
+  discordId      String
+  amount         Int
+  reason         XpRaffleRefundReason
+  note           String?
+  actorDiscordId String?
+  createdAt      DateTime             @default(now())
+
+  /// Eine Teilnahme wird hoechstens einmal zurueckgezahlt.
+  @@unique([entryId])
+  @@index([raffleId])
 }

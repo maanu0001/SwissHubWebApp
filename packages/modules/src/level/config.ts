@@ -36,6 +36,25 @@ export const LEVEL_PERMISSIONS = {
   settingsView: 'level.settings.view',
   settingsManage: 'level.settings.manage',
   import: 'level.import',
+  /**
+   * XP-Verlosungen ("XP-Glücksrad").
+   *
+   * `view` und `participate` sind für gewöhnliche Mitglieder gedacht; alles
+   * Weitere gehört zur Verwaltung. `redraw` steht bewusst getrennt: eine
+   * Neuziehung greift in ein bereits verkündetes Ergebnis ein und soll nicht
+   * automatisch jeder Person offenstehen, die eine Verlosung anlegen darf.
+   */
+  raffleView: 'level.raffle.view',
+  raffleParticipate: 'level.raffle.participate',
+  raffleManage: 'level.raffle.manage',
+  raffleCreate: 'level.raffle.create',
+  raffleEdit: 'level.raffle.edit',
+  raffleOpen: 'level.raffle.open',
+  raffleClose: 'level.raffle.close',
+  raffleDraw: 'level.raffle.draw',
+  raffleRedraw: 'level.raffle.redraw',
+  raffleCancel: 'level.raffle.cancel',
+  raffleHistory: 'level.raffle.history',
 } as const;
 
 /** Farbe der Level-Embeds. */
@@ -782,6 +801,74 @@ registerModule({
       description: 'Einstellungen des Level-Systems ändern.',
       module: LEVEL_MODULE_ID,
       critical: true,
+    },
+    {
+      key: LEVEL_PERMISSIONS.raffleView,
+      label: 'XP-Glücksrad ansehen',
+      description: 'Laufende und vergangene XP-Verlosungen sehen.',
+      module: LEVEL_MODULE_ID,
+    },
+    {
+      key: LEVEL_PERMISSIONS.raffleParticipate,
+      label: 'An Verlosungen teilnehmen',
+      description: 'Eigene XP als Einsatz für eine Verlosung verwenden.',
+      module: LEVEL_MODULE_ID,
+    },
+    {
+      key: LEVEL_PERMISSIONS.raffleManage,
+      label: 'Verlosungen verwalten',
+      description: 'Teilnehmerverwaltung, Gewinner bestätigen und Ankündigungen erneut veröffentlichen.',
+      module: LEVEL_MODULE_ID,
+    },
+    {
+      key: LEVEL_PERMISSIONS.raffleCreate,
+      label: 'Verlosungen anlegen',
+      description: 'Neue Verlosungen erstellen und veröffentlichen.',
+      module: LEVEL_MODULE_ID,
+    },
+    {
+      key: LEVEL_PERMISSIONS.raffleEdit,
+      label: 'Verlosungen bearbeiten',
+      description: 'Angaben einer Verlosung ändern.',
+      module: LEVEL_MODULE_ID,
+    },
+    {
+      key: LEVEL_PERMISSIONS.raffleOpen,
+      label: 'Teilnahme öffnen',
+      description: 'Die Teilnahmephase einer Verlosung starten.',
+      module: LEVEL_MODULE_ID,
+    },
+    {
+      key: LEVEL_PERMISSIONS.raffleClose,
+      label: 'Teilnahme schliessen',
+      description: 'Die Teilnahmephase vorzeitig beenden.',
+      module: LEVEL_MODULE_ID,
+    },
+    {
+      key: LEVEL_PERMISSIONS.raffleDraw,
+      label: 'Auslosung starten',
+      description: 'Die Ziehung auslösen. Den Gewinner bestimmt der Server.',
+      module: LEVEL_MODULE_ID,
+    },
+    {
+      key: LEVEL_PERMISSIONS.raffleRedraw,
+      label: 'Neu ziehen',
+      description: 'Eine bereits erfolgte Ziehung mit Pflichtgrund wiederholen. Bewusst getrennt vergeben.',
+      module: LEVEL_MODULE_ID,
+      critical: true,
+    },
+    {
+      key: LEVEL_PERMISSIONS.raffleCancel,
+      label: 'Verlosung abbrechen',
+      description: 'Eine Verlosung abbrechen und alle Einsätze zurückzahlen.',
+      module: LEVEL_MODULE_ID,
+      critical: true,
+    },
+    {
+      key: LEVEL_PERMISSIONS.raffleHistory,
+      label: 'Verlosungs-Historie',
+      description: 'Ziehungen, Neuziehungen und Rückzahlungen vergangener Verlosungen einsehen.',
+      module: LEVEL_MODULE_ID,
     },
     {
       key: LEVEL_PERMISSIONS.import,

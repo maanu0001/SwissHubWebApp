@@ -23,6 +23,9 @@ export function levelSections(context: AuthContext): LevelSection[] {
   if (can(context, permissions.gamesView)) {
     sections.push({ href: '/level/spiele', label: 'XP-Spiele', icon: 'games' });
   }
+  if (can(context, permissions.raffleView)) {
+    sections.push({ href: '/level/gluecksrad', label: 'XP-Glücksrad', icon: 'raffle' });
+  }
   if (can(context, permissions.rolesView)) {
     sections.push({ href: '/level/rollen', label: 'Level & Rollen', icon: 'roles' });
   }

@@ -357,6 +357,125 @@ describe('Senden', () => {
     expect(state.communicationMessages).toHaveLength(1);
   });
 
+  it('nimmt ohne Auswahl die sendende Person als verantwortlich', async () => {
+    // Genau das Verhalten des Vorgängers: `person` war optional, und ohne
+    // Angabe stand der Aufrufer im Embed.
+    const send = vi.spyOn(gateway.channels, 'send');
+    const input = communication.sendEventSchema.parse(
+      baseInput({ startsAt: '2026-09-01T18:00:00.000Z', location: 'Discord Lounge' }),
+    );
+    await communication.sendEvent(input, ACTOR, { gateway });
+
+    const fields = send.mock.calls[0]?.[1].embeds?.[0]?.fields ?? [];
+    const responsible = fields.find((field) => field.name === 'Verantwortlichi Person');
+    expect(responsible?.value).toBe(`<@${ACTOR.discordId}>`);
+  });
+
+  it('behält eine ausgewählte verantwortliche Person', async () => {
+    const send = vi.spyOn(gateway.channels, 'send');
+    const input = communication.sendEventSchema.parse(
+      baseInput({
+        startsAt: '2026-09-01T18:00:00.000Z',
+        location: 'Discord Lounge',
+        responsibleDiscordId: '100000000000000002',
+      }),
+    );
+    await communication.sendEvent(input, ACTOR, { gateway });
+
+    const fields = send.mock.calls[0]?.[1].embeds?.[0]?.fields ?? [];
+    expect(fields.find((field) => field.name === 'Verantwortlichi Person')?.value).toBe(
+      '<@100000000000000002>',
+    );
+  });
+
+  it('setzt beim Ticket-Modus den konfigurierten Channel ein', async () => {
+    // Der alte Bot hatte hier eine fest eingetragene Channel-ID im Quelltext.
+    state.moduleSettings.communication = {
+      ...(state.moduleSettings.communication as object),
+      ticketChannelId: '700000000000000002',
+    };
+    const send = vi.spyOn(gateway.channels, 'send');
+    const input = communication.sendEventSchema.parse(
+      baseInput({
+        startsAt: '2026-09-01T18:00:00.000Z',
+        location: 'Discord Lounge',
+        registrationType: 'TICKET',
+      }),
+    );
+    await communication.sendEvent(input, ACTOR, { gateway });
+
+    const fields = send.mock.calls[0]?.[1].embeds?.[0]?.fields ?? [];
+    expect(fields.find((field) => field.name === 'Ahmäldig via')?.value).toBe('<#700000000000000002>');
+  });
+
+  it('meldet einen fehlenden Ticket-Channel, statt ins Leere zu verweisen', async () => {
+    const send = vi.spyOn(gateway.channels, 'send');
+    const input = communication.sendEventSchema.parse(
+      baseInput({
+        startsAt: '2026-09-01T18:00:00.000Z',
+        location: 'Discord Lounge',
+        registrationType: 'TICKET',
+      }),
+    );
+    const result = await communication.sendEvent(input, ACTOR, { gateway });
+
+    expect(result.warnings.some((warning) => warning.includes('Ticket-Channel'))).toBe(true);
+    const fields = send.mock.calls[0]?.[1].embeds?.[0]?.fields ?? [];
+    expect(fields.find((field) => field.name === 'Ahmäldig via')?.value).toBe('Kei Ahgab');
+  });
+
+  it('verwendet ohne eigenes Banner das hinterlegte Standardbanner', async () => {
+    // Ersetzt den fest eingetragenen Imgur-Link des Vorgängers.
+    state.moduleSettings.communication = {
+      ...(state.moduleSettings.communication as object),
+      defaultEventBannerUrl: 'https://swisshub.gg/event.png',
+    };
+    const send = vi.spyOn(gateway.channels, 'send');
+    const input = communication.sendEventSchema.parse(
+      baseInput({ startsAt: '2026-09-01T18:00:00.000Z', location: 'Discord' }),
+    );
+    await communication.sendEvent(input, ACTOR, { gateway });
+
+    expect(send.mock.calls[0]?.[1].embeds?.[0]?.image?.url).toBe('https://swisshub.gg/event.png');
+  });
+
+  it('sendet ohne Banner und ohne Standardbanner ein Embed ohne Bild', async () => {
+    const send = vi.spyOn(gateway.channels, 'send');
+    const input = communication.sendEventSchema.parse(
+      baseInput({ startsAt: '2026-09-01T18:00:00.000Z', location: 'Discord' }),
+    );
+    await communication.sendEvent(input, ACTOR, { gateway });
+
+    expect(send.mock.calls[0]?.[1].embeds?.[0]?.image).toBeUndefined();
+  });
+
+  it('hält Treffpunkt und Anmeldung im Verlauf fest', async () => {
+    const input = communication.sendEventSchema.parse(
+      baseInput({
+        startsAt: '2026-09-01T18:00:00.000Z',
+        location: 'Game Lounge',
+        registrationType: 'TEXT',
+        registrationValue: 'Meldung im Chat',
+      }),
+    );
+    await communication.sendEvent(input, ACTOR, { gateway });
+
+    const record = state.communicationMessages[0];
+    expect(record?.eventLocation).toBe('Game Lounge');
+    expect(record?.registrationType).toBe('TEXT');
+    expect(record?.registrationValue).toBe('Meldung im Chat');
+    expect(record?.source).toBe('WEBAPP');
+  });
+
+  it('vermerkt die Quelle eines Slash-Command-Versands', async () => {
+    const input = communication.sendEventSchema.parse(
+      baseInput({ startsAt: '2026-09-01T18:00:00.000Z', location: 'Discord' }),
+    );
+    await communication.sendEvent(input, ACTOR, { gateway, source: 'SLASH_COMMAND' });
+
+    expect(state.communicationMessages[0]?.source).toBe('SLASH_COMMAND');
+  });
+
   it('hält einen Fehlschlag im Verlauf fest und gibt den Schlüssel frei', async () => {
     vi.spyOn(gateway.channels, 'send').mockRejectedValueOnce(new Error('Missing Access'));
     const input = communication.sendNewsSchema.parse(baseInput());

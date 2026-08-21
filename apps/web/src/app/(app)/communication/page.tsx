@@ -9,7 +9,8 @@ import { ErrorState } from '@/components/shared/states';
 import { ComposeForm } from '@/modules/communication/components/compose-form';
 import { CommunicationSectionNav } from '@/modules/communication/components/section-nav';
 import { csrfTokenFor, requirePagePermission } from '@/server/auth';
-import { communicationSections } from '@/server/communication';
+import { CommunicationHealth } from '@/modules/communication/components/health-panel';
+import { communicationHealth, communicationSections } from '@/server/communication';
 import { loadDiscordOptions } from '@/server/configuration';
 
 export const metadata: Metadata = { title: 'Kommunikation' };
@@ -21,6 +22,26 @@ export const dynamic = 'force-dynamic';
  * Die drei Nachrichtenarten teilen sich Formular und Vorschau; unterschiedlich
  * sind nur die Zusatzfelder und die nötige Berechtigung.
  */
+/** Rollenfarbe von Discord (0 = keine) als CSS-Wert. */
+const roleColor = (value: number): string | null =>
+  value === 0 ? null : `#${value.toString(16).padStart(6, '0')}`;
+
+/** Der gespeicherte Erwähnungstyp als Formularwert. */
+const mentionValue = (type: string): string => {
+  switch (type) {
+    case 'EVERYONE':
+      return 'everyone';
+    case 'HERE':
+      return 'here';
+    case 'ROLE':
+      return 'role';
+    case 'USER':
+      return 'user';
+    default:
+      return 'none';
+  }
+};
+
 export default async function CommunicationPage({
   searchParams,
 }: {
@@ -30,12 +51,16 @@ export default async function CommunicationPage({
   const csrfToken = csrfTokenFor(context);
   const params = await searchParams;
 
-  const [enabled, settings, channels, options, template] = await Promise.all([
+  // Nichts davon darf das Öffnen der Seite verhindern. Ist Discord nicht
+  // erreichbar, erscheint die Seite trotzdem - nur ohne die Angaben, die von
+  // Discord kommen.
+  const [enabled, settings, channels, options, template, health] = await Promise.all([
     isModuleEnabled(communication.COMMUNICATION_MODULE_ID),
     getModuleSettings<communication.CommunicationSettings>(communication.COMMUNICATION_MODULE_ID),
     communication.listSendableChannels('POLL').catch(() => []),
     loadDiscordOptions(),
     params.vorlage ? communication.getCommunicationMessage(params.vorlage) : Promise.resolve(null),
+    communicationHealth().catch(() => ({ checks: [], discordReachable: false })),
   ]);
 
   const sections = <CommunicationSectionNav sections={communicationSections(context)} />;
@@ -57,6 +82,27 @@ export default async function CommunicationPage({
   const canPoll = can(context, communication.COMMUNICATION_PERMISSIONS.poll);
   const canMention = can(context, communication.COMMUNICATION_PERMISSIONS.mention);
 
+  /**
+   * Eine frühere Nachricht als Vorlage.
+   *
+   * Übernommen wird alles, was sich wiederverwenden lässt - gesendet wird
+   * dabei nichts. Das Datum bleibt bewusst leer: ein vergangener Termin wäre
+   * beim erneuten Verwenden fast immer falsch.
+   */
+  function toTemplate(entry: NonNullable<typeof template>) {
+    return {
+      title: entry.title,
+      content: entry.content,
+      bannerUrl: entry.bannerUrl,
+      mention: mentionValue(entry.mentionType),
+      mentionTarget: entry.mentionTarget ?? undefined,
+      location: entry.eventLocation ?? undefined,
+      registrationType: entry.registrationType,
+      registrationValue: entry.registrationValue ?? undefined,
+      responsibleDiscordId: entry.eventResponsibleId ?? undefined,
+    };
+  }
+
   const shared = {
     csrfToken,
     channels: channels.map((entry) => ({
@@ -65,14 +111,23 @@ export default async function CommunicationPage({
       parentName: entry.parentName,
       missing: entry.missing as string[],
     })),
-    roles: options.roles.map((role) => ({ id: role.id, name: role.name })),
+    roles: options.roles.map((role) => ({
+      id: role.id,
+      name: role.name,
+      color: roleColor(role.color),
+    })),
     defaultChannelId: settings.defaultChannelId ?? null,
     footerText: settings.footerText,
     canMention,
-    allowEveryone: settings.allowEveryoneMention,
-    template: template
-      ? { title: template.title, content: template.content, bannerUrl: template.bannerUrl }
+    // @everyone erfordert beides: die eigene Berechtigung und die Einstellung.
+    allowEveryone:
+      settings.allowEveryoneMention &&
+      can(context, communication.COMMUNICATION_PERMISSIONS.mentionEveryone),
+    currentUserName: context.user.displayName ?? context.user.username,
+    ticketChannel: settings.ticketChannelId
+      ? (channels.find((entry) => entry.id === settings.ticketChannelId) ?? null)
       : null,
+    template: template ? toTemplate(template) : null,
   };
 
   if (!canNews && !canEvent && !canPoll) {
@@ -103,6 +158,8 @@ export default async function CommunicationPage({
           </span>
         </p>
       ) : null}
+
+      <CommunicationHealth checks={health.checks} discordReachable={health.discordReachable} />
 
       <Card>
         <CardHeader>

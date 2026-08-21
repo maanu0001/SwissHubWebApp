@@ -390,12 +390,25 @@ Einzelheiten zu Einsatzmodellen, Fairness und Ziehung:
 
 Unter **Module → Kommunikation**:
 
-| Einstellung                  | Standard                           | Bedeutung                                           |
-| ---------------------------- | ---------------------------------- | --------------------------------------------------- |
-| Standard-Channel             | –                                  | Vorauswahl im Formular                              |
-| Fusszeile                    | `SwissHub • Zäme hock, zäme zocke` | Fusszeile jedes Embeds                              |
-| Umfragen mit 👍/👎           | an                                 | Reaktionen automatisch setzen                       |
-| @everyone und @here zulassen | aus                                | Zusätzlich zur Berechtigung `communication.mention` |
+| Einstellung                             | Standard                           | Bedeutung                                              |
+| --------------------------------------- | ---------------------------------- | ------------------------------------------------------ |
+| Standard-Channel                        | –                                  | Vorauswahl im Formular                                 |
+| Channel für Neuigkeiten/Events/Umfragen | –                                  | Vorauswahl je Nachrichtenart                           |
+| **Ticket-Channel**                      | –                                  | Ziel bei "Anmeldung via Ticket"                        |
+| **Standard-Banner** je Nachrichtenart   | –                                  | wird verwendet, wenn kein eigenes Banner angegeben ist |
+| Fusszeile                               | `SwissHub • Zäme hock, zäme zocke` | Fusszeile jedes Embeds                                 |
+| Umfragen mit 👍/👎                      | an                                 | Reaktionen automatisch setzen                          |
+| @everyone und @here zulassen            | aus                                | zusätzlich zur Berechtigung                            |
+
+Der Ticket-Channel und die Standard-Banner lösen zwei fest im alten
+Kommunikationsbot eingetragene Werte ab: eine Channel-ID und einen
+Imgur-Link. Beide gehören nicht in den Quelltext, sondern hierher.
+
+Änderungen wirken sofort – auch für den Slash Command `/post`, ohne Neustart
+des Bots.
+
+Einzelheiten zu Nachrichtenarten, Erwähnungen und Fehlerbehandlung:
+[COMMUNICATION.md](COMMUNICATION.md).
 
 ### Branding
 

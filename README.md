@@ -20,7 +20,8 @@ Login mit Discord  ->  Guild-Check  ->  Permission Engine  ->  Moderation Policy
   Dazu `/spielersuche`, `/spielersuche-hilf`, `/spielersuche-stats` und `/spielersucheadmin`.
 - **Spielersuche:** Mitspieler finden - `/spielersuche` und Dashboard nutzen dieselbe Engine,
   inklusive automatischem Sprachkanal, Rollen-Ping mit Sperrfrist und Statistik.
-- **Kommunikation:** Neuigkeiten, Events und Umfragen als Discord-Embeds mit Live-Vorschau.
+- **Kommunikation:** Neuigkeiten, Events und Umfragen als Discord-Embeds mit Live-Vorschau –
+  auch über den Slash Command `/post`.
 - **Level-System:** XP für Nachrichten und Zeit im Voice, Level-Rollen, Inaktivitäts-Abzug und
   XP-Spiele. Jede Änderung steht als Zeile im XP-Journal - der Punktestand ist die Summe daraus.
   Dazu `/level`, `/leaderboard`, `/level_stats`, `/global_stats`, `/check_user`,
@@ -317,6 +318,7 @@ docs/
   SPIELERSUCHE_MIGRATION.md Übernahme des Spielersuche-Bots (matchmaking.db)
   LEVEL_MIGRATION.md       Übernahme des Level-/XP-Bots (levels.db)
   XP_RAFFLE.md             XP-Verlosungen: Einsatzmodelle, Fairness, Ziehung
+  COMMUNICATION.md         Neuigkeiten, Events, Umfragen, /post, Erwähnungen
 
 tests/                     Unit- und Integrationstests (Vitest)
 ```
@@ -437,3 +439,4 @@ Discord-Server; mit `enabled: false` verschwindet sie ganz.
 - [docs/MODULES.md](docs/MODULES.md) - Schritt-für-Schritt: neues Modul entwickeln
 - [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) - Produktivbetrieb auf einem eigenen Server
 - [docs/XP_RAFFLE.md](docs/XP_RAFFLE.md) - XP-Verlosungen: Einsatzmodelle, Fairness, Ziehung, Rückzahlungen
+- [docs/COMMUNICATION.md](docs/COMMUNICATION.md) - Kommunikation: Events, `/post`, Erwähnungen, Fehlerbehandlung

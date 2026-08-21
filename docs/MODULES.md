@@ -634,6 +634,39 @@ Komponente gelten, die Server und Client teilen:
 
 Beides führt sonst zu einem Hydration-Fehler, der nur in der Konsole steht.
 
+## 10f. Beispiel: Kommunikation - was eine Seite beim Öffnen kosten darf
+
+Das Kommunikationsmodul liess sich zeitweise nicht öffnen. Der Eintrag in der
+Seitenleiste reagierte scheinbar nicht auf Klicks.
+
+Die Ursache lag nicht in der Navigation, sondern in der Seite: Sie holte vor
+dem Rendern für **jeden** Textkanal einzeln die Berechtigungen des Bots bei
+Discord. Auf einem Server mit sechzig Kanälen sind das sechzig Anfragen, bevor
+überhaupt etwas erscheint - unter Discords Ratenbegrenzung zehn Sekunden bis
+Minuten. Für die bedienende Person sah das aus wie ein toter Link.
+
+Die Lehre ist allgemein: **Was eine Seite beim Öffnen tut, gehört begrenzt.**
+
+- Kein Aufwand, der mit der Zahl der Discord-Objekte wächst. Discord liefert
+  die Rechte-Ausnahmen beim Abruf der Kanalliste ohnehin mit; sie lokal
+  auszurechnen macht aus sechzig Anfragen eine.
+- Was von Discord kommt, mit `.catch(() => …)` absichern. Ein nicht
+  erreichbarer Discord-Server darf eine Seite höchstens unvollständig machen,
+  nicht unerreichbar.
+- Filter aus der Adresszeile nachsichtig lesen. Ein unsinniger Wert soll zum
+  Standardwert führen, nicht zu einem Fehler.
+
+Dazu gehört eine `error.tsx` **innerhalb** des Layouts. Die Fehlergrenze an
+der Wurzel ersetzt sonst die gesamte Seite samt Seitenleiste - aus einem
+Fehler in einem Modul wird dann eine Anwendung, aus der man nur noch über die
+Adresszeile herausfindet.
+
+Und auf der Client-Seite dieselbe Sorgfalt: Der Aufruf einer Server Action
+gehört in `try`/`catch`/`finally`. Ohne `finally` bleibt der Ladezustand
+stehen, sobald die Anfrage gar nicht erst durchkommt - Netzabbruch,
+Serverfehler, abgelaufene Sitzung. Der Ablauf liegt deshalb in
+`modules/communication/submit.ts` und ist als solcher geprüft.
+
 ## 11. Konventionen
 
 1. **Keine Discord-Aufrufe ausserhalb der Service-Schicht.** UI und Route Handler rufen Services auf.

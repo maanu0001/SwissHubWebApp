@@ -11,6 +11,7 @@ import { EmptyState } from '@/components/shared/states';
 import { Pagination } from '@/components/shared/pagination';
 import { DeleteMessageButton } from '@/modules/communication/components/history-actions';
 import { CommunicationSectionNav } from '@/modules/communication/components/section-nav';
+import { HistoryFilters } from '@/modules/communication/components/history-filters';
 import { csrfTokenFor, requirePagePermission } from '@/server/auth';
 import { communicationSections } from '@/server/communication';
 
@@ -33,11 +34,24 @@ export default async function CommunicationHistoryPage({
   const csrfToken = csrfTokenFor(context);
   const params = await searchParams;
 
-  const query = communication.communicationHistoryQuerySchema.parse({
-    type: params.typ ?? 'ALL',
-    page: params.seite ?? 1,
+  // Nachsichtig gelesen: ein unsinniger Wert in der Adresse führt zum
+  // Standardwert, nicht zu einem Fehler.
+  const query = communication.parseHistoryQuery({
+    type: params.typ,
+    status: params.status,
+    channelId: params.kanal,
+    search: params.suche,
+    from: params.von,
+    to: params.bis,
+    page: params.seite,
   });
-  const result = await communication.listCommunicationHistory(query);
+
+  // Der Verlauf hängt nicht an Discord: er zeigt auch dann, was gesendet
+  // wurde, wenn Discord gerade nicht erreichbar ist.
+  const [result, channels] = await Promise.all([
+    communication.listCommunicationHistory(query),
+    communication.listSendableChannels('NEWS').catch(() => []),
+  ]);
   const canManage = can(context, communication.COMMUNICATION_PERMISSIONS.manage);
 
   return (
@@ -48,11 +62,13 @@ export default async function CommunicationHistoryPage({
         <CardHeader>
           <CardTitle>Letzte Nachrichten</CardTitle>
           <CardDescription>
-            Alles, was über die WebApp im Namen des Bots gesendet wurde. Gelöschte Nachrichten bleiben zur
-            Nachvollziehbarkeit sichtbar.
+            Alles, was über die WebApp oder <code>/post</code> im Namen des Bots gesendet wurde.
+            Gelöschte und fehlgeschlagene Nachrichten bleiben zur Nachvollziehbarkeit sichtbar.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
+          <HistoryFilters channels={channels.map((entry) => ({ id: entry.id, name: entry.name }))} />
+
           {result.entries.length === 0 ? (
             <EmptyState
               title="Noch nichts gesendet"
@@ -75,12 +91,26 @@ export default async function CommunicationHistoryPage({
                     <p className="flex flex-wrap items-center gap-2">
                       <Badge variant="outline">{TYPE_LABEL[entry.type] ?? entry.type}</Badge>
                       <span className="truncate font-medium">{entry.title}</span>
-                      {entry.deletedAt ? <Badge variant="destructive">gelöscht</Badge> : null}
+                      {entry.status === 'DELETED' ? <Badge variant="destructive">gelöscht</Badge> : null}
+                      {entry.status === 'FAILED' ? (
+                        <Badge variant="destructive">nicht gesendet</Badge>
+                      ) : null}
+                      {entry.editedAt ? <Badge variant="outline">bearbeitet</Badge> : null}
+                      <Badge variant="secondary">
+                        {entry.source === 'SLASH_COMMAND' ? 'via /post' : 'via WebApp'}
+                      </Badge>
                     </p>
                     <p className="mt-0.5 text-xs text-muted-foreground">
                       {entry.channelName ? `#${entry.channelName}` : entry.channelId} · {entry.sentByUsername}{' '}
                       · {formatDateTime(entry.sentAt)}
                     </p>
+                    {entry.status === 'FAILED' && entry.failureCode ? (
+                      <p className="mt-1 text-xs text-destructive">
+                        {entry.failureCode === 'TIMEOUT'
+                          ? 'Discord hat nicht rechtzeitig geantwortet. Bitte im Channel prüfen, bevor du es erneut versuchst.'
+                          : `Discord hat den Versand abgelehnt (${entry.failureCode}).`}
+                      </p>
+                    ) : null}
                   </div>
 
                   <span className="flex shrink-0 items-center gap-2">
@@ -102,7 +132,7 @@ export default async function CommunicationHistoryPage({
                       <RotateCcw className="size-3.5" aria-hidden="true" />
                       Als Vorlage verwenden
                     </Link>
-                    {canManage && !entry.deletedAt && entry.discordUrl ? (
+                    {canManage && entry.status === 'SENT' && entry.discordUrl ? (
                       <DeleteMessageButton csrfToken={csrfToken} id={entry.id} title={entry.title} />
                     ) : null}
                   </span>
@@ -116,7 +146,17 @@ export default async function CommunicationHistoryPage({
               page={result.page}
               totalPages={Math.ceil(result.total / result.pageSize)}
               total={result.total}
-              buildHref={(page) => `/communication/history?typ=${query.type}&seite=${page}`}
+              // Die gesetzten Filter bleiben beim Blättern erhalten.
+              buildHref={(page) => {
+                const next = new URLSearchParams();
+                for (const [key, value] of Object.entries(params)) {
+                  if (value && key !== 'seite') {
+                    next.set(key, value);
+                  }
+                }
+                next.set('seite', String(page));
+                return `/communication/history?${next.toString()}`;
+              }}
             />
           ) : null}
         </CardContent>

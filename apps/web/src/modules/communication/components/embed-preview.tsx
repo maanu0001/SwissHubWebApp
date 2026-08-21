@@ -19,10 +19,14 @@ const ACCENT: Record<PreviewType, string> = {
   POLL: '#3b82f6',
 };
 
+/**
+ * Das Event-Embed trägt kein Zeichen vor dem Titel - so war es beim
+ * Vorgänger, und so soll es bleiben.
+ */
 const TITLE_PREFIX: Record<PreviewType, string> = {
-  NEWS: '📰',
-  EVENT: '🎉',
-  POLL: '📊',
+  NEWS: '📰 ',
+  EVENT: '',
+  POLL: '📊 ',
 };
 
 export interface EmbedPreviewProps {
@@ -35,6 +39,9 @@ export interface EmbedPreviewProps {
   mentionLabel?: string | null;
   startsAt?: Date | null;
   responsibleLabel?: string | null;
+  location?: string | null;
+  /** Fertig aufbereitete Anmeldeangabe, z.B. `#ticket-erstellen`. */
+  registrationLabel?: string | null;
 }
 
 export function EmbedPreview({
@@ -47,6 +54,8 @@ export function EmbedPreview({
   mentionLabel,
   startsAt,
   responsibleLabel,
+  location,
+  registrationLabel,
 }: EmbedPreviewProps): React.JSX.Element {
   return (
     <div className="space-y-2">
@@ -71,7 +80,8 @@ export function EmbedPreview({
 
             <div className="rounded border-l-4 bg-[#2b2d31] p-3" style={{ borderLeftColor: ACCENT[type] }}>
               <p className="font-semibold text-white">
-                {TITLE_PREFIX[type]} {title.trim() === '' ? 'Titel' : title}
+                {TITLE_PREFIX[type]}
+                {title.trim() === '' ? 'Titel' : title}
               </p>
               <p
                 className={cn(
@@ -90,19 +100,28 @@ export function EmbedPreview({
               ) : null}
 
               {type === 'EVENT' ? (
+                // Zwei Felder je Zeile - dasselbe Raster wie beim Vorgänger.
                 <div className="mt-3 grid gap-3 sm:grid-cols-2">
                   <div>
-                    <p className="text-xs font-semibold text-white">📅 Datum</p>
+                    <p className="text-xs font-semibold text-white">Treffpunkt</p>
+                    <p className="text-sm">{location?.trim() ? location : 'Kei Ahgab'}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold text-white">Datum/Uhrziit</p>
                     <p className="text-sm">
                       {startsAt ? formatDateTime(startsAt) : 'Noch kein Datum gewählt'}
                     </p>
                   </div>
-                  {responsibleLabel ? (
-                    <div>
-                      <p className="text-xs font-semibold text-white">👤 Verantwortlich</p>
-                      <p className="text-sm text-[#c9cdfb]">@{responsibleLabel}</p>
-                    </div>
-                  ) : null}
+                  <div>
+                    <p className="text-xs font-semibold text-white">Verantwortlichi Person</p>
+                    <p className="text-sm text-[#c9cdfb]">
+                      {responsibleLabel ? `@${responsibleLabel}` : 'Kei Ahgab'}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold text-white">Ahmäldig via</p>
+                    <p className="text-sm text-[#c9cdfb]">{registrationLabel ?? 'Kei Ahgab'}</p>
+                  </div>
                 </div>
               ) : null}
 

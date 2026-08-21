@@ -284,7 +284,7 @@ function historyFields(
     eventLocation: event?.location ?? null,
     eventStartsAt: event?.startsAt ?? null,
     eventDateText: event?.startsAtText ?? null,
-    eventResponsibleId: event?.responsibleDiscordId ?? null,
+    eventResponsibleId: event ? (event.responsibleDiscordId ?? actor.discordId) : null,
     registrationType: event?.registrationType ?? 'NONE',
     registrationValue: event?.registrationValue ?? null,
   };
@@ -409,7 +409,8 @@ async function send(
             startsAt: (input as SendEventInput).startsAt ?? null,
             startsAtText: (input as SendEventInput).startsAtText ?? null,
             location: (input as SendEventInput).location,
-            responsibleDiscordId: (input as SendEventInput).responsibleDiscordId ?? null,
+            // Wie beim Vorgänger: ohne Auswahl gilt, wer die Nachricht sendet.
+            responsibleDiscordId: (input as SendEventInput).responsibleDiscordId ?? actor.discordId,
             registration: resolveRegistration(input as SendEventInput, settings, warnings),
           });
 

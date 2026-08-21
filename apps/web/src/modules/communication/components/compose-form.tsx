@@ -1,9 +1,10 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { AlertTriangle, ExternalLink, Send } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, ExternalLink, Send } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input, Textarea } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -19,6 +20,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { MemberPicker, type PickedMember } from '@/modules/members/components/member-picker';
 import { sendEventAction, sendNewsAction, sendPollAction } from '@/modules/communication/actions';
+import { runSubmit } from '@/modules/communication/submit';
 import { EmbedPreview, type PreviewType } from './embed-preview';
 
 /**
@@ -39,9 +41,33 @@ export interface ChannelChoice {
 export interface RoleChoice {
   id: string;
   name: string;
+  /** Farbe der Rolle als CSS-Wert, damit die Auswahl aussieht wie auf Discord. */
+  color?: string | null;
 }
 
 const MENTION_NONE = 'none';
+
+export type RegistrationType = 'NONE' | 'TEXT' | 'TICKET' | 'CHANNEL' | 'URL';
+
+/** Vorbelegung aus einer bestehenden Nachricht ("Als Vorlage verwenden"). */
+export interface ComposeTemplate {
+  title: string;
+  content: string;
+  bannerUrl: string | null;
+  mention?: string;
+  mentionTarget?: string;
+  location?: string;
+  /** Bereits als Wert für `datetime-local` aufbereitet. */
+  startsAtLocal?: string;
+  registrationType?: RegistrationType;
+  registrationValue?: string;
+  responsibleDiscordId?: string;
+}
+
+/** Discord-Grenzen, gespiegelt aus dem Modul - für die Zeichenzähler. */
+const TITLE_MAX = 256;
+const CONTENT_MAX = 3000;
+const LOCATION_MAX = 200;
 
 export function ComposeForm({
   csrfToken,
@@ -52,6 +78,8 @@ export function ComposeForm({
   footerText,
   canMention,
   allowEveryone,
+  ticketChannel,
+  currentUserName,
   template,
 }: {
   csrfToken: string;
@@ -61,8 +89,13 @@ export function ComposeForm({
   defaultChannelId: string | null;
   footerText: string;
   canMention: boolean;
+  /** @everyone/@here überhaupt möglich - Berechtigung und Einstellung zusammen. */
   allowEveryone: boolean;
-  template?: { title: string; content: string; bannerUrl: string | null } | null;
+  /** Der konfigurierte Ticket-Channel, falls vorhanden. */
+  ticketChannel?: { id: string; name: string } | null;
+  /** Wer gerade angemeldet ist - ohne Auswahl die verantwortliche Person. */
+  currentUserName: string;
+  template?: ComposeTemplate | null;
 }): React.JSX.Element {
   const router = useRouter();
   const usable = channels.filter((channel) => channel.missing.length === 0);
@@ -75,25 +108,81 @@ export function ComposeForm({
   const [title, setTitle] = useState(template?.title ?? '');
   const [content, setContent] = useState(template?.content ?? '');
   const [bannerUrl, setBannerUrl] = useState(template?.bannerUrl ?? '');
-  const [mention, setMention] = useState<string>(MENTION_NONE);
-  const [mentionRoleId, setMentionRoleId] = useState<string>('');
-  const [startsAtLocal, setStartsAtLocal] = useState('');
+  const [mention, setMention] = useState<string>(template?.mention ?? MENTION_NONE);
+  const [mentionTarget, setMentionTarget] = useState<string>(template?.mentionTarget ?? '');
+  const [mentionUser, setMentionUser] = useState<PickedMember | null>(null);
+  const [startsAtLocal, setStartsAtLocal] = useState(template?.startsAtLocal ?? '');
   const [responsible, setResponsible] = useState<PickedMember | null>(null);
+  const [location, setLocation] = useState(template?.location ?? '');
+  const [registrationType, setRegistrationType] = useState<RegistrationType>(
+    template?.registrationType ?? 'NONE',
+  );
+  const [registrationValue, setRegistrationValue] = useState(template?.registrationValue ?? '');
 
   const [confirming, setConfirming] = useState(false);
   const [pending, setPending] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [idempotencyKey, setIdempotencyKey] = useState<string | null>(null);
+  /** Nach dem Senden: Erfolgsanzeige mit Verweis auf Discord. */
+  const [sent, setSent] = useState<{ discordUrl: string | null; channelName: string } | null>(null);
+
+  /**
+   * Beim Verlassen warnen, wenn etwas eingetippt wurde.
+   *
+   * Nur bei tatsächlichem Inhalt - eine Warnung auf einem leeren Formular
+   * wäre nur lästig.
+   */
+  const dirty = title.trim() !== '' || content.trim() !== '' || location.trim() !== '';
+  useEffect(() => {
+    if (!dirty || sent) {
+      return;
+    }
+    const handler = (event: BeforeUnloadEvent): void => {
+      event.preventDefault();
+      event.returnValue = '';
+    };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [dirty, sent]);
 
   const channel = channels.find((entry) => entry.id === channelId) ?? null;
+  /**
+   * Verbindet Browser-Anfrage, Server Action, Discord-Aufruf und Audit-Eintrag.
+   * Bleibt über das Leben des Formulars gleich, damit sich ein wiederholter
+   * Versuch demselben Vorgang zuordnen lässt.
+   */
+  const [correlationId] = useState(() => `web:${crypto.randomUUID().slice(0, 8)}`);
   const startsAt = useMemo(() => (startsAtLocal ? new Date(startsAtLocal) : null), [startsAtLocal]);
 
   const mentionLabel =
     mention === MENTION_NONE
       ? null
       : mention === 'role'
-        ? `@${roles.find((role) => role.id === mentionRoleId)?.name ?? 'Rolle'}`
-        : `@${mention}`;
+        ? `@${roles.find((role) => role.id === mentionTarget)?.name ?? 'Rolle'}`
+        : mention === 'user'
+          ? `@${mentionUser?.displayName ?? 'Person'}`
+          : `@${mention}`;
+
+  /**
+   * Die Anmeldeangabe, so wie sie im Embed erscheinen wird.
+   *
+   * Nur Darstellung - was tatsächlich gesendet wird, entsteht auf dem Server.
+   */
+  const registrationLabel = useMemo(() => {
+    switch (registrationType) {
+      case 'TICKET':
+        return ticketChannel ? `#${ticketChannel.name}` : null;
+      case 'CHANNEL': {
+        const target = channels.find((entry) => entry.id === registrationValue);
+        return target ? `#${target.name}` : null;
+      }
+      case 'URL':
+      case 'TEXT':
+        return registrationValue.trim() === '' ? null : registrationValue.trim();
+      default:
+        return null;
+    }
+  }, [registrationType, registrationValue, ticketChannel, channels]);
 
   function validate(): boolean {
     const next: Record<string, string> = {};
@@ -109,11 +198,28 @@ export function ComposeForm({
     if (bannerUrl.trim() !== '' && !bannerUrl.trim().startsWith('https://')) {
       next.bannerUrl = 'Nur https-Adressen sind erlaubt.';
     }
-    if (mention === 'role' && !mentionRoleId) {
-      next.mentionRoleId = 'Bitte eine Rolle wählen.';
+    if (mention === 'role' && !mentionTarget) {
+      next.mentionTarget = 'Bitte eine Rolle wählen.';
     }
-    if (type === 'EVENT' && !startsAt) {
-      next.startsAt = 'Bitte Datum und Uhrzeit wählen.';
+    if (mention === 'user' && !mentionUser) {
+      next.mentionTarget = 'Bitte eine Person wählen.';
+    }
+    if (type === 'EVENT') {
+      if (location.trim().length === 0) {
+        next.location = 'Bitte einen Treffpunkt angeben.';
+      }
+      if (!startsAt) {
+        next.startsAt = 'Bitte Datum und Uhrzeit wählen.';
+      }
+      if (registrationType === 'TEXT' && registrationValue.trim().length === 0) {
+        next.registrationValue = 'Bitte angeben, wie man sich anmeldet.';
+      }
+      if (registrationType === 'CHANNEL' && registrationValue.trim().length === 0) {
+        next.registrationValue = 'Bitte einen Channel wählen.';
+      }
+      if (registrationType === 'URL' && !registrationValue.trim().startsWith('https://')) {
+        next.registrationValue = 'Nur https-Adressen sind erlaubt.';
+      }
     }
     setErrors(next);
     return Object.keys(next).length === 0;
@@ -140,49 +246,110 @@ export function ComposeForm({
       content: content.trim(),
       bannerUrl: bannerUrl.trim() === '' ? undefined : bannerUrl.trim(),
       mention: mention === MENTION_NONE ? 'none' : mention,
-      mentionRoleId: mention === 'role' ? mentionRoleId : undefined,
+      mentionTarget:
+        mention === 'role' ? mentionTarget : mention === 'user' ? (mentionUser?.discordId ?? '') : undefined,
       idempotencyKey,
+      correlationId,
     };
 
-    const response =
-      type === 'NEWS'
-        ? await sendNewsAction(base)
-        : type === 'POLL'
-          ? await sendPollAction(base)
-          : await sendEventAction({
-              ...base,
-              // Der Server erwartet UTC; der Picker liefert lokale Zeit.
-              startsAt: startsAt ? startsAt.toISOString() : '',
-              responsibleDiscordId: responsible?.discordId,
-            });
+    const channelName = channel?.name ?? '';
 
-    setPending(false);
-    setConfirming(false);
-
-    if (response.ok) {
-      for (const warning of response.data.warnings) {
-        toast.warning(warning);
-      }
-      toast.success(
+    // Der Ablauf steckt in `runSubmit`: dort ist zugesichert, dass der
+    // Ladezustand in jedem Fall zurückgesetzt wird - auch wenn die Anfrage
+    // gar nicht durchkommt. Genau daran hing die Oberfläche zuvor fest.
+    await runSubmit(
+      () =>
         type === 'NEWS'
-          ? 'Neuigkeiten wurden gesendet.'
-          : type === 'EVENT'
-            ? 'Event wurde gesendet.'
-            : 'Umfrage wurde gesendet.',
-      );
-      setTitle('');
-      setContent('');
-      setBannerUrl('');
-      setIdempotencyKey(null);
-      router.refresh();
-    } else {
-      const fieldErrors = response.error.details?.fieldErrors;
-      if (typeof fieldErrors === 'object' && fieldErrors !== null) {
-        setErrors(fieldErrors as Record<string, string>);
-      }
-      toast.error(response.error.message);
-      setIdempotencyKey(null);
-    }
+          ? sendNewsAction(base)
+          : type === 'POLL'
+            ? sendPollAction(base)
+            : sendEventAction({
+                ...base,
+                location: location.trim(),
+                // Der Server erwartet UTC; der Picker liefert lokale Zeit.
+                startsAt: startsAt ? startsAt.toISOString() : '',
+                responsibleDiscordId: responsible?.discordId,
+                registrationType,
+                registrationValue:
+                  registrationType === 'NONE' || registrationType === 'TICKET'
+                    ? undefined
+                    : registrationValue.trim(),
+              }),
+      {
+        settle: () => {
+          setPending(false);
+          setConfirming(false);
+        },
+        onSuccess: (data) => {
+          for (const warning of data.warnings) {
+            toast.warning(warning);
+          }
+          toast.success(
+            type === 'NEWS'
+              ? `Neuigkeiten wurden in #${channelName} gesendet.`
+              : type === 'EVENT'
+                ? `Event wurde in #${channelName} gesendet.`
+                : `Umfrage wurde in #${channelName} gesendet.`,
+          );
+          setSent({ discordUrl: data.discordUrl ?? null, channelName });
+          setIdempotencyKey(null);
+          setErrors({});
+          router.refresh();
+        },
+        onError: (outcome) => {
+          if (outcome.kind === 'error' && outcome.fieldErrors) {
+            setErrors(outcome.fieldErrors);
+          }
+          toast.error(outcome.message);
+          // Der Schlüssel bleibt bestehen: ein erneuter Versuch soll dieselbe
+          // Nachricht meinen und nicht doppelt posten. Der Formularinhalt
+          // bleibt ebenfalls stehen, damit sich der Fehler beheben lässt.
+        },
+      },
+    );
+  }
+
+  /** Formular für eine neue Nachricht zurücksetzen. */
+  function resetForm(): void {
+    setSent(null);
+    setTitle('');
+    setContent('');
+    setBannerUrl('');
+    setLocation('');
+    setStartsAtLocal('');
+    setRegistrationType('NONE');
+    setRegistrationValue('');
+    setResponsible(null);
+    setErrors({});
+    setIdempotencyKey(null);
+  }
+
+  // Nach dem Senden nicht auf einer Ladeanzeige stehenbleiben, sondern klar
+  // sagen, was passiert ist, und beide sinnvollen nächsten Schritte anbieten.
+  if (sent) {
+    return (
+      <div className="rounded-xl border border-border bg-card p-6 text-center">
+        <CheckCircle2 className="mx-auto size-10 text-success" aria-hidden="true" />
+        <h3 className="mt-3 text-lg font-semibold">
+          {type === 'NEWS' ? 'Neuigkeiten' : type === 'EVENT' ? 'Event' : 'Umfrage'} wurde gesendet.
+        </h3>
+        <p className="mt-1 text-sm text-muted-foreground">Veröffentlicht in #{sent.channelName}.</p>
+        <div className="mt-5 flex flex-wrap justify-center gap-2">
+          {sent.discordUrl ? (
+            <Button asChild variant="outline">
+              <a href={sent.discordUrl} target="_blank" rel="noreferrer noopener">
+                <ExternalLink aria-hidden="true" />
+                Auf Discord öffnen
+              </a>
+            </Button>
+          ) : null}
+          <Button onClick={resetForm}>Neue Nachricht erstellen</Button>
+          <Button asChild variant="outline">
+            <Link href="/communication/history">Zum Verlauf</Link>
+          </Button>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -223,10 +390,13 @@ export function ComposeForm({
           <Input
             id="comm-title"
             value={title}
-            maxLength={256}
+            maxLength={TITLE_MAX}
             onChange={(event) => setTitle(event.target.value)}
             placeholder={type === 'EVENT' ? 'z.B. SwissHub Movie Night' : 'z.B. Server Update'}
           />
+          <p className="text-xs text-muted-foreground">
+            {title.length} / {TITLE_MAX} Zeichen
+          </p>
           {errors.title ? <p className="text-xs text-destructive">{errors.title}</p> : null}
         </div>
 
@@ -235,16 +405,33 @@ export function ComposeForm({
           <Textarea
             id="comm-content"
             value={content}
-            maxLength={3000}
+            maxLength={CONTENT_MAX}
             rows={8}
             onChange={(event) => setContent(event.target.value)}
           />
-          <p className="text-xs text-muted-foreground">{content.length}/3000 Zeichen</p>
+          <p className="text-xs text-muted-foreground">
+            {content.length} / {CONTENT_MAX} Zeichen
+          </p>
           {errors.content ? <p className="text-xs text-destructive">{errors.content}</p> : null}
         </div>
 
         {type === 'EVENT' ? (
           <>
+            <div className="space-y-1.5">
+              <Label htmlFor="comm-location">Treffpunkt</Label>
+              <Input
+                id="comm-location"
+                value={location}
+                maxLength={LOCATION_MAX}
+                onChange={(event) => setLocation(event.target.value)}
+                placeholder="z.B. Discord Lounge, Game Lounge, Bern"
+              />
+              <p className="text-xs text-muted-foreground">
+                {location.length} / {LOCATION_MAX} Zeichen
+              </p>
+              {errors.location ? <p className="text-xs text-destructive">{errors.location}</p> : null}
+            </div>
+
             <div className="space-y-1.5">
               <Label htmlFor="comm-date">Datum und Uhrzeit</Label>
               <Input
@@ -265,6 +452,70 @@ export function ComposeForm({
               onChange={setResponsible}
               label="Verantwortliche Person (optional)"
             />
+            <p className="-mt-2 text-xs text-muted-foreground">
+              Ohne Auswahl erscheinst du selbst als verantwortliche Person.
+            </p>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="comm-registration">Anmeldung via</Label>
+              <Select
+                value={registrationType}
+                onValueChange={(next) => {
+                  setRegistrationType(next as RegistrationType);
+                  setRegistrationValue('');
+                }}
+              >
+                <SelectTrigger id="comm-registration">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="NONE">Keine Angabe</SelectItem>
+                  <SelectItem value="TICKET" disabled={!ticketChannel}>
+                    Ticket-System
+                    {ticketChannel ? ` (#${ticketChannel.name})` : ' (kein Ticket-Channel konfiguriert)'}
+                  </SelectItem>
+                  <SelectItem value="CHANNEL">Discord Channel</SelectItem>
+                  <SelectItem value="URL">Adresse</SelectItem>
+                  <SelectItem value="TEXT">Freitext</SelectItem>
+                </SelectContent>
+              </Select>
+
+              {registrationType === 'TICKET' && !ticketChannel ? (
+                <p className="text-xs text-warning">
+                  Es ist kein Ticket-Channel konfiguriert.{' '}
+                  <Link href="/modules/communication" className="underline">
+                    Jetzt konfigurieren
+                  </Link>
+                </p>
+              ) : null}
+
+              {registrationType === 'CHANNEL' ? (
+                <Select value={registrationValue} onValueChange={setRegistrationValue}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Channel wählen" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {channels.map((entry) => (
+                      <SelectItem key={entry.id} value={entry.id}>
+                        #{entry.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : null}
+
+              {registrationType === 'URL' || registrationType === 'TEXT' ? (
+                <Input
+                  value={registrationValue}
+                  maxLength={200}
+                  onChange={(event) => setRegistrationValue(event.target.value)}
+                  placeholder={registrationType === 'URL' ? 'https://…' : 'z.B. Meldung im Chat'}
+                />
+              ) : null}
+              {errors.registrationValue ? (
+                <p className="text-xs text-destructive">{errors.registrationValue}</p>
+              ) : null}
+            </div>
           </>
         ) : null}
 
@@ -295,24 +546,41 @@ export function ComposeForm({
                   @here{allowEveryone ? '' : ' (in den Einstellungen deaktiviert)'}
                 </SelectItem>
                 <SelectItem value="role">Bestimmte Rolle</SelectItem>
+                <SelectItem value="user">Bestimmte Person</SelectItem>
               </SelectContent>
             </Select>
 
             {mention === 'role' ? (
-              <Select value={mentionRoleId} onValueChange={setMentionRoleId}>
+              <Select value={mentionTarget} onValueChange={setMentionTarget}>
                 <SelectTrigger>
                   <SelectValue placeholder="Rolle wählen" />
                 </SelectTrigger>
                 <SelectContent>
                   {roles.map((role) => (
                     <SelectItem key={role.id} value={role.id}>
-                      {role.name}
+                      <span className="flex items-center gap-2">
+                        <span
+                          aria-hidden="true"
+                          className="size-2.5 rounded-full"
+                          style={{ backgroundColor: role.color ?? '#99AAB5' }}
+                        />
+                        {role.name}
+                      </span>
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             ) : null}
-            {errors.mentionRoleId ? <p className="text-xs text-destructive">{errors.mentionRoleId}</p> : null}
+
+            {mention === 'user' ? (
+              <MemberPicker
+                csrfToken={csrfToken}
+                value={mentionUser}
+                onChange={setMentionUser}
+                label="Person wählen"
+              />
+            ) : null}
+            {errors.mentionTarget ? <p className="text-xs text-destructive">{errors.mentionTarget}</p> : null}
           </div>
         ) : null}
 
@@ -341,7 +609,9 @@ export function ComposeForm({
           channelName={channel?.name ?? null}
           mentionLabel={mentionLabel}
           startsAt={startsAt}
-          responsibleLabel={responsible?.displayName ?? null}
+          responsibleLabel={responsible?.displayName ?? currentUserName}
+          location={location}
+          registrationLabel={registrationLabel}
         />
       </div>
 

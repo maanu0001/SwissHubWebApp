@@ -220,6 +220,33 @@ export const communicationHistoryQuerySchema = z.object({
   pageSize: z.coerce.number().int().min(5).max(100).default(25),
 });
 
+/**
+ * Filter aus der Adresszeile lesen.
+ *
+ * Bewusst nachsichtig: Adressparameter kommen aus einem Lesezeichen, einem
+ * Link oder von Hand. Etwas Unsinniges darin soll die Seite nicht mit einem
+ * Fehler abbrechen lassen - dann wird eben der Standardwert genommen.
+ */
+export function parseHistoryQuery(params: Record<string, string | undefined>): CommunicationHistoryQuery {
+  const parsed = communicationHistoryQuerySchema.safeParse(params);
+  if (parsed.success) {
+    return parsed.data;
+  }
+  // Feld für Feld erneut versuchen, damit ein einzelner unsinniger Wert nicht
+  // sämtliche übrigen Filter verwirft.
+  const cleaned: Record<string, string | undefined> = {};
+  for (const [key, value] of Object.entries(params)) {
+    if (value === undefined) {
+      continue;
+    }
+    const attempt = communicationHistoryQuerySchema.safeParse({ [key]: value });
+    if (attempt.success) {
+      cleaned[key] = value;
+    }
+  }
+  return communicationHistoryQuerySchema.parse(cleaned);
+}
+
 /** Ein Entwurf - dieselben Felder, aber nichts davon ist Pflicht ausser Titel und Text. */
 export const draftSchema = z.object({
   id: z.string().cuid().optional(),

@@ -146,6 +146,21 @@ mehreren Instanzen und über Prozessneustarts hinweg.
 - Transaktionen kommen dort zum Einsatz, wo mehrere Tabellen konsistent geändert werden
   (Rollen/Permissions, Audit Log).
 
+### Kommunikation
+
+- Erwähnungen sind eine feste Auswahl, kein Freitext. Der abgelöste Bot schrieb beliebigen
+  Text unverändert in die Nachricht - damit liess sich jede Rolle anpingen. Jede Nachricht
+  geht mit einer ausdrücklichen `allowedMentions`-Liste raus.
+- `@everyone`/`@here` verlangt eine eigene Berechtigung (`communication.mentionEveryone`)
+  **und** die Moduleinstellung. Fehlt eines davon, geht die Nachricht raus und pingt niemanden.
+- Banner-Adressen müssen `https` sein; `javascript:`, `data:`, `file:` und interne Ziele
+  werden abgewiesen.
+- Ein Versand bricht nach 15 Sekunden ab. Nach einem Zeitlimit bleibt der Idempotenz-
+  Schlüssel belegt: es ist dann unklar, ob Discord die Nachricht doch bekommen hat, und ein
+  zweiter Versuch darf nicht doppelt posten.
+- Der Quelltext des abgelösten Bots enthielt einen Bot-Token im Klartext. Er wurde nicht
+  übernommen und muss rotiert werden.
+
 ### XP-Verlosungen
 
 - `XpRaffleEntry` ist über `@@unique([raffleId, discordId])` eindeutig. Zusammen mit der

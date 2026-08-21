@@ -142,6 +142,8 @@ damit keine neue Action ohne Berechtigung, Schema oder Rate Limit dazukommt.
 - **`sharp` 0.34.5 → 0.35.3.** Vier libvips-CVEs. Das war der wichtigste
   Befund: `sharp` verarbeitet hochgeladene Bilder (Logo, Levelkarten-Banner),
   also Daten von aussen. Die Bildtests laufen mit der neuen Fassung durch.
+  Diese Anhebung hat allerdings zunächst das Bot-Abbild zerlegt – siehe
+  Abschnitt 13.
 - **`postcss` → 8.5.26** über einen Override (die in Next gebündelte Fassung
   war verwundbar).
 - **Offen: `deepmerge-ts` im Prisma-CLI** (3 Befunde, dieselbe Kette). Betrifft
@@ -297,7 +299,7 @@ Produktionscode. Von 350 Quelldateien war genau eine verwaist.
 | `npm run typecheck` ✓                      | sauber (beide Projekte)               |
 | `npm run test` ✓                           | **806 Tests in 41 Dateien, alle grün** – gegen echtes PostgreSQL |
 | `npm run build` ✓                          | WebApp und Bot erfolgreich            |
-| `npm ci --dry-run` ✓                       | Lockfile stimmt mit `package.json` überein – der `npm ci`-Schritt im Docker-Build wird durchlaufen |
+| `npm ci --dry-run` ✓                       | Lockfile stimmt mit `package.json` überein. **Das sagt nichts darüber aus, ob das fertige Abbild vollständig ist** – siehe Abschnitt 13 |
 | ⚠ `docker compose -f docker-compose.prod.yml build` | in dieser Umgebung nicht ausführbar: kein Docker-Daemon |
 
 Vier Testdateien sind neu hinzugekommen und decken Bereiche ab, die vorher nur
@@ -349,3 +351,51 @@ Bemerkenswert am Durchgang ist, dass die zwei schwersten Funde nicht aus der
 Aufgabenliste stammten, sondern aus einem Test, der einmal von zehn Läufen
 fehlschlug: eine Verlosung liess sich zweimal ziehen, und ein XP-Gewinn zweimal
 gutschreiben.
+
+---
+
+## 13. Nachtrag: der Bot startete nicht mehr
+
+Nach dem Durchgang fiel auf, dass der Bot offline war. Die Ursache lag in
+diesem Durchgang selbst.
+
+**Was passiert ist.** Next führt `sharp` als *optionale* Abhängigkeit in
+Version `^0.34.3`. Solange der Bot dieselbe Spanne verlangte, legte npm eine
+gemeinsame Kopie unter `node_modules/` ab. Mit der Anhebung des Bots auf
+`^0.35.3` passte das nicht mehr zusammen, und weil Next's Variante optional
+ist, entfernte npm den gemeinsamen Eintrag und legte die Kopie des Bots unter
+`apps/bot/node_modules/sharp` ab.
+
+Das Dockerfile reichte zwischen seinen Stufen aber nur den Ordner im
+Projektwurzelverzeichnis weiter. Der verschachtelte Ordner blieb in der
+Installationsstufe liegen und erreichte das Abbild nie. `level-card.ts`
+importiert `sharp` gleich zu Beginn – der Bot brach also schon beim Laden ab,
+lange vor der ersten Zeile eigener Logik, und der Container lief in eine
+Neustartschleife. Die WebApp war davon nicht betroffen: sie benutzt `sharp`
+nicht.
+
+**Behoben in zwei Schritten.**
+
+1. Die Overrides sauber neu auflösen. `sharp@0.35.3` liegt wieder im
+   gemeinsamen Ordner und wird von Bot und Next geteilt – kein verschachtelter
+   Ordner mehr im Lockfile.
+2. Das Dockerfile reicht die `node_modules` der Workspaces jetzt mit weiter.
+   Das ist der eigentliche Punkt: die stille Annahme, npm lege jedes Paket im
+   Projektwurzelverzeichnis ab, hätte jede beliebige Versionsanhebung genauso
+   zerlegt.
+
+**Diesmal richtig geprüft.** Das Bot-Abbild wurde lokal nachgebaut – genau die
+vier `COPY`-Zeilen der Bot-Stufe – und darin `sharp` geladen und ein Bild
+gerendert. Zur Gegenprobe derselbe Aufbau ohne den gemeinsamen Ordner: dort
+scheitert es reproduzierbar mit `Cannot find module 'sharp'`. Anschliessend
+lief der Bot mit frischem Heartbeat.
+
+`tests/unit/docker-image.test.ts` hält den Zusammenhang fest: legt npm ein
+Paket unter einem Workspace ab, muss das Dockerfile diesen Ordner weiterreichen.
+Gegengetestet.
+
+**Was ich daraus mitnehme.** Im Bericht stand `npm ci --dry-run ✓ – der
+npm ci-Schritt im Docker-Build wird durchlaufen`. Der Befehl prüft aber nur, ob
+Lockfile und `package.json` zueinander passen. Ob die Docker-Stufen das
+Ergebnis vollständig weiterreichen, sagt er nicht – und genau dort lag der
+Fehler. Ein Häkchen für etwas, das ich nicht wirklich geprüft hatte.

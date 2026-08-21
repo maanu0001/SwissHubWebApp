@@ -32,6 +32,16 @@ RUN apk add --no-cache libc6-compat openssl
 ENV NEXT_TELEMETRY_DISABLED=1
 
 COPY --from=deps /app/node_modules ./node_modules
+# Kann npm eine Abhaengigkeit nicht in den gemeinsamen Ordner hochziehen -
+# etwa weil zwei Workspaces unvereinbare Versionen verlangen -, legt es sie
+# unter `apps/<name>/node_modules` bzw. `packages/<name>/node_modules` ab.
+# Diese Ordner muessen mit, sonst fehlt dem fertigen Abbild ein Paket, das
+# beim Bauen noch da war. Genau so ist `sharp` schon einmal verlorengegangen:
+# der Bot fand es zur Laufzeit nicht mehr und startete gar nicht erst.
+# `.dockerignore` schliesst `**/node_modules` nur fuer den Build-Kontext aus,
+# nicht fuer `COPY --from`.
+COPY --from=deps /app/apps ./apps
+COPY --from=deps /app/packages ./packages
 COPY . .
 
 # Prisma Client generieren (benoetigt keine laufende Datenbank).

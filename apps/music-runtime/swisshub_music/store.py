@@ -299,8 +299,12 @@ class Store:
         await self.pool.execute(
             """
             UPDATE "MusicSession"
-               SET "currentItemId" = $2,
-                   "trackStartedAt" = CASE WHEN $2 IS NULL THEN NULL ELSE now() END,
+               SET "currentItemId" = $2::text,
+                   -- Der Typ MUSS hier stehen: derselbe Parameter wird einmal
+                   -- zugewiesen und einmal auf NULL geprueft. Ohne Angabe
+                   -- kann Postgres ihn beim Vorbereiten nicht bestimmen und
+                   -- lehnt die Anweisung ab (AmbiguousParameterError).
+                   "trackStartedAt" = CASE WHEN $2::text IS NULL THEN NULL ELSE now() END,
                    "pausedAt" = NULL, "pausedMs" = 0, "updatedAt" = now()
              WHERE "id" = $1
             """,
@@ -409,7 +413,9 @@ class Store:
             """
             UPDATE "MusicSession"
                SET "listenerCount" = $2,
-                   "aloneSince" = CASE WHEN $3 THEN COALESCE("aloneSince", now()) ELSE NULL END,
+                   -- Auch hier: ein Parameter, der ausschliesslich als
+                   -- Bedingung auftaucht, braucht seinen Typ.
+                   "aloneSince" = CASE WHEN $3::boolean THEN COALESCE("aloneSince", now()) ELSE NULL END,
                    "updatedAt" = now()
              WHERE "id" = $1
             """,

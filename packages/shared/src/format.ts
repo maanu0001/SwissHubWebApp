@@ -32,3 +32,20 @@ export function formatSwissPercent(fraction: number): string {
   const [whole, decimals = '00'] = percent.toFixed(2).split('.');
   return `${formatSwissNumber(Number(whole))}.${decimals} %`;
 }
+
+/**
+ * Geldbetrag aus Rappen.
+ *
+ * Gerechnet wird ausschliesslich in der kleinsten Einheit - Gleitkomma hat
+ * bei Geld nichts verloren. Formatiert wird in Schweizer Schreibweise:
+ * volle Franken als «CHF 5.–», Rappen als «CHF 5.50».
+ */
+export function formatChf(minor: number): string {
+  const franken = Math.trunc(minor / 100);
+  const rappen = Math.abs(minor % 100);
+  const vorzeichen = minor < 0 ? '-' : '';
+  if (rappen === 0) {
+    return `${vorzeichen}CHF ${formatSwissNumber(Math.abs(franken))}.–`;
+  }
+  return `${vorzeichen}CHF ${formatSwissNumber(Math.abs(franken))}.${String(rappen).padStart(2, '0')}`;
+}

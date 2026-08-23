@@ -42,18 +42,30 @@ export async function handleWebhook(rawBody: string, signature: string): Promise
     throw error;
   }
 
-  // Der Anlege-Versuch IST die Idempotenzprüfung.
-  try {
-    await prisma.premiumPaymentEvent.create({
-      data: {
+  // Das Anlegen IST die Idempotenzprüfung: der eindeutige Schlüssel
+  // `(provider, providerEventId)` entscheidet, und zwar in der Datenbank.
+  // Eine Prüfung in der Anwendung verlöre gegen zwei gleichzeitige
+  // Zustellungen - und mehrere Instanzen der WebApp sind der Normalfall.
+  //
+  // Bewusst `createMany` mit `skipDuplicates` statt `create` im try/catch:
+  // eine wiederholte Zustellung ist Normalbetrieb (jeder Anbieter wiederholt,
+  // bis er eine 2xx-Antwort sieht) und soll keine Fehlerzeile hinterlassen.
+  // Sonst steht das Protokoll voll mit Fehlern, die keine sind - und die
+  // echten gehen darin unter.
+  const { count } = await prisma.premiumPaymentEvent.createMany({
+    data: [
+      {
         provider: provider.name,
         providerEventId: event.id,
         eventType: event.type,
         processingStatus: 'RECEIVED',
         payload: event.payload as object,
       },
-    });
-  } catch {
+    ],
+    skipDuplicates: true,
+  });
+
+  if (count === 0) {
     logger.info('Ereignis bereits verarbeitet', { eventId: event.id, type: event.type });
     return { status: 'duplicate', eventId: event.id };
   }

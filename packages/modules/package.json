@@ -17,6 +17,7 @@
     "@swisshub/logger": "*",
     "@swisshub/permissions": "*",
     "@swisshub/shared": "*",
+    "stripe": "^22.5.0",
     "zod": "3.25.76"
   }
 }

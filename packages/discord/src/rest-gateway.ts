@@ -393,6 +393,15 @@ export function createRestGateway(): DiscordGateway {
       });
     },
 
+    async move(channelId, parentId, reason) {
+      await discordRequest(`/channels/${channelId}`, {
+        method: 'PATCH',
+        body: { parent_id: parentId },
+        auditLogReason: reason,
+      });
+      cache.delete('channels');
+    },
+
     async remove(channelId, reason) {
       await discordRequest(`/channels/${channelId}`, { method: 'DELETE', auditLogReason: reason });
       cache.delete('channels');

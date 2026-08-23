@@ -74,6 +74,8 @@ export interface DiscordGateway {
     setOverwrite(channelId: string, overwrite: ChannelOverwrite, reason?: string): Promise<void>;
     /** Entfernt eine Berechtigungsausnahme wieder. */
     clearOverwrite(channelId: string, targetId: string, reason?: string): Promise<void>;
+    /** Verschiebt einen Kanal in eine andere Kategorie. */
+    move(channelId: string, parentId: string, reason?: string): Promise<void>;
     /** Löscht einen Sprachkanal. */
     remove(channelId: string, reason?: string): Promise<void>;
     /** Einzelner Channel; `null`, wenn es ihn nicht mehr gibt. */

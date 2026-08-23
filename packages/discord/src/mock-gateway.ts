@@ -270,10 +270,36 @@ export function createMockGateway(): DiscordGateway {
         return channel;
       },
       async setOverwrite(channelId, overwrite) {
+        // Der Mock merkt sich die Ausnahme wirklich. Täte er das nicht, sähe
+        // jeder Abgleich die Rechte als fehlend an und "reparierte" endlos.
+        const channel = voiceChannels.get(channelId);
+        if (channel) {
+          const uebrige = channel.overwrites.filter((entry) => entry.id !== overwrite.id);
+          channel.overwrites = [
+            ...uebrige,
+            {
+              id: overwrite.id,
+              type: overwrite.type,
+              allow: overwrite.allow.toString(),
+              deny: overwrite.deny.toString(),
+            },
+          ];
+        }
         log.debug('Mock: Channel-Berechtigung gesetzt', { channelId, target: overwrite.id });
       },
       async clearOverwrite(channelId, targetId) {
+        const channel = voiceChannels.get(channelId);
+        if (channel) {
+          channel.overwrites = channel.overwrites.filter((entry) => entry.id !== targetId);
+        }
         log.debug('Mock: Channel-Berechtigung entfernt', { channelId, targetId });
+      },
+      async move(channelId, parentId) {
+        const channel = voiceChannels.get(channelId);
+        if (channel) {
+          channel.parentId = parentId;
+        }
+        log.debug('Mock: Kanal verschoben', { channelId, parentId });
       },
       async remove(channelId) {
         voiceChannels.delete(channelId);

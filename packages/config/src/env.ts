@@ -94,8 +94,39 @@ export const serverEnvSchema = z
 
     /** Trust `X-Forwarded-For` when running behind a reverse proxy. */
     TRUST_PROXY: boolish(false),
+
+    /**
+     * Zahlungsanbieter fuer SwissHub Premium.
+     *
+     * `mock` ist ausschliesslich fuer die Entwicklung und wird in Production
+     * zurueckgewiesen - siehe `superRefine` weiter unten. Discord-Rollen,
+     * Kategorien und Kanaele werden bewusst NICHT hier konfiguriert, sondern
+     * im Dashboard: sie aendern sich im Betrieb und gehoeren in die Datenbank.
+     */
+    PAYMENT_PROVIDER: z.enum(['mock', 'stripe']).optional(),
+    PAYMENT_API_KEY: z.string().min(1).optional(),
+    PAYMENT_WEBHOOK_SECRET: z.string().min(1).optional(),
   })
   .superRefine((value, ctx) => {
+    if (value.NODE_ENV === 'production' && value.PAYMENT_PROVIDER === 'mock') {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['PAYMENT_PROVIDER'],
+        message:
+          'mock ist in Production nicht zulaessig - damit waeren Abonnements ohne Zahlung freigeschaltet',
+      });
+    }
+    if (
+      value.NODE_ENV === 'production' &&
+      value.PAYMENT_PROVIDER === 'stripe' &&
+      (!value.PAYMENT_API_KEY || !value.PAYMENT_WEBHOOK_SECRET)
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['PAYMENT_API_KEY'],
+        message: 'PAYMENT_API_KEY und PAYMENT_WEBHOOK_SECRET werden fuer Stripe benoetigt',
+      });
+    }
     if (value.NODE_ENV === 'production' && value.DEV_MOCK_DISCORD) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,

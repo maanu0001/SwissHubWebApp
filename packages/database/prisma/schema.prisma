@@ -219,8 +219,11 @@ model User {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  sessions      Session[]
-  identityCache DiscordIdentityCache?
+  sessions             Session[]
+  identityCache        DiscordIdentityCache?
+  /// Premium-Abonnements. Bewusst am bestehenden Benutzer statt an einem
+  /// zweiten Konto - Premium ist ein Modul, kein eigenes Produkt.
+  premiumSubscriptions PremiumSubscription[]
 
   @@index([username])
 }
@@ -1559,4 +1562,231 @@ model XpRaffleRefund {
   /// Eine Teilnahme wird hoechstens einmal zurueckgezahlt.
   @@unique([entryId])
   @@index([raffleId])
+}
+
+// ---------------------------------------------------------------------------
+// SwissHub Premium
+//
+// Ein Abonnement hat drei voneinander unabhaengige Zustaende, die bewusst
+// getrennt gefuehrt werden:
+//
+//   status              - was der Zahlungsanbieter sagt
+//   discordSyncStatus   - ob Discord den gewuenschten Zustand erreicht hat
+//   PremiumDiscordResource.state - was auf Discord tatsaechlich existiert
+//
+// Diese Trennung ist der Kern: ein Discord-Ausfall darf eine erfolgreiche
+// Zahlung niemals rueckgaengig machen. Er hinterlaesst nur einen fehlerhaften
+// Sync, den die Reconciliation spaeter nachholt.
+// ---------------------------------------------------------------------------
+
+enum PremiumEntitlement {
+  PREMIUM_ROLE
+  PREMIUM_STUEBLI_ROLE
+  PRIVATE_VOICE
+}
+
+enum PremiumSubscriptionStatus {
+  /// Checkout begonnen, Zahlung noch nicht bestaetigt.
+  PENDING
+  /// Bezahlt und laufend.
+  ACTIVE
+  /// Folgezahlung offen, Schonfrist laeuft.
+  PAST_DUE
+  /// Zahlung endgueltig fehlgeschlagen, Schonfrist laeuft.
+  PAYMENT_FAILED
+  /// Gekuendigt, laeuft bis zum Ende der bezahlten Periode.
+  CANCEL_AT_PERIOD_END
+  /// Vom Mitglied oder der Verwaltung beendet.
+  CANCELLED
+  /// Periode und Schonfrist abgelaufen - keine Anspruecke mehr.
+  EXPIRED
+}
+
+enum PremiumPaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+}
+
+/// Hat Discord den gewuenschten Zustand erreicht?
+enum PremiumSyncStatus {
+  PENDING
+  SYNCED
+  FAILED
+}
+
+enum PremiumResourceType {
+  PREMIUM_STUEBLI_VOICE
+}
+
+enum PremiumResourceState {
+  PENDING
+  ACTIVE
+  FAILED
+  REMOVING
+  REMOVED
+}
+
+enum PremiumEventStatus {
+  RECEIVED
+  PROCESSED
+  FAILED
+  IGNORED
+}
+
+/// Ein buchbares Angebot. Bewusst in der Datenbank statt im Code: Preise und
+/// Texte aendern sich, ohne dass dafuer ein Deployment noetig sein soll.
+model PremiumProduct {
+  id              String               @id @default(cuid())
+  slug            String               @unique
+  name            String
+  description     String
+  /// Preis in Rappen. Niemals Gleitkomma - CHF 5.00 sind 500.
+  priceMinor      Int
+  currency        String               @default("CHF")
+  /// Aufzaehlung fuer die Produktkarte.
+  features        Json                 @default("[]")
+  /// Welche Anspruechen das Angebot gewaehrt.
+  entitlements    PremiumEntitlement[]
+  active          Boolean              @default(true)
+  sortOrder       Int                  @default(0)
+  /// Preis-ID beim Zahlungsanbieter (z.B. Stripe Price). Erst nach der
+  /// Einrichtung des Anbieters gesetzt.
+  providerPriceId String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  subscriptions PremiumSubscription[]
+
+  @@index([active, sortOrder])
+}
+
+/// Das Abonnement eines Mitglieds. Hoechstens eines davon ist gleichzeitig
+/// offen - erzwungen durch `activeUserKey`.
+model PremiumSubscription {
+  id        String @id @default(cuid())
+  userId    String
+  user      User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// Redundant zur Relation, aber der Bot arbeitet ausschliesslich mit
+  /// Discord-IDs und soll dafuer nicht jedes Mal joinen muessen.
+  discordId String
+
+  productId String
+  product   PremiumProduct @relation(fields: [productId], references: [id])
+
+  status PremiumSubscriptionStatus @default(PENDING)
+
+  /// Genau ein offenes Abonnement je Mitglied.
+  ///
+  /// Traegt die Benutzer-ID, solange das Abonnement offen ist, und `null`,
+  /// sobald es beendet ist. Ein Teilindex auf eine nullbare Spalte ist der
+  /// einzige Weg, "hoechstens eines" in der Datenbank selbst zu erzwingen -
+  /// eine Pruefung in der Anwendung verliert gegen zwei gleichzeitige
+  /// Anfragen. Dasselbe Muster nutzt bereits die Spielersuche.
+  activeUserKey String?
+
+  currentPeriodStart DateTime?
+  currentPeriodEnd   DateTime?
+  /// Zeitpunkt der Kuendigung. Die Anspruechen bleiben bis zum Periodenende.
+  cancelledAt        DateTime?
+  /// Ende der Schonfrist nach einer fehlgeschlagenen Folgezahlung.
+  graceUntil         DateTime?
+  endedAt            DateTime?
+
+  provider               String?
+  providerCustomerId     String?
+  providerSubscriptionId String?
+
+  discordSyncStatus PremiumSyncStatus @default(PENDING)
+  lastSyncAt        DateTime?
+  lastSyncError     String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  payments  PremiumPayment[]
+  resources PremiumDiscordResource[]
+
+  @@unique([activeUserKey])
+  @@unique([providerSubscriptionId])
+  @@index([userId, createdAt])
+  @@index([status])
+  @@index([discordSyncStatus])
+}
+
+model PremiumPayment {
+  id             String               @id @default(cuid())
+  userId         String
+  subscriptionId String?
+  subscription   PremiumSubscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+
+  provider          String
+  providerPaymentId String?
+  amountMinor       Int
+  currency          String               @default("CHF")
+  status            PremiumPaymentStatus @default(PENDING)
+
+  createdAt     DateTime  @default(now())
+  paidAt        DateTime?
+  failedAt      DateTime?
+  failureReason String?
+
+  /// Ein Anbieter liefert dieselbe Zahlung mehrfach - einmal je Zustellversuch.
+  @@unique([provider, providerPaymentId])
+  @@index([userId, createdAt])
+  @@index([status])
+}
+
+/// Jede Zustellung des Anbieters, dauerhaft. Grundlage fuer Idempotenz und
+/// dafuer, einen fehlgeschlagenen Verarbeitungsversuch spaeter nachzuvollziehen.
+model PremiumPaymentEvent {
+  id              String @id @default(cuid())
+  provider        String
+  providerEventId String
+  eventType       String
+
+  processingStatus PremiumEventStatus @default(RECEIVED)
+  payload          Json               @default("{}")
+
+  createdAt   DateTime  @default(now())
+  processedAt DateTime?
+  error       String?
+
+  /// Der Kern der Idempotenz: eine zweite Zustellung desselben Ereignisses
+  /// laeuft in diesen Schluessel und wird verworfen.
+  @@unique([provider, providerEventId])
+  @@index([processingStatus, createdAt])
+}
+
+/// Was auf Discord fuer ein Mitglied tatsaechlich angelegt wurde.
+model PremiumDiscordResource {
+  id             String               @id @default(cuid())
+  userId         String
+  discordId      String
+  subscriptionId String?
+  subscription   PremiumSubscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+
+  guildId      String
+  resourceType PremiumResourceType
+
+  discordResourceId String?
+  discordCategoryId String?
+  /// Name des Kanals, damit die Verwaltung ihn auch nach dem Loeschen kennt.
+  name              String?
+
+  state PremiumResourceState @default(PENDING)
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  removedAt     DateTime?
+  lastSyncAt    DateTime?
+  lastSyncError String?
+
+  /// Ein Mitglied hat hoechstens ein Stuebli. Doppelklick, Webhook-Wiederholung
+  /// und paralleler Sync laufen alle in diesen Schluessel.
+  @@unique([userId, resourceType])
+  @@index([state])
+  @@index([discordResourceId])
 }

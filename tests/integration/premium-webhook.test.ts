@@ -14,7 +14,11 @@ const { prisma } = await import('@swisshub/database');
 const { premium, setModuleEnabled, syncDiscord, writeModuleSettings } = await import('@swisshub/modules');
 
 const ADMIN = { discordId: '100000000000000010', username: 'verwaltung' };
-const GEHEIMNIS = 'dev-webhook-secret';
+// Dasselbe Geheimnis, das auch `resolvePaymentProvider()` verwendet - sonst
+// haengt der Test daran, was zufaellig in der lokalen .env steht, und meldet
+// eine ungueltige Signatur, wo gar keine Regression vorliegt. Geprueft wird
+// weiterhin die echte Signatur gegen den echt aufgeloesten Anbieter.
+const GEHEIMNIS = process.env.PAYMENT_WEBHOOK_SECRET ?? 'dev-webhook-secret';
 
 const provider = new premium.MockProvider(GEHEIMNIS);
 

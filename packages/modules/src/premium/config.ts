@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { registerModule, type ModuleDefinition } from '../registry';
 import type { SettingsField } from '../settings/fields';
 import type { ModuleHealthCheck, ModuleHealthContext } from '../health/types';
+import { seedProducts } from './products';
 
 export const PREMIUM_MODULE_ID = 'premium';
 
@@ -193,6 +194,12 @@ export const premiumModule: ModuleDefinition = registerModule({
   configVersion: 1,
   requiredDiscordPermissions: ['MANAGE_ROLES', 'MANAGE_CHANNELS', 'VIEW_CHANNEL'],
   healthChecks: premiumHealthChecks,
+  // Ohne Angebote wäre die öffentliche Seite nach dem Einschalten leer, und
+  // anlegen lassen sie sich nirgends sonst - die Verwaltung darf bestehende
+  // nur bearbeiten.
+  onEnable: async () => {
+    await seedProducts();
+  },
   permissions: [
     {
       key: PREMIUM_PERMISSIONS.view,

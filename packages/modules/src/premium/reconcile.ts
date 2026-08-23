@@ -3,6 +3,7 @@ import { createLogger } from '@swisshub/logger';
 import { isModuleEnabled } from '../module-state';
 import { PREMIUM_MODULE_ID } from './config';
 import { syncDiscordEntitlements } from './discord';
+import { seedProducts } from './products';
 import { expireSubscription, findExpiredSubscriptions } from './service';
 
 const logger = createLogger('premium:reconcile');
@@ -32,6 +33,20 @@ export async function reconcilePremium(now = new Date()): Promise<ReconcileResul
   }
 
   const ergebnis: ReconcileResult = { expired: 0, synced: 0, failed: 0 };
+
+  // 0. Standardangebote sicherstellen.
+  //
+  //    Ohne Angebote ist die oeffentliche Seite leer und niemand kann
+  //    abonnieren - und angelegt werden koennen sie nirgends sonst, die
+  //    Verwaltung darf bestehende nur bearbeiten. Der Seed gehoert deshalb
+  //    hierher und nicht in eine einmalige Migration: er laeuft idempotent
+  //    bei jedem Abgleich, ueberschreibt nie eine gepflegte Angabe und
+  //    repariert sich damit auch, wenn jemand ein Angebot versehentlich
+  //    entfernt.
+  const angelegt = await seedProducts();
+  if (angelegt > 0) {
+    logger.info('Standardangebote angelegt', { angelegt });
+  }
 
   // 1. Abgelaufenes beenden.
   for (const subscription of await findExpiredSubscriptions(now)) {

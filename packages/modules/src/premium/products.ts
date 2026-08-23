@@ -77,28 +77,26 @@ export const HIGHLIGHTED_SLUG = 'premium-bundle';
  * Neustart nicht auf die Startwerte zuruecksetzen.
  */
 export async function seedProducts(): Promise<number> {
-  let angelegt = 0;
-  for (const seed of PRODUCT_SEEDS) {
-    const vorhanden = await prisma.premiumProduct.findUnique({ where: { slug: seed.slug } });
-    if (vorhanden) {
-      continue;
-    }
-    await prisma.premiumProduct.create({
-      data: {
-        slug: seed.slug,
-        name: seed.name,
-        description: seed.description,
-        priceMinor: seed.priceMinor,
-        currency: 'CHF',
-        features: seed.features,
-        entitlements: seed.entitlements,
-        sortOrder: seed.sortOrder,
-        active: true,
-      },
-    });
-    angelegt += 1;
-  }
-  return angelegt;
+  // `createMany` mit `skipDuplicates` statt Lesen-dann-Schreiben: der Seed
+  // laeuft im Abgleich jeder Bot-Instanz, und zwei gleichzeitige Laeufe
+  // duerfen sich nicht gegenseitig in die Eindeutigkeit des Slugs treiben.
+  // Ein bereits gepflegtes Angebot bleibt unberuehrt - es wird nie
+  // ueberschrieben, nur Fehlendes ergaenzt.
+  const { count } = await prisma.premiumProduct.createMany({
+    data: PRODUCT_SEEDS.map((seed) => ({
+      slug: seed.slug,
+      name: seed.name,
+      description: seed.description,
+      priceMinor: seed.priceMinor,
+      currency: 'CHF',
+      features: seed.features,
+      entitlements: seed.entitlements,
+      sortOrder: seed.sortOrder,
+      active: true,
+    })),
+    skipDuplicates: true,
+  });
+  return count;
 }
 
 /** Angebote fuer die oeffentliche Seite. */

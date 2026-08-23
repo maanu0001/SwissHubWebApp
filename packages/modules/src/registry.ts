@@ -82,6 +82,14 @@ export interface ModuleDefinition {
   requiredDiscordPermissions?: DiscordPermissionName[];
   /** Zusätzliche Prüfungen für die Modul-Gesundheit (siehe `health.ts`). */
   healthChecks?: (context: ModuleHealthContext) => Promise<ModuleHealthCheck[]>;
+  /**
+   * Läuft, nachdem das Modul eingeschaltet wurde.
+   *
+   * Für Startwerte, ohne die ein Modul nach dem Einschalten leer dastünde.
+   * Muss idempotent sein: das Modul lässt sich beliebig oft aus- und wieder
+   * einschalten, und ein Fehler hier darf das Einschalten nicht verhindern.
+   */
+  onEnable?: () => Promise<void>;
   /** Sehr kurzer Text für Modulkacheln (Dashboard). */
   tagline?: string;
   /** Kurzbeschreibung des Status für die Modulkarte. */

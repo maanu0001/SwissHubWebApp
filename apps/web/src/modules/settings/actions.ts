@@ -13,7 +13,10 @@ import {
   setModuleEnabled,
 } from '@swisshub/modules';
 import { AppError } from '@swisshub/shared';
+import { createLogger } from '@swisshub/logger';
 import { defineAction } from '@/server/action';
+
+const log = createLogger('web:settings');
 
 /**
  * Einstellungen ändern.
@@ -91,6 +94,19 @@ export const setModuleEnabledAction = defineAction(
     }
 
     await setModuleEnabled(input.moduleId, input.enabled, ctx.user.discordId);
+
+    if (input.enabled && definition.onEnable) {
+      // Bewusst nach dem Einschalten und bewusst nicht blockierend: das Modul
+      // ist bereits an, und fehlende Startwerte holt der regelmässige Abgleich
+      // ohnehin nach. Ein Fehler hier darf das Einschalten nicht zurücknehmen.
+      await definition.onEnable().catch((error: unknown) => {
+        log.warn('Startwerte des Moduls konnten nicht angelegt werden', {
+          moduleId: input.moduleId,
+          grund: error instanceof Error ? error.message : 'unbekannt',
+        });
+      });
+    }
+
     await safeRecordAudit({
       action: input.enabled ? AUDIT_ACTIONS.MODULE_ENABLED : AUDIT_ACTIONS.MODULE_DISABLED,
       module: input.moduleId,

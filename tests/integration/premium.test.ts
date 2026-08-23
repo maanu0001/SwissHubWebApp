@@ -12,7 +12,8 @@ useTestSchema('test_premium');
  * niemand zwei Stübli erhält, egal wie oft und wie parallel der Abgleich läuft.
  */
 const { prisma } = await import('@swisshub/database');
-const { premium, setModuleEnabled, syncDiscord, writeModuleSettings } = await import('@swisshub/modules');
+const { getModuleDefinition, premium, setModuleEnabled, syncDiscord, writeModuleSettings } =
+  await import('@swisshub/modules');
 const { discord } = await import('@swisshub/discord');
 
 const ADMIN = { discordId: '100000000000000010', username: 'verwaltung' };
@@ -293,5 +294,44 @@ describeWithDatabase('SwissHub Premium', () => {
 
     // Ohne Benutzerkonto gibt es nichts zu zeigen - und keinen Fehler.
     expect(await premium.getMemberPremium('900000000000009999')).toBeNull();
+  });
+
+  it('legt die Standardangebote beim Einschalten des Moduls an', async () => {
+    // Ausgangslage wie nach einem frischen Deployment: Modul aus, keine Angebote.
+    await prisma.premiumProduct.deleteMany({});
+    await setModuleEnabled(premium.PREMIUM_MODULE_ID, false, ADMIN.discordId);
+    expect(await premium.listActiveProducts()).toHaveLength(0);
+
+    const definition = getModuleDefinition(premium.PREMIUM_MODULE_ID);
+    await setModuleEnabled(premium.PREMIUM_MODULE_ID, true, ADMIN.discordId);
+    await definition!.onEnable!();
+
+    expect((await premium.listActiveProducts()).map((p) => p.slug)).toEqual([
+      'premium',
+      'premium-stuebli',
+      'premium-bundle',
+    ]);
+  });
+
+  it('überschreibt beim erneuten Seed kein gepflegtes Angebot', async () => {
+    const vorher = await premium.getProductBySlug('premium');
+    await prisma.premiumProduct.update({
+      where: { id: vorher!.id },
+      data: { name: 'Premium (angepasst)', priceMinor: 700 },
+    });
+
+    // Der Abgleich läuft alle fünf Minuten - er darf nichts zurücksetzen.
+    expect(await premium.seedProducts()).toBe(0);
+
+    const nachher = await premium.getProductBySlug('premium');
+    expect(nachher!.name).toBe('Premium (angepasst)');
+    expect(nachher!.priceMinor).toBe(700);
+  });
+
+  it('legt bei parallelem Abgleich keine doppelten Angebote an', async () => {
+    await prisma.premiumProduct.deleteMany({});
+    // Mehrere Bot-Instanzen gleichzeitig - der Slug muss eindeutig bleiben.
+    await Promise.all([premium.seedProducts(), premium.seedProducts(), premium.seedProducts()]);
+    expect(await prisma.premiumProduct.count()).toBe(3);
   });
 });

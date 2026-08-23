@@ -175,6 +175,34 @@ async function premiumHealthChecks(context: ModuleHealthContext): Promise<Module
     );
   }
 
+  // Zahlungsanbieter.
+  //
+  // Ohne ihn rendert die oeffentliche Seite anstandslos und der Checkout
+  // bricht erst, wenn ein Mitglied darauf klickt. Das gehoert vorher ins
+  // Dashboard - der Betrieb soll es sehen, nicht der Kunde.
+  try {
+    const { resolvePaymentProvider } = await import('./payments/provider');
+    const provider = resolvePaymentProvider();
+    checks.push(
+      provider.productionReady
+        ? { label: 'Zahlungsanbieter', status: 'ok', detail: provider.name }
+        : {
+            label: 'Zahlungsanbieter',
+            status: 'warning',
+            detail: `"${provider.name}" ist nur für die Entwicklung - es fliesst kein Geld.`,
+          },
+    );
+  } catch (error) {
+    checks.push({
+      label: 'Zahlungsanbieter',
+      status: 'error',
+      detail:
+        error instanceof Error
+          ? error.message
+          : 'Nicht konfiguriert - ein Checkout würde fehlschlagen.',
+    });
+  }
+
   return checks;
 }
 

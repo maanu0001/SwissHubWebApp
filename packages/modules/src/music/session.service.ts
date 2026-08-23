@@ -134,6 +134,18 @@ export async function addTrack(
   return eintrag;
 }
 
+/**
+ * Den Bot in den Sprachkanal holen.
+ *
+ * Getrennt von der Zuweisung: die entscheidet nur, WELCHER Bot zustaendig
+ * ist. Ob er tatsaechlich im Kanal steht, weiss erst die Laufzeit.
+ */
+export async function join(sessionId: string, actor: SessionActor): Promise<string> {
+  const session = await ladeSession(sessionId);
+  await aktivitaet(sessionId);
+  return befehl(session, 'JOIN', actor);
+}
+
 export async function pause(sessionId: string, actor: SessionActor): Promise<string> {
   const session = await ladeSession(sessionId);
   await prisma.musicSession.update({

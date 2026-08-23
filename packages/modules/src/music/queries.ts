@@ -1,6 +1,8 @@
 import { prisma } from '@swisshub/database';
 import type { MusicBotInstance, MusicQueueItem, MusicSession } from '@swisshub/database';
 import { botIstVerfuegbar } from './allocation';
+import { getModuleSettings } from '../module-state';
+import { MUSIC_MODULE_ID, type MusicSettings } from './config';
 
 /** Der vollstaendige Zustand einer Session - eine Struktur fuer Web und Bot. */
 export interface PlayerState {
@@ -162,4 +164,9 @@ export async function listHistory(options: {
     prisma.musicPlaybackHistory.count({ where }),
   ]);
   return { rows, total };
+}
+
+/** Die Moduleinstellungen - eine Stelle fuer Web, Bot und Laufzeit. */
+export async function getMusicSettings(): Promise<MusicSettings> {
+  return getModuleSettings<MusicSettings>(MUSIC_MODULE_ID);
 }

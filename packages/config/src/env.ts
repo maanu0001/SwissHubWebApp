@@ -106,6 +106,16 @@ export const serverEnvSchema = z
     PAYMENT_PROVIDER: z.enum(['mock', 'stripe']).optional(),
     PAYMENT_API_KEY: z.string().min(1).optional(),
     PAYMENT_WEBHOOK_SECRET: z.string().min(1).optional(),
+
+    /**
+     * Voice-Laufzeit fuer SwissHub Music.
+     *
+     * Die Bot-Tokens stehen bewusst NICHT hier: sie gehoeren ausschliesslich
+     * in die Umgebung der Laufzeit selbst. Die WebApp braucht nur die
+     * Adresse und den gemeinsamen Schluessel fuer die Suche.
+     */
+    MUSIC_RUNTIME_URL: z.string().url().optional(),
+    MUSIC_RUNTIME_KEY: z.string().min(1).optional(),
   })
   .superRefine((value, ctx) => {
     if (value.NODE_ENV === 'production' && value.PAYMENT_PROVIDER === 'mock') {

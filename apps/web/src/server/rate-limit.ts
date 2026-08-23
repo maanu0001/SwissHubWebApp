@@ -36,6 +36,22 @@ export const RATE_LIMITS = {
   raffleManage: { limit: 40, windowMs: 5 * 60 * 1000 },
   /** Ziehen und neu ziehen - selten und folgenreich. */
   raffleDraw: { limit: 10, windowMs: 10 * 60 * 1000 },
+  /**
+   * Wiedergabesteuerung.
+   *
+   * Grosszuegig: wer Musik hoert, drueckt oft auf Skip, und ein zu enges
+   * Limit macht den Player unbenutzbar. Es bremst nur Automatisierung.
+   */
+  musicControl: { limit: 120, windowMs: 5 * 60 * 1000 },
+  /**
+   * Suche.
+   *
+   * Enger, weil jede Anfrage eine fremde Quelle belastet - der Legacy-Bot
+   * hatte hier gar keinen Schutz.
+   */
+  musicSearch: { limit: 40, windowMs: 60 * 1000 },
+  /** Eine Session starten oder beenden - selten und folgenreich. */
+  musicSession: { limit: 20, windowMs: 10 * 60 * 1000 },
 } as const satisfies Record<string, RateLimitRule>;
 
 export type RateLimitName = keyof typeof RATE_LIMITS;

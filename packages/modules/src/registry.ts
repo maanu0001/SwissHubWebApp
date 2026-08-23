@@ -33,6 +33,17 @@ export interface ModuleNavigationItem {
   permission: string;
   /** Lucide Icon Name (siehe `nav-icon.tsx`). */
   icon: string;
+  /**
+   * Weiterer Pfad, dessen Unterseiten diesen Titel tragen sollen.
+   *
+   * Normalerweise ist der Navigationspfad zugleich die Wurzel des Moduls, und
+   * die Kopfzeile findet den Titel fuer jede Unterseite ueber diesen Praefix.
+   * Bei Premium ist das anders: die Wurzel `/premium` ist die oeffentliche
+   * Shop-Seite ausserhalb des geschuetzten Bereichs, waehrend die Verwaltung
+   * unter `/premium/...` liegt. Ohne diese Angabe faenden die Unterseiten
+   * keinen Titel und die Kopfzeile zeigte nur "SwissHub".
+   */
+  titlePrefix?: string;
   /** Abschnitt in der Seitenleiste. */
   group: NavigationGroupId;
   order: number;

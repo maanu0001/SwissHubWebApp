@@ -4,6 +4,7 @@ export * from './products';
 export * from './service';
 export * from './discord';
 export * from './queries';
+export * from './reconcile';
 export * from './payments/types';
 export * from './payments/provider';
 export { handleWebhook, type WebhookOutcome } from './payments/webhook.service';

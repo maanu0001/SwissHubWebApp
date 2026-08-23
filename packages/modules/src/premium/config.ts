@@ -252,6 +252,7 @@ export const premiumModule: ModuleDefinition = registerModule({
   navigation: [
     {
       href: '/premium/uebersicht',
+      titlePrefix: '/premium',
       label: 'Premium',
       description: 'Abonnements, Zahlungen und Premium-Stübli',
       permission: PREMIUM_PERMISSIONS.view,

@@ -9,7 +9,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { cn } from '@/lib/utils';
 import { SidebarNav, type NavigationGroup } from './sidebar-nav';
 import { ServerCard, type ServerCardData } from './server-card';
-import { PromoCard } from './promo-card';
+import { PromoCard, type PremiumHinweis } from './promo-card';
 
 export interface SidebarProps {
   groups: NavigationGroup[];
@@ -17,6 +17,7 @@ export interface SidebarProps {
   bot: { online: boolean; wsPingMs: number | null };
   discordUrl: string;
   logoUrl: string;
+  premium?: PremiumHinweis | null;
 }
 
 /**
@@ -24,7 +25,14 @@ export interface SidebarProps {
  * Hinweiskarte und eine Leiste mit Statusanzeige und Werkzeugen.
  * Der eingeklappte Zustand bleibt für die Sitzung erhalten.
  */
-export function Sidebar({ groups, server, bot, discordUrl, logoUrl }: SidebarProps): React.JSX.Element {
+export function Sidebar({
+  groups,
+  server,
+  bot,
+  discordUrl,
+  logoUrl,
+  premium,
+}: SidebarProps): React.JSX.Element {
   const [collapsed, setCollapsed] = useState(false);
 
   return (
@@ -49,7 +57,7 @@ export function Sidebar({ groups, server, bot, discordUrl, logoUrl }: SidebarPro
         <SidebarNav groups={groups} collapsed={collapsed} />
       </div>
 
-      {collapsed ? null : <PromoCard href={discordUrl} />}
+      {collapsed ? null : <PromoCard href={discordUrl} premium={premium} />}
 
       <TooltipProvider delayDuration={200}>
         <div className={cn('flex items-center gap-2 border-t border-border pt-3', collapsed && 'flex-col')}>

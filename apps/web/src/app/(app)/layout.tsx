@@ -8,6 +8,7 @@ import {
   getGuildConfig,
   groupNavigation,
   jail,
+  premium as premiumModule,
   readBotStatus,
 } from '@swisshub/modules';
 import { AppShell } from '@/components/layout/app-shell';
@@ -44,6 +45,23 @@ export default async function AppLayout({
     brandingModule.currentLogoUrl(),
   ]);
 
+  /**
+   * Zustand für die Hinweiskarte in der Seitenleiste.
+   *
+   * Ist Premium eingeschaltet, führt die Karte auf `/premium`; wer bereits
+   * abonniert hat, sieht dort sein Angebot statt einer Werbung. Ist das Modul
+   * aus, bleibt die Karte unverändert.
+   */
+  const premiumKarte = moduleIds.has(premiumModule.PREMIUM_MODULE_ID)
+    ? await premiumModule
+        .getActiveSubscription(context.user.id)
+        .then((abo) => ({
+          planName:
+            abo && premiumModule.grantsEntitlements(abo.status) ? `${abo.product.name} aktiv` : null,
+        }))
+        .catch(() => ({ planName: null }))
+    : null;
+
   // Der verbundene Server steht in der Datenbank; Discord liefert nur die
   // aktuellen Anzeigedaten und darf ausfallen.
   const guildId = guild?.id ?? guildConfig.guildId;
@@ -74,11 +92,15 @@ export default async function AppLayout({
     })),
   }));
 
-  const titles = navigation.map((item) => ({
-    href: item.href,
-    label: item.label,
-    description: item.description,
-  }));
+  const titles = navigation.flatMap((item) => [
+    { href: item.href, label: item.label, description: item.description },
+    // Ein Modul kann einen weiteren Pfad beanspruchen (siehe `titlePrefix`).
+    // Die Kopfzeile nimmt den laengsten Treffer, der genauere Eintrag oben
+    // gewinnt also weiterhin.
+    ...(item.titlePrefix
+      ? [{ href: item.titlePrefix, label: item.label, description: item.description }]
+      : []),
+  ]);
 
   return (
     <AppShell
@@ -88,6 +110,7 @@ export default async function AppLayout({
       bot={{ online: bot.online, wsPingMs: bot.wsPingMs }}
       discordUrl={guildId ? `https://discord.com/channels/${guildId}` : 'https://discord.com/channels/@me'}
       logoUrl={logoUrl}
+      premium={premiumKarte}
       server={{
         name: guild?.name ?? guildConfig.name ?? branding.name,
         iconUrl: guildId ? guildIconUrl(guildId, guild?.iconHash ?? guildConfig.iconHash, 64) : null,

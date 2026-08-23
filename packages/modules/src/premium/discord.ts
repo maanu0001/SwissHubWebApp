@@ -75,6 +75,8 @@ export function ownerPermissions(managePermissions: boolean): bigint {
 
 interface GewuenschterZustand {
   entitlements: Set<PremiumEntitlement>;
+  /** Das laufende Abonnement - fuer die Verknuepfung der Ressource. */
+  subscriptionId: string | null;
   premiumRoleId: string | null;
   stuebliRoleId: string | null;
   bundleRoleId: string | null;
@@ -99,6 +101,7 @@ async function gewuenscht(userId: string): Promise<GewuenschterZustand> {
 
   return {
     entitlements,
+    subscriptionId: subscription?.id ?? null,
     premiumRoleId: settings.premiumRoleId,
     stuebliRoleId: settings.stuebliRoleId,
     // Die Bundle-Rolle bekommt, wer beide Ansprüche hat.
@@ -238,6 +241,7 @@ async function syncStuebli(
         userId,
         discordId,
         guildId,
+        subscriptionId: ziel.subscriptionId,
         resourceType: 'PREMIUM_STUEBLI_VOICE',
         discordCategoryId: ziel.categoryId,
         state: 'PENDING',
@@ -285,6 +289,7 @@ async function syncStuebli(
       data: {
         discordResourceId: channel.id,
         discordCategoryId: ziel.categoryId,
+        subscriptionId: ziel.subscriptionId,
         name,
         state: 'ACTIVE',
         lastSyncAt: new Date(),
@@ -322,6 +327,8 @@ async function syncStuebli(
     data: {
       state: 'ACTIVE',
       discordCategoryId: bestehend.parentId ?? ziel.categoryId,
+      // Nach einem Angebotswechsel gehoert das Stuebli zum neuen Abonnement.
+      subscriptionId: ziel.subscriptionId,
       lastSyncAt: new Date(),
       lastSyncError: null,
     },

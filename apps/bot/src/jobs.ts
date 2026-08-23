@@ -2,7 +2,9 @@ import { jobConfig } from '@swisshub/config';
 import { createLogger } from '@swisshub/logger';
 import { purgeExpiredIdempotencyKeys } from '@swisshub/database';
 import { purgeExpiredSessions } from '@swisshub/auth';
-import { jail, level, spielersuche, syncDiscord, writeHeartbeat } from '@swisshub/modules';
+import { jail, level, spielersuche, syncDiscord, writeHeartbeat,
+  premium,
+} from '@swisshub/modules';
 
 const log = createLogger('bot:jobs');
 
@@ -178,6 +180,24 @@ export function createJobRunner(
       intervalMs: 15 * 60 * 1000,
       async run() {
         await syncDiscord({ trigger: 'scheduled' });
+      },
+    },
+    {
+      /**
+       * Premium: abgelaufene Abonnements beenden und Discord nachziehen.
+       *
+       * Bewusst im bestehenden Job-Runner - es gibt keinen zweiten
+       * Zeitplaner. Fuenf Minuten sind fein genug: eine Schonfrist zaehlt in
+       * Tagen, und ein fehlgeschlagener Abgleich soll nicht stundenlang
+       * stehen bleiben.
+       */
+      name: 'premium-reconcile',
+      intervalMs: 5 * 60 * 1000,
+      async run() {
+        const ergebnis = await premium.reconcilePremium();
+        if (ergebnis.expired > 0 || ergebnis.failed > 0) {
+          log.info('Premium abgeglichen', { ...ergebnis });
+        }
       },
     },
     {

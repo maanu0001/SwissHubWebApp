@@ -1790,3 +1790,290 @@ model PremiumDiscordResource {
   @@index([state])
   @@index([discordResourceId])
 }
+
+// ===========================================================================
+// SwissHub Music
+//
+// Der Legacy-Bot hielt seinen gesamten Zustand im Arbeitsspeicher eines
+// einzigen Python-Prozesses: `active_session[(guild_id, channel_id)]` als
+// Zuordnung, `asyncio.Queue` als Warteschlange. Das funktioniert, solange
+// genau ein Prozess existiert und nie neu startet - beides trifft hier nicht
+// mehr zu. WebApp und Voice-Runtime sind getrennte Prozesse, und die WebApp
+// laeuft potenziell mehrfach.
+//
+// Deshalb liegt der *steuernde* Zustand in der Datenbank: wer welchem Kanal
+// zugewiesen ist, was in der Warteschlange steht, welcher Befehl noch offen
+// ist. Der *fluechtige* Zustand - der laufende FFmpeg-Prozess, die
+// Voice-Verbindung selbst - bleibt bewusst in der Runtime. Er ueberlebt
+// keinen Neustart, und so zu tun, als waere das anders, waere gelogen.
+// ===========================================================================
+
+/// Controller oder Worker? Der Unterschied ist reine Zuweisungspolitik:
+/// technisch spielt beides identisch ab.
+enum MusicBotType {
+  CONTROLLER
+  WORKER
+}
+
+enum MusicBotStatus {
+  OFFLINE
+  FREE
+  BUSY
+  CONNECTING
+  DEGRADED
+  DRAINING
+  DISABLED
+}
+
+enum MusicSessionStatus {
+  STARTING
+  ACTIVE
+  DEGRADED
+  ENDED
+}
+
+enum MusicLoopMode {
+  OFF
+  TRACK
+  QUEUE
+}
+
+/// Warum eine Session endete - fuer den Verlauf und die Fehlersuche.
+enum MusicSessionEndReason {
+  MANUAL
+  IDLE_TIMEOUT
+  ALONE_TIMEOUT
+  WORKER_OFFLINE
+  ADMIN_FORCED
+  MODULE_DISABLED
+  STALE_RECONCILED
+}
+
+enum MusicCommandKind {
+  PLAY
+  PAUSE
+  RESUME
+  SKIP
+  STOP
+  LEAVE
+  JOIN
+  SET_VOLUME
+  SET_LOOP
+  QUEUE_ADD
+  QUEUE_REMOVE
+  QUEUE_MOVE
+  QUEUE_SHUFFLE
+}
+
+enum MusicCommandStatus {
+  PENDING
+  RUNNING
+  DONE
+  FAILED
+  TIMEOUT
+}
+
+/// Ein Bot des Pools.
+///
+/// Bewusst OHNE Token-Spalte. Die Tokens sind Infrastruktur-Geheimnisse und
+/// kommen aus der Umgebung der Voice-Runtime; die Datenbank kennt nur die
+/// Identitaet und den Zustand. Ein Klartext-Token in einer normalen Tabelle
+/// waere genau der Fehler, den die Legacy-config.json bereits gemacht hat.
+model MusicBotInstance {
+  id   String       @id @default(cuid())
+  type MusicBotType
+
+  /// Stabiler interner Schluessel: CONTROLLER, WORKER_1, WORKER_2 ...
+  /// Nicht die Position in einem Array - die verschiebt sich.
+  key  String
+  /// Anzeigename aus Discord, sobald der Bot sich einmal gemeldet hat.
+  name String?
+
+  discordUserId String?
+  avatarHash    String?
+
+  /// Vom Betrieb abschaltbar. Ein abgeschalteter Bot bekommt keine neuen
+  /// Sessions, behaelt eine laufende aber, bis sie normal endet.
+  enabled Boolean        @default(true)
+  status  MusicBotStatus @default(OFFLINE)
+
+  lastHeartbeatAt DateTime?
+  lastError       String?
+  startedAt       DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  sessions MusicSession[]
+
+  @@unique([key])
+  @@unique([discordUserId])
+  @@index([status, enabled])
+}
+
+/// Eine Musik-Session in genau einem Voice-Kanal.
+model MusicSession {
+  id      String @id @default(cuid())
+  guildId String
+
+  voiceChannelId   String
+  voiceChannelName String?
+
+  botInstanceId String?
+  botInstance   MusicBotInstance? @relation(fields: [botInstanceId], references: [id], onDelete: SetNull)
+
+  status MusicSessionStatus @default(STARTING)
+
+  /// Genau eine offene Session je Voice-Kanal.
+  ///
+  /// Traegt "<guildId>:<voiceChannelId>", solange die Session laeuft, und
+  /// `null`, sobald sie beendet ist. Derselbe Teilindex-Trick wie bei
+  /// Premium: zwei gleichzeitige /join duerfen nicht zwei Sessions erzeugen,
+  /// und das entscheidet die Datenbank, nicht die Anwendung.
+  activeChannelKey String?
+
+  /// Genau eine offene Session je Bot.
+  ///
+  /// Traegt die Bot-ID, solange die Session laeuft. Verhindert, dass zwei
+  /// gleichzeitige Zuweisungen denselben Worker in zwei Kanaele schicken -
+  /// die Race Condition, gegen die eine In-Memory-Map machtlos ist.
+  activeBotKey String?
+
+  loopMode MusicLoopMode @default(OFF)
+  /// Lautstaerke in Prozent, 0-150 wie im Legacy-System. Ganzzahlig.
+  volume   Int           @default(50)
+
+  /// Der laufende Titel. Zeigt auf das Warteschlangenelement, damit Titel,
+  /// Dauer und Besteller nicht doppelt gefuehrt werden.
+  currentItemId  String?
+  /// Beginn des laufenden Titels - Grundlage der Fortschrittsberechnung im
+  /// Browser. Ohne diesen Wert muesste die Oberflaeche sekuendlich fragen.
+  trackStartedAt DateTime?
+  pausedAt       DateTime?
+  /// Aufsummierte Pausendauer in Millisekunden.
+  pausedMs       Int       @default(0)
+
+  /// Letzte echte Aktivitaet - Grundlage des Leerlauf-Disconnects.
+  lastActivityAt DateTime  @default(now())
+  /// Seit wann der Bot allein im Kanal ist; `null`, sobald jemand zuhoert.
+  aloneSince     DateTime?
+  listenerCount  Int       @default(0)
+
+  startedByDiscordUserId String?
+
+  createdAt DateTime               @default(now())
+  updatedAt DateTime               @updatedAt
+  endedAt   DateTime?
+  endReason MusicSessionEndReason?
+
+  queue    MusicQueueItem[]
+  history  MusicPlaybackHistory[]
+  commands MusicCommand[]
+
+  @@unique([activeChannelKey])
+  @@unique([activeBotKey])
+  @@index([guildId, status])
+  @@index([status, lastActivityAt])
+}
+
+/// Ein Element der Warteschlange.
+model MusicQueueItem {
+  id        String       @id @default(cuid())
+  sessionId String
+  session   MusicSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  /// Luecken erlaubt: Verschieben und Entfernen sollen nicht die halbe
+  /// Warteschlange neu schreiben muessen.
+  position Int
+
+  provider        String
+  providerTrackId String?
+  title           String
+  artist          String?
+  /// Die Seiten-URL, NICHT die Stream-URL.
+  ///
+  /// YouTube-Stream-URLs tragen eine ablaufende Signatur. Der Legacy-Bot holt
+  /// deshalb unmittelbar vor dem Abspielen eine frische URL - dieses
+  /// Verhalten bleibt, und deshalb wird hier nur die dauerhafte Seiten-URL
+  /// gespeichert.
+  webpageUrl      String
+  durationSeconds Int     @default(0)
+  thumbnailUrl    String?
+
+  requestedByDiscordUserId String?
+  requestedByUsername      String?
+
+  /// Nicht mehr abspielbar (Video geloescht, gesperrt). Bleibt sichtbar,
+  /// damit erklaerbar ist, warum uebersprungen wurde.
+  unavailable      Boolean @default(false)
+  unavailableError String?
+
+  createdAt DateTime @default(now())
+
+  @@index([sessionId, position])
+}
+
+/// Was tatsaechlich gelaufen ist.
+///
+/// Bewusst sitzungs- und kanalbezogen, nicht personenbezogen: es soll
+/// nachvollziehbar sein, was in einem Kanal lief, nicht wer was hoert.
+model MusicPlaybackHistory {
+  id        String        @id @default(cuid())
+  sessionId String?
+  session   MusicSession? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+
+  guildId        String
+  voiceChannelId String
+
+  title           String
+  artist          String?
+  webpageUrl      String
+  durationSeconds Int     @default(0)
+  thumbnailUrl    String?
+
+  requestedByDiscordUserId String?
+  requestedByUsername      String?
+
+  playedAt        DateTime @default(now())
+  /// Tatsaechlich gehoerte Dauer - kann unter `durationSeconds` liegen.
+  playedSeconds   Int      @default(0)
+  skipped         Boolean  @default(false)
+
+  @@index([guildId, playedAt])
+  @@index([sessionId])
+}
+
+/// Ein Befehl an die Voice-Runtime.
+///
+/// Es gibt kein Redis im Projekt und keine offene HTTP-Schnittstelle zu den
+/// Workern - beides waere neue Infrastruktur beziehungsweise ein offenes Tor.
+/// Der Bus laeuft deshalb ueber die Datenbank, die ohnehin beide Seiten
+/// verbindet: die WebApp schreibt, der zustaendige Bot holt ab und meldet
+/// zurueck. Dadurch gibt es eine echte Rueckmeldung statt der Annahme, ein
+/// Klick sei schon angekommen.
+model MusicCommand {
+  id        String       @id @default(cuid())
+  sessionId String
+  session   MusicSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  /// Wer ausfuehren soll. Ein Worker holt ausschliesslich seine eigenen.
+  botInstanceId String
+
+  kind    MusicCommandKind
+  /// Zusatzangaben je Befehl (Lautstaerke, Element-ID, Zielposition).
+  payload Json               @default("{}")
+  status  MusicCommandStatus @default(PENDING)
+
+  requestedByDiscordUserId String?
+  /// Woher der Befehl kam - "web" oder "discord". Nur fuer die Fehlersuche.
+  origin                   String @default("web")
+
+  claimedAt  DateTime?
+  finishedAt DateTime?
+  error      String?
+
+  createdAt DateTime @default(now())
+
+  @@index([botInstanceId, status, createdAt])
+  @@index([sessionId, createdAt])
+}

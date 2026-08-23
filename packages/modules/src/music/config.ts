@@ -179,7 +179,9 @@ async function musicHealthChecks(context: ModuleHealthContext): Promise<ModuleHe
     checks.push({
       label: 'Musik-Bots',
       status: 'error',
-      detail: 'Kein Bot konfiguriert. Die Voice-Laufzeit meldet sich selbst an, sobald sie läuft.',
+      detail:
+        'Kein Bot vorhanden. Die Voice-Laufzeit, die sich hier anmeldet, ist noch nicht ausgeliefert - '
+        + 'bis dahin lässt sich keine Musik abspielen.',
     });
   } else {
     const online = bots.filter(

@@ -25,6 +25,7 @@ import { registerCommandHandler, registerCommands } from './commands/register';
 import { registerSpielersucheButtons } from './spielersuche-buttons';
 import { registerRaffleButtons } from './raffle-buttons';
 import { recoverVoiceSessions, registerSpielersucheVoice } from './spielersuche-voice';
+import { registerVoicePresence } from './voice-presence';
 import { registerLevelGameButtons } from './level-games';
 import {
   recoverVoiceMembers,
@@ -107,6 +108,7 @@ async function main(): Promise<void> {
   registerSpielersucheButtons(client);
   registerRaffleButtons(client);
   registerSpielersucheVoice(client);
+  registerVoicePresence(client);
   // XP aus Nachrichten und Voice sowie die Knöpfe der XP-Spiele.
   registerLevelMessageXp(client);
   registerLevelVoiceTracking(client);

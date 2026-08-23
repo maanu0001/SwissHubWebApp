@@ -2077,3 +2077,26 @@ model MusicCommand {
   @@index([botInstanceId, status, createdAt])
   @@index([sessionId, createdAt])
 }
+
+/// Wer sitzt gerade in welchem Sprachkanal?
+///
+/// Discord liefert Voice-Zustaende ueber das Gateway, nicht ueber REST - nur
+/// der Bot kennt sie. Die WebApp braucht sie aber, um den Player auf den
+/// Kanal des Aufrufenden zu richten, statt ihn eine Session aus einer Liste
+/// waehlen zu lassen. Der Bot schreibt deshalb mit, was er ohnehin sieht.
+///
+/// Bewusst nur der aktuelle Zustand und keine Historie: es soll den Player
+/// steuern, nicht nachvollziehbar machen, wer wann wo war.
+model VoicePresence {
+  discordId String @id
+  guildId   String
+
+  channelId   String
+  channelName String?
+  /// Andere Bots zaehlen nicht als Zuhoerer - das entscheidet der Schreiber.
+  isBot       Boolean @default(false)
+
+  updatedAt DateTime @updatedAt
+
+  @@index([guildId, channelId])
+}

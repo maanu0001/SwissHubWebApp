@@ -1,0 +1,38 @@
+'use client';
+
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import { cn } from '@/lib/utils';
+
+export interface MusicSection {
+  href: string;
+  label: string;
+}
+
+/** Bereichsnavigation des Musik-Moduls. */
+export function MusicSectionNav({ sections }: { sections: MusicSection[] }): React.JSX.Element {
+  const pfad = usePathname();
+
+  return (
+    <nav aria-label="Musik-Bereiche" className="flex flex-wrap gap-1 border-b border-border/60 pb-3">
+      {sections.map((section) => {
+        const aktiv = pfad === section.href;
+        return (
+          <Link
+            key={section.href}
+            href={section.href}
+            aria-current={aktiv ? 'page' : undefined}
+            className={cn(
+              'inline-flex min-h-9 items-center rounded-lg px-3 text-sm transition-colors',
+              aktiv
+                ? 'bg-primary/15 font-medium text-primary-bright'
+                : 'text-muted-foreground hover:bg-card hover:text-foreground',
+            )}
+          >
+            {section.label}
+          </Link>
+        );
+      })}
+    </nav>
+  );
+}

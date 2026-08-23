@@ -1,4 +1,8 @@
-discord.py==2.4.0
+# discord.py mindestens 2.7: aeltere Fassungen bieten Discord nur die
+# xsalsa20_poly1305-Verschluesselungen an, die der Voice-Dienst nicht mehr
+# akzeptiert. Der Handschlag scheitert dann mit Schliesscode 4017, und der Bot
+# betritt keinen Kanal. Erst ab 2.7 ist aead_xchacha20_poly1305_rtpsize dabei.
+discord.py[voice]==2.7.1
 PyNaCl==1.5.0
 yt-dlp==2026.8.11
 ytmusicapi==1.10.0

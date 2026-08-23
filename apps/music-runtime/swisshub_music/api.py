@@ -24,12 +24,26 @@ log = logging.getLogger("swisshub.music.api")
 def erstelle_app(api_key: str) -> web.Application:
     app = web.Application()
 
+    # Einmal kodieren statt bei jeder Anfrage.
+    erwartet = api_key.encode("utf-8")
+
     @web.middleware
     async def pruefe_schluessel(anfrage: web.Request, handler):
+        # Die Zustandspruefung kommt aus dem Container selbst und traegt
+        # keinen Schluessel. Sie hinter die Pruefung zu haengen war falsch:
+        # Docker sah dauerhaft 500 und hielt den Dienst fuer krank.
+        if anfrage.path == "/health":
+            return await handler(anfrage)
+
         # Zeitkonstanter Vergleich: ein einfaches == verriete den Schluessel
         # ueber die Antwortzeit.
-        gesendet = anfrage.headers.get("x-swisshub-music-key", "")
-        if not hmac.compare_digest(gesendet, api_key):
+        #
+        # Verglichen werden BYTES, nicht Zeichenketten: `compare_digest` wirft
+        # bei Zeichenketten mit Nicht-ASCII-Zeichen einen TypeError. Ein
+        # Schluessel mit Umlaut oder Sonderzeichen legte damit die gesamte
+        # Schnittstelle lahm - genau das ist passiert.
+        gesendet = anfrage.headers.get("x-swisshub-music-key", "").encode("utf-8")
+        if not hmac.compare_digest(gesendet, erwartet):
             return web.json_response({"error": "unauthorized"}, status=401)
         return await handler(anfrage)
 

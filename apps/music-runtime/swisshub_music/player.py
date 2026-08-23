@@ -177,7 +177,29 @@ class SessionPlayer:
         return bool(self.voice and self.voice.is_connected() and self.voice.is_playing())
 
     def zuhoerer(self) -> int:
-        """Echte Zuhoerer - Bots zaehlen nicht, wie im Legacy-Bot."""
+        """Echte Zuhoerer - Bots zaehlen nicht, wie im Legacy-Bot.
+
+        Gezaehlt wird ueber die Voice-Zustaende des Kanals, nicht ueber
+        `channel.members`: letzteres braucht das privilegierte Members-Intent.
+        Ist das im Developer Portal nicht aktiviert, ist die Mitgliederliste
+        leer - der Bot haelte sich faelschlich fuer allein und verliesse den
+        Kanal nach zwei Minuten, obwohl Leute zuhoeren.
+
+        Laesst sich zu einer ID kein Mitglied aufloesen, zaehlt sie als echter
+        Zuhoerer. Im Zweifel bleibt der Bot lieber verbunden, als jemandem
+        mitten im Lied die Musik abzustellen.
+        """
         if not self.voice or not self.voice.channel:
             return 0
-        return len([m for m in self.voice.channel.members if not m.bot])
+
+        eigene_id = self.client.user.id if self.client.user else None
+
+        anzahl = 0
+        for benutzer_id in self.voice.channel.voice_states:
+            if benutzer_id == eigene_id:
+                continue
+            mitglied = self.voice.channel.guild.get_member(benutzer_id)
+            if mitglied is not None and mitglied.bot:
+                continue
+            anzahl += 1
+        return anzahl

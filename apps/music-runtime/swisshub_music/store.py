@@ -264,6 +264,24 @@ class Store:
             session_id,
         )
 
+    async def markiere_aktiv(self, session_id: str) -> None:
+        """Die Sitzung laeuft - der Bot sitzt im Kanal.
+
+        Ohne diesen Schritt bliebe sie auf STARTING stehen, und die Verwaltung
+        saehe dauerhaft "startet", obwohl laengst gespielt wird. Zugleich
+        beginnt hier die Leerlaufuhr: sie soll ab dem Beitritt zaehlen, nicht
+        ab dem Moment, in dem jemand auf den Knopf gedrueckt hat.
+        """
+        await self.pool.execute(
+            """
+            UPDATE "MusicSession"
+               SET "status" = 'ACTIVE'::"MusicSessionStatus",
+                   "lastActivityAt" = now(), "aloneSince" = NULL, "updatedAt" = now()
+             WHERE "id" = $1 AND "endedAt" IS NULL
+            """,
+            session_id,
+        )
+
     async def naechster_titel(self, session_id: str) -> asyncpg.Record | None:
         """Das erste Element der Warteschlange, das noch spielbar ist."""
         return await self.pool.fetchrow(

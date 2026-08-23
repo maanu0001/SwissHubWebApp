@@ -40,6 +40,8 @@ class MusicBot(discord.Client):
         # Signalisiert dem Einstiegspunkt, dass die Identitaet steht. Der
         # Pool-Abgleich braucht ALLE Bots, bevor er Rollen vergeben kann.
         self.bereit = asyncio.Event()
+        # Verhindert, dass ein Reconnect den Start erneut ausfuehrt.
+        self._gestartet = False
 
     async def on_ready(self) -> None:
         assert self.user is not None
@@ -50,9 +52,20 @@ class MusicBot(discord.Client):
             avatar_hash=self.user.avatar.key if self.user.avatar else None,
         )
         self.discord_user_id = str(self.user.id)
-        log.info("Angemeldet: %s (%s)", self.spec.key, self.user)
         self.bereit.set()
 
+        # `on_ready` feuert bei JEDEM Gateway-Reconnect, nicht nur beim Start.
+        # Discord identifiziert sich routinemaessig neu - oft gerade dann,
+        # wenn eine Voice-Verbindung aufgebaut wurde. Alles Einmalige gehoert
+        # deshalb hinter diese Sperre: sonst raeumte der Bot bei jedem
+        # Reconnect seine eigene laufende Sitzung weg und verliesse den Kanal
+        # unmittelbar nach dem Beitreten. Genau dieser Fehler ist aufgetreten.
+        if self._gestartet:
+            log.info("Erneut verbunden: %s (%s)", self.spec.key, self.user)
+            return
+        self._gestartet = True
+
+        log.info("Angemeldet: %s (%s)", self.spec.key, self.user)
         await self._raeume_alte_sessions_auf()
 
         self._aufgaben = [
@@ -71,7 +84,17 @@ class MusicBot(discord.Client):
         lassen, als liefe die Wiedergabe weiter.
         """
         assert self.bot_id is not None
+        # Zusaetzliche Sicherung: nur beenden, was tatsaechlich verwaist ist.
+        # Sitzt der Bot wider Erwarten doch im Kanal, waere ein Beenden hier
+        # ein Selbstmord mitten im Betrieb.
+        verbunden = {
+            str(stimme.channel.id)
+            for stimme in self.voice_clients
+            if stimme.channel is not None and stimme.is_connected()
+        }
         for zeile in await self.store.offene_sessions(self.bot_id):
+            if str(zeile["voiceChannelId"]) in verbunden:
+                continue
             await self.store.beende_session(str(zeile["id"]), "STALE_RECONCILED")
             log.info("Verwaiste Session beendet: %s", zeile["id"])
 
@@ -155,6 +178,7 @@ class MusicBot(discord.Client):
 
         self.player.setze_lautstaerke(int(session["volume"]))
         await self.player.verbinde(kanal)
+        await self.store.markiere_aktiv(session_id)
 
     async def _aufsicht(self) -> None:
         """Leerlauf und leerer Kanal - beide Legacy-Regeln, alle 30 Sekunden."""
@@ -179,10 +203,19 @@ class MusicBot(discord.Client):
                     self.player = None
                     continue
 
+                # Die Zeitspannen rechnet die Datenbank aus.
+                #
+                # Ihre Zeitstempel tragen keine Zeitzone; ein Vergleich mit
+                # einem zeitzonenbewussten `datetime.now(utc)` wirft in Python.
+                # Der Fehler landete zuvor still im Protokoll, und die Aufsicht
+                # tat gar nichts mehr. `EXTRACT(EPOCH FROM now() - spalte)`
+                # umgeht das, weil beide Seiten aus derselben Quelle stammen.
                 zeile = await self.store.pool.fetchrow(
                     """
-                    SELECT "aloneSince", "lastActivityAt",
-                           (SELECT COUNT(*) FROM "MusicQueueItem" WHERE "sessionId" = $1) AS "offen"
+                    SELECT
+                        EXTRACT(EPOCH FROM now() - "aloneSince")::float AS "allein_seit",
+                        EXTRACT(EPOCH FROM now() - "lastActivityAt")::float AS "untaetig_seit",
+                        (SELECT COUNT(*) FROM "MusicQueueItem" WHERE "sessionId" = $1) AS "offen"
                       FROM "MusicSession" WHERE "id" = $1
                     """,
                     self.player.session_id,
@@ -190,21 +223,15 @@ class MusicBot(discord.Client):
                 if zeile is None:
                     continue
 
-                import datetime as _dt
+                if zeile["allein_seit"] is not None and zeile["allein_seit"] >= allein:
+                    await self._trenne("ALONE_TIMEOUT")
+                    continue
 
-                jetzt = _dt.datetime.now(_dt.timezone.utc)
-
-                if zeile["aloneSince"] is not None:
-                    if (jetzt - zeile["aloneSince"]).total_seconds() >= allein:
-                        await self._trenne("ALONE_TIMEOUT")
-                        continue
-
-                untaetig = (jetzt - zeile["lastActivityAt"]).total_seconds()
                 if (
                     not self.player.laeuft()
                     and int(zeile["offen"] or 0) == 0
                     and session["loopMode"] == "OFF"
-                    and untaetig >= leerlauf
+                    and (zeile["untaetig_seit"] or 0) >= leerlauf
                 ):
                     await self._trenne("IDLE_TIMEOUT")
             except Exception:

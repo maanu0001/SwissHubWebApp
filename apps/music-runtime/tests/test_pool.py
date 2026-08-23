@@ -123,3 +123,72 @@ async def test_abgeschalteter_bot_bleibt_abgeschaltet(store: Store) -> None:
     )
     assert zeile["enabled"] is False
     assert zeile["status"] == "DISABLED"
+
+
+@pytest.mark.asyncio
+async def test_aufraeumen_verschont_verbundene_sitzung(store: Store) -> None:
+    """Eine Sitzung, in deren Kanal der Bot sitzt, ist nicht verwaist.
+
+    Aus einem echten Fehlerbericht: der Bot trat bei und verliess den Kanal
+    sofort wieder. Ursache war, dass `on_ready` bei jedem Gateway-Reconnect
+    feuert und dort die "alten" Sitzungen weggeraeumt wurden - die laufende
+    gehoerte dazu.
+    """
+    await store.melde_identitaet("CONTROLLER", "Bot", "111", None)
+    await store.gleiche_pool_ab([("CONTROLLER", "CONTROLLER", "111")])
+    bot_id = await store.pool.fetchval(
+        'SELECT "id" FROM "MusicBotInstance" WHERE "discordUserId" = \'111\''
+    )
+    await store.pool.execute(
+        """
+        INSERT INTO "MusicSession"
+            ("id","guildId","voiceChannelId","botInstanceId","status",
+             "activeChannelKey","activeBotKey","createdAt","updatedAt","lastActivityAt")
+        VALUES (gen_random_uuid()::text,'1','4711',$1,'ACTIVE','1:4711',$1,now(),now(),now())
+        """,
+        bot_id,
+    )
+
+    offen = await store.offene_sessions(bot_id)
+    assert len(offen) == 1
+    # Der Bot sitzt in genau diesem Kanal - die Sitzung darf nicht enden.
+    assert str(offen[0]["voiceChannelId"]) == "4711"
+
+
+@pytest.mark.asyncio
+async def test_markiere_aktiv_setzt_status_und_uhr(store: Store) -> None:
+    """Beim Beitritt wird die Sitzung aktiv und die Leerlaufuhr beginnt neu."""
+    await store.melde_identitaet("CONTROLLER", "Bot", "111", None)
+    await store.gleiche_pool_ab([("CONTROLLER", "CONTROLLER", "111")])
+    bot_id = await store.pool.fetchval(
+        'SELECT "id" FROM "MusicBotInstance" WHERE "discordUserId" = \'111\''
+    )
+    session_id = await store.pool.fetchval(
+        """
+        INSERT INTO "MusicSession"
+            ("id","guildId","voiceChannelId","botInstanceId","status",
+             "activeChannelKey","activeBotKey","aloneSince",
+             "createdAt","updatedAt","lastActivityAt")
+        VALUES (gen_random_uuid()::text,'1','2',$1,'STARTING','1:2',$1,
+                now() - interval '10 minutes',
+                now(), now(), now() - interval '30 minutes')
+        RETURNING "id"
+        """,
+        bot_id,
+    )
+
+    await store.markiere_aktiv(session_id)
+
+    zeile = await store.pool.fetchrow(
+        'SELECT "status","aloneSince","lastActivityAt" FROM "MusicSession" WHERE "id" = $1',
+        session_id,
+    )
+    assert zeile["status"] == "ACTIVE"
+    # Ohne diesen Rücksetzer schlüge der Leerlauf-Disconnect sofort zu.
+    assert zeile["aloneSince"] is None
+    # Zeitzonenlose Spalte - die Datenbank rechnet, nicht Python.
+    alter = await store.pool.fetchval(
+        'SELECT EXTRACT(EPOCH FROM now() - "lastActivityAt")::float FROM "MusicSession" WHERE "id" = $1',
+        session_id,
+    )
+    assert alter < 5

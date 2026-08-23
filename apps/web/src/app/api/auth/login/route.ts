@@ -11,6 +11,29 @@ const log = createLogger('web:auth');
 export const dynamic = 'force-dynamic';
 
 /**
+ * Nur eigene Pfade als Ziel nach der Anmeldung.
+ *
+ * Ohne diese Pruefung waere `/api/auth/login?redirect=https://boese.example`
+ * eine offene Weiterleitung: die Adresse in der Zeile gehoerte zu SwissHub,
+ * das Ziel nicht. Zugelassen ist deshalb ausschliesslich ein Pfad, der mit
+ * genau einem `/` beginnt - `//host` waere protokollrelativ und fuehrte nach
+ * aussen, und `\` deuten manche Browser wie `/`.
+ */
+function sicheresZiel(wert: string | null): string | null {
+  if (!wert || !wert.startsWith('/')) {
+    return null;
+  }
+  if (wert.startsWith('//') || wert.startsWith('/\\') || wert.includes('\\')) {
+    return null;
+  }
+  // Kein Zurueckspringen in den Anmeldeablauf selbst.
+  if (wert.startsWith('/login') || wert.startsWith('/api/auth')) {
+    return null;
+  }
+  return wert.slice(0, 512);
+}
+
+/**
  * Startet den Discord OAuth2 Flow.
  *
  * `state` und `code_verifier` (PKCE) werden in kurzlebigen, httpOnly-Cookies
@@ -52,6 +75,14 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
   response.cookies.set(COOKIE.oauthState, authorization.state, cookieOptions);
   response.cookies.set(COOKIE.oauthVerifier, authorization.codeVerifier, cookieOptions);
+
+  // Wohin es nach der Anmeldung weitergeht - etwa zurueck zum gewaehlten
+  // Premium-Angebot. Bewusst im httpOnly-Cookie und nicht im `state`: der
+  // Zustandswert dient der CSRF-Pruefung und soll nichts sonst tragen.
+  const ziel = sicheresZiel(request.nextUrl.searchParams.get('redirect'));
+  if (ziel) {
+    response.cookies.set(COOKIE.oauthRedirect, ziel, cookieOptions);
+  }
 
   return response;
 }

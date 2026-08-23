@@ -57,9 +57,15 @@ describe('Server Actions', () => {
     (_label, action) => {
       const declared = /\bpermission:\s*\S/.test(action.body);
       const explicit = EXPLICIT_CHECKS.some((check) => action.body.includes(check));
+      // Dritte zulässige Form: Selbstbedienung. Die Aktion wirkt dann
+      // ausschliesslich auf die Daten des Aufrufers und braucht keine
+      // Verwaltungsberechtigung - ein Mitglied schliesst sein eigenes Abo ab.
+      // Bewusst eine ausdrückliche Kennzeichnung und keine Ableitung: eine
+      // Aktion, die "ctx.user.id" bloss erwähnt, ist damit nicht abgedeckt.
+      const selbstbedienung = /\bselfService:\s*true/.test(action.body);
       expect(
-        declared || explicit,
-        `${action.name}: weder "permission:" noch eine ausdrückliche Prüfung im Rumpf`,
+        declared || explicit || selbstbedienung,
+        `${action.name}: weder "permission:", noch eine ausdrückliche Prüfung im Rumpf, noch "selfService: true"`,
       ).toBe(true);
     },
   );

@@ -35,6 +35,22 @@ export interface ActionDefinition<TSchema extends z.ZodTypeAny> {
   freshness?: 'cached' | 'critical';
   /** CSRF-Prüfung (Standard: an). */
   csrf?: boolean;
+  /**
+   * Selbstbedienung: die Aktion wirkt ausschliesslich auf die Daten des
+   * Aufrufers.
+   *
+   * Damit braucht sie keine eigene Permission - die Mitgliedschaft genuegt.
+   * Ein Mitglied darf sein eigenes Premium-Abo abschliessen und kuendigen,
+   * ohne dafuer eine Verwaltungsberechtigung zu besitzen.
+   *
+   * Die Angabe ist bewusst eine ausdrueckliche Erklaerung und keine
+   * Ableitung: `tests/unit/action-authorization.test.ts` verlangt von jeder
+   * Aktion eine feste Permission, eine Pruefung im Rumpf oder genau diese
+   * Kennzeichnung. Wer sie setzt, sagt damit zu, dass die Aktion keine
+   * fremde Kennung aus der Eingabe uebernimmt, ohne die Zugehoerigkeit zu
+   * pruefen.
+   */
+  selfService?: boolean;
 }
 
 export interface ActionHandlerContext<TInput> {

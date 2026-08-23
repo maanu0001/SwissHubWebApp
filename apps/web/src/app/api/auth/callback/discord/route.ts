@@ -23,6 +23,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   const clearOauthCookies = (response: NextResponse): NextResponse => {
     response.cookies.delete(COOKIE.oauthState);
     response.cookies.delete(COOKIE.oauthVerifier);
+    response.cookies.delete(COOKIE.oauthRedirect);
     return response;
   };
 
@@ -108,7 +109,21 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       return clearOauthCookies(NextResponse.redirect(appUrl('/access-denied')));
     }
 
-    return clearOauthCookies(NextResponse.redirect(appUrl('/dashboard')));
+    // Zurueck dorthin, wo die Anmeldung begonnen hat - etwa zum gewaehlten
+    // Premium-Angebot. Der Wert stammt aus einem httpOnly-Cookie, das die
+    // Login-Route nur mit einem geprueften eigenen Pfad setzt; hier wird die
+    // Form ein zweites Mal geprueft, damit ein manipuliertes Cookie nicht
+    // doch nach aussen fuehrt.
+    const gemerkt = request.cookies.get(COOKIE.oauthRedirect)?.value ?? null;
+    const ziel =
+      gemerkt &&
+      gemerkt.startsWith('/') &&
+      !gemerkt.startsWith('//') &&
+      !gemerkt.includes('\\')
+        ? gemerkt
+        : '/dashboard';
+
+    return clearOauthCookies(NextResponse.redirect(appUrl(ziel)));
   } catch (caught) {
     log.error('OAuth Callback fehlgeschlagen', { error: caught });
     await recordSecurityEvent({

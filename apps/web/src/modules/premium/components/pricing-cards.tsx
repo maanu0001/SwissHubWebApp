@@ -87,6 +87,16 @@ export function PricingCards({
                 >
                   Abo verwalten
                 </Link>
+              ) : currentSlug ? (
+                // Ein Wechsel setzt voraus, dass das laufende Abo endet - ein
+                // zweites entsteht nie. Der Knopf führt deshalb dorthin, wo das
+                // geht, statt in einen Checkout, der die Buchung ablehnen müsste.
+                <Link
+                  href="/premium/me"
+                  className={cn(buttonVariants({ variant: 'outline' }), 'w-full')}
+                >
+                  Wechsel über mein Abo
+                </Link>
               ) : (
                 <Link
                   href={
@@ -99,7 +109,7 @@ export function PricingCards({
                     'w-full',
                   )}
                 >
-                  {currentSlug ? `Zu ${product.name} wechseln` : 'Jetzt abonnieren'}
+                  Jetzt abonnieren
                 </Link>
               )}
             </div>

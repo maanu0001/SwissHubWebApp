@@ -24,7 +24,7 @@ const ERROR_MESSAGES: Record<string, string> = {
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string; logout?: string }>;
+  searchParams: Promise<{ error?: string; logout?: string; redirect?: string }>;
 }): Promise<React.JSX.Element> {
   const context = await getOptionalAuthContext();
   if (context) {
@@ -36,6 +36,24 @@ export default async function LoginPage({
 
   const params = await searchParams;
   const errorMessage = params.error ? (ERROR_MESSAGES[params.error] ?? ERROR_MESSAGES.oauth) : null;
+
+  /**
+   * Ziel nach der Anmeldung.
+   *
+   * Wer aus dem Premium-Checkout hierher kommt, soll danach wieder beim
+   * gewählten Angebot landen. Geprüft wird schon hier - die Login-Route prüft
+   * ein zweites Mal, bevor sie den Wert überhaupt merkt.
+   */
+  const ziel =
+    params.redirect &&
+    params.redirect.startsWith('/') &&
+    !params.redirect.startsWith('//') &&
+    !params.redirect.includes('\\')
+      ? params.redirect
+      : null;
+  const anmeldeAdresse = ziel
+    ? `/api/auth/login?redirect=${encodeURIComponent(ziel)}`
+    : '/api/auth/login';
 
   return (
     <main className="relative flex min-h-dvh items-center justify-center px-4 py-16">
@@ -66,7 +84,7 @@ export default async function LoginPage({
           ) : null}
 
           <Button asChild size="lg" className="w-full">
-            <Link href="/api/auth/login" prefetch={false}>
+            <Link href={anmeldeAdresse} prefetch={false}>
               Mit Discord anmelden
             </Link>
           </Button>

@@ -258,4 +258,40 @@ describeWithDatabase('SwissHub Premium', () => {
     });
     expect(neu.id).not.toBe(abo.id);
   });
+
+  it('entzieht beim administrativen Beenden Rolle und Stübli sofort', async () => {
+    const userId = await mitglied('900000000000001012', 'yara');
+    const abo = await abonniere(userId, '900000000000001012', 'premium-bundle');
+    await premium.syncDiscordEntitlements(userId);
+
+    const vorher = await prisma.premiumDiscordResource.findFirstOrThrow({
+      where: { userId, resourceType: 'PREMIUM_STUEBLI_VOICE' },
+    });
+    expect(vorher.state).toBe('ACTIVE');
+
+    const beendet = await premium.endSubscriptionAdministratively(abo.id, ADMIN, 'Rückbuchung');
+    expect(beendet.status).toBe('CANCELLED');
+    // Der Platz ist sofort frei - anders als bei einer Kündigung auf Periodenende.
+    expect(beendet.activeUserKey).toBeNull();
+    expect(premium.grantsEntitlements(beendet.status)).toBe(false);
+
+    await premium.syncDiscordEntitlements(userId);
+    const nachher = await prisma.premiumDiscordResource.findFirstOrThrow({
+      where: { userId, resourceType: 'PREMIUM_STUEBLI_VOICE' },
+    });
+    expect(nachher.state).not.toBe('ACTIVE');
+  });
+
+  it('meldet den Premium-Stand eines Mitglieds für die Mitgliederseite', async () => {
+    const userId = await mitglied('900000000000001013', 'timo');
+    await abonniere(userId, '900000000000001013', 'premium-stuebli');
+    await premium.syncDiscordEntitlements(userId);
+
+    const stand = await premium.getMemberPremium('900000000000001013');
+    expect(stand?.current?.product.slug).toBe('premium-stuebli');
+    expect(stand?.stuebli?.state).toBe('ACTIVE');
+
+    // Ohne Benutzerkonto gibt es nichts zu zeigen - und keinen Fehler.
+    expect(await premium.getMemberPremium('900000000000009999')).toBeNull();
+  });
 });

@@ -209,3 +209,62 @@ export async function listStuebli(): Promise<
     productName: eintrag.subscription?.product.name ?? null,
   }));
 }
+
+/** Premium-Stand eines einzelnen Mitglieds - fuer die Mitgliederseite. */
+export interface MemberPremium {
+  userId: string;
+  subscriptions: SubscriptionWithProduct[];
+  current: SubscriptionWithProduct | null;
+  stuebli: {
+    channelId: string | null;
+    name: string | null;
+    state: string;
+    lastSyncAt: Date | null;
+    lastSyncError: string | null;
+  } | null;
+  payments: PremiumPayment[];
+}
+
+export async function getMemberPremium(discordId: string): Promise<MemberPremium | null> {
+  const benutzer = await prisma.user.findUnique({
+    where: { discordId },
+    select: { id: true },
+  });
+  if (!benutzer) {
+    return null;
+  }
+
+  const [subscriptions, resource, payments] = await Promise.all([
+    prisma.premiumSubscription.findMany({
+      where: { userId: benutzer.id },
+      include: { product: true },
+      orderBy: { createdAt: 'desc' },
+    }),
+    prisma.premiumDiscordResource.findFirst({
+      where: { userId: benutzer.id, resourceType: 'PREMIUM_STUEBLI_VOICE' },
+    }),
+    prisma.premiumPayment.findMany({
+      where: { userId: benutzer.id },
+      orderBy: { createdAt: 'desc' },
+      take: 5,
+    }),
+  ]);
+
+  return {
+    userId: benutzer.id,
+    subscriptions,
+    // Das offene Abonnement erkennt man am Schluessel, nicht am Status -
+    // derselbe Zustand, den auch die Datenbank erzwingt.
+    current: subscriptions.find((eintrag) => eintrag.activeUserKey !== null) ?? null,
+    stuebli: resource
+      ? {
+          channelId: resource.discordResourceId,
+          name: resource.name,
+          state: resource.state,
+          lastSyncAt: resource.lastSyncAt,
+          lastSyncError: resource.lastSyncError,
+        }
+      : null,
+    payments,
+  };
+}

@@ -20,6 +20,8 @@ export const startCheckoutAction = defineAction(
   {
     name: 'premium.checkout.start',
     module: 'premium',
+    // Wirkt nur auf das eigene Abonnement - Mitgliedschaft genuegt.
+    selfService: true,
     schema: z.object({ slug: z.string().min(1).max(64) }),
     rateLimit: 'settingsWrite',
     freshness: 'critical',
@@ -76,6 +78,8 @@ export const cancelSubscriptionAction = defineAction(
   {
     name: 'premium.subscription.cancel',
     module: 'premium',
+    // Wirkt nur auf das eigene Abonnement - Mitgliedschaft genuegt.
+    selfService: true,
     schema: z.object({ subscriptionId: z.string().cuid() }),
     rateLimit: 'settingsWrite',
     freshness: 'critical',
@@ -108,6 +112,8 @@ export const resumeSubscriptionAction = defineAction(
   {
     name: 'premium.subscription.resume',
     module: 'premium',
+    // Wirkt nur auf das eigene Abonnement - Mitgliedschaft genuegt.
+    selfService: true,
     schema: z.object({ subscriptionId: z.string().cuid() }),
     rateLimit: 'settingsWrite',
     freshness: 'critical',
@@ -136,6 +142,8 @@ export const syncOwnEntitlementsAction = defineAction(
   {
     name: 'premium.self.sync',
     module: 'premium',
+    // Wirkt nur auf das eigene Abonnement - Mitgliedschaft genuegt.
+    selfService: true,
     schema: z.object({}),
     rateLimit: 'settingsWrite',
     freshness: 'critical',

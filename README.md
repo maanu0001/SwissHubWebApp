@@ -368,6 +368,178 @@ wählen muss. Ein Austausch der Datei genügt zum Rebranding; Codeänderungen si
 dafür nicht nötig. Ist bei `promo.href` nichts gesetzt, verlinkt die Karte auf
 den konfigurierten Discord-Server; mit `enabled: false` verschwindet sie ganz.
 
+## SwissHub Premium
+
+Monatliche Abonnements mit automatischen Discord-Vorteilen. Premium ist ein
+Modul der bestehenden WebApp - kein zweites Projekt, keine zweite Anmeldung,
+keine zweite Datenbank.
+
+Die öffentliche Shop-Seite liegt unter `/premium` und ist **ohne Anmeldung**
+erreichbar. Alles andere - eigenes Abo, Verwaltung - liegt im geschützten
+Bereich mit Seitenleiste.
+
+### Premium aktivieren
+
+1. **Modul einschalten**: *Module → Premium*. Es ist bewusst standardmässig
+   aus, weil es Discord-Rechte braucht und Geld bewegt.
+2. **Discord zuordnen**: *Module → Premium → Einstellungen*. Rollen und
+   Kategorie werden als Auswahlliste aus den echten Discord-Daten angeboten -
+   IDs muss niemand abtippen.
+3. **Zahlungsanbieter einrichten**: siehe *TWINT/Payment Provider* unten.
+4. **Preis-IDs eintragen**: *Premium → Angebote*. Ohne die Preis-ID des
+   Anbieters lässt sich für ein Angebot kein Checkout starten.
+
+### Produkte
+
+Drei Angebote werden beim ersten Start angelegt und liegen danach in der
+Datenbank - Preise und Texte lassen sich ohne Deployment ändern.
+
+| Angebot         | Preis         | Ansprüche                                            |
+| --------------- | ------------- | ---------------------------------------------------- |
+| Premium         | CHF 5.– / Mt. | `PREMIUM_ROLE`                                        |
+| Premium-Stübli  | CHF 8.– / Mt. | `PREMIUM_STUEBLI_ROLE`, `PRIVATE_VOICE`               |
+| Premium-Bundle  | CHF 10.– / Mt.| `PREMIUM_ROLE`, `PREMIUM_STUEBLI_ROLE`, `PRIVATE_VOICE` |
+
+Beträge stehen als ganze Zahl in Rappen (CHF 5.00 = `500`). Gleitkomma kommt
+bei Geld nirgends vor.
+
+### Discord-Rollen
+
+Die Discord-Logik fragt nie, welches Angebot jemand gebucht hat, sondern
+ausschliesslich, welchen **Anspruch** er hat. Ein viertes Angebot braucht
+deshalb keine einzige neue Verzweigung im Code - nur einen Datenbankeintrag.
+
+### Premium-Stübli Kategorie
+
+Wer `PRIVATE_VOICE` hat, bekommt genau **einen** persönlichen Sprachkanal in
+der konfigurierten Kategorie. Der Kanal bleibt bestehen, solange der Anspruch
+besteht - er wird nicht gelöscht, wenn das Mitglied offline ist, der Kanal leer
+ist oder Bot und WebApp neu starten.
+
+Die Rechte des Besitzers gelten ausschliesslich als Ausnahme auf genau diesem
+Kanal: ansehen, betreten, sprechen, streamen, Mitglieder stummschalten, taub
+schalten und verschieben sowie den Kanal verwalten. `Administrator`,
+`Manage Guild`, serverweites `Manage Roles`, `Kick` und `Ban` sind nicht dabei
+und dürfen es nie werden.
+
+`Manage Permissions` im eigenen Kanal ist eine eigene Einstellung und
+standardmässig **aus**: damit liessen sich Ausnahmen für beliebige Rollen
+setzen, was über das Moderieren im eigenen Kanal hinausgeht.
+
+### TWINT/Payment Provider
+
+**TWINT allein kennt keine Abonnements.** Wiederkehrende Zahlungen brauchen
+einen Zahlungsdienstleister, der TWINT für Folgezahlungen unterstützt.
+
+Verwendet wird **Stripe**. Bis Mai 2026 liess sich TWINT dort nur für
+Einzelzahlungen einsetzen; seit dem 27. Mai 2026 unterstützt Stripe TWINT auch
+für Abonnements, Folgezahlungen und Zahlungen ohne anwesenden Kunden.
+
+Eine Eigenheit von TWINT prägt die Architektur: es gibt **höchstens ein aktives
+Mandat je Händler und Kunde**. Ein zweites anzulegen beantwortet Stripe mit
+einem Fehler. Das passt zur Regel dieses Moduls, dass ein Mitglied genau ein
+laufendes Abonnement hat - beides muss zusammenpassen, sonst läuft der Checkout
+beim Anbieter auf.
+
+Was SwissHub dafür braucht:
+
+1. Ein **Stripe-Konto** für die Schweiz (Währung CHF).
+2. TWINT unter *Settings → Payment methods* aktivieren. Stripe schaltet TWINT
+   nach einer Prüfung frei; das ist kein Selbstbedienungsschalter.
+3. Je Angebot ein **wiederkehrender Preis** (monatlich, CHF). Dessen ID
+   (`price_...`) kommt in *Premium → Angebote*.
+4. Einen **Webhook** auf `https://system.swisshub.gg/api/premium/webhook` mit
+   den Ereignissen `checkout.session.completed`,
+   `customer.subscription.updated`, `customer.subscription.deleted`,
+   `invoice.paid` und `invoice.payment_failed`.
+5. Zwei Umgebungsvariablen:
+
+   ```
+   PAYMENT_PROVIDER=stripe
+   PAYMENT_API_KEY=sk_live_...
+   PAYMENT_WEBHOOK_SECRET=whsec_...
+   ```
+
+Testen lässt sich alles vorher mit Stripes Testmodus (`sk_test_...`) und der
+Stripe CLI (`stripe listen --forward-to localhost:3000/api/premium/webhook`).
+
+In der Entwicklung genügt `PAYMENT_PROVIDER=mock`. Der Mock geht denselben Weg
+wie der echte Anbieter - signiertes Ereignis durch dieselbe
+Webhook-Verarbeitung - schaltet aber nie direkt frei. **In Production ist er
+verboten**: der Start bricht ab, wenn `PAYMENT_PROVIDER=mock` gesetzt ist.
+
+### Webhooks
+
+Der Endpunkt prüft zuerst die Signatur über den **unveränderten** Rohkörper.
+Schon das Umformen in ein Objekt und zurück machte die Prüfsumme wertlos.
+
+Ohne gültige Signatur wird nichts gespeichert und nichts verändert. Mit
+gültiger Signatur entscheidet der eindeutige Schlüssel `(provider, eventId)`
+über die Idempotenz - in der Datenbank, nicht in der Anwendung: Anbieter
+stellen dasselbe Ereignis mehrfach zu, und es laufen mehrere Instanzen.
+
+Ein bereits verarbeitetes Ereignis wird mit 200 quittiert, sonst wiederholte
+der Anbieter endlos. Nur eine ungültige Signatur (400) und ein echter
+Verarbeitungsfehler (500) antworten mit einem Fehlercode.
+
+### Subscription Lifecycle
+
+```
+PENDING ── Zahlung bestätigt ──▶ ACTIVE ──┬── Kündigung ──▶ CANCEL_AT_PERIOD_END
+                                          │                        │
+                                          │                   Periodenende
+                                          ├── Zahlung fehlt ──▶ PAYMENT_FAILED
+                                          │                        │
+                                          │                   Schonfrist vorbei
+                                          └────────────────────────┴──▶ EXPIRED
+```
+
+Ansprüche bestehen in `ACTIVE`, `PAST_DUE`, `PAYMENT_FAILED` und
+`CANCEL_AT_PERIOD_END`. In `PENDING` bewusst noch nicht: erst die bestätigte
+Zahlung schaltet frei.
+
+### Discord Reconciliation
+
+`syncDiscordEntitlements(userId)` vergleicht den tatsächlichen Discord-Zustand
+mit dem gewünschten und gleicht die Differenz aus - Rolle fehlt, Kanal
+gelöscht, Kanal in der falschen Kategorie, Rechte verstellt.
+
+Die Funktion ist idempotent und läuft beliebig oft: nach der Zahlung, von Hand
+aus der Verwaltung und alle fünf Minuten im Bot. Dass dabei nie ein zweites
+Stübli entsteht, hängt an drei Dingen zusammen - dem eindeutigen Schlüssel
+`(userId, resourceType)`, der Zeilensperre auf dem Benutzer und der Prüfung, ob
+der eingetragene Kanal auf Discord überhaupt noch existiert.
+
+**Ein Discord-Fehler nimmt niemals eine Zahlung zurück.** Er hinterlässt
+`discordSyncStatus = FAILED`; der nächste Durchgang holt es nach.
+
+### Grace Period
+
+Schlägt eine Folgezahlung fehl, bleiben die Vorteile zunächst bestehen -
+Standard sind drei Tage, einstellbar in den Moduleinstellungen. Eine bereits
+laufende Schonfrist wird nicht verlängert, sonst liesse sich mit wiederholt
+fehlschlagenden Zahlungen unbegrenzt weiternutzen.
+
+### Adminverwaltung
+
+*Premium* in der Seitenleiste, darunter Übersicht, Abonnements, Angebote,
+Zahlungen, Stübli und Einstellungen. Berechtigungen (`premium.view`,
+`premium.manage`, `premium.products.manage`, `premium.payments.view`,
+`premium.subscriptions.manage`, `premium.discord.sync`,
+`premium.stuebli.manage`, `premium.settings`) werden wie überall über
+Discord-Rollen vergeben.
+
+### Troubleshooting
+
+| Beobachtung                                   | Ursache und Abhilfe                                                                                     |
+| --------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| Checkout bricht mit „keine Preis-ID" ab       | In *Premium → Angebote* die `price_...` des Anbieters eintragen                                          |
+| Zahlung bestätigt, aber keine Rolle           | *Premium → Abonnements*, Spalte Discord. Bei „Fehler" die Meldung lesen - meist steht die Rolle über der Bot-Rolle |
+| Stübli fehlt                                  | *Premium → Stübli → Abgleichen*. Der Abgleich legt an, was fehlt                                          |
+| Stübli doppelt                                | Kann nicht entstehen - der eindeutige Schlüssel verhindert es. Ein von Hand angelegter Kanal gehört nicht dazu |
+| Start bricht mit `PAYMENT_PROVIDER=mock` ab   | So gewollt. In Production einen echten Anbieter konfigurieren                                            |
+| Webhook antwortet 400                         | Signatur stimmt nicht: falsches `PAYMENT_WEBHOOK_SECRET` oder ein Proxy verändert den Rohkörper           |
+
 ## Erste Schritte in der WebApp
 
 1. **Anmelden**: `Mit Discord anmelden`. Nur Mitglieder des verbundenen Servers erhalten Zugriff.

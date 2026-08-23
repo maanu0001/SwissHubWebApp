@@ -34,19 +34,24 @@ class MusicBot(discord.Client):
         self.settings = settings
         self.store = store
         self.bot_id: Optional[str] = None
+        self.discord_user_id: Optional[str] = None
         self.player: Optional[SessionPlayer] = None
         self._aufgaben: list[asyncio.Task] = []
+        # Signalisiert dem Einstiegspunkt, dass die Identitaet steht. Der
+        # Pool-Abgleich braucht ALLE Bots, bevor er Rollen vergeben kann.
+        self.bereit = asyncio.Event()
 
     async def on_ready(self) -> None:
         assert self.user is not None
-        self.bot_id = await self.store.registriere_bot(
-            key=self.spec.key,
+        self.bot_id = await self.store.melde_identitaet(
             typ=self.spec.typ,
             name=self.user.display_name,
             discord_user_id=str(self.user.id),
             avatar_hash=self.user.avatar.key if self.user.avatar else None,
         )
+        self.discord_user_id = str(self.user.id)
         log.info("Angemeldet: %s (%s)", self.spec.key, self.user)
+        self.bereit.set()
 
         await self._raeume_alte_sessions_auf()
 

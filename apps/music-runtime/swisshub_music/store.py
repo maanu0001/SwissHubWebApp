@@ -48,27 +48,31 @@ class Store:
 
     # -- Bot-Anmeldung ----------------------------------------------------
 
-    async def registriere_bot(
-        self, key: str, typ: str, name: str, discord_user_id: str, avatar_hash: str | None
+    async def melde_identitaet(
+        self, typ: str, name: str, discord_user_id: str, avatar_hash: str | None
     ) -> str:
-        """Den Bot anmelden und seine ID liefern.
+        """Die Identitaet eines Bots eintragen und seine ID liefern.
 
-        Der Schluessel ist stabil: ein Neustart legt keinen zweiten Eintrag an,
-        sondern aktualisiert den bestehenden. `enabled` wird dabei bewusst NICHT
-        angefasst - hat die Verwaltung einen Bot abgeschaltet, soll ein Neustart
-        das nicht rueckgaengig machen.
+        Bewusst OHNE Rollenschluessel: der folgt im Pool-Abgleich, wenn alle
+        Bots angemeldet sind. Wuerde jeder Bot seinen Schluessel sofort setzen,
+        scheiterte jeder Rollentausch - zieht ein Worker zum Controller um,
+        haelt seine alte Zeile den Schluessel noch, und die eindeutige
+        Discord-ID laesst keine zweite Zeile zu.
+
+        Die Identitaet ist die Discord-ID, nicht die Position in der
+        Token-Liste. Wer an welcher Stelle steht, darf sich aendern; wer der
+        Bot IST, nicht.
         """
         zeile = await self.pool.fetchrow(
             """
             INSERT INTO "MusicBotInstance"
                 ("id", "type", "key", "name", "discordUserId", "avatarHash",
                  "status", "lastHeartbeatAt", "startedAt", "createdAt", "updatedAt")
-            VALUES (gen_random_uuid()::text, $1::"MusicBotType", $2, $3, $4, $5,
-                    'FREE'::"MusicBotStatus", now(), now(), now(), now())
-            ON CONFLICT ("key") DO UPDATE SET
-                "type" = EXCLUDED."type",
+            VALUES (gen_random_uuid()::text, $1::"MusicBotType",
+                    'pending:' || gen_random_uuid()::text, $2, $3, $4,
+                    'CONNECTING'::"MusicBotStatus", now(), now(), now(), now())
+            ON CONFLICT ("discordUserId") DO UPDATE SET
                 "name" = EXCLUDED."name",
-                "discordUserId" = EXCLUDED."discordUserId",
                 "avatarHash" = EXCLUDED."avatarHash",
                 "lastHeartbeatAt" = now(),
                 "startedAt" = now(),
@@ -77,12 +81,79 @@ class Store:
             RETURNING "id"
             """,
             typ,
-            key,
             name,
             discord_user_id,
             avatar_hash,
         )
         return str(zeile["id"])
+
+    async def gleiche_pool_ab(self, eintraege: list[tuple[str, str, str]]) -> list[str]:
+        """Den gesamten Pool abgleichen - (key, typ, discord_user_id).
+
+        Laeuft in EINER Transaktion, sobald alle Bots angemeldet sind. Erst
+        dadurch sind Rollentausche moeglich: die Schluessel werden zusammen
+        freigegeben und zusammen neu vergeben, statt einzeln zu kollidieren.
+
+        Bots, die nicht mehr konfiguriert sind, verschwinden. Vorher waren sie
+        ewig sichtbar - mit altem Zustand und altem Sitzungseintrag, obwohl
+        niemand sie mehr betreibt. Eine laufende Sitzung wird dabei sauber
+        beendet, nicht einfach fallen gelassen.
+        """
+        ids = [d for _k, _t, d in eintraege]
+        entfernt: list[str] = []
+
+        async with self.pool.acquire() as verbindung:
+            async with verbindung.transaction():
+                # 1. Nicht mehr konfigurierte Bots: erst ihre Sitzungen
+                #    schliessen, dann die Zeile entfernen.
+                verwaist = await verbindung.fetch(
+                    'SELECT "id", "name" FROM "MusicBotInstance" WHERE NOT ("discordUserId" = ANY($1::text[]))',
+                    ids,
+                )
+                for zeile in verwaist:
+                    await verbindung.execute(
+                        """
+                        UPDATE "MusicSession"
+                           SET "status" = 'ENDED'::"MusicSessionStatus", "endedAt" = now(),
+                               "endReason" = 'STALE_RECONCILED'::"MusicSessionEndReason",
+                               "activeChannelKey" = NULL, "activeBotKey" = NULL,
+                               "currentItemId" = NULL, "updatedAt" = now()
+                         WHERE "botInstanceId" = $1 AND "endedAt" IS NULL
+                        """,
+                        zeile["id"],
+                    )
+                    entfernt.append(str(zeile["name"] or zeile["id"]))
+                if verwaist:
+                    await verbindung.execute(
+                        'DELETE FROM "MusicBotInstance" WHERE NOT ("discordUserId" = ANY($1::text[]))',
+                        ids,
+                    )
+
+                # 2. Schluessel gemeinsam freigeben - sonst blockiert der alte
+                #    Platz eines Bots den neuen eines anderen.
+                await verbindung.execute(
+                    """
+                    UPDATE "MusicBotInstance"
+                       SET "key" = 'pending:' || gen_random_uuid()::text
+                     WHERE "discordUserId" = ANY($1::text[])
+                    """,
+                    ids,
+                )
+
+                # 3. Rollen neu vergeben.
+                for key, typ, discord_user_id in eintraege:
+                    await verbindung.execute(
+                        """
+                        UPDATE "MusicBotInstance"
+                           SET "key" = $1, "type" = $2::"MusicBotType", "updatedAt" = now()
+                         WHERE "discordUserId" = $3
+                        """,
+                        key,
+                        typ,
+                        discord_user_id,
+                    )
+
+        return entfernt
 
     async def heartbeat(self, bot_id: str, status: str) -> None:
         """Lebenszeichen.

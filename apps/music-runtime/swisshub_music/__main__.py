@@ -61,6 +61,11 @@ async def main() -> int:
 
     aufgaben = [asyncio.create_task(bot.start(bot.spec.token)) for bot in bots]
 
+    # Rollen erst vergeben, wenn alle Bots ihre Identitaet gemeldet haben.
+    # Einzeln waere jeder Rollentausch unmoeglich: die alte Zeile eines Bots
+    # haelt den Schluessel noch, waehrend die neue ihn schon braucht.
+    asyncio.create_task(_gleiche_pool_ab(bots, store))
+
     await stopp.wait()
 
     # Geordnet: erst die Bots trennen (Voice sauber verlassen, FFmpeg beenden,
@@ -76,6 +81,45 @@ async def main() -> int:
     await store.stop()
     log.info("Beendet")
     return 0
+
+
+async def _gleiche_pool_ab(bots: list[MusicBot], store: Store) -> None:
+    """Wartet auf alle Anmeldungen und gleicht dann den Pool ab."""
+    try:
+        await asyncio.wait_for(
+            asyncio.gather(*(bot.bereit.wait() for bot in bots)), timeout=120
+        )
+    except asyncio.TimeoutError:
+        angemeldet = [b for b in bots if b.bereit.is_set()]
+        log.warning(
+            "Nur %d von %d Bots haben sich angemeldet - gleiche mit diesen ab",
+            len(angemeldet),
+            len(bots),
+        )
+        bots = angemeldet
+
+    eintraege = [
+        (bot.spec.key, bot.spec.typ, bot.discord_user_id)
+        for bot in bots
+        if bot.discord_user_id is not None
+    ]
+    if not eintraege:
+        log.error("Kein Bot konnte sich anmelden - der Pool bleibt unveraendert")
+        return
+
+    try:
+        entfernt = await store.gleiche_pool_ab(eintraege)
+    except Exception:
+        log.exception("Pool-Abgleich fehlgeschlagen")
+        return
+
+    for bot in bots:
+        if bot.bot_id is not None:
+            await store.heartbeat(bot.bot_id, "FREE")
+
+    log.info("Pool abgeglichen: %d Bots aktiv", len(eintraege))
+    for name in entfernt:
+        log.info("Nicht mehr konfiguriert, entfernt: %s", name)
 
 
 if __name__ == "__main__":

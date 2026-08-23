@@ -100,6 +100,42 @@ services:
     # Zeit fuer den kontrollierten Shutdown (laufende Jobs, Heartbeat).
     stop_grace_period: 30s
 
+  # Voice-Laufzeit fuer SwissHub Music.
+  #
+  # Eigener Dienst, weil Voice-Wiedergabe FFmpeg, Opus und yt-dlp braucht -
+  # nichts davon gehoert in das Abbild der WebApp. Der Dienst haelt die
+  # Bot-Tokens, meldet seine Bots in der Datenbank an und arbeitet Befehle ab.
+  #
+  # Bewusst KEIN Port nach aussen: die interne Schnittstelle fuer die Suche ist
+  # nur im Docker-Netz erreichbar.
+  music-runtime:
+    build:
+      context: .
+      dockerfile: apps/music-runtime/Dockerfile
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      TZ: Europe/Zurich
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'python',
+          '-c',
+          "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:7700/health').status==200 else 1)",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    # Zeit, um Voice sauber zu verlassen und FFmpeg zu beenden.
+    stop_grace_period: 30s
+
 volumes:
   swisshub-postgres:
   swisshub-uploads:

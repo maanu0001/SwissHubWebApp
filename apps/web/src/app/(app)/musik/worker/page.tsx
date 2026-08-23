@@ -63,8 +63,8 @@ export default async function MusikWorkerPage(): Promise<React.JSX.Element> {
 
       {bots.length === 0 ? (
         <EmptyState
-          title="Kein Musik-Bot konfiguriert"
-          description="Die Voice-Laufzeit meldet ihre Bots selbst an, sobald sie läuft."
+          title="Kein Musik-Bot vorhanden"
+          description="Die Voice-Laufzeit, die sich hier anmeldet, ist noch nicht ausgeliefert."
         />
       ) : (
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">

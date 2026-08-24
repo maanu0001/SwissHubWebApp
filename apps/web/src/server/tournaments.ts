@@ -152,3 +152,93 @@ export function istTurnierleitung(context: AuthContext): boolean {
     can(context, tournaments.TOURNAMENT_PERMISSIONS.admin)
   );
 }
+
+// --- Listen ----------------------------------------------------------------
+
+const TURNIERE_JE_SEITE = 20;
+
+/**
+ * Zustaende, die aus der Adresszeile kommen duerfen.
+ *
+ * Bewusst eine feste Liste statt eines Casts: der Wert stammt aus dem
+ * Browser, und ein erfundener Status erreichte sonst Prisma und liesse die
+ * Seite mit einem Fehler stehen.
+ */
+const ERLAUBTE_STATUS: string[] = [
+  'DRAFT',
+  'REGISTRATION_OPEN',
+  'REGISTRATION_CLOSED',
+  'CHECKIN_OPEN',
+  'CHECKIN_CLOSED',
+  'READY',
+  'RUNNING',
+  'PAUSED',
+  'COMPLETED',
+  'CANCELLED',
+  'ARCHIVED',
+];
+
+export interface TurnierListenSuche {
+  q?: string;
+  status?: string;
+  spiel?: string;
+  page?: string;
+}
+
+/** Die Turnierliste einer Verwaltungsseite - gefiltert, geblättert, sichtbar. */
+export async function ladeTurnierListe(
+  context: AuthContext,
+  suche: TurnierListenSuche,
+  basis: { aktiv?: boolean; archiv?: boolean } = {},
+): Promise<{
+  rows: Awaited<ReturnType<typeof tournaments.listTournaments>>['rows'];
+  total: number;
+  page: number;
+  totalPages: number;
+}> {
+  const gewuenschteSeite = Number.parseInt(suche.page ?? '1', 10);
+  const page = Number.isFinite(gewuenschteSeite) && gewuenschteSeite > 0 ? gewuenschteSeite : 1;
+
+  const status = suche.status && ERLAUBTE_STATUS.includes(suche.status) ? [suche.status] : undefined;
+
+  const { rows, total } = await tournaments.listTournaments(tournamentViewer(context), {
+    ...basis,
+    ...(status ? { status: status as never } : {}),
+    ...(suche.spiel ? { gameId: suche.spiel } : {}),
+    ...(suche.q ? { search: suche.q } : {}),
+    page,
+    pageSize: TURNIERE_JE_SEITE,
+  });
+
+  return { rows, total, page, totalPages: Math.max(1, Math.ceil(total / TURNIERE_JE_SEITE)) };
+}
+
+/** Adresse mit denselben Filtern, aber anderer Seitenzahl. */
+export function turnierListenHref(
+  basis: string,
+  suche: TurnierListenSuche,
+  seite: number,
+): string {
+  const parameter = new URLSearchParams();
+  if (suche.q) {
+    parameter.set('q', suche.q);
+  }
+  if (suche.status) {
+    parameter.set('status', suche.status);
+  }
+  if (suche.spiel) {
+    parameter.set('spiel', suche.spiel);
+  }
+  if (seite > 1) {
+    parameter.set('page', String(seite));
+  }
+  const angehaengt = parameter.toString();
+  return angehaengt.length > 0 ? `${basis}?${angehaengt}` : basis;
+}
+
+/** Die Verwaltungsadresse eines Turniers. */
+export function turnierHref(tournamentId: string, unterseite?: string): string {
+  return unterseite
+    ? `/turniere/verwalten/${tournamentId}/${unterseite}`
+    : `/turniere/verwalten/${tournamentId}`;
+}

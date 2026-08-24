@@ -11,6 +11,7 @@ die man spaeter bereut.
 
 from __future__ import annotations
 
+import hashlib
 import hmac
 import logging
 
@@ -24,8 +25,17 @@ log = logging.getLogger("swisshub.music.api")
 def erstelle_app(api_key: str) -> web.Application:
     app = web.Application()
 
-    # Einmal kodieren statt bei jeder Anfrage.
-    erwartet = api_key.encode("utf-8")
+    # Uebertragen wird der SHA-256 des Schluessels, nicht der Schluessel.
+    #
+    # HTTP-Header sind nicht fuer Nicht-ASCII gemacht. Ein Schluessel mit
+    # Umlaut oder Cedille ueberlebt die Uebertragung nicht: aiohttp liest die
+    # Bytes mit Ersatzzeichen ein, und jeder weitere Umgang damit wirft
+    # (UnicodeEncodeError: surrogates not allowed). Genau das ist passiert.
+    #
+    # Ein Hex-Digest ist immer reines ASCII - unabhaengig davon, welche
+    # Zeichen jemand im Schluessel waehlt. Nebenbei verlaesst der Schluessel
+    # selbst nie den Prozess.
+    erwartet = hashlib.sha256(api_key.encode("utf-8")).hexdigest()
 
     @web.middleware
     async def pruefe_schluessel(anfrage: web.Request, handler):
@@ -35,14 +45,17 @@ def erstelle_app(api_key: str) -> web.Application:
         if anfrage.path == "/health":
             return await handler(anfrage)
 
+        gesendet = anfrage.headers.get("x-swisshub-music-key", "")
+
+        # Sicherheitsnetz: kaeme wider Erwarten doch etwas Unkodierbares an,
+        # soll die Pruefung ablehnen statt die Anfrage mit 500 abzubrechen.
+        try:
+            gesendet.encode("ascii")
+        except UnicodeEncodeError:
+            return web.json_response({"error": "unauthorized"}, status=401)
+
         # Zeitkonstanter Vergleich: ein einfaches == verriete den Schluessel
         # ueber die Antwortzeit.
-        #
-        # Verglichen werden BYTES, nicht Zeichenketten: `compare_digest` wirft
-        # bei Zeichenketten mit Nicht-ASCII-Zeichen einen TypeError. Ein
-        # Schluessel mit Umlaut oder Sonderzeichen legte damit die gesamte
-        # Schnittstelle lahm - genau das ist passiert.
-        gesendet = anfrage.headers.get("x-swisshub-music-key", "").encode("utf-8")
         if not hmac.compare_digest(gesendet, erwartet):
             return web.json_response({"error": "unauthorized"}, status=401)
         return await handler(anfrage)

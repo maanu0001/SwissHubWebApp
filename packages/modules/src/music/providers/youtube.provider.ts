@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { createLogger } from '@swisshub/logger';
 import {
   MusicProviderInputError,
@@ -40,11 +41,24 @@ interface RuntimeAntwort {
 export class YouTubeMusicProvider implements MusicProvider {
   readonly name = 'youtube';
 
+  /**
+   * Der Schluessel wandert als SHA-256-Hex ueber die Leitung.
+   *
+   * HTTP-Header sind nicht fuer Nicht-ASCII gemacht. Enthaelt der Schluessel
+   * einen Umlaut oder eine Cedille, kommt er auf der Gegenseite als
+   * Ersatzzeichen an und jede weitere Verarbeitung wirft. Ein Hex-Digest ist
+   * immer reines ASCII - egal, welche Zeichen jemand waehlt. Und der
+   * Schluessel selbst verlaesst den Prozess nie.
+   */
+  private readonly nachweis: string;
+
   constructor(
     private readonly baseUrl: string,
-    private readonly sharedSecret: string,
+    sharedSecret: string,
     private readonly timeoutMs = 8_000,
-  ) {}
+  ) {
+    this.nachweis = createHash('sha256').update(sharedSecret, 'utf8').digest('hex');
+  }
 
   canResolve(url: string): boolean {
     let parsed: URL;
@@ -88,7 +102,7 @@ export class YouTubeMusicProvider implements MusicProvider {
         method: 'POST',
         headers: {
           'content-type': 'application/json',
-          'x-swisshub-music-key': this.sharedSecret,
+          'x-swisshub-music-key': this.nachweis,
         },
         body: JSON.stringify(koerper),
         signal: abbruch.signal,

@@ -1070,3 +1070,96 @@ export const setCustomFieldsAction = defineAction(
     return { ok: true };
   },
 );
+
+// --- Turniersperren --------------------------------------------------------
+
+export const blockMemberAction = defineAction(
+  {
+    name: 'tournaments.block',
+    module: 'tournaments',
+    permission: tournaments.TOURNAMENT_PERMISSIONS.blockManage,
+    schema: z.object({
+      discordId: z.string().regex(/^\d{17,20}$/u),
+      username: z.string().max(100).nullable().optional(),
+      reason: z.string().min(5).max(500),
+      /** Dauer in Tagen; 0 = unbefristet. */
+      days: z.number().int().min(0).max(3650),
+    }),
+    rateLimit: 'tournamentAdmin',
+    freshness: 'critical',
+  },
+  async ({ ctx, input, metadata }) => {
+    // Kein Turnier im Spiel: eine Sperre gilt fuer den Server, nicht fuer ein
+    // einzelnes Turnier. Deshalb entscheidet hier allein die zentrale
+    // Berechtigung - es gibt keine Zustaendigkeit, an der zu messen waere.
+    const eintrag = await tournaments.blockMember(
+      {
+        discordId: input.discordId,
+        username: input.username ?? null,
+        reason: input.reason,
+        expiresAt:
+          input.days > 0 ? new Date(Date.now() + input.days * 24 * 60 * 60 * 1000) : null,
+      },
+      tournamentActor(ctx),
+    );
+
+    await safeRecordAudit({
+      action: AUDIT_ACTIONS.TOURNAMENT_BLOCKED,
+      module: 'tournaments',
+      actorDiscordId: ctx.user.discordId,
+      actorUsername: ctx.user.username,
+      targetDiscordId: input.discordId,
+      targetLabel: input.username ?? input.discordId,
+      success: true,
+      ipHash: metadata.ipHash,
+      userAgent: metadata.userAgent,
+      metadata: { grund: input.reason, tage: input.days },
+    });
+
+    revalidatePath('/turniere/sperren');
+    return { blockId: eintrag.id };
+  },
+);
+
+export const liftBlockAction = defineAction(
+  {
+    name: 'tournaments.block.lift',
+    module: 'tournaments',
+    permission: tournaments.TOURNAMENT_PERMISSIONS.blockManage,
+    schema: z.object({ blockId: z.string().cuid() }),
+    rateLimit: 'tournamentAdmin',
+    freshness: 'critical',
+  },
+  async ({ ctx, input, metadata }) => {
+    const { prisma } = await import('@swisshub/database');
+    const { resolveGuildId } = await import('@swisshub/discord');
+
+    // Die Sperre muss zu diesem Server gehoeren. Ohne diese Pruefung liesse
+    // sich mit einer fremden Kennung eine Sperre anderswo aufheben.
+    const guildId = await resolveGuildId();
+    const eintrag = await prisma.tournamentBlockEntry.findUnique({
+      where: { id: input.blockId },
+      select: { id: true, guildId: true, discordId: true, username: true },
+    });
+    if (!eintrag || eintrag.guildId !== guildId) {
+      throw new AppError('NOT_FOUND', { userMessage: 'Diese Sperre existiert nicht.' });
+    }
+
+    await tournaments.liftBlock(input.blockId);
+
+    await safeRecordAudit({
+      action: AUDIT_ACTIONS.TOURNAMENT_UNBLOCKED,
+      module: 'tournaments',
+      actorDiscordId: ctx.user.discordId,
+      actorUsername: ctx.user.username,
+      targetDiscordId: eintrag.discordId,
+      targetLabel: eintrag.username ?? eintrag.discordId,
+      success: true,
+      ipHash: metadata.ipHash,
+      userAgent: metadata.userAgent,
+    });
+
+    revalidatePath('/turniere/sperren');
+    return { ok: true };
+  },
+);

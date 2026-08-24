@@ -14,3 +14,4 @@ export * from './discord';
 export * from './scheduler';
 export * from './stream-prizes';
 export * from './queries';
+export * from './blocks';

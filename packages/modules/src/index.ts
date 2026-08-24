@@ -5,6 +5,7 @@ import './jail/config';
 import './communication/config';
 import './premium/config';
 import './music/config';
+import './tickets/config';
 import './spielersuche/config';
 import './level/config';
 import { registerGuildResolver } from './guild/config';

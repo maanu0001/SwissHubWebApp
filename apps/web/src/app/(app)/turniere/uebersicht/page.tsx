@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { Plus } from 'lucide-react';
 import { spielersuche, tournaments } from '@swisshub/modules';
-import { PageHeader } from '@/components/shared/page-header';
+import { PageToolbar } from '@/components/shared/page-header';
 import { Pagination } from '@/components/shared/pagination';
 import { buttonVariants } from '@/components/ui/button';
 import { TournamentFilters } from '@/modules/tournaments/components/tournament-filters';
@@ -47,9 +47,9 @@ export default async function TurnierUebersichtPage({
   return (
     <>
       <TournamentSectionNav sections={tournamentSections(context)} />
-      <PageHeader
-        title="Turniere"
-        description="Alle Turniere, für die du zuständig bist."
+      {/* Titel und Beschreibung liefert die Kopfzeile aus der Navigation -
+          hier stünden sie ein zweites Mal. */}
+      <PageToolbar
         actions={
           darfAnlegen ? (
             <Link href="/turniere/neu" className={cn(buttonVariants())}>

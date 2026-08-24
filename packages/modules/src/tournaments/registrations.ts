@@ -265,44 +265,52 @@ async function stelleTeilnehmerSicher(
   registration: TournamentRegistration,
   mode: 'SOLO' | 'TEAM',
 ): Promise<string> {
-  if (mode === 'TEAM') {
-    if (!registration.teamId) {
-      throw new AppError('VALIDATION_FAILED', {
-        userMessage: 'Für dieses Turnier braucht es ein Team.',
+  const teilnehmerId = await (async (): Promise<string> => {
+    if (mode === 'TEAM') {
+      if (!registration.teamId) {
+        throw new AppError('VALIDATION_FAILED', {
+          userMessage: 'Für dieses Turnier braucht es ein Team.',
+        });
+      }
+      const vorhanden = await tx.tournamentParticipant.findUnique({
+        where: { teamId: registration.teamId },
+        select: { id: true },
       });
+      if (vorhanden) {
+        return vorhanden.id;
+      }
+      const teilnehmer = await tx.tournamentParticipant.create({
+        data: { tournamentId, teamId: registration.teamId },
+      });
+      return teilnehmer.id;
     }
+
     const vorhanden = await tx.tournamentParticipant.findUnique({
-      where: { teamId: registration.teamId },
+      where: { tournamentId_discordId: { tournamentId, discordId: registration.discordId } },
       select: { id: true },
     });
     if (vorhanden) {
       return vorhanden.id;
     }
     const teilnehmer = await tx.tournamentParticipant.create({
-      data: { tournamentId, teamId: registration.teamId },
-    });
-    return teilnehmer.id;
-  }
-
-  const vorhanden = await tx.tournamentParticipant.findUnique({
-    where: { tournamentId_discordId: { tournamentId, discordId: registration.discordId } },
-    select: { id: true },
-  });
-  const teilnehmer =
-    vorhanden ??
-    (await tx.tournamentParticipant.create({
       data: {
         tournamentId,
         discordId: registration.discordId,
         username: registration.username,
       },
-    }));
+    });
+    return teilnehmer.id;
+  })();
 
+  // Der Rueckverweis gehoert an das Ende und nicht in einen der Zweige: er
+  // fehlte bei Teams, und damit hatte eine Teamanmeldung keinen Teilnehmer -
+  // `listAntretende` fand nichts, und ein Teamturnier liess sich nicht
+  // auslosen.
   await tx.tournamentRegistration.update({
     where: { id: registration.id },
-    data: { participantId: teilnehmer.id },
+    data: { participantId: teilnehmerId },
   });
-  return teilnehmer.id;
+  return teilnehmerId;
 }
 
 /**

@@ -140,6 +140,7 @@ export const updateTournamentAction = defineAction(
   {
     name: 'tournaments.update',
     module: 'tournaments',
+    permission: tournaments.TOURNAMENT_PERMISSIONS.manage,
     schema: turnierSchema.extend(turnierFelder).partial({ name: true, gameName: true, mode: true, access: true, format: true, seeding: true }).extend({ tournamentId: z.string().cuid() }),
     rateLimit: 'tournamentAdmin',
     freshness: 'critical',

@@ -860,6 +860,13 @@ export async function getMatch(matchId: string) {
 
 export interface MatchFilter {
   tournamentId?: string;
+  /**
+   * Mehrere Turniere - fuer die Gesamtuebersicht.
+   *
+   * Sie bekommt die Liste aus der Sichtbarkeitspruefung. Eine Uebersicht, die
+   * alle Matches laedt und danach aussortiert, waere keine.
+   */
+  tournamentIds?: string[];
   status?: TournamentMatchStatus[];
   stageId?: string;
   round?: number;
@@ -873,6 +880,7 @@ export interface MatchFilter {
 export async function listMatches(filter: MatchFilter) {
   const where: Prisma.TournamentMatchWhereInput = {
     ...(filter.tournamentId ? { tournamentId: filter.tournamentId } : {}),
+    ...(filter.tournamentIds ? { tournamentId: { in: filter.tournamentIds } } : {}),
     ...(filter.status ? { status: { in: filter.status } } : {}),
     ...(filter.stageId ? { stageId: filter.stageId } : {}),
     ...(filter.round !== undefined ? { round: filter.round } : {}),
@@ -897,6 +905,7 @@ export async function listMatches(filter: MatchFilter) {
     orderBy: [{ scheduledAt: 'asc' }, { matchNumber: 'asc' }],
     take: filter.limit ?? 200,
     include: {
+      tournament: { select: { id: true, slug: true, name: true } },
       stage: { select: { name: true, kind: true } },
       group: { select: { name: true } },
       participantA: {

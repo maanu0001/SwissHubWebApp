@@ -500,10 +500,13 @@ export async function getTournamentEvents(tournamentId: string, limit = 100) {
 }
 
 /** Offene Einsprueche - der eigene Filter des Leitstands. */
-export async function listDisputes(options: { tournamentId?: string; offen?: boolean } = {}) {
+export async function listDisputes(
+  options: { tournamentId?: string; tournamentIds?: string[]; offen?: boolean } = {},
+) {
   return prisma.tournamentDispute.findMany({
     where: {
       ...(options.tournamentId ? { tournamentId: options.tournamentId } : {}),
+      ...(options.tournamentIds ? { tournamentId: { in: options.tournamentIds } } : {}),
       ...(options.offen ? { status: { in: ['OPEN', 'IN_REVIEW'] } } : {}),
     },
     orderBy: { createdAt: 'asc' },

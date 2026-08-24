@@ -242,3 +242,28 @@ export function turnierHref(tournamentId: string, unterseite?: string): string {
     ? `/turniere/verwalten/${tournamentId}/${unterseite}`
     : `/turniere/verwalten/${tournamentId}`;
 }
+
+/**
+ * Die Turniere, die dieser Betrachter verwalten darf.
+ *
+ * Grundlage der Gesamtuebersichten (Matches, Einsprueche, Livestream): sie
+ * fragen nicht «alle Matches» und sortieren danach aus, sondern fragen von
+ * vornherein nur nach dem, was den Betrachter etwas angeht.
+ */
+export async function sichtbareTurnierIds(
+  context: AuthContext,
+  options: { nurAktive?: boolean } = {},
+): Promise<string[]> {
+  const { prisma } = await import('@swisshub/database');
+  const sichtbar = await tournaments.tournamentSichtbarkeitsFilter(tournamentViewer(context));
+
+  const turniere = await prisma.tournament.findMany({
+    where: {
+      ...sichtbar,
+      ...(options.nurAktive ? { status: { in: tournaments.AKTIVE_STATUS } } : {}),
+    },
+    select: { id: true },
+    take: 500,
+  });
+  return turniere.map((turnier) => turnier.id);
+}

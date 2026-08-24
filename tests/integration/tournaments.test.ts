@@ -785,6 +785,47 @@ describeWithDatabase('Turniere', () => {
     expect(ereignisse).toBeGreaterThan(0);
   });
 
+  it('zählt in der Statistik nur Turniere dieses Servers', async () => {
+    await turnier({ name: 'Hier' });
+    await prisma.tournament.create({
+      data: {
+        guildId: '111111111111111111',
+        slug: 'anderswo',
+        name: 'Anderswo',
+        gameName: 'Valorant',
+        createdByDiscordId: ADMIN.discordId,
+        status: 'COMPLETED',
+      },
+    });
+
+    const stats = await tournaments.getTournamentStats();
+    expect(stats.gesamt).toBe(1);
+    expect(stats.abgeschlossen).toBe(0);
+  });
+
+  it('zeigt in der Verwaltungsliste keine Turniere anderer Server', async () => {
+    const hier = await turnier({ name: 'Hier' });
+    await prisma.tournament.create({
+      data: {
+        guildId: '111111111111111111',
+        slug: 'anderswo',
+        name: 'Anderswo',
+        gameName: 'Valorant',
+        createdByDiscordId: ADMIN.discordId,
+        status: 'REGISTRATION_OPEN',
+      },
+    });
+
+    // Bewusst mit dem Vollzugriff geprueft: er hebt die Zustaendigkeit auf,
+    // nicht die Serverzugehoerigkeit.
+    const allmaechtig = viewer(ADMIN.discordId, [], Object.values(P()));
+    const { rows } = await tournaments.listTournaments(allmaechtig, { page: 1, pageSize: 50 });
+    expect(rows.map((zeile) => zeile.tournament.id)).toEqual([hier.id]);
+
+    const oeffentlich = await tournaments.listPublicTournaments();
+    expect(oeffentlich.map((eintrag) => eintrag.name)).not.toContain('Anderswo');
+  });
+
   it('hält Turniere anderer Server auseinander', async () => {
     const t = await turnier();
 

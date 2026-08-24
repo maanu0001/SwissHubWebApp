@@ -1,7 +1,25 @@
 import { prisma } from '@swisshub/database';
 import type { Prisma, TournamentStatus } from '@swisshub/database';
+import { resolveGuildId } from '@swisshub/discord';
 import { tournamentSichtbarkeitsFilter, type TournamentViewer } from './access';
 import { AKTIVE_STATUS, OEFFENTLICHE_STATUS } from './service';
+
+/**
+ * Der verbundene Server als Filter.
+ *
+ * SwissHub bedient heute genau einen Discord-Server, und der Datenbestand
+ * traegt trotzdem ueberall eine Serverkennung. Die hier auszuwerten kostet
+ * nichts und schliesst aus, dass eine Uebersicht Turniere eines anderen
+ * Bestandes zeigt - etwa nach einer Wiederherstellung aus einer fremden
+ * Sicherung oder wenn spaeter ein zweiter Server dazukommt.
+ *
+ * Faellt Discord aus, gibt es keine Kennung. Dann wird nichts gezeigt statt
+ * alles: eine Liste, die im Stoerungsfall mehr zeigt als sonst, ist die
+ * falsche Richtung.
+ */
+async function guildFilter(): Promise<{ guildId: string }> {
+  return { guildId: await resolveGuildId() };
+}
 
 /**
  * Abfragen fuer Uebersicht, Statistik und Archiv.
@@ -32,7 +50,7 @@ export interface TournamentListQuery {
 export async function listTournaments(viewer: TournamentViewer, query: TournamentListQuery) {
   const sichtbar = await tournamentSichtbarkeitsFilter(viewer);
 
-  const where: Prisma.TournamentWhereInput = { ...sichtbar };
+  const where: Prisma.TournamentWhereInput = { ...(await guildFilter()), ...sichtbar };
 
   if (query.status && query.status.length > 0) {
     where.status = { in: query.status };
@@ -87,6 +105,7 @@ export async function listTournaments(viewer: TournamentViewer, query: Tournamen
 export async function listPublicTournaments(options: { archiv?: boolean; limit?: number } = {}) {
   return prisma.tournament.findMany({
     where: {
+      ...(await guildFilter()),
       status: options.archiv
         ? { in: ['COMPLETED', 'ARCHIVED'] }
         : { in: OEFFENTLICHE_STATUS.filter((status) => status !== 'ARCHIVED') },
@@ -194,6 +213,11 @@ export interface TournamentStats {
  * gar keine, weil man sich auf sie verliesse.
  */
 export async function getTournamentStats(): Promise<TournamentStats> {
+  // Alle Zaehlungen auf denselben Server begrenzen - eine Kennzahl, die
+  // Turniere eines anderen Bestandes mitzaehlt, waere schlimmer als keine.
+  const guild = await guildFilter();
+  const imTurnier = { tournament: guild };
+
   const [
     gesamt,
     aktiv,
@@ -210,25 +234,36 @@ export async function getTournamentStats(): Promise<TournamentStats> {
     eingecheckt,
     nachSpiel,
   ] = await Promise.all([
-    prisma.tournament.count(),
-    prisma.tournament.count({ where: { status: { in: AKTIVE_STATUS } } }),
-    prisma.tournament.count({ where: { status: { in: ['COMPLETED', 'ARCHIVED'] } } }),
-    prisma.tournament.count({ where: { startedAt: { not: null } } }),
-    prisma.tournamentRegistration.count({ where: { status: 'CONFIRMED' } }),
-    prisma.tournamentTeam.count({ where: { status: { in: ['CONFIRMED', 'REGISTERED'] } } }),
-    prisma.tournamentMatch.count(),
-    prisma.tournamentMatch.count({ where: { resultReason: 'NO_SHOW' } }),
-    prisma.tournamentMatch.count({ where: { resultReason: 'FORFEIT' } }),
-    prisma.tournamentDispute.count({ where: { status: { in: ['OPEN', 'IN_REVIEW'] } } }),
-    prisma.tournamentDispute.count(),
+    prisma.tournament.count({ where: guild }),
+    prisma.tournament.count({ where: { ...guild, status: { in: AKTIVE_STATUS } } }),
+    prisma.tournament.count({
+      where: { ...guild, status: { in: ['COMPLETED', 'ARCHIVED'] } },
+    }),
+    prisma.tournament.count({ where: { ...guild, startedAt: { not: null } } }),
+    prisma.tournamentRegistration.count({ where: { ...imTurnier, status: 'CONFIRMED' } }),
+    prisma.tournamentTeam.count({
+      where: { ...imTurnier, status: { in: ['CONFIRMED', 'REGISTERED'] } },
+    }),
+    prisma.tournamentMatch.count({ where: imTurnier }),
+    prisma.tournamentMatch.count({ where: { ...imTurnier, resultReason: 'NO_SHOW' } }),
+    prisma.tournamentMatch.count({ where: { ...imTurnier, resultReason: 'FORFEIT' } }),
+    prisma.tournamentDispute.count({
+      where: { ...imTurnier, status: { in: ['OPEN', 'IN_REVIEW'] } },
+    }),
+    prisma.tournamentDispute.count({ where: imTurnier }),
     prisma.tournamentRegistration.count({
-      where: { status: 'CONFIRMED', checkinStatus: { not: 'NOT_REQUIRED' } },
+      where: { ...imTurnier, status: 'CONFIRMED', checkinStatus: { not: 'NOT_REQUIRED' } },
     }),
     prisma.tournamentRegistration.count({
-      where: { status: 'CONFIRMED', checkinStatus: { in: ['CHECKED_IN', 'ADMIN_CONFIRMED'] } },
+      where: {
+        ...imTurnier,
+        status: 'CONFIRMED',
+        checkinStatus: { in: ['CHECKED_IN', 'ADMIN_CONFIRMED'] },
+      },
     }),
     prisma.tournament.groupBy({
       by: ['gameName'],
+      where: guild,
       _count: { _all: true },
       orderBy: { _count: { gameName: 'desc' } },
       take: 5,

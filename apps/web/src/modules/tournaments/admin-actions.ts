@@ -611,6 +611,20 @@ export const scheduleRoundAction = defineAction(
     const { zugriff } = await ladeTurnierMitZugriff(ctx, input.tournamentId);
     assertRecht(zugriff, 'matchesManage', 'Du kannst hier keine Matches ansetzen.');
 
+    // Der Abschnitt muss zu genau diesem Turnier gehoeren. Geprueft wird
+    // sonst das eine Turnier und angesetzt das andere: wer irgendwo Leitung
+    // ist, koennte damit die Runde eines fremden Turniers verschieben.
+    const { prisma } = await import('@swisshub/database');
+    const abschnitt = await prisma.tournamentStage.findUnique({
+      where: { id: input.stageId },
+      select: { id: true, tournamentId: true },
+    });
+    if (!abschnitt || abschnitt.tournamentId !== input.tournamentId) {
+      throw new AppError('NOT_FOUND', {
+        userMessage: 'Dieser Turnierabschnitt existiert nicht.',
+      });
+    }
+
     const anzahl = await tournaments.scheduleRound(
       input.stageId,
       input.round,

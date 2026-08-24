@@ -1,7 +1,11 @@
 import type { Metadata } from 'next';
 import { tournaments } from '@swisshub/modules';
 import { AppError } from '@swisshub/shared';
-import { BracketAdmin, GruppenTabellen } from '@/modules/tournaments/components/bracket-admin';
+import {
+  BracketAdmin,
+  GruppenTabellen,
+  RundenPlanung,
+} from '@/modules/tournaments/components/bracket-admin';
 import { BracketView } from '@/modules/tournaments/components/bracket-view';
 import { csrfTokenFor, requireMember } from '@/server/auth';
 import { ladeTurnierMitZugriff } from '@/server/tournaments';
@@ -73,6 +77,30 @@ export default async function TurnierBracketPage({
           }))
           .sort((a, b) => (a.seed ?? 9999) - (b.seed ?? 9999))}
       />
+
+      {zugriff.matchesManage && hatBracket ? (
+        <RundenPlanung
+          tournamentId={id}
+          csrfToken={csrfTokenFor(context)}
+          runden={bracket.flatMap((abschnitt) => {
+            const runden = [
+              ...new Set(abschnitt.matches.map((match) => match.round)),
+            ].sort((a, b) => a - b);
+            return runden.map((runde) => {
+              const matches = abschnitt.matches.filter((match) => match.round === runde);
+              return {
+                stageId: abschnitt.id,
+                stageName: abschnitt.name,
+                round: runde,
+                matches: matches.length,
+                offen: matches.filter(
+                  (match) => match.status !== 'COMPLETED' && match.status !== 'FORFEIT',
+                ).length,
+              };
+            });
+          })}
+        />
+      ) : null}
 
       {tabellen.length > 0 ? (
         <GruppenTabellen

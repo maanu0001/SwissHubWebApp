@@ -2,9 +2,10 @@ import Link from 'next/link';
 import { ExternalLink } from 'lucide-react';
 import { PageHeader } from '@/components/shared/page-header';
 import { buttonVariants } from '@/components/ui/button';
+import { DuplicateButton } from '@/modules/tournaments/components/duplicate-button';
 import { TournamentSectionNav } from '@/modules/tournaments/components/section-nav';
 import { TournamentStatusBadge } from '@/modules/tournaments/components/tournament-badges';
-import { requireMember } from '@/server/auth';
+import { csrfTokenFor, requireMember } from '@/server/auth';
 import { ladeTurnierMitZugriff, turnierHref } from '@/server/tournaments';
 import { cn } from '@/lib/utils';
 
@@ -66,6 +67,13 @@ export default async function TurnierVerwaltungLayout({
         actions={
           <div className="flex items-center gap-2">
             <TournamentStatusBadge status={tournament.status} />
+            {zugriff.manage ? (
+              <DuplicateButton
+                tournamentId={id}
+                csrfToken={csrfTokenFor(context)}
+                vorlage={tournament.name}
+              />
+            ) : null}
             <Link
               href={`/turniere/${tournament.slug}`}
               className={cn(buttonVariants({ variant: 'outline', size: 'sm' }))}

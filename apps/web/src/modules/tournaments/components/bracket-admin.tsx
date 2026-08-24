@@ -3,8 +3,11 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { ArrowDown, ArrowUp, Dices, Loader2, Shuffle, Trash2, Trophy } from 'lucide-react';
+import { ArrowDown, ArrowUp, CalendarClock, Dices, Loader2, Shuffle, Trash2, Trophy } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
 import { ConfirmationDialog } from '@/components/shared/confirmation-dialog';
 import { EmptyState } from '@/components/shared/states';
 import {
@@ -12,6 +15,7 @@ import {
   generateBracketAction,
   generateKnockoutAction,
   nextSwissRoundAction,
+  scheduleRoundAction,
 } from '@/modules/tournaments/admin-actions';
 
 export interface SetzlistenEintrag {
@@ -333,5 +337,129 @@ export function GruppenTabellen({ tabellen }: { tabellen: TabellenAnsicht[] }): 
         </section>
       ))}
     </div>
+  );
+}
+
+export interface RundenAnsatz {
+  stageId: string;
+  stageName: string;
+  round: number;
+  matches: number;
+  offen: number;
+}
+
+/**
+ * Eine ganze Runde auf einmal ansetzen.
+ *
+ * Matches einzeln anzusetzen ist bei sechzehn Erstrundenpaarungen keine
+ * Arbeit, sondern eine Zumutung. Wer will, laesst gleich die Match-Kanaele
+ * mit anlegen - aber nur fuer Paarungen, die schon feststehen.
+ */
+export function RundenPlanung({
+  tournamentId,
+  csrfToken,
+  runden,
+}: {
+  tournamentId: string;
+  csrfToken: string;
+  runden: RundenAnsatz[];
+}): React.JSX.Element | null {
+  const router = useRouter();
+  const [gewaehlt, setGewaehlt] = useState(0);
+  const [zeit, setZeit] = useState('');
+  const [kanaele, setKanaele] = useState(false);
+  const [laeuft, setLaeuft] = useState(false);
+
+  if (runden.length === 0) {
+    return null;
+  }
+
+  const runde = runden[gewaehlt];
+
+  async function ansetzen(): Promise<void> {
+    if (!runde || zeit === '') {
+      return;
+    }
+    setLaeuft(true);
+    const antwort = await scheduleRoundAction({
+      csrfToken,
+      tournamentId,
+      stageId: runde.stageId,
+      round: runde.round,
+      scheduledAt: new Date(zeit).toISOString(),
+      kanaeleAnlegen: kanaele,
+    });
+    if (antwort.ok) {
+      toast.success(`${antwort.data.angesetzt} Matches angesetzt.`);
+      router.refresh();
+    } else {
+      toast.error(antwort.error.message);
+    }
+    setLaeuft(false);
+  }
+
+  return (
+    <section className="space-y-3 rounded-2xl border border-border p-5">
+      <h2 className="text-sm font-semibold">Runde ansetzen</h2>
+
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div className="space-y-1">
+          <Label htmlFor="runde-wahl" className="text-xs">
+            Runde
+          </Label>
+          <select
+            id="runde-wahl"
+            value={gewaehlt}
+            onChange={(e) => setGewaehlt(Number.parseInt(e.target.value, 10) || 0)}
+            className="h-10 w-full rounded-lg border border-border bg-card px-3 text-sm"
+          >
+            {runden.map((eintrag, index) => (
+              <option key={`${eintrag.stageId}-${eintrag.round}`} value={index}>
+                {eintrag.stageName}, Runde {eintrag.round} ({eintrag.offen} von {eintrag.matches}{' '}
+                offen)
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="space-y-1">
+          <Label htmlFor="runde-zeit" className="text-xs">
+            Anstosszeit
+          </Label>
+          <Input
+            id="runde-zeit"
+            type="datetime-local"
+            value={zeit}
+            onChange={(e) => setZeit(e.target.value)}
+          />
+        </div>
+      </div>
+
+      <div className="flex items-center justify-between gap-4 rounded-lg border border-border/60 p-3">
+        <div className="min-w-0">
+          <p className="text-sm font-medium">Match-Kanäle gleich anlegen</p>
+          <p className="text-xs text-muted-foreground">
+            Nur für Paarungen, die schon feststehen.
+          </p>
+        </div>
+        <Switch
+          checked={kanaele}
+          onCheckedChange={setKanaele}
+          aria-label="Match-Kanäle gleich anlegen"
+        />
+      </div>
+
+      <Button disabled={laeuft || zeit === ''} onClick={() => void ansetzen()}>
+        {laeuft ? (
+          <Loader2 className="animate-spin" aria-hidden="true" />
+        ) : (
+          <CalendarClock aria-hidden="true" />
+        )}
+        Runde ansetzen
+      </Button>
+      <p className="text-xs text-muted-foreground">
+        Die Beteiligten werden auf Discord benachrichtigt.
+      </p>
+    </section>
   );
 }

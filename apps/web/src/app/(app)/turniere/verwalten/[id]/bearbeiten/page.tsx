@@ -2,6 +2,10 @@ import type { Metadata } from 'next';
 import { prisma } from '@swisshub/database';
 import { spielersuche } from '@swisshub/modules';
 import { AppError } from '@swisshub/shared';
+import {
+  CustomFieldsAdmin,
+  type FeldArt,
+} from '@/modules/tournaments/components/custom-fields-admin';
 import { fuerZeitfeld, TournamentForm } from '@/modules/tournaments/components/tournament-form';
 import { csrfTokenFor, requireMember } from '@/server/auth';
 import { loadDiscordOptions } from '@/server/configuration';
@@ -32,13 +36,19 @@ export default async function TurnierBearbeitenPage({
     });
   }
 
-  const [turnier, spiele, optionen] = await Promise.all([
+  const [turnier, felder, antworten, spiele, optionen] = await Promise.all([
     prisma.tournament.findUniqueOrThrow({ where: { id } }),
+    prisma.tournamentCustomField.findMany({
+      where: { tournamentId: id },
+      orderBy: { sortOrder: 'asc' },
+    }),
+    prisma.tournamentCustomFieldResponse.count({ where: { field: { tournamentId: id } } }),
     spielersuche.listGames({ includeDisabled: false }).catch(() => []),
     loadDiscordOptions(),
   ]);
 
   return (
+    <div className="space-y-8">
     <TournamentForm
       csrfToken={csrfTokenFor(context)}
       tournamentId={id}
@@ -97,5 +107,21 @@ export default async function TurnierBearbeitenPage({
         requiresPremium: turnier.requiresPremium,
       }}
     />
+
+      <CustomFieldsAdmin
+        tournamentId={id}
+        csrfToken={csrfTokenFor(context)}
+        gesperrt={antworten > 0}
+        felder={felder.map((feld) => ({
+          kind: feld.kind as FeldArt,
+          label: feld.label,
+          description: feld.description,
+          placeholder: feld.placeholder,
+          required: feld.required,
+          options: feld.options,
+          maxLength: feld.maxLength,
+        }))}
+      />
+    </div>
   );
 }

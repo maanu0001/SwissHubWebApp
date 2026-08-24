@@ -30,12 +30,19 @@ function assertRecht(
   }
 }
 
-const zeitpunkt = z
-  .string()
-  .datetime()
-  .transform((wert) => new Date(wert))
-  .nullable()
-  .optional();
+/**
+ * Zeitpunkte aus dem Browser.
+ *
+ * Bewusst als benannte Bausteine und nicht jedes Mal neu inmitten der
+ * Aktionsbeschreibung: in einer `'use server'`-Datei darf im Modulrumpf keine
+ * gewoehnliche Funktion stehen, und eine Pfeilfunktion in einer
+ * Schema-Eigenschaft ist genau das. Der Uebersetzer lehnt sie ab - hier steht
+ * sie einmal und wird wiederverwendet.
+ */
+const zeitpunktRoh = z.string().datetime();
+const zeitpunktPflicht = zeitpunktRoh.pipe(z.coerce.date());
+const zeitpunktNullbar = zeitpunktPflicht.nullable();
+const zeitpunkt = zeitpunktNullbar.optional();
 
 const turnierFelder = {
   name: z.string().min(3).max(120),
@@ -593,7 +600,7 @@ export const scheduleRoundAction = defineAction(
     schema: turnierSchema.extend({
       stageId: z.string().cuid(),
       round: z.number().int().min(1).max(64),
-      scheduledAt: z.string().datetime().transform((wert) => new Date(wert)),
+      scheduledAt: zeitpunktPflicht,
       kanaeleAnlegen: z.boolean().default(false),
     }),
     rateLimit: 'tournamentAdmin',
@@ -646,7 +653,7 @@ export const scheduleMatchAction = defineAction(
     permission: tournaments.TOURNAMENT_PERMISSIONS.matchesManage,
     schema: z.object({
       matchId: z.string().cuid(),
-      scheduledAt: z.string().datetime().transform((wert) => new Date(wert)).nullable(),
+      scheduledAt: zeitpunktNullbar,
     }),
     rateLimit: 'tournamentAdmin',
   },

@@ -38,8 +38,9 @@ export default async function TurnierLeitstandPage({
           ? 'START'
           : null;
 
-  const [zustand, startcheck, offeneMatches, einsprueche] = await Promise.all([
+  const [zustand, stats, startcheck, offeneMatches, einsprueche] = await Promise.all([
     tournaments.getLiveZustand(id),
+    tournaments.getEinzelStats(id),
     phase ? tournaments.preflight(id, phase) : Promise.resolve([]),
     tournaments.listMatches({
       tournamentId: id,
@@ -85,6 +86,36 @@ export default async function TurnierLeitstandPage({
           </ul>
         </section>
       ) : null}
+
+      <section className="space-y-3">
+        <h2 className="text-sm font-semibold">Zahlen zu diesem Turnier</h2>
+        <dl className="grid gap-x-6 gap-y-2 rounded-xl border border-border p-5 text-sm sm:grid-cols-2 lg:grid-cols-3">
+          {(
+            [
+              ['Angemeldet', `${stats.angemeldet}`],
+              ['Bestätigt', `${stats.bestaetigt}`],
+              ['Warteliste', `${stats.warteliste}`],
+              [
+                'Check-in-Quote',
+                stats.checkinQuote === null ? '–' : `${stats.checkinQuote}%`,
+              ],
+              ['Matches', `${stats.matchesGespielt} von ${stats.matchesGesamt} gespielt`],
+              ['Einsprüche', `${stats.einsprueche}`],
+              ['Forfait', `${stats.forfeits}`],
+              ['Nicht angetreten', `${stats.noShows}`],
+              [
+                'Ø Matchdauer',
+                stats.matchdauerMinuten === null ? '–' : `${stats.matchdauerMinuten} Min.`,
+              ],
+            ] as const
+          ).map(([bezeichnung, wert]) => (
+            <div key={bezeichnung} className="flex items-center justify-between gap-3">
+              <dt className="text-muted-foreground">{bezeichnung}</dt>
+              <dd className="text-right font-medium">{wert}</dd>
+            </div>
+          ))}
+        </dl>
+      </section>
 
       <section className="space-y-3">
         <h2 className="flex items-center gap-2 text-sm font-semibold">

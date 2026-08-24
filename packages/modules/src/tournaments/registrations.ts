@@ -1,9 +1,5 @@
 import { prisma } from '@swisshub/database';
-import type {
-  Prisma,
-  TournamentRegistration,
-  TournamentRegistrationStatus,
-} from '@swisshub/database';
+import type { Prisma, TournamentRegistration, TournamentRegistrationStatus } from '@swisshub/database';
 import { AppError } from '@swisshub/shared';
 import { createLogger } from '@swisshub/logger';
 import { getModuleSettings } from '../module-state';
@@ -182,11 +178,7 @@ export async function register(
         where: { id: input.teamId },
         data: {
           status:
-            status === 'CONFIRMED'
-              ? 'CONFIRMED'
-              : status === 'WAITLISTED'
-                ? 'WAITLISTED'
-                : 'REGISTERED',
+            status === 'CONFIRMED' ? 'CONFIRMED' : status === 'WAITLISTED' ? 'WAITLISTED' : 'REGISTERED',
         },
       });
     }
@@ -390,10 +382,7 @@ export async function rejectRegistration(
  * ein Rueckzug aus einem laufenden Bracket ein Freilos fuer den Gegner
  * bedeutet und die ganze Runde verschiebt.
  */
-export async function withdrawRegistration(
-  registrationId: string,
-  actor: TournamentActor,
-): Promise<void> {
+export async function withdrawRegistration(registrationId: string, actor: TournamentActor): Promise<void> {
   const eintrag = await prisma.tournamentRegistration.findUniqueOrThrow({
     where: { id: registrationId },
     include: { tournament: { select: { status: true } } },
@@ -504,8 +493,7 @@ export async function rueckeNach(
     }
 
     // Bei Freigabepflicht ruecken sie in die Pruefung, nicht direkt hinein.
-    const status: TournamentRegistrationStatus =
-      tournament.access === 'OPEN' ? 'CONFIRMED' : 'PENDING';
+    const status: TournamentRegistrationStatus = tournament.access === 'OPEN' ? 'CONFIRMED' : 'PENDING';
 
     const aktualisiert = await tx.tournamentRegistration.update({
       where: { id: naechster.id },
@@ -549,10 +537,7 @@ export async function rueckeNach(
 }
 
 /** Alle freien Plaetze mit der Warteliste auffuellen. */
-export async function rueckeAlleNach(
-  tournamentId: string,
-  actor: TournamentActor,
-): Promise<number> {
+export async function rueckeAlleNach(tournamentId: string, actor: TournamentActor): Promise<number> {
   let anzahl = 0;
   // Begrenzt, damit ein Fehler in der Bedingung keine Endlosschleife wird.
   for (let versuch = 0; versuch < 500; versuch += 1) {

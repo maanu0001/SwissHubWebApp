@@ -238,7 +238,12 @@ function Seite({
         {teilnehmerName(teilnehmer)}
       </span>
       {entschieden ? (
-        <span className={cn('shrink-0 tabular-nums text-sm', gewonnen ? 'font-semibold' : 'text-muted-foreground')}>
+        <span
+          className={cn(
+            'shrink-0 tabular-nums text-sm',
+            gewonnen ? 'font-semibold' : 'text-muted-foreground',
+          )}
+        >
           {score}
         </span>
       ) : null}

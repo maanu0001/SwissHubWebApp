@@ -3,10 +3,7 @@ import { CalendarDays, Gamepad2, Trophy, Users } from 'lucide-react';
 import { isModuleEnabled, tournaments } from '@swisshub/modules';
 import { formatDayTime } from '@swisshub/shared';
 import { EmptyState } from '@/components/shared/states';
-import {
-  FORMAT_LABEL,
-  TournamentStatusBadge,
-} from '@/modules/tournaments/components/tournament-badges';
+import { FORMAT_LABEL, TournamentStatusBadge } from '@/modules/tournaments/components/tournament-badges';
 import { cn } from '@/lib/utils';
 
 export const dynamic = 'force-dynamic';

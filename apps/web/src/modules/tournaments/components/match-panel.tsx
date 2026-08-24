@@ -134,9 +134,7 @@ export function MatchParticipantPanel({
 
   return (
     <div className="space-y-4 rounded-2xl border border-primary/40 bg-primary/5 p-5">
-      <h2 className="text-sm font-semibold">
-        Du sprichst für {slot === 'A' ? nameA : nameB}
-      </h2>
+      <h2 className="text-sm font-semibold">Du sprichst für {slot === 'A' ? nameA : nameB}</h2>
 
       {/* --- Bereitmeldung ------------------------------------------- */}
       {status === 'READY' || status === 'SCHEDULED' || status === 'PENDING' ? (
@@ -191,11 +189,7 @@ export function MatchParticipantPanel({
               size="sm"
               disabled={laeuft !== null}
               onClick={() =>
-                fuehreAus(
-                  'confirm',
-                  () => confirmResultAction({ csrfToken, matchId }),
-                  'Resultat bestätigt.',
-                )
+                fuehreAus('confirm', () => confirmResultAction({ csrfToken, matchId }), 'Resultat bestätigt.')
               }
             >
               {laeuft === 'confirm' ? (
@@ -318,8 +312,8 @@ export function MatchParticipantPanel({
             Melden
           </Button>
           <p className="text-xs text-muted-foreground">
-            Erst wenn beide Seiten dasselbe melden, zählt das Resultat. Bei Widerspruch
-            entscheidet die Turnierleitung.
+            Erst wenn beide Seiten dasselbe melden, zählt das Resultat. Bei Widerspruch entscheidet die
+            Turnierleitung.
           </p>
         </form>
       ) : null}
@@ -462,9 +456,9 @@ export function MatchStaffPanel({
   const [korrekturA, setKorrekturA] = useState(scoreA);
   const [korrekturB, setKorrekturB] = useState(scoreB);
   const [korrekturGrund, setKorrekturGrund] = useState('');
-  const [korrekturArt, setKorrekturArt] = useState<
-    'PLAYED' | 'FORFEIT' | 'NO_SHOW' | 'ADMIN_DECISION'
-  >('ADMIN_DECISION');
+  const [korrekturArt, setKorrekturArt] = useState<'PLAYED' | 'FORFEIT' | 'NO_SHOW' | 'ADMIN_DECISION'>(
+    'ADMIN_DECISION',
+  );
   const [korrekturOffen, setKorrekturOffen] = useState(false);
   const [entscheid, setEntscheid] = useState<MatchEinspruch | null>(null);
   const [entscheidText, setEntscheidText] = useState('');
@@ -716,9 +710,7 @@ export function MatchStaffPanel({
               id="korrektur-art"
               value={korrekturArt}
               onChange={(e) =>
-                setKorrekturArt(
-                  e.target.value as 'PLAYED' | 'FORFEIT' | 'NO_SHOW' | 'ADMIN_DECISION',
-                )
+                setKorrekturArt(e.target.value as 'PLAYED' | 'FORFEIT' | 'NO_SHOW' | 'ADMIN_DECISION')
               }
               className="h-10 w-full rounded-lg border border-border bg-card px-3 text-sm"
             >

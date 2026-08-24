@@ -89,9 +89,9 @@ describe('Turnier-Verwaltungsaktionen', () => {
   );
 
   it.each(
-    AKTIONEN.filter(
-      (aktion) => !nimmtTurnierkennung(aktion.schema) && nimmtUnterkennung(aktion.schema),
-    ).map((aktion) => [aktion.name, aktion] as const),
+    AKTIONEN.filter((aktion) => !nimmtTurnierkennung(aktion.schema) && nimmtUnterkennung(aktion.schema)).map(
+      (aktion) => [aktion.name, aktion] as const,
+    ),
   )('%s leitet die Zuständigkeit aus der Sache selbst ab', (_name, aktion) => {
     // Keine Turnierkennung im Schema: dann muss der Rumpf die Sache laden und
     // ihre Turnierkennung fuer die Pruefung verwenden - nicht eine aus dem

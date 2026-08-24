@@ -88,9 +88,8 @@ type ListenMatch = {
 
 /** Ein Match aus der Abfrage in eine Zeile übersetzen. */
 export function alsZeile(match: ListenMatch, turnierName?: string): MatchZeile {
-  const name = (
-    teilnehmer: { username: string | null; team: { name: string } | null } | null,
-  ): string => teilnehmer?.team?.name ?? teilnehmer?.username ?? 'Noch offen';
+  const name = (teilnehmer: { username: string | null; team: { name: string } | null } | null): string =>
+    teilnehmer?.team?.name ?? teilnehmer?.username ?? 'Noch offen';
 
   return {
     id: match.id,

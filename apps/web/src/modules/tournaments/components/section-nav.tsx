@@ -10,18 +10,11 @@ export interface TournamentSection {
 }
 
 /** Die Bereiche der Turnierverwaltung - dieselbe Leiste auf jeder Unterseite. */
-export function TournamentSectionNav({
-  sections,
-}: {
-  sections: TournamentSection[];
-}): React.JSX.Element {
+export function TournamentSectionNav({ sections }: { sections: TournamentSection[] }): React.JSX.Element {
   const pfad = usePathname();
 
   return (
-    <nav
-      aria-label="Turnier-Bereiche"
-      className="flex flex-wrap gap-1 border-b border-border/60 pb-3"
-    >
+    <nav aria-label="Turnier-Bereiche" className="flex flex-wrap gap-1 border-b border-border/60 pb-3">
       {sections.map((section) => {
         const aktiv = pfad === section.href;
         return (

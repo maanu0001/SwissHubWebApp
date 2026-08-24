@@ -21,10 +21,7 @@ export interface EligibilityResult {
 }
 
 export async function checkEligibility(
-  tournament: Pick<
-    Tournament,
-    'id' | 'guildId' | 'requiredRoleId' | 'minLevel' | 'requiresPremium'
-  >,
+  tournament: Pick<Tournament, 'id' | 'guildId' | 'requiredRoleId' | 'minLevel' | 'requiresPremium'>,
   discordId: string,
 ): Promise<EligibilityResult> {
   const reasons: string[] = [];
@@ -67,7 +64,9 @@ export async function checkEligibility(
     const profil = await getProfile(discordId).catch(() => null);
     const level = profil ? levelFromXp(profil.xp) : 0;
     if (level < tournament.minLevel) {
-      reasons.push(`Für dieses Turnier braucht es mindestens Level ${tournament.minLevel} (du hast ${level}).`);
+      reasons.push(
+        `Für dieses Turnier braucht es mindestens Level ${tournament.minLevel} (du hast ${level}).`,
+      );
     }
   }
 

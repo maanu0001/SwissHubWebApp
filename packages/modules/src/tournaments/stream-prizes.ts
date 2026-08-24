@@ -205,10 +205,7 @@ export async function deletePrize(prizeId: string, actor: TournamentActor): Prom
  * Erst nach dem Turnier. Wer welchen Platz belegt hat, steht am Teilnehmer -
  * hier wird nur verknuepft, nicht entschieden.
  */
-export async function awardPrizes(
-  tournamentId: string,
-  actor: TournamentActor,
-): Promise<number> {
+export async function awardPrizes(tournamentId: string, actor: TournamentActor): Promise<number> {
   const preise = await prisma.tournamentPrize.findMany({
     where: { tournamentId, awardedParticipantId: null },
     orderBy: { placement: 'asc' },
@@ -241,10 +238,7 @@ export async function awardPrizes(
 }
 
 /** Einen Preis als übergeben markieren. */
-export async function markPrizeDelivered(
-  prizeId: string,
-  actor: TournamentActor,
-): Promise<void> {
+export async function markPrizeDelivered(prizeId: string, actor: TournamentActor): Promise<void> {
   const preis = await prisma.tournamentPrize.update({
     where: { id: prizeId },
     data: { status: 'DELIVERED', deliveredAt: new Date() },
@@ -285,7 +279,11 @@ export async function listPrizes(tournamentId: string) {
 
 export async function setStaff(
   tournamentId: string,
-  eintraege: Array<{ discordId: string; username: string; role: 'OWNER' | 'ADMIN' | 'REFEREE' | 'CASTER' | 'OBSERVER' }>,
+  eintraege: Array<{
+    discordId: string;
+    username: string;
+    role: 'OWNER' | 'ADMIN' | 'REFEREE' | 'CASTER' | 'OBSERVER';
+  }>,
   actor: TournamentActor,
 ): Promise<void> {
   const tournament = await prisma.tournament.findUniqueOrThrow({ where: { id: tournamentId } });

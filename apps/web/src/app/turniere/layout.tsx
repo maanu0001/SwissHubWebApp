@@ -25,10 +25,7 @@ export default async function TurniereLayout({
 }: {
   children: React.ReactNode;
 }): Promise<React.JSX.Element> {
-  const [logoUrl, context] = await Promise.all([
-    brandingModule.currentLogoUrl(),
-    getOptionalAuthContext(),
-  ]);
+  const [logoUrl, context] = await Promise.all([brandingModule.currentLogoUrl(), getOptionalAuthContext()]);
 
   return (
     <div className="relative flex min-h-dvh flex-col">

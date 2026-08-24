@@ -210,11 +210,7 @@ export function CustomFieldsAdmin({
             disabled={laeuft || felder.some((feld) => feld.label.trim() === '')}
             onClick={() => void speichern()}
           >
-            {laeuft ? (
-              <Loader2 className="animate-spin" aria-hidden="true" />
-            ) : (
-              <Save aria-hidden="true" />
-            )}
+            {laeuft ? <Loader2 className="animate-spin" aria-hidden="true" /> : <Save aria-hidden="true" />}
             Fragen speichern
           </Button>
         </div>

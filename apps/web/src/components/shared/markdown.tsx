@@ -14,13 +14,7 @@ import { cn } from '@/lib/utils';
  * und Verweise im Fliesstext. Alles andere bleibt schlicht Text - lieber ein
  * ungerendertes Sternchen als eine halbe Auszeichnungssprache.
  */
-export function Markdown({
-  text,
-  className,
-}: {
-  text: string;
-  className?: string;
-}): React.JSX.Element {
+export function Markdown({ text, className }: { text: string; className?: string }): React.JSX.Element {
   return (
     <div className={cn('space-y-3 text-sm leading-relaxed', className)}>
       {bloecke(text).map((block, index) => (
@@ -176,8 +170,7 @@ function Block({ block }: { block: Block }): React.JSX.Element {
  * React-Elemente - der Text dazwischen wird nie als Markup gelesen.
  */
 function inline(text: string): React.ReactNode[] {
-  const MUSTER =
-    /(\*\*[^*]+\*\*|__[^_]+__|\*[^*]+\*|_[^_]+_|`[^`]+`|\[[^\]]+\]\([^)\s]+\))/gu;
+  const MUSTER = /(\*\*[^*]+\*\*|__[^_]+__|\*[^*]+\*|_[^_]+_|`[^`]+`|\[[^\]]+\]\([^)\s]+\))/gu;
 
   const teile: React.ReactNode[] = [];
   let zuletzt = 0;

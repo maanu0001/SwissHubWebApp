@@ -654,7 +654,8 @@ export async function scheduleMatch(
     where: { id: matchId },
     data: {
       scheduledAt,
-      ...(scheduledAt && ['PENDING', 'READY'].includes(
+      ...(scheduledAt &&
+      ['PENDING', 'READY'].includes(
         (await prisma.tournamentMatch.findUniqueOrThrow({ where: { id: matchId } })).status,
       )
         ? { status: 'SCHEDULED' as const }
@@ -696,11 +697,7 @@ export async function scheduleRound(
  * Foermlichkeit, sondern die Auskunft fuer die Leitung: wenn eine Seite nach
  * zehn Minuten nicht bereit ist, weiss man, wo man nachfragen muss.
  */
-export async function setReady(
-  matchId: string,
-  slot: Slot,
-  bereit: boolean,
-): Promise<TournamentMatch> {
+export async function setReady(matchId: string, slot: Slot, bereit: boolean): Promise<TournamentMatch> {
   const match = await prisma.tournamentMatch.update({
     where: { id: matchId },
     data: slot === 'A' ? { readyA: bereit } : { readyB: bereit },

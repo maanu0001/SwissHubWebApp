@@ -80,18 +80,35 @@ const KEIN_ZUGRIFF: TournamentAccess = {
  */
 const ROLLEN_UMFANG: Record<TournamentStaffRole, Array<keyof TournamentAccess>> = {
   OWNER: [
-    'manage', 'publish', 'registrationsView', 'registrationsManage', 'teamsManage',
-    'checkinManage', 'bracketManage', 'matchesManage', 'resultsOverride', 'disputesManage',
-    'streamManage', 'prizesManage', 'staffManage',
+    'manage',
+    'publish',
+    'registrationsView',
+    'registrationsManage',
+    'teamsManage',
+    'checkinManage',
+    'bracketManage',
+    'matchesManage',
+    'resultsOverride',
+    'disputesManage',
+    'streamManage',
+    'prizesManage',
+    'staffManage',
   ],
   ADMIN: [
-    'manage', 'publish', 'registrationsView', 'registrationsManage', 'teamsManage',
-    'checkinManage', 'bracketManage', 'matchesManage', 'resultsOverride', 'disputesManage',
-    'streamManage', 'prizesManage',
+    'manage',
+    'publish',
+    'registrationsView',
+    'registrationsManage',
+    'teamsManage',
+    'checkinManage',
+    'bracketManage',
+    'matchesManage',
+    'resultsOverride',
+    'disputesManage',
+    'streamManage',
+    'prizesManage',
   ],
-  REFEREE: [
-    'registrationsView', 'checkinManage', 'matchesManage', 'resultsOverride', 'disputesManage',
-  ],
+  REFEREE: ['registrationsView', 'checkinManage', 'matchesManage', 'resultsOverride', 'disputesManage'],
   CASTER: ['registrationsView', 'streamManage'],
   OBSERVER: ['registrationsView'],
 };
@@ -164,11 +181,7 @@ export async function getTournamentAccess(
 
   const rolle: TournamentStaffRole | null =
     eintrag?.role ??
-    (istErsteller
-      ? 'OWNER'
-      : istStandardLeitung(viewer, settings.defaultStaffRoleIds)
-        ? 'ADMIN'
-        : null);
+    (istErsteller ? 'OWNER' : istStandardLeitung(viewer, settings.defaultStaffRoleIds) ? 'ADMIN' : null);
 
   if (rolle === null) {
     return KEIN_ZUGRIFF;
@@ -207,10 +220,7 @@ export async function tournamentSichtbarkeitsFilter(
   }
 
   return {
-    OR: [
-      { createdByDiscordId: viewer.discordId },
-      { staff: { some: { discordId: viewer.discordId } } },
-    ],
+    OR: [{ createdByDiscordId: viewer.discordId }, { staff: { some: { discordId: viewer.discordId } } }],
   };
 }
 
@@ -274,10 +284,7 @@ export async function getParticipantScope(
   }
 
   return {
-    registered:
-      anmeldung !== null &&
-      anmeldung.status !== 'CANCELLED' &&
-      anmeldung.status !== 'REJECTED',
+    registered: anmeldung !== null && anmeldung.status !== 'CANCELLED' && anmeldung.status !== 'REJECTED',
     registrationId: anmeldung?.id ?? null,
     teamId,
     isCaptain: mitgliedschaft?.team.captainDiscordId === discordId,
@@ -292,10 +299,7 @@ export async function getParticipantScope(
  * angetretene Person selbst. Eine Match-Kennung aus dem Browser sagt nichts
  * darueber aus, wen sie etwas angeht.
  */
-export async function getMatchSlot(
-  matchId: string,
-  discordId: string,
-): Promise<'A' | 'B' | null> {
+export async function getMatchSlot(matchId: string, discordId: string): Promise<'A' | 'B' | null> {
   const match = await prisma.tournamentMatch.findUnique({
     where: { id: matchId },
     select: {

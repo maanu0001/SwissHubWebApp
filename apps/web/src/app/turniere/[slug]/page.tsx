@@ -1,14 +1,6 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
-import {
-  CalendarClock,
-  CalendarDays,
-  Gamepad2,
-  Radio,
-  Shield,
-  Trophy,
-  Users,
-} from 'lucide-react';
+import { CalendarClock, CalendarDays, Gamepad2, Radio, Shield, Trophy, Users } from 'lucide-react';
 import { isModuleEnabled, tournaments } from '@swisshub/modules';
 import { formatDayTime, formatRemaining } from '@swisshub/shared';
 import { Markdown } from '@/components/shared/markdown';
@@ -31,11 +23,7 @@ import { cn } from '@/lib/utils';
 
 export const dynamic = 'force-dynamic';
 
-export async function generateMetadata({
-  params,
-}: {
-  params: Promise<{ slug: string }>;
-}): Promise<Metadata> {
+export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
   const turnier = await tournaments.getPublicTournament(slug).catch(() => null);
   if (!turnier) {
@@ -93,15 +81,9 @@ export default async function TurnierSeite({
   const [teilnehmer, bracket, eigenerStand, eigeneTeams, einladungen] = await Promise.all([
     tournaments.getPublicParticipants(turnier.id),
     tournaments.getBracket(turnier.id),
-    context
-      ? tournaments.getEigenerStand(turnier.id, context.user.discordId)
-      : Promise.resolve(null),
-    context
-      ? tournaments.listEigeneTeams(turnier.id, context.user.discordId)
-      : Promise.resolve([]),
-    context
-      ? tournaments.listInvitesFor(context.user.discordId, turnier.id)
-      : Promise.resolve([]),
+    context ? tournaments.getEigenerStand(turnier.id, context.user.discordId) : Promise.resolve(null),
+    context ? tournaments.listEigeneTeams(turnier.id, context.user.discordId) : Promise.resolve([]),
+    context ? tournaments.listInvitesFor(context.user.discordId, turnier.id) : Promise.resolve([]),
   ]);
 
   // Die Eignung nur prüfen, wenn sie jemanden betrifft: sie fragt Discord und
@@ -179,9 +161,7 @@ export default async function TurnierSeite({
               <Teilnehmerliste
                 bestaetigte={bestaetigte}
                 warteliste={warteliste}
-                checkinSichtbar={
-                  turnier.status === 'CHECKIN_OPEN' || turnier.status === 'CHECKIN_CLOSED'
-                }
+                checkinSichtbar={turnier.status === 'CHECKIN_OPEN' || turnier.status === 'CHECKIN_CLOSED'}
               />
             </TabsContent>
 
@@ -305,13 +285,7 @@ export default async function TurnierSeite({
 
 type PublicTurnier = NonNullable<Awaited<ReturnType<typeof tournaments.getPublicTournament>>>;
 
-function Hero({
-  turnier,
-  bestaetigte,
-}: {
-  turnier: PublicTurnier;
-  bestaetigte: number;
-}): React.JSX.Element {
+function Hero({ turnier, bestaetigte }: { turnier: PublicTurnier; bestaetigte: number }): React.JSX.Element {
   const naechsteFrist = naechsterTermin(turnier);
 
   return (
@@ -456,11 +430,7 @@ function Zeitplan({ turnier }: { turnier: PublicTurnier }): React.JSX.Element | 
   );
 }
 
-function Leitung({
-  staff,
-}: {
-  staff: PublicTurnier['staff'];
-}): React.JSX.Element | null {
+function Leitung({ staff }: { staff: PublicTurnier['staff'] }): React.JSX.Element | null {
   if (staff.length === 0) {
     return null;
   }
@@ -542,17 +512,12 @@ function Teilnehmerliste({
       {bestaetigte.length > 0 ? (
         <ul className="grid gap-2 sm:grid-cols-2">
           {bestaetigte.map((eintrag) => (
-            <li
-              key={eintrag.registrationId}
-              className="rounded-xl border border-border px-4 py-3"
-            >
+            <li key={eintrag.registrationId} className="rounded-xl border border-border px-4 py-3">
               <div className="flex items-center justify-between gap-2">
                 <span className="min-w-0 truncate font-medium">
                   {eintrag.team?.name ?? eintrag.username}
                   {eintrag.team?.tag ? (
-                    <span className="ml-1.5 font-mono text-xs text-muted-foreground">
-                      {eintrag.team.tag}
-                    </span>
+                    <span className="ml-1.5 font-mono text-xs text-muted-foreground">{eintrag.team.tag}</span>
                   ) : null}
                 </span>
                 {eintrag.participant?.seed ? (
@@ -583,16 +548,11 @@ function Teilnehmerliste({
           <h3 className="text-sm font-semibold text-muted-foreground">Warteliste</h3>
           <ol className="divide-y divide-border/60 overflow-hidden rounded-xl border border-border">
             {warteliste.map((eintrag) => (
-              <li
-                key={eintrag.registrationId}
-                className="flex items-center gap-3 px-4 py-2.5 text-sm"
-              >
+              <li key={eintrag.registrationId} className="flex items-center gap-3 px-4 py-2.5 text-sm">
                 <span className="w-6 shrink-0 font-mono text-xs text-muted-foreground">
                   {eintrag.waitlistPosition ?? '–'}
                 </span>
-                <span className="min-w-0 flex-1 truncate">
-                  {eintrag.team?.name ?? eintrag.username}
-                </span>
+                <span className="min-w-0 flex-1 truncate">{eintrag.team?.name ?? eintrag.username}</span>
                 <RegistrationStatusBadge status={eintrag.status} />
               </li>
             ))}
@@ -619,9 +579,7 @@ function Preisliste({ prizes }: { prizes: PublicTurnier['prizes'] }): React.JSX.
             </p>
             <p className="font-medium">{preis.title}</p>
             {preis.value ? <p className="text-sm text-primary">{preis.value}</p> : null}
-            {preis.description ? (
-              <p className="text-sm text-muted-foreground">{preis.description}</p>
-            ) : null}
+            {preis.description ? <p className="text-sm text-muted-foreground">{preis.description}</p> : null}
             {preis.sponsorName ? (
               <p className="text-xs text-muted-foreground">
                 Gestiftet von{' '}

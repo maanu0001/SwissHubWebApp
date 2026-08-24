@@ -7,13 +7,7 @@ import { CheckCircle2, Loader2, LogIn, UserPlus, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input, Textarea } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ConfirmationDialog } from '@/components/shared/confirmation-dialog';
 import {
   checkinAction,
@@ -94,9 +88,7 @@ export function RegistrationPanel({
   if (!angemeldet) {
     return (
       <div className="space-y-3 rounded-xl border border-border p-5">
-        <p className="text-sm text-muted-foreground">
-          Zum Anmelden brauchst du dein Discord-Konto.
-        </p>
+        <p className="text-sm text-muted-foreground">Zum Anmelden brauchst du dein Discord-Konto.</p>
         <Button asChild>
           <a href={`/login?redirect=/turniere`}>
             <LogIn aria-hidden="true" />
@@ -140,8 +132,7 @@ export function RegistrationPanel({
   if (eigenerStand.angemeldet) {
     const checkinOffen = status === 'CHECKIN_OPEN';
     const eingecheckt =
-      eigenerStand.checkinStatus === 'CHECKED_IN' ||
-      eigenerStand.checkinStatus === 'ADMIN_CONFIRMED';
+      eigenerStand.checkinStatus === 'CHECKED_IN' || eigenerStand.checkinStatus === 'ADMIN_CONFIRMED';
 
     return (
       <div className="space-y-4 rounded-xl border border-border p-5">
@@ -211,14 +202,11 @@ export function RegistrationPanel({
         ) : null}
 
         {mode === 'TEAM' && !eigenerStand.istCaptain && checkinOffen && !eingecheckt ? (
-          <p className="text-sm text-muted-foreground">
-            Der Check-in läuft über deinen Captain.
-          </p>
+          <p className="text-sm text-muted-foreground">Der Check-in läuft über deinen Captain.</p>
         ) : null}
 
-        {['REGISTRATION_OPEN', 'REGISTRATION_CLOSED', 'CHECKIN_OPEN', 'CHECKIN_CLOSED'].includes(
-          status,
-        ) && eigenerStand.registrationId ? (
+        {['REGISTRATION_OPEN', 'REGISTRATION_CLOSED', 'CHECKIN_OPEN', 'CHECKIN_CLOSED'].includes(status) &&
+        eigenerStand.registrationId ? (
           <>
             <Button
               variant="ghost"
@@ -382,8 +370,7 @@ export function RegistrationPanel({
           </Select>
           {teamZuKlein ? (
             <p className="text-xs text-warning">
-              Das Team braucht mindestens {team!.mindestens} Spieler - aktuell sind es{' '}
-              {team!.spieler}.
+              Das Team braucht mindestens {team!.mindestens} Spieler - aktuell sind es {team!.spieler}.
             </p>
           ) : null}
         </div>
@@ -395,9 +382,7 @@ export function RegistrationPanel({
             {frage.label}
             {frage.required ? <span className="ml-1 text-destructive">*</span> : null}
           </Label>
-          {frage.description ? (
-            <p className="text-xs text-muted-foreground">{frage.description}</p>
-          ) : null}
+          {frage.description ? <p className="text-xs text-muted-foreground">{frage.description}</p> : null}
 
           {frage.kind === 'LONG_TEXT' ? (
             <Textarea
@@ -414,9 +399,7 @@ export function RegistrationPanel({
           ) : frage.kind === 'SELECT' ? (
             <Select
               value={antworten[frage.id] ?? ''}
-              onValueChange={(wert) =>
-                setAntworten((vorher) => ({ ...vorher, [frage.id]: wert }))
-              }
+              onValueChange={(wert) => setAntworten((vorher) => ({ ...vorher, [frage.id]: wert }))}
             >
               <SelectTrigger id={`frage-${frage.id}`}>
                 <SelectValue placeholder="Bitte wählen" />
@@ -458,9 +441,7 @@ export function RegistrationPanel({
           className="mt-0.5 size-4 accent-[color:var(--primary)]"
           required
         />
-        <span className="text-sm">
-          Ich habe das Regelwerk gelesen und akzeptiere es.
-        </span>
+        <span className="text-sm">Ich habe das Regelwerk gelesen und akzeptiere es.</span>
       </label>
 
       <Button

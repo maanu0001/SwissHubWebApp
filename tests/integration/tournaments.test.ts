@@ -13,17 +13,14 @@ useTestSchema('test_tournaments');
  * weder sieht noch anfasst.
  */
 const { prisma } = await import('@swisshub/database');
-const { tournaments, setModuleEnabled, syncDiscord, writeModuleSettings } = await import(
-  '@swisshub/modules'
-);
+const { tournaments, setModuleEnabled, syncDiscord, writeModuleSettings } = await import('@swisshub/modules');
 
 let GUILD = '';
 const ADMIN = { discordId: '100000000000000010', username: 'verwaltung' };
 const LEITUNGS_ROLLE = '900000000000000004'; // @Supporter im Mock
 const KATEGORIE = '700000000000000010'; // Kategorie "Moderation" im Mock
 
-const actor = (discordId: string, username: string) =>
-  ({ discordId, username, source: 'WEBAPP' as const });
+const actor = (discordId: string, username: string) => ({ discordId, username, source: 'WEBAPP' as const });
 
 const viewer = (discordId: string, roleIds: string[], rechte: string[]) => ({
   discordId,
@@ -42,9 +39,7 @@ const P = () => tournaments.TOURNAMENT_PERMISSIONS;
  */
 const ALLE = () => Object.values(P()).filter((recht) => recht !== P().admin);
 
-async function turnier(
-  optionen: Partial<Parameters<typeof tournaments.createTournament>[0]> = {},
-) {
+async function turnier(optionen: Partial<Parameters<typeof tournaments.createTournament>[0]> = {}) {
   return tournaments.createTournament(
     {
       name: 'Testturnier',
@@ -323,11 +318,7 @@ describeWithDatabase('Turniere', () => {
       'REGISTRATION_CLOSED',
       actor(ADMIN.discordId, ADMIN.username),
     );
-    await tournaments.setTournamentStatus(
-      t.id,
-      'CHECKIN_OPEN',
-      actor(ADMIN.discordId, ADMIN.username),
-    );
+    await tournaments.setTournamentStatus(t.id, 'CHECKIN_OPEN', actor(ADMIN.discordId, ADMIN.username));
 
     await tournaments.checkIn(t.id, '900000000000004001', actor('900000000000004001', 'anna'));
 
@@ -344,10 +335,7 @@ describeWithDatabase('Turniere', () => {
       await melde(t.id, `90000000000000501${index}`, name);
     }
 
-    const ergebnis = await tournaments.generateBracket(
-      t.id,
-      actor(ADMIN.discordId, ADMIN.username),
-    );
+    const ergebnis = await tournaments.generateBracket(t.id, actor(ADMIN.discordId, ADMIN.username));
     expect(ergebnis.matches).toBe(3);
 
     const bracket = await tournaments.getBracket(t.id);
@@ -780,11 +768,7 @@ describeWithDatabase('Turniere', () => {
     // Den Zustandsweg der Reihe nach gehen: die Uebergangstabelle laesst
     // keine Abkuerzung, und das ist genau ihr Zweck.
     for (const status of ['REGISTRATION_CLOSED', 'READY', 'RUNNING', 'COMPLETED'] as const) {
-      await tournaments.setTournamentStatus(
-        t.id,
-        status,
-        actor(ADMIN.discordId, ADMIN.username),
-      );
+      await tournaments.setTournamentStatus(t.id, status, actor(ADMIN.discordId, ADMIN.username));
     }
     await tournaments.archiveTournament(t.id, actor(ADMIN.discordId, ADMIN.username));
 

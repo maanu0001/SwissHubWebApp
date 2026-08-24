@@ -127,19 +127,14 @@ export function StaffAdmin({
 
       <ul className="divide-y divide-border/60 overflow-hidden rounded-xl border border-border">
         {staff.map((eintrag) => (
-          <li
-            key={eintrag.discordId}
-            className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3"
-          >
+          <li key={eintrag.discordId} className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3">
             <DiscordAvatar
               discordId={eintrag.discordId}
               name={eintrag.username}
               size={32}
               className="shrink-0"
             />
-            <span className="min-w-0 flex-1 basis-40 truncate font-medium">
-              {eintrag.username}
-            </span>
+            <span className="min-w-0 flex-1 basis-40 truncate font-medium">{eintrag.username}</span>
 
             {darfVerwalten ? (
               <select
@@ -175,9 +170,7 @@ export function StaffAdmin({
                 className="text-destructive"
                 disabled={staff.length === 1}
                 title={staff.length === 1 ? 'Ein Turnier braucht mindestens eine Leitung.' : undefined}
-                onClick={() =>
-                  setStaff(staff.filter((andere) => andere.discordId !== eintrag.discordId))
-                }
+                onClick={() => setStaff(staff.filter((andere) => andere.discordId !== eintrag.discordId))}
                 aria-label={`${eintrag.username} entfernen`}
               >
                 <Trash2 aria-hidden="true" />
@@ -190,16 +183,10 @@ export function StaffAdmin({
       {darfVerwalten ? (
         <div className="flex items-center gap-3">
           <Button disabled={laeuft} onClick={() => void speichern()}>
-            {laeuft ? (
-              <Loader2 className="animate-spin" aria-hidden="true" />
-            ) : (
-              <Save aria-hidden="true" />
-            )}
+            {laeuft ? <Loader2 className="animate-spin" aria-hidden="true" /> : <Save aria-hidden="true" />}
             Speichern
           </Button>
-          <p className="text-xs text-muted-foreground">
-            Änderungen gelten erst nach dem Speichern.
-          </p>
+          <p className="text-xs text-muted-foreground">Änderungen gelten erst nach dem Speichern.</p>
         </div>
       ) : null}
     </div>

@@ -53,10 +53,28 @@ export function slugify(text: string): string {
   // geschrieben - eine Ausnahme im Waechter waere der schlechtere Tausch.
   const ESZETT = '\u00DF';
   const UMSCHRIFT: Record<string, string> = {
-    ä: 'ae', ö: 'oe', ü: 'ue', [ESZETT]: 'ss',
-    à: 'a', á: 'a', â: 'a', è: 'e', é: 'e', ê: 'e', ë: 'e',
-    ì: 'i', í: 'i', î: 'i', ò: 'o', ó: 'o', ô: 'o',
-    ù: 'u', ú: 'u', û: 'u', ç: 'c', ñ: 'n',
+    ä: 'ae',
+    ö: 'oe',
+    ü: 'ue',
+    [ESZETT]: 'ss',
+    à: 'a',
+    á: 'a',
+    â: 'a',
+    è: 'e',
+    é: 'e',
+    ê: 'e',
+    ë: 'e',
+    ì: 'i',
+    í: 'i',
+    î: 'i',
+    ò: 'o',
+    ó: 'o',
+    ô: 'o',
+    ù: 'u',
+    ú: 'u',
+    û: 'u',
+    ç: 'c',
+    ñ: 'n',
   };
 
   return text

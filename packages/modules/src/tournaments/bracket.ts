@@ -265,9 +265,7 @@ function loeseFreilose(matches: PlannedMatch[]): PlannedMatch[] {
     }
   }
 
-  return matches
-    .filter((match) => !entfernt.has(match))
-    .map((match) => ({ ...match, bye: false }));
+  return matches.filter((match) => !entfernt.has(match)).map((match) => ({ ...match, bye: false }));
 }
 
 // --- Doppel-K.-o. ----------------------------------------------------------
@@ -325,12 +323,7 @@ export function doubleElimination(teilnehmer: readonly string[]): PlannedMatch[]
                   // der Sieger behaelt seinen Platz. Gerade -> ungerade: sie
                   // halbiert sich, also je zwei zusammen.
                   naechsteGroesse === anzahlMatches ? position : Math.ceil(position / 2),
-                slot:
-                  naechsteGroesse === anzahlMatches
-                    ? 'A'
-                    : position % 2 === 1
-                      ? 'A'
-                      : 'B',
+                slot: naechsteGroesse === anzahlMatches ? 'A' : position % 2 === 1 ? 'A' : 'B',
               }
             : { stage: 'GRAND_FINAL', round: 1, position: 1, slot: 'B' },
       });
@@ -374,9 +367,7 @@ export function doubleElimination(teilnehmer: readonly string[]): PlannedMatch[]
   }
 
   // --- Grosses Finale -------------------------------------------------
-  const wbFinale = matches.find(
-    (match) => match.stage === 'WINNERS' && match.round === wbRunden,
-  );
+  const wbFinale = matches.find((match) => match.stage === 'WINNERS' && match.round === wbRunden);
   if (wbFinale) {
     wbFinale.winnerTo = { stage: 'GRAND_FINAL', round: 1, position: 1, slot: 'A' };
   }
@@ -463,10 +454,7 @@ export function roundRobin(
  * So verteilen sich die Gesetzten gleichmaessig, statt dass Gruppe A alle
  * starken und Gruppe D alle schwachen Teams bekommt.
  */
-export function verteileAufGruppen(
-  teilnehmer: readonly string[],
-  gruppen: number,
-): string[][] {
+export function verteileAufGruppen(teilnehmer: readonly string[], gruppen: number): string[][] {
   if (gruppen < 1) {
     throw new Error('Es braucht mindestens eine Gruppe.');
   }
@@ -535,10 +523,7 @@ export interface SwissBilanz {
  * Wiederholungen. Findet sich in einer Punktgruppe kein Gegner mehr, ruecke
  * der Uebriggebliebene in die naechsttiefere.
  */
-export function swissPaarung(
-  bilanzen: readonly SwissBilanz[],
-  runde: number,
-): PlannedMatch[] {
+export function swissPaarung(bilanzen: readonly SwissBilanz[], runde: number): PlannedMatch[] {
   const offen = [...bilanzen].sort((a, b) => b.punkte - a.punkte);
   const matches: PlannedMatch[] = [];
   const vergeben = new Set<string>();
@@ -566,8 +551,7 @@ export function swissPaarung(
       // Notfall: lieber eine Wiederholung als niemand.
       offen.find(
         (kandidat) =>
-          !vergeben.has(kandidat.participantId) &&
-          kandidat.participantId !== eintrag.participantId,
+          !vergeben.has(kandidat.participantId) && kandidat.participantId !== eintrag.participantId,
       );
 
     if (!gegner) {
@@ -708,12 +692,7 @@ export function berechneTabelle(
   return [...zeilen.values()];
 }
 
-export type Tiebreaker =
-  | 'HEAD_TO_HEAD'
-  | 'SCORE_DIFFERENCE'
-  | 'SCORE_FOR'
-  | 'WINS'
-  | 'BUCHHOLZ';
+export type Tiebreaker = 'HEAD_TO_HEAD' | 'SCORE_DIFFERENCE' | 'SCORE_FOR' | 'WINS' | 'BUCHHOLZ';
 
 /**
  * Die Tabelle sortieren.

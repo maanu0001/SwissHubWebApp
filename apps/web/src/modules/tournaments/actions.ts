@@ -21,10 +21,7 @@ import { ladeMatchMitZugriff, tournamentActor } from '@/server/tournaments';
 const teamSchema = z.object({ teamId: z.string().cuid() });
 
 /** Prueft, dass der Aufrufer Captain dieses Teams ist. */
-async function assertCaptain(
-  teamId: string,
-  discordId: string,
-): Promise<{ tournamentId: string }> {
+async function assertCaptain(teamId: string, discordId: string): Promise<{ tournamentId: string }> {
   const team = await tournaments.getTeam(teamId);
   if (!team) {
     throw new AppError('NOT_FOUND', { userMessage: 'Dieses Team existiert nicht.' });
@@ -265,12 +262,7 @@ export const setMemberRoleAction = defineAction(
   },
   async ({ ctx, input }) => {
     await assertCaptain(input.teamId, ctx.user.discordId);
-    await tournaments.setMemberRole(
-      input.teamId,
-      input.discordId,
-      input.role,
-      tournamentActor(ctx),
-    );
+    await tournaments.setMemberRole(input.teamId, input.discordId, input.role, tournamentActor(ctx));
     revalidatePath('/turniere');
     return { ok: true };
   },
@@ -305,11 +297,7 @@ export const checkinAction = defineAction(
     freshness: 'critical',
   },
   async ({ ctx, input }) => {
-    const ergebnis = await tournaments.checkIn(
-      input.tournamentId,
-      ctx.user.discordId,
-      tournamentActor(ctx),
-    );
+    const ergebnis = await tournaments.checkIn(input.tournamentId, ctx.user.discordId, tournamentActor(ctx));
     revalidatePath('/turniere');
     return ergebnis;
   },

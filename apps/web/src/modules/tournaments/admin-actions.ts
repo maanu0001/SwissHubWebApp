@@ -141,7 +141,10 @@ export const updateTournamentAction = defineAction(
     name: 'tournaments.update',
     module: 'tournaments',
     permission: tournaments.TOURNAMENT_PERMISSIONS.manage,
-    schema: turnierSchema.extend(turnierFelder).partial({ name: true, gameName: true, mode: true, access: true, format: true, seeding: true }).extend({ tournamentId: z.string().cuid() }),
+    schema: turnierSchema
+      .extend(turnierFelder)
+      .partial({ name: true, gameName: true, mode: true, access: true, format: true, seeding: true })
+      .extend({ tournamentId: z.string().cuid() }),
     rateLimit: 'tournamentAdmin',
     freshness: 'critical',
   },
@@ -229,11 +232,7 @@ export const setStatusAction = defineAction(
       }
     }
 
-    await tournaments.setTournamentStatus(
-      input.tournamentId,
-      input.status,
-      tournamentActor(ctx),
-    );
+    await tournaments.setTournamentStatus(input.tournamentId, input.status, tournamentActor(ctx));
 
     // Ankuendigungen an den Phasen, an denen sie hingehoeren.
     if (input.status === 'CHECKIN_OPEN') {
@@ -328,11 +327,7 @@ export const duplicateTournamentAction = defineAction(
     const { zugriff } = await ladeTurnierMitZugriff(ctx, input.tournamentId);
     assertRecht(zugriff, 'manage', 'Du kannst dieses Turnier nicht als Vorlage verwenden.');
 
-    const neu = await tournaments.duplicateTournament(
-      input.tournamentId,
-      input.name,
-      tournamentActor(ctx),
-    );
+    const neu = await tournaments.duplicateTournament(input.tournamentId, input.name, tournamentActor(ctx));
     revalidatePath('/turniere');
     return { tournamentId: neu.id, slug: neu.slug };
   },
@@ -395,11 +390,7 @@ export const rejectRegistrationAction = defineAction(
     const { zugriff } = await ladeTurnierMitZugriff(ctx, eintrag.tournamentId);
     assertRecht(zugriff, 'registrationsManage', 'Du kannst hier keine Anmeldungen ablehnen.');
 
-    await tournaments.rejectRegistration(
-      input.registrationId,
-      input.reason,
-      tournamentActor(ctx),
-    );
+    await tournaments.rejectRegistration(input.registrationId, input.reason, tournamentActor(ctx));
 
     await safeRecordAudit({
       action: AUDIT_ACTIONS.TOURNAMENT_REGISTRATION_REMOVED,
@@ -477,11 +468,7 @@ export const closeCheckinAction = defineAction(
     assertRecht(zugriff, 'checkinManage', 'Du kannst den Check-in nicht schliessen.');
 
     const ergebnis = await tournaments.closeCheckin(input.tournamentId, tournamentActor(ctx));
-    await tournaments.setTournamentStatus(
-      input.tournamentId,
-      'CHECKIN_CLOSED',
-      tournamentActor(ctx),
-    );
+    await tournaments.setTournamentStatus(input.tournamentId, 'CHECKIN_CLOSED', tournamentActor(ctx));
 
     revalidatePath('/turniere');
     return ergebnis;
@@ -560,10 +547,7 @@ export const generateKnockoutAction = defineAction(
     const { zugriff } = await ladeTurnierMitZugriff(ctx, input.tournamentId);
     assertRecht(zugriff, 'bracketManage', 'Du kannst hier keine Endrunde erzeugen.');
 
-    const ergebnis = await tournaments.generateKnockoutFromGroups(
-      input.tournamentId,
-      tournamentActor(ctx),
-    );
+    const ergebnis = await tournaments.generateKnockoutFromGroups(input.tournamentId, tournamentActor(ctx));
     revalidatePath('/turniere');
     return ergebnis;
   },
@@ -582,10 +566,7 @@ export const nextSwissRoundAction = defineAction(
     const { zugriff } = await ladeTurnierMitZugriff(ctx, input.tournamentId);
     assertRecht(zugriff, 'bracketManage', 'Du kannst hier keine Runde auslosen.');
 
-    const ergebnis = await tournaments.generateNextSwissRound(
-      input.tournamentId,
-      tournamentActor(ctx),
-    );
+    const ergebnis = await tournaments.generateNextSwissRound(input.tournamentId, tournamentActor(ctx));
     revalidatePath('/turniere');
     return ergebnis ?? { matches: 0, runde: 0 };
   },
@@ -1119,8 +1100,7 @@ export const blockMemberAction = defineAction(
         discordId: input.discordId,
         username: input.username ?? null,
         reason: input.reason,
-        expiresAt:
-          input.days > 0 ? new Date(Date.now() + input.days * 24 * 60 * 60 * 1000) : null,
+        expiresAt: input.days > 0 ? new Date(Date.now() + input.days * 24 * 60 * 60 * 1000) : null,
       },
       tournamentActor(ctx),
     );

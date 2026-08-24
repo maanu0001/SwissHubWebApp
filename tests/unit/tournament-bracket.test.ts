@@ -12,8 +12,7 @@ import { tournaments } from '@swisshub/modules';
 const B = tournaments;
 
 /** Kurze Namen fuer die Lesbarkeit der Erwartungen. */
-const feld = (anzahl: number): string[] =>
-  Array.from({ length: anzahl }, (_, index) => `p${index + 1}`);
+const feld = (anzahl: number): string[] => Array.from({ length: anzahl }, (_, index) => `p${index + 1}`);
 
 describe('Setzliste', () => {
   it('lässt die Gesetzten sich so spät wie möglich begegnen', () => {
@@ -76,10 +75,7 @@ describe('Single Elimination', () => {
     // gespielt werden kann und trotzdem im Bracket steht.
     for (const match of matches) {
       const zulauf = matches.filter(
-        (m) =>
-          m.winnerTo &&
-          m.winnerTo.round === match.round &&
-          m.winnerTo.position === match.position,
+        (m) => m.winnerTo && m.winnerTo.round === match.round && m.winnerTo.position === match.position,
       ).length;
       expect(
         (match.a !== null ? 1 : 0) + (match.b !== null ? 1 : 0) + zulauf,
@@ -248,13 +244,10 @@ describe('Jeder gegen jeden', () => {
       const matches = B.roundRobin(feld(anzahl));
       const runden = new Set(matches.map((m) => m.round));
       for (const runde of runden) {
-        const antretende = matches
-          .filter((m) => m.round === runde)
-          .flatMap((m) => [m.a, m.b]);
-        expect(
-          new Set(antretende).size,
-          `${anzahl} Teilnehmer, Runde ${runde}: jemand spielt doppelt`,
-        ).toBe(antretende.length);
+        const antretende = matches.filter((m) => m.round === runde).flatMap((m) => [m.a, m.b]);
+        expect(new Set(antretende).size, `${anzahl} Teilnehmer, Runde ${runde}: jemand spielt doppelt`).toBe(
+          antretende.length,
+        );
       }
     }
   });

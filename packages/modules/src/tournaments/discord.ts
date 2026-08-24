@@ -148,10 +148,7 @@ export async function createMatchChannel(matchId: string): Promise<string | null
     {
       id: botIdentitaet.id,
       type: 1,
-      allow:
-        TEILNEHMER_RECHTE |
-        DISCORD_PERMISSIONS.MANAGE_MESSAGES |
-        DISCORD_PERMISSIONS.MANAGE_CHANNELS,
+      allow: TEILNEHMER_RECHTE | DISCORD_PERMISSIONS.MANAGE_MESSAGES | DISCORD_PERMISSIONS.MANAGE_CHANNELS,
       deny: 0n,
     },
     ...settings.defaultStaffRoleIds.map((rolle) => ({
@@ -211,10 +208,7 @@ export async function createMatchChannel(matchId: string): Promise<string | null
  * ungefilterter Teamname ergaebe sonst einen Namen, den Discord ablehnt - und
  * die Kanalerstellung schluege fehl, ohne dass jemand versteht warum.
  */
-export function matchKanalName(
-  nummer: number,
-  gegner: { a: string | null; b: string | null },
-): string {
+export function matchKanalName(nummer: number, gegner: { a: string | null; b: string | null }): string {
   const teil = (name: string | null): string => (name ? slugify(name).slice(0, 20) : 'tbd');
   const basis = `match-${nummer}-${teil(gegner.a)}-vs-${teil(gegner.b)}`;
   return basis.replace(/-+/gu, '-').replace(/^-|-$/gu, '').slice(0, 90);
@@ -256,7 +250,10 @@ export function matchStartNachricht(input: {
   }
 
   return {
-    content: input.teilnehmerIds.map((id) => `<@${id}>`).join(' ').slice(0, 1900),
+    content: input.teilnehmerIds
+      .map((id) => `<@${id}>`)
+      .join(' ')
+      .slice(0, 1900),
     embeds: [
       {
         title: `🏆 Match #${input.matchNumber}`,
@@ -373,9 +370,7 @@ export async function matchMeldungMitErwaehnung(
   await discord.channels
     .send(match.discordChannelId, {
       content: ziele.map((id) => `<@${id}>`).join(' '),
-      embeds: [
-        { description: text.slice(0, 2000), color: match.tournament.accentColor ?? ACCENT_COLOR },
-      ],
+      embeds: [{ description: text.slice(0, 2000), color: match.tournament.accentColor ?? ACCENT_COLOR }],
       // Ausdruecklich nur die genannten Personen - was im Text nach einer
       // Erwaehnung aussieht, bleibt wirkungslos.
       allowedMentions: { parse: [], users: ziele },
@@ -399,9 +394,7 @@ export async function matchMeldung(matchId: string, text: string): Promise<void>
 
   await discord.channels
     .send(match.discordChannelId, {
-      embeds: [
-        { description: text.slice(0, 2000), color: match.tournament.accentColor ?? ACCENT_COLOR },
-      ],
+      embeds: [{ description: text.slice(0, 2000), color: match.tournament.accentColor ?? ACCENT_COLOR }],
       allowedMentions: { parse: [] },
     })
     .catch(() => undefined);
@@ -445,8 +438,7 @@ export function ankuendigungsText(
 ): AnnouncementText {
   const zeit = (wert: Date | null): string =>
     wert ? `<t:${Math.floor(wert.getTime() / 1000)}:F>` : 'noch offen';
-  const relativ = (wert: Date | null): string =>
-    wert ? `<t:${Math.floor(wert.getTime() / 1000)}:R>` : '';
+  const relativ = (wert: Date | null): string => (wert ? `<t:${Math.floor(wert.getTime() / 1000)}:R>` : '');
 
   switch (kind) {
     case 'REGISTRATION_OPEN':
@@ -601,9 +593,7 @@ export async function announce(
   // waere ein Ping-Knopf fuer den ganzen Server.
   const erlaubteRollen = new Set([...settings.defaultPingRoleIds, ...tournament.pingRoleIds]);
   const rolle =
-    options.mentionRoleId && erlaubteRollen.has(options.mentionRoleId)
-      ? options.mentionRoleId
-      : null;
+    options.mentionRoleId && erlaubteRollen.has(options.mentionRoleId) ? options.mentionRoleId : null;
 
   const text = ankuendigungsText(kind, tournament, {
     grund: tournament.cancelReason ?? undefined,
@@ -697,9 +687,7 @@ export async function sendeCheckinAufruf(tournamentId: string): Promise<boolean>
           title: text.title.slice(0, 256),
           description: text.content.slice(0, 4000),
           color: tournament.accentColor ?? ACCENT_COLOR,
-          ...(tournament.checkinClosesAt
-            ? { timestamp: tournament.checkinClosesAt.toISOString() }
-            : {}),
+          ...(tournament.checkinClosesAt ? { timestamp: tournament.checkinClosesAt.toISOString() } : {}),
         },
       ],
       components: [
@@ -776,14 +764,12 @@ export async function purgeMatchChannels(jetzt = new Date()): Promise<number> {
   let entfernt = 0;
 
   for (const match of kandidaten) {
-    const stunden =
-      match.tournament.matchChannelRetentionHours || settings.matchChannelRetentionHours;
+    const stunden = match.tournament.matchChannelRetentionHours || settings.matchChannelRetentionHours;
 
     const faellig =
       stunden > 0
         ? // Nach Frist ab dem Matchende.
-          match.completedAt !== null &&
-          match.completedAt.getTime() + stunden * 3600_000 <= jetzt.getTime()
+          match.completedAt !== null && match.completedAt.getTime() + stunden * 3600_000 <= jetzt.getTime()
         : // 0 bedeutet: am Turnierende.
           ['COMPLETED', 'CANCELLED', 'ARCHIVED'].includes(match.tournament.status);
 

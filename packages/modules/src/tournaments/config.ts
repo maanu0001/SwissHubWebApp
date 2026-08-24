@@ -301,17 +301,15 @@ async function tournamentHealthChecks(context: ModuleHealthContext): Promise<Mod
   const { loadRoleConfiguration } = await import('@swisshub/permissions');
   const rollen = await loadRoleConfiguration().catch(() => null);
   const darfTeilnehmen =
-    rollen?.mappings.some(
-      (zuordnung) => zuordnung.permission === TOURNAMENT_PERMISSIONS.participate,
-    ) ?? false;
+    rollen?.mappings.some((zuordnung) => zuordnung.permission === TOURNAMENT_PERMISSIONS.participate) ??
+    false;
   checks.push(
     darfTeilnehmen
       ? { label: 'Teilnahme', status: 'ok', detail: 'Mindestens eine Rolle darf teilnehmen.' }
       : {
           label: 'Teilnahme',
           status: 'error',
-          detail:
-            'Keine Rolle hat «An Turnieren teilnehmen» - niemand kann sich anmelden.',
+          detail: 'Keine Rolle hat «An Turnieren teilnehmen» - niemand kann sich anmelden.',
           fixHref: '/server/permissions',
         },
   );
@@ -416,33 +414,139 @@ export const tournamentsModule: ModuleDefinition = registerModule({
   ],
   healthChecks: tournamentHealthChecks,
   permissions: [
-    { key: TOURNAMENT_PERMISSIONS.view, label: 'Turniere ansehen', description: 'Den Turnierbereich im Dashboard öffnen.', module: TOURNAMENTS_MODULE_ID },
-    { key: TOURNAMENT_PERMISSIONS.participate, label: 'An Turnieren teilnehmen', description: 'Anmelden, Team gründen, einchecken, Resultate melden.', module: TOURNAMENTS_MODULE_ID },
+    {
+      key: TOURNAMENT_PERMISSIONS.view,
+      label: 'Turniere ansehen',
+      description: 'Den Turnierbereich im Dashboard öffnen.',
+      module: TOURNAMENTS_MODULE_ID,
+    },
+    {
+      key: TOURNAMENT_PERMISSIONS.participate,
+      label: 'An Turnieren teilnehmen',
+      description: 'Anmelden, Team gründen, einchecken, Resultate melden.',
+      module: TOURNAMENTS_MODULE_ID,
+    },
 
-    { key: TOURNAMENT_PERMISSIONS.create, label: 'Turniere erstellen', description: 'Neue Turniere anlegen.', module: TOURNAMENTS_MODULE_ID },
-    { key: TOURNAMENT_PERMISSIONS.manage, label: 'Turniere verwalten', description: 'Turniere bearbeiten, für die man als Leitung eingetragen ist.', module: TOURNAMENTS_MODULE_ID },
-    { key: TOURNAMENT_PERMISSIONS.publish, label: 'Turniere veröffentlichen', description: 'Ein Turnier sichtbar schalten und starten.', module: TOURNAMENTS_MODULE_ID, critical: true },
+    {
+      key: TOURNAMENT_PERMISSIONS.create,
+      label: 'Turniere erstellen',
+      description: 'Neue Turniere anlegen.',
+      module: TOURNAMENTS_MODULE_ID,
+    },
+    {
+      key: TOURNAMENT_PERMISSIONS.manage,
+      label: 'Turniere verwalten',
+      description: 'Turniere bearbeiten, für die man als Leitung eingetragen ist.',
+      module: TOURNAMENTS_MODULE_ID,
+    },
+    {
+      key: TOURNAMENT_PERMISSIONS.publish,
+      label: 'Turniere veröffentlichen',
+      description: 'Ein Turnier sichtbar schalten und starten.',
+      module: TOURNAMENTS_MODULE_ID,
+      critical: true,
+    },
 
-    { key: TOURNAMENT_PERMISSIONS.registrationsView, label: 'Anmeldungen ansehen', description: 'Teilnehmerlisten mit Angaben aus dem Anmeldeformular.', module: TOURNAMENTS_MODULE_ID },
-    { key: TOURNAMENT_PERMISSIONS.registrationsManage, label: 'Anmeldungen verwalten', description: 'Freigeben, ablehnen, nachrücken lassen.', module: TOURNAMENTS_MODULE_ID },
-    { key: TOURNAMENT_PERMISSIONS.teamsManage, label: 'Teams verwalten', description: 'Roster ändern, Teams disqualifizieren.', module: TOURNAMENTS_MODULE_ID },
-    { key: TOURNAMENT_PERMISSIONS.checkinManage, label: 'Check-in verwalten', description: 'Check-in öffnen, schliessen, von Hand bestätigen.', module: TOURNAMENTS_MODULE_ID },
+    {
+      key: TOURNAMENT_PERMISSIONS.registrationsView,
+      label: 'Anmeldungen ansehen',
+      description: 'Teilnehmerlisten mit Angaben aus dem Anmeldeformular.',
+      module: TOURNAMENTS_MODULE_ID,
+    },
+    {
+      key: TOURNAMENT_PERMISSIONS.registrationsManage,
+      label: 'Anmeldungen verwalten',
+      description: 'Freigeben, ablehnen, nachrücken lassen.',
+      module: TOURNAMENTS_MODULE_ID,
+    },
+    {
+      key: TOURNAMENT_PERMISSIONS.teamsManage,
+      label: 'Teams verwalten',
+      description: 'Roster ändern, Teams disqualifizieren.',
+      module: TOURNAMENTS_MODULE_ID,
+    },
+    {
+      key: TOURNAMENT_PERMISSIONS.checkinManage,
+      label: 'Check-in verwalten',
+      description: 'Check-in öffnen, schliessen, von Hand bestätigen.',
+      module: TOURNAMENTS_MODULE_ID,
+    },
 
-    { key: TOURNAMENT_PERMISSIONS.bracketManage, label: 'Bracket verwalten', description: 'Setzliste und Bracket erzeugen.', module: TOURNAMENTS_MODULE_ID, critical: true },
-    { key: TOURNAMENT_PERMISSIONS.matchesManage, label: 'Matches verwalten', description: 'Ansetzen, starten, Kanäle anlegen.', module: TOURNAMENTS_MODULE_ID },
-    { key: TOURNAMENT_PERMISSIONS.resultsOverride, label: 'Resultate korrigieren', description: 'Ein bestätigtes Resultat mit Begründung ändern.', module: TOURNAMENTS_MODULE_ID, critical: true },
-    { key: TOURNAMENT_PERMISSIONS.disputesManage, label: 'Einsprüche bearbeiten', description: 'Strittige Resultate entscheiden.', module: TOURNAMENTS_MODULE_ID },
+    {
+      key: TOURNAMENT_PERMISSIONS.bracketManage,
+      label: 'Bracket verwalten',
+      description: 'Setzliste und Bracket erzeugen.',
+      module: TOURNAMENTS_MODULE_ID,
+      critical: true,
+    },
+    {
+      key: TOURNAMENT_PERMISSIONS.matchesManage,
+      label: 'Matches verwalten',
+      description: 'Ansetzen, starten, Kanäle anlegen.',
+      module: TOURNAMENTS_MODULE_ID,
+    },
+    {
+      key: TOURNAMENT_PERMISSIONS.resultsOverride,
+      label: 'Resultate korrigieren',
+      description: 'Ein bestätigtes Resultat mit Begründung ändern.',
+      module: TOURNAMENTS_MODULE_ID,
+      critical: true,
+    },
+    {
+      key: TOURNAMENT_PERMISSIONS.disputesManage,
+      label: 'Einsprüche bearbeiten',
+      description: 'Strittige Resultate entscheiden.',
+      module: TOURNAMENTS_MODULE_ID,
+    },
 
-    { key: TOURNAMENT_PERMISSIONS.streamManage, label: 'Livestream verwalten', description: 'Streams planen, Caster zuweisen.', module: TOURNAMENTS_MODULE_ID },
-    { key: TOURNAMENT_PERMISSIONS.prizesManage, label: 'Preise verwalten', description: 'Preise pflegen und als übergeben markieren.', module: TOURNAMENTS_MODULE_ID },
+    {
+      key: TOURNAMENT_PERMISSIONS.streamManage,
+      label: 'Livestream verwalten',
+      description: 'Streams planen, Caster zuweisen.',
+      module: TOURNAMENTS_MODULE_ID,
+    },
+    {
+      key: TOURNAMENT_PERMISSIONS.prizesManage,
+      label: 'Preise verwalten',
+      description: 'Preise pflegen und als übergeben markieren.',
+      module: TOURNAMENTS_MODULE_ID,
+    },
 
-    { key: TOURNAMENT_PERMISSIONS.staffManage, label: 'Turnierleitung zuteilen', description: 'Bestimmen, wer ein Turnier betreut.', module: TOURNAMENTS_MODULE_ID, critical: true },
-    { key: TOURNAMENT_PERMISSIONS.blockManage, label: 'Turniersperren verwalten', description: 'Mitglieder von der Teilnahme ausschliessen.', module: TOURNAMENTS_MODULE_ID, critical: true },
+    {
+      key: TOURNAMENT_PERMISSIONS.staffManage,
+      label: 'Turnierleitung zuteilen',
+      description: 'Bestimmen, wer ein Turnier betreut.',
+      module: TOURNAMENTS_MODULE_ID,
+      critical: true,
+    },
+    {
+      key: TOURNAMENT_PERMISSIONS.blockManage,
+      label: 'Turniersperren verwalten',
+      description: 'Mitglieder von der Teilnahme ausschliessen.',
+      module: TOURNAMENTS_MODULE_ID,
+      critical: true,
+    },
 
-    { key: TOURNAMENT_PERMISSIONS.statsView, label: 'Turnier-Statistiken ansehen', description: 'Kennzahlen über alle Turniere.', module: TOURNAMENTS_MODULE_ID },
-    { key: TOURNAMENT_PERMISSIONS.archiveView, label: 'Turnier-Archiv ansehen', description: 'Abgeschlossene Turniere nachschlagen.', module: TOURNAMENTS_MODULE_ID },
+    {
+      key: TOURNAMENT_PERMISSIONS.statsView,
+      label: 'Turnier-Statistiken ansehen',
+      description: 'Kennzahlen über alle Turniere.',
+      module: TOURNAMENTS_MODULE_ID,
+    },
+    {
+      key: TOURNAMENT_PERMISSIONS.archiveView,
+      label: 'Turnier-Archiv ansehen',
+      description: 'Abgeschlossene Turniere nachschlagen.',
+      module: TOURNAMENTS_MODULE_ID,
+    },
 
-    { key: TOURNAMENT_PERMISSIONS.admin, label: 'Alle Turniere verwalten', description: 'Vollzugriff auf jedes Turnier, unabhängig von der Zuständigkeit.', module: TOURNAMENTS_MODULE_ID, critical: true },
+    {
+      key: TOURNAMENT_PERMISSIONS.admin,
+      label: 'Alle Turniere verwalten',
+      description: 'Vollzugriff auf jedes Turnier, unabhängig von der Zuständigkeit.',
+      module: TOURNAMENTS_MODULE_ID,
+      critical: true,
+    },
   ],
   navigation: [
     {

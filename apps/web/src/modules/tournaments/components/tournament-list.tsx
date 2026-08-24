@@ -71,9 +71,7 @@ export function TournamentList({
 
             <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
               <Users className="size-3.5 shrink-0" aria-hidden="true" />
-              {tournament.maxParticipants > 0
-                ? `${anmeldungen}/${tournament.maxParticipants}`
-                : anmeldungen}
+              {tournament.maxParticipants > 0 ? `${anmeldungen}/${tournament.maxParticipants}` : anmeldungen}
             </span>
 
             <span className="flex items-center gap-1.5 text-xs text-muted-foreground">

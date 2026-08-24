@@ -173,16 +173,14 @@ export async function createTournament(
       bannerUrl: input.bannerUrl ?? null,
       logoUrl: input.logoUrl ?? null,
       accentColor: input.accentColor ?? null,
-      announcementChannelId:
-        input.announcementChannelId ?? settings.defaultAnnouncementChannelId,
+      announcementChannelId: input.announcementChannelId ?? settings.defaultAnnouncementChannelId,
       matchCategoryId: input.matchCategoryId ?? settings.defaultMatchCategoryId,
       staffCategoryId: input.staffCategoryId ?? settings.defaultStaffCategoryId,
       streamChannelId: input.streamChannelId ?? settings.defaultStreamChannelId,
       pingRoleIds: input.pingRoleIds ?? [],
       participantRoleId: input.participantRoleId ?? null,
       winnerRoleId: input.winnerRoleId ?? null,
-      matchChannelRetentionHours:
-        input.matchChannelRetentionHours ?? settings.matchChannelRetentionHours,
+      matchChannelRetentionHours: input.matchChannelRetentionHours ?? settings.matchChannelRetentionHours,
       createMatchChannels: input.createMatchChannels ?? settings.createMatchChannels,
       twitchUrl: input.twitchUrl ?? null,
       youtubeUrl: input.youtubeUrl ?? null,
@@ -231,8 +229,7 @@ export async function updateTournament(
 
   // Die Regeln zaehlen als geaendert, wenn ihr Text ein anderer ist. Dann
   // steigt die Fassungsnummer, und wer die alte bestaetigt hat, sieht das.
-  const regelnGeaendert =
-    input.rules !== undefined && (input.rules ?? '') !== (vorher.rules ?? '');
+  const regelnGeaendert = input.rules !== undefined && (input.rules ?? '') !== (vorher.rules ?? '');
 
   const tournament = await prisma.tournament.update({
     where: { id: tournamentId },
@@ -241,9 +238,7 @@ export async function updateTournament(
       slug,
       ...(input.gameName !== undefined ? { gameName: input.gameName.trim().slice(0, 60) } : {}),
       ...(input.gameId !== undefined ? { gameId: input.gameId } : {}),
-      ...(input.description !== undefined
-        ? { description: input.description?.slice(0, 4000) ?? null }
-        : {}),
+      ...(input.description !== undefined ? { description: input.description?.slice(0, 4000) ?? null } : {}),
       ...(input.rules !== undefined ? { rules: input.rules?.slice(0, 40_000) ?? null } : {}),
       ...(regelnGeaendert ? { rulesVersion: vorher.rulesVersion + 1 } : {}),
       ...felderAusEingabe(input),
@@ -268,20 +263,52 @@ function felderAusEingabe(input: Partial<CreateTournamentInput>): Record<string,
   };
 
   for (const schluessel of [
-    'mode', 'access', 'format', 'seeding',
-    'minTeamSize', 'maxTeamSize', 'maxSubstitutes', 'maxParticipants', 'minParticipants',
-    'registrationOpensAt', 'registrationClosesAt', 'checkinOpensAt', 'checkinClosesAt',
-    'rosterLockAt', 'startsAt', 'estimatedEndAt',
-    'checkinRequired', 'autoRemoveMissedCheckin',
-    'groupCount', 'advancePerGroup', 'swissRounds',
-    'pointsPerWin', 'pointsPerDraw', 'pointsPerLoss', 'tiebreakers',
-    'defaultBestOf', 'mapPool', 'serverRegion',
-    'bannerUrl', 'logoUrl', 'accentColor',
-    'announcementChannelId', 'matchCategoryId', 'staffCategoryId', 'streamChannelId',
-    'pingRoleIds', 'participantRoleId', 'winnerRoleId',
-    'matchChannelRetentionHours', 'createMatchChannels',
-    'twitchUrl', 'youtubeUrl', 'streamUrl',
-    'requiredRoleId', 'minLevel', 'requiresPremium',
+    'mode',
+    'access',
+    'format',
+    'seeding',
+    'minTeamSize',
+    'maxTeamSize',
+    'maxSubstitutes',
+    'maxParticipants',
+    'minParticipants',
+    'registrationOpensAt',
+    'registrationClosesAt',
+    'checkinOpensAt',
+    'checkinClosesAt',
+    'rosterLockAt',
+    'startsAt',
+    'estimatedEndAt',
+    'checkinRequired',
+    'autoRemoveMissedCheckin',
+    'groupCount',
+    'advancePerGroup',
+    'swissRounds',
+    'pointsPerWin',
+    'pointsPerDraw',
+    'pointsPerLoss',
+    'tiebreakers',
+    'defaultBestOf',
+    'mapPool',
+    'serverRegion',
+    'bannerUrl',
+    'logoUrl',
+    'accentColor',
+    'announcementChannelId',
+    'matchCategoryId',
+    'staffCategoryId',
+    'streamChannelId',
+    'pingRoleIds',
+    'participantRoleId',
+    'winnerRoleId',
+    'matchChannelRetentionHours',
+    'createMatchChannels',
+    'twitchUrl',
+    'youtubeUrl',
+    'streamUrl',
+    'requiredRoleId',
+    'minLevel',
+    'requiresPremium',
   ] as Array<keyof CreateTournamentInput>) {
     uebernehmen(schluessel);
   }
@@ -409,9 +436,7 @@ export async function setTournamentStatus(
     where: { id: tournamentId },
     data: {
       status: nach,
-      ...(nach === 'REGISTRATION_OPEN' && vorher.publishedAt === null
-        ? { publishedAt: jetzt }
-        : {}),
+      ...(nach === 'REGISTRATION_OPEN' && vorher.publishedAt === null ? { publishedAt: jetzt } : {}),
       ...(nach === 'RUNNING' && vorher.startedAt === null ? { startedAt: jetzt } : {}),
       ...(nach === 'RUNNING' ? { pausedAt: null } : {}),
       ...(nach === 'PAUSED' ? { pausedAt: jetzt } : {}),
@@ -463,10 +488,7 @@ export const STATUS_TEXT: Record<TournamentStatus, string> = {
  * Vorher laeuft der Startcheck - ein Turnier ohne Spiel, ohne Datum oder mit
  * widerspruechlichen Zeiten soll gar nicht erst sichtbar werden.
  */
-export async function publishTournament(
-  tournamentId: string,
-  actor: TournamentActor,
-): Promise<Tournament> {
+export async function publishTournament(tournamentId: string, actor: TournamentActor): Promise<Tournament> {
   const bericht = await preflight(tournamentId, 'PUBLISH');
   const blocker = bericht.filter((eintrag) => eintrag.status === 'error');
   if (blocker.length > 0) {
@@ -492,10 +514,7 @@ export async function cancelTournament(
   return setTournamentStatus(tournamentId, 'CANCELLED', actor, { grund: reason });
 }
 
-export async function archiveTournament(
-  tournamentId: string,
-  actor: TournamentActor,
-): Promise<Tournament> {
+export async function archiveTournament(tournamentId: string, actor: TournamentActor): Promise<Tournament> {
   return setTournamentStatus(tournamentId, 'ARCHIVED', actor);
 }
 
@@ -516,10 +535,7 @@ export type PreflightPhase = 'PUBLISH' | 'CHECKIN_CLOSE' | 'START';
  * Vollstaendigkeit, beim Check-in-Ende um die Teilnehmer, beim Start um
  * Bracket und Discord. Ein Fehler blockiert; eine Warnung nicht.
  */
-export async function preflight(
-  tournamentId: string,
-  phase: PreflightPhase,
-): Promise<PreflightCheck[]> {
+export async function preflight(tournamentId: string, phase: PreflightPhase): Promise<PreflightCheck[]> {
   const tournament = await prisma.tournament.findUniqueOrThrow({
     where: { id: tournamentId },
     include: {
@@ -609,10 +625,7 @@ export async function preflight(
     const antretend = tournament.checkinRequired ? eingecheckt : bestaetigt;
 
     if (antretend < tournament.minParticipants) {
-      fehler(
-        'Teilnehmerzahl',
-        `Nur ${antretend} von mindestens ${tournament.minParticipants} treten an.`,
-      );
+      fehler('Teilnehmerzahl', `Nur ${antretend} von mindestens ${tournament.minParticipants} treten an.`);
     } else {
       gut('Teilnehmerzahl', `${antretend} treten an`);
     }
@@ -663,9 +676,7 @@ async function unvollstaendigeTeams(tournamentId: string, minTeamSize: number): 
     },
   });
 
-  return teams
-    .filter((team) => team.members.length < minTeamSize)
-    .map((team) => team.name);
+  return teams.filter((team) => team.members.length < minTeamSize).map((team) => team.name);
 }
 
 // --- Vorlagen und Duplizieren ---------------------------------------------

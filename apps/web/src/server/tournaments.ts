@@ -112,9 +112,7 @@ export interface TournamentSection {
 /** Unterseiten des Turniermoduls. */
 export function tournamentSections(context: AuthContext): TournamentSection[] {
   const p = tournaments.TOURNAMENT_PERMISSIONS;
-  const sections: TournamentSection[] = [
-    { href: '/turniere/uebersicht', label: 'Übersicht' },
-  ];
+  const sections: TournamentSection[] = [{ href: '/turniere/uebersicht', label: 'Übersicht' }];
 
   if (can(context, p.manage) || can(context, p.admin)) {
     sections.push({ href: '/turniere/aktiv', label: 'Aktive Turniere' });
@@ -214,11 +212,7 @@ export async function ladeTurnierListe(
 }
 
 /** Adresse mit denselben Filtern, aber anderer Seitenzahl. */
-export function turnierListenHref(
-  basis: string,
-  suche: TurnierListenSuche,
-  seite: number,
-): string {
+export function turnierListenHref(basis: string, suche: TurnierListenSuche, seite: number): string {
   const parameter = new URLSearchParams();
   if (suche.q) {
     parameter.set('q', suche.q);

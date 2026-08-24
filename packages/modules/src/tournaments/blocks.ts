@@ -17,9 +17,7 @@ import type { TournamentActor } from './events';
  */
 
 /** Alle Sperren dieses Servers, die laufende zuerst. */
-export async function listBlocks(): Promise<
-  Array<TournamentBlockEntry & { aktiv: boolean }>
-> {
+export async function listBlocks(): Promise<Array<TournamentBlockEntry & { aktiv: boolean }>> {
   const guildId = await resolveGuildId();
   const eintraege = await prisma.tournamentBlockEntry.findMany({
     where: { guildId },

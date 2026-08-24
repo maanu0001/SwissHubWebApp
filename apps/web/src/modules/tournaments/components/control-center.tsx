@@ -57,10 +57,7 @@ export interface Startcheck {
  * Übergangstabelle steht im Modul und entscheidet weiterhin - hier steht nur,
  * was angeboten wird.
  */
-const NAECHSTER_SCHRITT: Record<
-  string,
-  { status: string; label: string; icon: typeof Play } | undefined
-> = {
+const NAECHSTER_SCHRITT: Record<string, { status: string; label: string; icon: typeof Play } | undefined> = {
   REGISTRATION_OPEN: {
     status: 'REGISTRATION_CLOSED',
     label: 'Anmeldung schliessen',
@@ -152,9 +149,7 @@ export function ControlCenter({
   const laufend = zustand.status === 'RUNNING' || zustand.status === 'PAUSED';
   const beendbar = zustand.status === 'RUNNING' && zustand.matchesOffen === 0 && zustand.matchesLive === 0;
   const absagbar =
-    zustand.status !== 'COMPLETED' &&
-    zustand.status !== 'CANCELLED' &&
-    zustand.status !== 'ARCHIVED';
+    zustand.status !== 'COMPLETED' && zustand.status !== 'CANCELLED' && zustand.status !== 'ARCHIVED';
 
   return (
     <div className="space-y-6">
@@ -209,10 +204,7 @@ export function ControlCenter({
                 {eintrag.status === 'ok' ? (
                   <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-success" aria-hidden="true" />
                 ) : eintrag.status === 'warning' ? (
-                  <AlertTriangle
-                    className="mt-0.5 size-4 shrink-0 text-warning"
-                    aria-hidden="true"
-                  />
+                  <AlertTriangle className="mt-0.5 size-4 shrink-0 text-warning" aria-hidden="true" />
                 ) : (
                   <XCircle className="mt-0.5 size-4 shrink-0 text-destructive" aria-hidden="true" />
                 )}
@@ -316,11 +308,7 @@ export function ControlCenter({
               <Button
                 variant="outline"
                 disabled={laeuft !== null || !beendbar}
-                title={
-                  beendbar
-                    ? undefined
-                    : 'Es sind noch Matches offen. Sie müssen erst entschieden sein.'
-                }
+                title={beendbar ? undefined : 'Es sind noch Matches offen. Sie müssen erst entschieden sein.'}
                 onClick={() =>
                   fuehreAus(
                     'ende',

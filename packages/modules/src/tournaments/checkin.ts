@@ -65,10 +65,7 @@ export async function checkIn(
           : 'Deine Anmeldung ist noch nicht bestätigt.',
     });
   }
-  if (
-    registration.checkinStatus === 'CHECKED_IN' ||
-    registration.checkinStatus === 'ADMIN_CONFIRMED'
-  ) {
+  if (registration.checkinStatus === 'CHECKED_IN' || registration.checkinStatus === 'ADMIN_CONFIRMED') {
     return { status: registration.checkinStatus, message: 'Du bist bereits eingecheckt.' };
   }
 
@@ -93,10 +90,7 @@ export async function checkIn(
 }
 
 /** Den Check-in wieder zuruecknehmen - solange er offen ist. */
-export async function undoCheckIn(
-  tournamentId: string,
-  discordId: string,
-): Promise<CheckinResult> {
+export async function undoCheckIn(tournamentId: string, discordId: string): Promise<CheckinResult> {
   const tournament = await prisma.tournament.findUniqueOrThrow({ where: { id: tournamentId } });
   if (tournament.status !== 'CHECKIN_OPEN') {
     throw new AppError('CONFLICT', {
@@ -119,10 +113,7 @@ export async function undoCheckIn(
  * Getrennt von `CHECKED_IN` festgehalten: bei einem Einspruch macht es einen
  * Unterschied, ob jemand selbst da war oder ob ihn jemand eingetragen hat.
  */
-export async function adminConfirmCheckin(
-  registrationId: string,
-  actor: TournamentActor,
-): Promise<void> {
+export async function adminConfirmCheckin(registrationId: string, actor: TournamentActor): Promise<void> {
   const eintrag = await prisma.tournamentRegistration.update({
     where: { id: registrationId },
     data: {
@@ -253,9 +244,7 @@ export async function closeCheckin(
             )?.id
           : null);
       if (teilnehmerId) {
-        await prisma.tournamentParticipant
-          .delete({ where: { id: teilnehmerId } })
-          .catch(() => undefined);
+        await prisma.tournamentParticipant.delete({ where: { id: teilnehmerId } }).catch(() => undefined);
       }
     }
 
@@ -281,9 +270,7 @@ export async function listAntretende(tournamentId: string) {
     where: {
       tournamentId,
       status: 'CONFIRMED',
-      ...(tournament.checkinRequired
-        ? { checkinStatus: { in: ['CHECKED_IN', 'ADMIN_CONFIRMED'] } }
-        : {}),
+      ...(tournament.checkinRequired ? { checkinStatus: { in: ['CHECKED_IN', 'ADMIN_CONFIRMED'] } } : {}),
     },
     include: {
       team: {

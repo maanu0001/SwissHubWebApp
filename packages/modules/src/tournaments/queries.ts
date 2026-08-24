@@ -108,9 +108,7 @@ export async function listPublicTournaments(options: { archiv?: boolean; limit?:
       ...(await guildFilter()),
       // Beide Listen muessen sich ausschliessen, sonst steht dasselbe
       // Turnier unter «Aktuell» und unter «Vorbei».
-      status: options.archiv
-        ? { in: ['COMPLETED', 'CANCELLED', 'ARCHIVED'] }
-        : { in: AKTIVE_STATUS },
+      status: options.archiv ? { in: ['COMPLETED', 'CANCELLED', 'ARCHIVED'] } : { in: AKTIVE_STATUS },
     },
     orderBy: options.archiv ? [{ completedAt: 'desc' }] : [{ startsAt: 'asc' }],
     take: options.limit ?? 50,
@@ -368,8 +366,7 @@ export async function getEinzelStats(tournamentId: string): Promise<EinzelStats>
     bestaetigt,
     warteliste,
     eingecheckt,
-    checkinQuote:
-      checkinPflichtig === 0 ? null : Math.round((eingecheckt / checkinPflichtig) * 100),
+    checkinQuote: checkinPflichtig === 0 ? null : Math.round((eingecheckt / checkinPflichtig) * 100),
     matchesGesamt,
     matchesGespielt,
     matchesOffen: matchesGesamt - matchesGespielt,
@@ -377,9 +374,7 @@ export async function getEinzelStats(tournamentId: string): Promise<EinzelStats>
     noShows,
     forfeits,
     matchdauerMinuten:
-      dauern.length === 0
-        ? null
-        : Math.round(dauern.reduce((a, b) => a + b, 0) / dauern.length),
+      dauern.length === 0 ? null : Math.round(dauern.reduce((a, b) => a + b, 0) / dauern.length),
   };
 }
 
@@ -409,30 +404,29 @@ export async function getLiveZustand(tournamentId: string): Promise<LiveZustand>
     select: { status: true },
   });
 
-  const [nachStatus, einspruecheOffen, eingecheckt, bestaetigt, laufenderAbschnitt] =
-    await Promise.all([
-      prisma.tournamentMatch.groupBy({
-        by: ['status'],
-        where: { tournamentId },
-        _count: { _all: true },
-      }),
-      prisma.tournamentDispute.count({
-        where: { tournamentId, status: { in: ['OPEN', 'IN_REVIEW'] } },
-      }),
-      prisma.tournamentRegistration.count({
-        where: {
-          tournamentId,
-          status: 'CONFIRMED',
-          checkinStatus: { in: ['CHECKED_IN', 'ADMIN_CONFIRMED'] },
-        },
-      }),
-      prisma.tournamentRegistration.count({ where: { tournamentId, status: 'CONFIRMED' } }),
-      prisma.tournamentMatch.findFirst({
-        where: { tournamentId, status: { notIn: ['COMPLETED', 'FORFEIT', 'CANCELLED'] } },
-        orderBy: [{ round: 'asc' }, { position: 'asc' }],
-        select: { round: true, stage: { select: { name: true } } },
-      }),
-    ]);
+  const [nachStatus, einspruecheOffen, eingecheckt, bestaetigt, laufenderAbschnitt] = await Promise.all([
+    prisma.tournamentMatch.groupBy({
+      by: ['status'],
+      where: { tournamentId },
+      _count: { _all: true },
+    }),
+    prisma.tournamentDispute.count({
+      where: { tournamentId, status: { in: ['OPEN', 'IN_REVIEW'] } },
+    }),
+    prisma.tournamentRegistration.count({
+      where: {
+        tournamentId,
+        status: 'CONFIRMED',
+        checkinStatus: { in: ['CHECKED_IN', 'ADMIN_CONFIRMED'] },
+      },
+    }),
+    prisma.tournamentRegistration.count({ where: { tournamentId, status: 'CONFIRMED' } }),
+    prisma.tournamentMatch.findFirst({
+      where: { tournamentId, status: { notIn: ['COMPLETED', 'FORFEIT', 'CANCELLED'] } },
+      orderBy: [{ round: 'asc' }, { position: 'asc' }],
+      select: { round: true, stage: { select: { name: true } } },
+    }),
+  ]);
 
   const zaehle = (...status: string[]): number =>
     nachStatus
@@ -492,7 +486,14 @@ export async function getMemberHistory(discordId: string) {
   const nachTurnier = new Map<
     string,
     {
-      tournament: { id: string; slug: string; name: string; gameName: string; status: TournamentStatus; startsAt: Date | null };
+      tournament: {
+        id: string;
+        slug: string;
+        name: string;
+        gameName: string;
+        status: TournamentStatus;
+        startsAt: Date | null;
+      };
       team: string | null;
       placement: number | null;
     }
@@ -521,9 +522,7 @@ export async function getMemberHistory(discordId: string) {
     teilnahmen,
     gesamt: teilnahmen.length,
     siege: teilnahmen.filter((eintrag) => eintrag.placement === 1).length,
-    podeste: teilnahmen.filter(
-      (eintrag) => eintrag.placement !== null && eintrag.placement <= 3,
-    ).length,
+    podeste: teilnahmen.filter((eintrag) => eintrag.placement !== null && eintrag.placement <= 3).length,
   };
 }
 
@@ -588,10 +587,7 @@ export interface EigenerStand {
  * ist, hat selbst keine Anmeldung - deshalb wird zusaetzlich ueber die
  * Mitgliedschaft gesucht.
  */
-export async function getEigenerStand(
-  tournamentId: string,
-  discordId: string,
-): Promise<EigenerStand> {
+export async function getEigenerStand(tournamentId: string, discordId: string): Promise<EigenerStand> {
   const leer: EigenerStand = {
     angemeldet: false,
     registrationId: null,

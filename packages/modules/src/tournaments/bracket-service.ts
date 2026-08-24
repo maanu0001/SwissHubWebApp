@@ -184,8 +184,7 @@ export async function generateBracket(
   const vorhanden = await prisma.tournamentMatch.count({ where: { tournamentId } });
   if (vorhanden > 0) {
     throw new AppError('CONFLICT', {
-      userMessage:
-        'Für dieses Turnier gibt es bereits ein Bracket. Es muss erst verworfen werden.',
+      userMessage: 'Für dieses Turnier gibt es bereits ein Bracket. Es muss erst verworfen werden.',
     });
   }
 
@@ -320,8 +319,7 @@ async function speichereMatches(
         data: {
           tournamentId,
           stageId: stageIds.get(match.stage)!,
-          groupId:
-            match.groupIndex !== undefined ? (gruppenIds.get(match.groupIndex) ?? null) : null,
+          groupId: match.groupIndex !== undefined ? (gruppenIds.get(match.groupIndex) ?? null) : null,
           matchNumber: nummern[index]!,
           round: match.round,
           position: match.position,
@@ -370,10 +368,7 @@ async function speichereMatches(
  * gespielt wurde, loescht Resultate - und die gehoeren niemandem, der auf
  * einen Knopf drueckt.
  */
-export async function discardBracket(
-  tournamentId: string,
-  actor: TournamentActor,
-): Promise<void> {
+export async function discardBracket(tournamentId: string, actor: TournamentActor): Promise<void> {
   const gespielt = await prisma.tournamentMatch.count({
     where: { tournamentId, status: { in: ['COMPLETED', 'FORFEIT', 'DISPUTED'] } },
   });
@@ -592,8 +587,7 @@ export async function generateNextSwissRound(
     select: { id: true },
   });
 
-  const gewuenscht =
-    tournament.swissRounds > 0 ? tournament.swissRounds : swissRunden(teilnehmer.length);
+  const gewuenscht = tournament.swissRounds > 0 ? tournament.swissRounds : swissRunden(teilnehmer.length);
   if (gespielteRunden >= gewuenscht) {
     return null;
   }
@@ -704,9 +698,7 @@ export async function getBracket(tournamentId: string) {
 /** Ein Teilnehmer, so wie ihn die Oberflaeche nennt. */
 export function teilnehmerLabel(
   teilnehmer:
-    | { username: string | null; team: { name: string; tag: string | null } | null }
-    | null
-    | undefined,
+    { username: string | null; team: { name: string; tag: string | null } | null } | null | undefined,
 ): string | null {
   if (!teilnehmer) {
     return null;

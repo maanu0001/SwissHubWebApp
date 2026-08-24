@@ -186,9 +186,7 @@ export function BracketAdmin({
 
       {!hatBracket && antretende.length > 0 ? (
         <section className="space-y-3">
-          <h2 className="text-sm font-semibold">
-            {manuelleSetzung ? 'Setzliste' : 'Wer antritt'}
-          </h2>
+          <h2 className="text-sm font-semibold">{manuelleSetzung ? 'Setzliste' : 'Wer antritt'}</h2>
           <p className="text-xs text-muted-foreground">
             {manuelleSetzung
               ? 'Die Reihenfolge hier wird die Setzliste. Setzplatz 1 trifft im Bracket auf den letzten.'
@@ -196,13 +194,8 @@ export function BracketAdmin({
           </p>
           <ol className="divide-y divide-border/60 overflow-hidden rounded-xl border border-border">
             {reihenfolge.map((eintrag, index) => (
-              <li
-                key={eintrag.participantId}
-                className="flex items-center gap-3 px-4 py-2.5 text-sm"
-              >
-                <span className="w-6 shrink-0 font-mono text-xs text-muted-foreground">
-                  {index + 1}
-                </span>
+              <li key={eintrag.participantId} className="flex items-center gap-3 px-4 py-2.5 text-sm">
+                <span className="w-6 shrink-0 font-mono text-xs text-muted-foreground">{index + 1}</span>
                 <span className="min-w-0 flex-1 truncate">{eintrag.label}</span>
                 {manuelleSetzung && darfVerwalten ? (
                   <span className="flex shrink-0 gap-1">
@@ -314,9 +307,7 @@ export function GruppenTabellen({ tabellen }: { tabellen: TabellenAnsicht[] }): 
                 {tabelle.zeilen.map((zeile, index) => (
                   <tr key={zeile.label} className="border-b border-border/40 last:border-0">
                     <td className="px-3 py-2">
-                      <span className="mr-2 font-mono text-xs text-muted-foreground">
-                        {index + 1}
-                      </span>
+                      <span className="mr-2 font-mono text-xs text-muted-foreground">{index + 1}</span>
                       {zeile.label}
                     </td>
                     <td className="px-2 py-2 text-right tabular-nums">{zeile.gespielt}</td>
@@ -326,9 +317,7 @@ export function GruppenTabellen({ tabellen }: { tabellen: TabellenAnsicht[] }): 
                     <td className="px-2 py-2 text-right tabular-nums">
                       {zeile.differenz > 0 ? `+${zeile.differenz}` : zeile.differenz}
                     </td>
-                    <td className="px-3 py-2 text-right font-semibold tabular-nums">
-                      {zeile.punkte}
-                    </td>
+                    <td className="px-3 py-2 text-right font-semibold tabular-nums">{zeile.punkte}</td>
                   </tr>
                 ))}
               </tbody>
@@ -415,8 +404,7 @@ export function RundenPlanung({
           >
             {runden.map((eintrag, index) => (
               <option key={`${eintrag.stageId}-${eintrag.round}`} value={index}>
-                {eintrag.stageName}, Runde {eintrag.round} ({eintrag.offen} von {eintrag.matches}{' '}
-                offen)
+                {eintrag.stageName}, Runde {eintrag.round} ({eintrag.offen} von {eintrag.matches} offen)
               </option>
             ))}
           </select>
@@ -438,15 +426,9 @@ export function RundenPlanung({
       <div className="flex items-center justify-between gap-4 rounded-lg border border-border/60 p-3">
         <div className="min-w-0">
           <p className="text-sm font-medium">Match-Kanäle gleich anlegen</p>
-          <p className="text-xs text-muted-foreground">
-            Nur für Paarungen, die schon feststehen.
-          </p>
+          <p className="text-xs text-muted-foreground">Nur für Paarungen, die schon feststehen.</p>
         </div>
-        <Switch
-          checked={kanaele}
-          onCheckedChange={setKanaele}
-          aria-label="Match-Kanäle gleich anlegen"
-        />
+        <Switch checked={kanaele} onCheckedChange={setKanaele} aria-label="Match-Kanäle gleich anlegen" />
       </div>
 
       <Button disabled={laeuft || zeit === ''} onClick={() => void ansetzen()}>
@@ -457,9 +439,7 @@ export function RundenPlanung({
         )}
         Runde ansetzen
       </Button>
-      <p className="text-xs text-muted-foreground">
-        Die Beteiligten werden auf Discord benachrichtigt.
-      </p>
+      <p className="text-xs text-muted-foreground">Die Beteiligten werden auf Discord benachrichtigt.</p>
     </section>
   );
 }

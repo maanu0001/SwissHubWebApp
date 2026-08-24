@@ -11,14 +11,8 @@ import { Switch } from '@/components/ui/switch';
 import { ChannelSelect } from '@/modules/configuration/components/channel-select';
 import { MultiSelect } from '@/modules/configuration/components/multi-select';
 import { RoleSelect } from '@/modules/configuration/components/role-select';
-import type {
-  ChannelOption,
-  RoleOption,
-} from '@/modules/configuration/components/discord-option-types';
-import {
-  createTournamentAction,
-  updateTournamentAction,
-} from '@/modules/tournaments/admin-actions';
+import type { ChannelOption, RoleOption } from '@/modules/configuration/components/discord-option-types';
+import { createTournamentAction, updateTournamentAction } from '@/modules/tournaments/admin-actions';
 import { ausZeitfeld } from '@/modules/tournaments/zeitfeld';
 import { FORMAT_LABEL } from './tournament-badges';
 
@@ -426,7 +420,11 @@ export function TournamentForm({
           </select>
         </Feld>
 
-        <Feld label="Anmeldung" id="turnier-zugang" hinweis={ZUGANG.find((e) => e.wert === werte.access)?.hinweis}>
+        <Feld
+          label="Anmeldung"
+          id="turnier-zugang"
+          hinweis={ZUGANG.find((e) => e.wert === werte.access)?.hinweis}
+        >
           <select
             id="turnier-zugang"
             value={werte.access}
@@ -824,11 +822,7 @@ export function TournamentForm({
 
       <div className="flex items-center gap-3 border-t border-border pt-5">
         <Button type="submit" disabled={laeuft}>
-          {laeuft ? (
-            <Loader2 className="animate-spin" aria-hidden="true" />
-          ) : (
-            <Save aria-hidden="true" />
-          )}
+          {laeuft ? <Loader2 className="animate-spin" aria-hidden="true" /> : <Save aria-hidden="true" />}
           {tournamentId ? 'Speichern' : 'Turnier anlegen'}
         </Button>
         {!tournamentId ? (
@@ -841,13 +835,7 @@ export function TournamentForm({
   );
 }
 
-function Abschnitt({
-  titel,
-  children,
-}: {
-  titel: string;
-  children: React.ReactNode;
-}): React.JSX.Element {
+function Abschnitt({ titel, children }: { titel: string; children: React.ReactNode }): React.JSX.Element {
   return (
     <fieldset className="space-y-4 rounded-2xl border border-border p-5">
       <legend className="px-2 text-sm font-semibold">{titel}</legend>
@@ -922,12 +910,7 @@ function Zeitfeld({
   return (
     <div className="space-y-1.5">
       <Label htmlFor={id}>{label}</Label>
-      <Input
-        id={id}
-        type="datetime-local"
-        value={wert}
-        onChange={(e) => aendern(e.target.value)}
-      />
+      <Input id={id} type="datetime-local" value={wert} onChange={(e) => aendern(e.target.value)} />
     </div>
   );
 }

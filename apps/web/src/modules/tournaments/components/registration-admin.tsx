@@ -121,9 +121,7 @@ export function RegistrationAdmin({
                 className="shrink-0"
               />
               <span className="min-w-0 flex-1 basis-48">
-                <span className="block truncate font-medium">
-                  {zeile.teamName ?? zeile.username}
-                </span>
+                <span className="block truncate font-medium">{zeile.teamName ?? zeile.username}</span>
                 <span className="block truncate text-xs text-muted-foreground">
                   {zeile.teamName ? `Captain: ${zeile.username} · ` : ''}
                   {formatDateTime(zeile.createdAt)}
@@ -167,9 +165,7 @@ export function RegistrationAdmin({
               ) : null}
             </div>
 
-            {zeile.reason ? (
-              <p className="text-xs text-muted-foreground">Grund: {zeile.reason}</p>
-            ) : null}
+            {zeile.reason ? <p className="text-xs text-muted-foreground">Grund: {zeile.reason}</p> : null}
 
             {zeile.antworten.length > 0 ? (
               <dl className="grid gap-x-4 gap-y-0.5 text-xs sm:grid-cols-2">

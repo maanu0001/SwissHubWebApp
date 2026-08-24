@@ -27,10 +27,7 @@ export interface CreateTeamInput {
   captainUsername: string;
 }
 
-export async function createTeam(
-  input: CreateTeamInput,
-  actor: TournamentActor,
-): Promise<TournamentTeam> {
+export async function createTeam(input: CreateTeamInput, actor: TournamentActor): Promise<TournamentTeam> {
   const tournament = await prisma.tournament.findUniqueOrThrow({
     where: { id: input.tournamentId },
   });
@@ -160,7 +157,11 @@ export function rosterOffen(
   if (tournament.status === 'RUNNING' || tournament.status === 'PAUSED') {
     return false;
   }
-  if (tournament.status === 'COMPLETED' || tournament.status === 'CANCELLED' || tournament.status === 'ARCHIVED') {
+  if (
+    tournament.status === 'COMPLETED' ||
+    tournament.status === 'CANCELLED' ||
+    tournament.status === 'ARCHIVED'
+  ) {
     return false;
   }
   if (tournament.rosterLockAt && tournament.rosterLockAt.getTime() <= jetzt.getTime()) {
@@ -176,8 +177,7 @@ async function assertRosterOffen(teamId: string): Promise<void> {
   });
   if (!rosterOffen(team.tournament, team)) {
     throw new AppError('CONFLICT', {
-      userMessage:
-        'Das Roster ist gesperrt. Änderungen müssen jetzt über die Turnierleitung laufen.',
+      userMessage: 'Das Roster ist gesperrt. Änderungen müssen jetzt über die Turnierleitung laufen.',
     });
   }
 }
@@ -440,8 +440,7 @@ export async function removeMember(
 
   if (discordId === team.captainDiscordId) {
     throw new AppError('VALIDATION_FAILED', {
-      userMessage:
-        'Der Captain kann nicht aus dem eigenen Team entfernt werden. Übergib zuerst die Führung.',
+      userMessage: 'Der Captain kann nicht aus dem eigenen Team entfernt werden. Übergib zuerst die Führung.',
     });
   }
 
@@ -499,7 +498,9 @@ export async function transferCaptaincy(
       data: { captainDiscordId: neuer.discordId, captainUsername: neuer.username },
     }),
     prisma.tournamentTeamMember.update({ where: { id: neuer.id }, data: { role: 'CAPTAIN' } }),
-    ...(alter ? [prisma.tournamentTeamMember.update({ where: { id: alter.id }, data: { role: 'PLAYER' } })] : []),
+    ...(alter
+      ? [prisma.tournamentTeamMember.update({ where: { id: alter.id }, data: { role: 'PLAYER' } })]
+      : []),
     // Die Anmeldung haengt am Captain - sonst kann der neue sein Team nicht
     // mehr verwalten und der alte weiterhin.
     prisma.tournamentRegistration.updateMany({
@@ -552,10 +553,7 @@ export async function setMemberRole(
   }
 
   // Ohne das eigene Mitglied rechnen: sonst zaehlt es beim Wechsel doppelt.
-  pruefePlatz(
-    { ...team, members: team.members.filter((eintrag) => eintrag.id !== mitglied.id) },
-    rolle,
-  );
+  pruefePlatz({ ...team, members: team.members.filter((eintrag) => eintrag.id !== mitglied.id) }, rolle);
 
   await prisma.tournamentTeamMember.update({ where: { id: mitglied.id }, data: { role: rolle } });
   await tournamentEvent(team.tournamentId, 'TEAM_UPDATED', actor, {
@@ -595,11 +593,7 @@ export async function lockRoster(teamId: string, actor: TournamentActor): Promis
  * macht die Runde unleserlich. Stattdessen ist es ausgeschieden, und
  * offene Matches gehen als Freilos an den Gegner.
  */
-export async function disqualifyTeam(
-  teamId: string,
-  reason: string,
-  actor: TournamentActor,
-): Promise<void> {
+export async function disqualifyTeam(teamId: string, reason: string, actor: TournamentActor): Promise<void> {
   const team = await prisma.tournamentTeam.findUniqueOrThrow({
     where: { id: teamId },
     include: { participant: { select: { id: true } } },

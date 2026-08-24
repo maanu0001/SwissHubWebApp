@@ -70,10 +70,7 @@ export function TeamAdmin({
 
   if (teams.length === 0) {
     return (
-      <EmptyState
-        title="Noch keine Teams"
-        description="Sobald jemand ein Team gründet, steht es hier."
-      />
+      <EmptyState title="Noch keine Teams" description="Sobald jemand ein Team gründet, steht es hier." />
     );
   }
 
@@ -87,9 +84,7 @@ export function TeamAdmin({
                 <span className="block truncate font-medium">
                   {team.name}
                   {team.tag ? (
-                    <span className="ml-1.5 font-mono text-xs text-muted-foreground">
-                      {team.tag}
-                    </span>
+                    <span className="ml-1.5 font-mono text-xs text-muted-foreground">{team.tag}</span>
                   ) : null}
                 </span>
                 <span className="block truncate text-xs text-muted-foreground">

@@ -111,9 +111,7 @@ export function CheckinAdmin({
                 className="shrink-0"
               />
               <span className="min-w-0 flex-1 basis-48">
-                <span className="block truncate font-medium">
-                  {zeile.teamName ?? zeile.username}
-                </span>
+                <span className="block truncate font-medium">{zeile.teamName ?? zeile.username}</span>
                 {zeile.teamName ? (
                   <span className="block truncate text-xs text-muted-foreground">
                     Captain: {zeile.username}

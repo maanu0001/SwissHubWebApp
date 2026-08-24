@@ -115,17 +115,11 @@ const STREAM_VARIANTE: Record<string, Variante> = {
  * wer sie nicht unterscheiden kann, saehe sonst nur graue Punkte.
  */
 export function TournamentStatusBadge({ status }: { status: string }): React.JSX.Element {
-  return (
-    <Badge variant={STATUS_VARIANTE[status] ?? 'secondary'}>
-      {STATUS_LABEL[status] ?? status}
-    </Badge>
-  );
+  return <Badge variant={STATUS_VARIANTE[status] ?? 'secondary'}>{STATUS_LABEL[status] ?? status}</Badge>;
 }
 
 export function MatchStatusBadge({ status }: { status: string }): React.JSX.Element {
-  return (
-    <Badge variant={MATCH_VARIANTE[status] ?? 'secondary'}>{MATCH_LABEL[status] ?? status}</Badge>
-  );
+  return <Badge variant={MATCH_VARIANTE[status] ?? 'secondary'}>{MATCH_LABEL[status] ?? status}</Badge>;
 }
 
 export function RegistrationStatusBadge({ status }: { status: string }): React.JSX.Element {
@@ -137,24 +131,11 @@ export function RegistrationStatusBadge({ status }: { status: string }): React.J
 }
 
 export function CheckinStatusBadge({ status }: { status: string }): React.JSX.Element {
-  return (
-    <Badge variant={CHECKIN_VARIANTE[status] ?? 'secondary'}>
-      {CHECKIN_LABEL[status] ?? status}
-    </Badge>
-  );
+  return <Badge variant={CHECKIN_VARIANTE[status] ?? 'secondary'}>{CHECKIN_LABEL[status] ?? status}</Badge>;
 }
 
 export function StreamStatusBadge({ status }: { status: string }): React.JSX.Element {
-  return (
-    <Badge variant={STREAM_VARIANTE[status] ?? 'outline'}>{STREAM_LABEL[status] ?? status}</Badge>
-  );
+  return <Badge variant={STREAM_VARIANTE[status] ?? 'outline'}>{STREAM_LABEL[status] ?? status}</Badge>;
 }
 
-export {
-  STATUS_LABEL,
-  MATCH_LABEL,
-  REGISTRATION_LABEL,
-  CHECKIN_LABEL,
-  FORMAT_LABEL,
-  STREAM_LABEL,
-};
+export { STATUS_LABEL, MATCH_LABEL, REGISTRATION_LABEL, CHECKIN_LABEL, FORMAT_LABEL, STREAM_LABEL };

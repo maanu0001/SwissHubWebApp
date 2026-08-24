@@ -7,13 +7,7 @@ import { Crown, Loader2, Shield, UserMinus, UserPlus, X } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { DiscordAvatar } from '@/components/shared/discord-avatar';
 import { ConfirmationDialog } from '@/components/shared/confirmation-dialog';
 import { MemberPicker, type PickedMember } from '@/modules/members/components/member-picker';
@@ -267,9 +261,7 @@ export function TeamPanel({
               <Label htmlFor="einladung-rolle">Als</Label>
               <Select
                 value={rolle}
-                onValueChange={(naechste) =>
-                  setRolle(naechste as 'PLAYER' | 'SUBSTITUTE' | 'COACH')
-                }
+                onValueChange={(naechste) => setRolle(naechste as 'PLAYER' | 'SUBSTITUTE' | 'COACH')}
               >
                 <SelectTrigger id="einladung-rolle" className="w-40">
                   <SelectValue />
@@ -401,14 +393,8 @@ export function InviteInbox({
                 · {einladung.turnier} · {ROLLE_LABEL[einladung.role] ?? einladung.role}
               </span>
             </span>
-            <Button
-              size="sm"
-              disabled={laeuft !== null}
-              onClick={() => void antworten(einladung.id, true)}
-            >
-              {laeuft === einladung.id ? (
-                <Loader2 className="animate-spin" aria-hidden="true" />
-              ) : null}
+            <Button size="sm" disabled={laeuft !== null} onClick={() => void antworten(einladung.id, true)}>
+              {laeuft === einladung.id ? <Loader2 className="animate-spin" aria-hidden="true" /> : null}
               Annehmen
             </Button>
             <Button

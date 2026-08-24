@@ -422,7 +422,10 @@ export const tournamentsModule: ModuleDefinition = registerModule({
   ],
   navigation: [
     {
-      href: '/turniere',
+      href: '/turniere/uebersicht',
+      // Die oeffentliche Turnierseite liegt unter `/turniere` und gehoert
+      // demselben Modul - der Seitentitel soll dort nicht verschwinden.
+      titlePrefix: '/turniere',
       label: 'Turniere',
       icon: 'Trophy',
       permission: TOURNAMENT_PERMISSIONS.view,

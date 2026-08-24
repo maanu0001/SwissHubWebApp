@@ -335,12 +335,36 @@ function pruefeZeitfolge(input: Partial<CreateTournamentInput>): void {
   }
 }
 
+/**
+ * Pfade, die die Verwaltung unter `/turniere/...` belegt.
+ *
+ * Ein Turnier mit der Kennung `matches` waere unter `/turniere/matches` nicht
+ * erreichbar - dort liegt die Matchliste. Statt es zuzulassen und sich zu
+ * wundern, wird die Kennung hier gar nicht erst vergeben.
+ */
+const BELEGTE_SLUGS = new Set([
+  'uebersicht',
+  'aktiv',
+  'neu',
+  'matches',
+  'einsprueche',
+  'livestream',
+  'statistiken',
+  'archiv',
+  'sperren',
+  'verwalten',
+  'api',
+]);
+
 /** Eine noch freie Kennung fuer die Adresszeile. */
 async function freierSlug(guildId: string, wunsch: string, eigeneId?: string): Promise<string> {
   const basis = slugify(wunsch) || 'turnier';
 
   for (let versuch = 0; versuch < 50; versuch += 1) {
     const kandidat = versuch === 0 ? basis : `${basis}-${versuch + 1}`;
+    if (BELEGTE_SLUGS.has(kandidat)) {
+      continue;
+    }
     const belegt = await prisma.tournament.findUnique({
       where: { guildId_slug: { guildId, slug: kandidat } },
       select: { id: true },

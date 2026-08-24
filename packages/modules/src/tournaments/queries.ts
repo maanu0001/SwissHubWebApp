@@ -523,3 +523,143 @@ export async function listDisputes(options: { tournamentId?: string; offen?: boo
     },
   });
 }
+
+// --- Der eigene Stand ------------------------------------------------------
+
+export interface EigenerStand {
+  angemeldet: boolean;
+  registrationId: string | null;
+  status: string | null;
+  waitlistPosition: number | null;
+  checkinStatus: string | null;
+  teamId: string | null;
+  teamName: string | null;
+  istCaptain: boolean;
+}
+
+/**
+ * Wo eine Person in einem Turnier steht.
+ *
+ * Beantwortet in einer Abfrage, was die Turnierseite fuer den naechsten
+ * sinnvollen Knopf wissen muss: angemeldet oder nicht, Warteliste oder
+ * bestaetigt, eingecheckt oder nicht, und ob sie ein Team fuehrt.
+ *
+ * Die Anmeldung eines Teams steht beim Captain. Wer als Spieler in einem Team
+ * ist, hat selbst keine Anmeldung - deshalb wird zusaetzlich ueber die
+ * Mitgliedschaft gesucht.
+ */
+export async function getEigenerStand(
+  tournamentId: string,
+  discordId: string,
+): Promise<EigenerStand> {
+  const leer: EigenerStand = {
+    angemeldet: false,
+    registrationId: null,
+    status: null,
+    waitlistPosition: null,
+    checkinStatus: null,
+    teamId: null,
+    teamName: null,
+    istCaptain: false,
+  };
+
+  const eigene = await prisma.tournamentRegistration.findUnique({
+    where: { tournamentId_discordId: { tournamentId, discordId } },
+    include: { team: { select: { id: true, name: true, captainDiscordId: true } } },
+  });
+
+  if (eigene && eigene.status !== 'CANCELLED' && eigene.status !== 'REJECTED') {
+    return {
+      angemeldet: true,
+      registrationId: eigene.id,
+      status: eigene.status,
+      waitlistPosition: eigene.waitlistPosition,
+      checkinStatus: eigene.checkinStatus,
+      teamId: eigene.team?.id ?? null,
+      teamName: eigene.team?.name ?? null,
+      istCaptain: eigene.team ? eigene.team.captainDiscordId === discordId : true,
+    };
+  }
+
+  // Als Spieler in einem fremden Team: die Anmeldung steht dort, nicht hier.
+  const mitgliedschaft = await prisma.tournamentTeamMember.findFirst({
+    where: {
+      discordId,
+      removedAt: null,
+      team: { tournamentId, status: { not: 'DISQUALIFIED' } },
+    },
+    include: {
+      team: {
+        select: {
+          id: true,
+          name: true,
+          captainDiscordId: true,
+          registration: {
+            select: { id: true, status: true, waitlistPosition: true, checkinStatus: true },
+          },
+        },
+      },
+    },
+  });
+
+  if (!mitgliedschaft) {
+    return leer;
+  }
+
+  const anmeldung = mitgliedschaft.team.registration;
+  return {
+    angemeldet: anmeldung !== null,
+    registrationId: anmeldung?.id ?? null,
+    status: anmeldung?.status ?? null,
+    waitlistPosition: anmeldung?.waitlistPosition ?? null,
+    checkinStatus: anmeldung?.checkinStatus ?? null,
+    teamId: mitgliedschaft.team.id,
+    teamName: mitgliedschaft.team.name,
+    istCaptain: mitgliedschaft.team.captainDiscordId === discordId,
+  };
+}
+
+/**
+ * Teams, die diese Person in diesem Turnier fuehrt.
+ *
+ * Fuer den Anmeldeknopf: nur ein Team mit genuegend Spielern kann antreten,
+ * und die Zahl steht gleich dabei, damit niemand raten muss, warum der Knopf
+ * nicht geht.
+ */
+export async function listEigeneTeams(tournamentId: string, discordId: string) {
+  const teams = await prisma.tournamentTeam.findMany({
+    where: { tournamentId, captainDiscordId: discordId, status: { not: 'DISQUALIFIED' } },
+    orderBy: { createdAt: 'asc' },
+    include: {
+      _count: { select: { members: { where: { removedAt: null, role: { not: 'COACH' } } } } },
+      registration: { select: { id: true, status: true } },
+    },
+  });
+
+  return teams.map((team) => ({
+    id: team.id,
+    name: team.name,
+    spieler: team._count.members,
+    angemeldet: team.registration !== null,
+  }));
+}
+
+/** Ein Team mit Roster und offenen Einladungen - fuer die Teamverwaltung. */
+export async function getTeamMitEinladungen(teamId: string) {
+  return prisma.tournamentTeam.findUnique({
+    where: { id: teamId },
+    include: {
+      tournament: {
+        select: { id: true, slug: true, name: true, maxTeamSize: true, maxSubstitutes: true },
+      },
+      members: {
+        where: { removedAt: null },
+        orderBy: [{ role: 'asc' }, { joinedAt: 'asc' }],
+      },
+      invites: {
+        where: { status: 'PENDING' },
+        orderBy: { createdAt: 'desc' },
+      },
+    },
+  });
+}

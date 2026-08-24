@@ -58,6 +58,14 @@ export const RATE_LIMITS = {
   ticketCreate: { limit: 3, windowMs: 10 * 60 * 1000 },
   /** Kategorien und Panels pflegen - Verwaltung, nicht Alltag. */
   ticketAdmin: { limit: 40, windowMs: 10 * 60 * 1000 },
+  /** Anmelden, Team gruenden, einchecken - selten und folgenreich. */
+  tournamentParticipate: { limit: 20, windowMs: 10 * 60 * 1000 },
+  /** Einladungen: eng, damit die Teamsuche nicht zum Rundmail wird. */
+  tournamentInvite: { limit: 30, windowMs: 10 * 60 * 1000 },
+  /** Resultate melden und bestaetigen - waehrend eines Turniers zuegig. */
+  tournamentResult: { limit: 60, windowMs: 5 * 60 * 1000 },
+  /** Turnierverwaltung: Bracket, Matches, Preise, Leitung. */
+  tournamentAdmin: { limit: 120, windowMs: 10 * 60 * 1000 },
 } as const satisfies Record<string, RateLimitRule>;
 
 export type RateLimitName = keyof typeof RATE_LIMITS;

@@ -10,3 +10,7 @@ export * from './checkin';
 export * from './bracket';
 export * from './bracket-service';
 export * from './matches';
+export * from './discord';
+export * from './scheduler';
+export * from './stream-prizes';
+export * from './queries';

@@ -5,6 +5,7 @@ import { purgeExpiredSessions } from '@swisshub/auth';
 import { jail, level, spielersuche, syncDiscord, writeHeartbeat,
   premium,
   tickets,
+  tournaments,
 } from '@swisshub/modules';
 
 const log = createLogger('bot:jobs');
@@ -185,6 +186,20 @@ export function createJobRunner(
       intervalMs: 5 * 60 * 1000,
       async run() {
         await tickets.runTicketTick();
+      },
+    },
+    {
+      /**
+       * Turniere: Phasen wechseln, erinnern, aufraeumen.
+       *
+       * Eine Minute, weil Check-in-Fenster in Minuten zaehlen: ein Check-in,
+       * der fuenf Minuten zu spaet oeffnet, kostet die Haelfte der Zeit, die
+       * er hat. Der Durchgang prueft selbst, ob das Modul eingeschaltet ist.
+       */
+      name: 'tournaments-tick',
+      intervalMs: 60 * 1000,
+      async run() {
+        await tournaments.runTournamentTick();
       },
     },
     {

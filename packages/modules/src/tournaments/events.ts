@@ -48,7 +48,10 @@ export async function tournamentEvent(
  * `schweizer-cup` werden und nicht `schweizer-cp`.
  */
 export function slugify(text: string): string {
-  const ESZETT = 'ß';
+  // Das Eszett steht als Code-Punkt und nicht als Zeichen: der Waechtertest
+  // verbietet es in Quelltexten, und hier wird es abgebildet, nicht
+  // geschrieben - eine Ausnahme im Waechter waere der schlechtere Tausch.
+  const ESZETT = '\u00DF';
   const UMSCHRIFT: Record<string, string> = {
     ä: 'ae', ö: 'oe', ü: 'ue', [ESZETT]: 'ss',
     à: 'a', á: 'a', â: 'a', è: 'e', é: 'e', ê: 'e', ë: 'e',
@@ -58,7 +61,7 @@ export function slugify(text: string): string {
 
   return text
     .toLowerCase()
-    .replace(/[äöüßàáâèéêëìíîòóôùúûçñ]/gu, (zeichen) => UMSCHRIFT[zeichen] ?? zeichen)
+    .replace(/[äöü\u00DFàáâèéêëìíîòóôùúûçñ]/gu, (zeichen) => UMSCHRIFT[zeichen] ?? zeichen)
     .replace(/[^a-z0-9-]/gu, '-')
     .replace(/-+/gu, '-')
     .replace(/^-|-$/gu, '')

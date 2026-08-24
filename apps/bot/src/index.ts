@@ -29,6 +29,7 @@ import { registerVoicePresence } from './voice-presence';
 import { registerLevelGameButtons } from './level-games';
 import { registerTicketInteractions } from './ticket-interactions';
 import { registerTicketMessageSync } from './ticket-messages';
+import { registerTournamentInteractions } from './tournament-interactions';
 import {
   recoverVoiceMembers,
   registerLevelMessageXp,
@@ -129,6 +130,8 @@ async function main(): Promise<void> {
   // Ticket-Panels, Formular und die Knöpfe im Ticket-Kanal.
   registerTicketInteractions(client);
   registerTicketMessageSync(client, messageContent);
+  // Check-in, Bereitmeldung, Resultat und der Ruf nach der Turnierleitung.
+  registerTournamentInteractions(client);
 
   /**
    * Aktive Guild-ID. Sie kann sich zur Laufzeit ändern (Einrichtungsassistent),

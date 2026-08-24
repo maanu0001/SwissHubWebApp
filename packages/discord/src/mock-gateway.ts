@@ -120,9 +120,112 @@ export function createMockGateway(): DiscordGateway {
   let messageCounter = 0;
   // Vom Mock erstellte Sprachkanäle - damit `voice.get` nach dem Anlegen
   // dasselbe liefert wie Discord.
-  const voiceChannels = new Map<string, GuildChannel>();
-  let voiceCounter = 0;
+  // Vom Mock verwaltete Kanaele - Sprach- wie Textkanaele.
+  const eigeneKanaele = new Map<string, GuildChannel>();
+  let kanalZaehler = 0;
   log.warn('Discord Mock-Modus aktiv - es werden KEINE echten Discord-Aktionen ausgeführt');
+
+  const managedChannels: DiscordGateway['managedChannels'] = {
+    async createText(input) {
+      kanalZaehler += 1;
+      const channel = {
+        id: `${900000000000000000n + BigInt(kanalZaehler)}`,
+        name: input.name,
+        type: 0,
+        parentId: input.parentId,
+        position: kanalZaehler,
+        nsfw: false,
+        overwrites: (input.overwrites ?? []).map((entry) => ({
+          id: entry.id,
+          type: entry.type,
+          allow: entry.allow.toString(),
+          deny: entry.deny.toString(),
+        })),
+      };
+      eigeneKanaele.set(channel.id, channel);
+      log.info('Mock: Textkanal erstellt', { name: input.name, id: channel.id });
+      return channel;
+    },
+    async createVoice(input) {
+      kanalZaehler += 1;
+      const channel = {
+        id: `${900000000000000000n + BigInt(kanalZaehler)}`,
+        name: input.name,
+        type: 2,
+        parentId: input.parentId,
+        position: kanalZaehler,
+        nsfw: false,
+        overwrites: [],
+      };
+      eigeneKanaele.set(channel.id, channel);
+      log.info('Mock: Sprachkanal erstellt', { name: input.name, id: channel.id });
+      return channel;
+    },
+    async setOverwrite(channelId, overwrite) {
+      // Der Mock merkt sich die Ausnahme wirklich. Täte er das nicht, sähe
+      // jeder Abgleich die Rechte als fehlend an und "reparierte" endlos.
+      const channel = eigeneKanaele.get(channelId);
+      if (channel) {
+        const uebrige = channel.overwrites.filter((entry) => entry.id !== overwrite.id);
+        channel.overwrites = [
+          ...uebrige,
+          {
+            id: overwrite.id,
+            type: overwrite.type,
+            allow: overwrite.allow.toString(),
+            deny: overwrite.deny.toString(),
+          },
+        ];
+      }
+      log.debug('Mock: Channel-Berechtigung gesetzt', { channelId, target: overwrite.id });
+    },
+    async clearOverwrite(channelId, targetId) {
+      const channel = eigeneKanaele.get(channelId);
+      if (channel) {
+        channel.overwrites = channel.overwrites.filter((entry) => entry.id !== targetId);
+      }
+      log.debug('Mock: Channel-Berechtigung entfernt', { channelId, targetId });
+    },
+    async move(channelId, parentId) {
+      const channel = eigeneKanaele.get(channelId);
+      if (channel) {
+        channel.parentId = parentId;
+      }
+      log.debug('Mock: Kanal verschoben', { channelId, parentId });
+    },
+    async rename(channelId, name) {
+      const channel = eigeneKanaele.get(channelId);
+      if (channel) {
+        channel.name = name;
+      }
+      log.debug('Mock: Kanal umbenannt', { channelId, name });
+    },
+    async setTopic(channelId, topic) {
+      log.debug('Mock: Kanalthema gesetzt', { channelId, gesetzt: topic !== null });
+    },
+    async remove(channelId) {
+      eigeneKanaele.delete(channelId);
+      log.info('Mock: Kanal gelöscht', { channelId });
+    },
+    async get(channelId) {
+      return eigeneKanaele.get(channelId) ?? null;
+    },
+  };
+
+
+  // `voice` bleibt der bisherige Zugang und zeigt auf dieselben Funktionen.
+  // Bewusst ein stabiles Objekt und kein Getter: ein Getter lieferte bei
+  // jedem Zugriff ein neues Objekt, und ein Test, der hier einen Spion setzt,
+  // patchte damit etwas, das niemand mehr liest.
+  const voice: DiscordGateway['voice'] = {
+    create: managedChannels.createVoice,
+    setOverwrite: managedChannels.setOverwrite,
+    clearOverwrite: managedChannels.clearOverwrite,
+    move: managedChannels.move,
+    remove: managedChannels.remove,
+    get: managedChannels.get,
+  };
+
 
   return {
     members: {
@@ -253,62 +356,8 @@ export function createMockGateway(): DiscordGateway {
         return MOCK_BOT_PERMISSIONS;
       },
     },
-    voice: {
-      async create(input) {
-        voiceCounter += 1;
-        const channel = {
-          id: `${900000000000000000n + BigInt(voiceCounter)}`,
-          name: input.name,
-          type: 2,
-          parentId: input.parentId,
-          position: voiceCounter,
-          nsfw: false,
-          overwrites: [],
-        };
-        voiceChannels.set(channel.id, channel);
-        log.info('Mock: Sprachkanal erstellt', { name: input.name, id: channel.id });
-        return channel;
-      },
-      async setOverwrite(channelId, overwrite) {
-        // Der Mock merkt sich die Ausnahme wirklich. Täte er das nicht, sähe
-        // jeder Abgleich die Rechte als fehlend an und "reparierte" endlos.
-        const channel = voiceChannels.get(channelId);
-        if (channel) {
-          const uebrige = channel.overwrites.filter((entry) => entry.id !== overwrite.id);
-          channel.overwrites = [
-            ...uebrige,
-            {
-              id: overwrite.id,
-              type: overwrite.type,
-              allow: overwrite.allow.toString(),
-              deny: overwrite.deny.toString(),
-            },
-          ];
-        }
-        log.debug('Mock: Channel-Berechtigung gesetzt', { channelId, target: overwrite.id });
-      },
-      async clearOverwrite(channelId, targetId) {
-        const channel = voiceChannels.get(channelId);
-        if (channel) {
-          channel.overwrites = channel.overwrites.filter((entry) => entry.id !== targetId);
-        }
-        log.debug('Mock: Channel-Berechtigung entfernt', { channelId, targetId });
-      },
-      async move(channelId, parentId) {
-        const channel = voiceChannels.get(channelId);
-        if (channel) {
-          channel.parentId = parentId;
-        }
-        log.debug('Mock: Kanal verschoben', { channelId, parentId });
-      },
-      async remove(channelId) {
-        voiceChannels.delete(channelId);
-        log.info('Mock: Sprachkanal gelöscht', { channelId });
-      },
-      async get(channelId) {
-        return voiceChannels.get(channelId) ?? null;
-      },
-    },
+    managedChannels,
+    voice,
     guild: {
       async get() {
         return {

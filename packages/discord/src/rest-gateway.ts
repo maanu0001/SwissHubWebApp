@@ -23,7 +23,12 @@ import {
   discordMessageSchema,
   type RawDiscordMember,
 } from './types';
-import type { DiscordGateway, DiscordMessagePayload, SentMessage } from './gateway';
+import type {
+  ChannelOverwrite,
+  DiscordGateway,
+  DiscordMessagePayload,
+  SentMessage,
+} from './gateway';
 
 const log = createLogger('discord:gateway');
 
@@ -342,8 +347,53 @@ export function createRestGateway(): DiscordGateway {
    * sonst würde die Auswahl im Dashboard einen gerade erstellten Kanal noch
    * eine Minute lang nicht kennen.
    */
-  const voice: DiscordGateway['voice'] = {
-    async create(input) {
+  /**
+   * Aus der Discord-Antwort einen Kanal bauen.
+   *
+   * Discord liefert bei `POST /channels` und `GET /channels/{id}` dieselbe
+   * Struktur - deshalb eine Stelle statt zweier fast gleicher.
+   */
+  const alsKanal = (raw: unknown, ersatzName: string): GuildChannel => {
+    const parsed = discordChannelSchema.parse(raw);
+    return {
+      id: parsed.id,
+      name: parsed.name ?? ersatzName,
+      type: parsed.type,
+      parentId: parsed.parent_id ?? null,
+      position: parsed.position ?? 0,
+      nsfw: parsed.nsfw ?? false,
+      overwrites: parsed.permission_overwrites ?? [],
+    };
+  };
+
+  const alsUeberschreibungen = (
+    overwrites: ChannelOverwrite[] | undefined,
+  ): Array<{ id: string; type: number; allow: string; deny: string }> =>
+    (overwrites ?? []).map((entry) => ({
+      id: entry.id,
+      type: entry.type,
+      allow: entry.allow.toString(),
+      deny: entry.deny.toString(),
+    }));
+
+  const managedChannels: DiscordGateway['managedChannels'] = {
+    async createText(input) {
+      const raw = await discordRequest<unknown>(`${await guildRoute()}/channels`, {
+        method: 'POST',
+        body: {
+          name: input.name,
+          type: CHANNEL_TYPES.text,
+          parent_id: input.parentId,
+          topic: input.topic ?? undefined,
+          permission_overwrites: alsUeberschreibungen(input.overwrites),
+        },
+        auditLogReason: input.reason,
+      });
+      cache.delete('channels');
+      return alsKanal(raw, input.name);
+    },
+
+    async createVoice(input) {
       const raw = await discordRequest<unknown>(`${await guildRoute()}/channels`, {
         method: 'POST',
         body: {
@@ -351,27 +401,12 @@ export function createRestGateway(): DiscordGateway {
           type: CHANNEL_TYPES.voice,
           parent_id: input.parentId,
           user_limit: input.userLimit ?? 0,
-          permission_overwrites: (input.overwrites ?? []).map((entry) => ({
-            id: entry.id,
-            type: entry.type,
-            allow: entry.allow.toString(),
-            deny: entry.deny.toString(),
-          })),
+          permission_overwrites: alsUeberschreibungen(input.overwrites),
         },
         auditLogReason: input.reason,
       });
-
       cache.delete('channels');
-      const parsed = discordChannelSchema.parse(raw);
-      return {
-        id: parsed.id,
-        name: parsed.name ?? input.name,
-        type: parsed.type,
-        parentId: parsed.parent_id ?? null,
-        position: parsed.position ?? 0,
-        nsfw: parsed.nsfw ?? false,
-        overwrites: parsed.permission_overwrites ?? [],
-      };
+      return alsKanal(raw, input.name);
     },
 
     async setOverwrite(channelId, overwrite, reason) {
@@ -402,6 +437,24 @@ export function createRestGateway(): DiscordGateway {
       cache.delete('channels');
     },
 
+    async rename(channelId, name, reason) {
+      await discordRequest(`/channels/${channelId}`, {
+        method: 'PATCH',
+        body: { name },
+        auditLogReason: reason,
+      });
+      cache.delete('channels');
+    },
+
+    async setTopic(channelId, topic, reason) {
+      await discordRequest(`/channels/${channelId}`, {
+        method: 'PATCH',
+        body: { topic: topic ?? '' },
+        auditLogReason: reason,
+      });
+      cache.delete('channels');
+    },
+
     async remove(channelId, reason) {
       await discordRequest(`/channels/${channelId}`, { method: 'DELETE', auditLogReason: reason });
       cache.delete('channels');
@@ -410,16 +463,7 @@ export function createRestGateway(): DiscordGateway {
     async get(channelId) {
       try {
         const raw = await discordRequest<unknown>(`/channels/${channelId}`);
-        const parsed = discordChannelSchema.parse(raw);
-        return {
-          id: parsed.id,
-          name: parsed.name ?? 'unbenannt',
-          type: parsed.type,
-          parentId: parsed.parent_id ?? null,
-          position: parsed.position ?? 0,
-          nsfw: parsed.nsfw ?? false,
-          overwrites: parsed.permission_overwrites ?? [],
-        };
+        return alsKanal(raw, 'unbenannt');
       } catch (error) {
         if (error instanceof DiscordApiError && error.status === 404) {
           return null;
@@ -428,6 +472,18 @@ export function createRestGateway(): DiscordGateway {
       }
     },
   };
+
+  // `voice` bleibt der bisherige Zugang und zeigt auf dieselben Funktionen -
+  // die Module, die es heute nutzen, aendern sich dadurch nicht.
+  const voice: DiscordGateway['voice'] = {
+    create: managedChannels.createVoice,
+    setOverwrite: managedChannels.setOverwrite,
+    clearOverwrite: managedChannels.clearOverwrite,
+    move: managedChannels.move,
+    remove: managedChannels.remove,
+    get: managedChannels.get,
+  };
+
 
   const guild: DiscordGateway['guild'] = {
     async get(): Promise<GuildSummary> {
@@ -498,7 +554,7 @@ export function createRestGateway(): DiscordGateway {
     },
   };
 
-  return { members, roles, channels, voice, guild, bot, isMock: false };
+  return { members, roles, channels, managedChannels, voice, guild, bot, isMock: false };
 }
 
 function parseMembers(raw: unknown): GuildMember[] {

@@ -62,10 +62,41 @@ export interface DiscordGateway {
     botPermissionsForAll(): Promise<Map<string, bigint>>;
   };
   /**
-   * Sprachkanäle, die diese Anwendung selbst anlegt und verwaltet.
+   * Kanäle, die diese Anwendung selbst anlegt und verwaltet.
    *
    * Bewusst getrennt von `channels`: dort geht es um bestehende Channels und
    * Nachrichten, hier um den Lebenszyklus eigener Kanäle.
+   *
+   * Anders als `voice` ist dieser Bereich nicht auf Sprachkanäle festgelegt -
+   * Ticket-Kanäle sind Textkanäle, brauchen aber denselben Lebenszyklus.
+   * `voice` bleibt bestehen und zeigt auf dieselben Funktionen; die Module,
+   * die es heute nutzen, ändern sich dadurch nicht.
+   */
+  managedChannels: {
+    /** Legt einen Textkanal in einer Kategorie an. */
+    createText(input: CreateTextChannelInput): Promise<GuildChannel>;
+    /** Legt einen Sprachkanal in einer Kategorie an. */
+    createVoice(input: CreateVoiceChannelInput): Promise<GuildChannel>;
+    /** Setzt eine Berechtigungsausnahme für ein Mitglied oder eine Rolle. */
+    setOverwrite(channelId: string, overwrite: ChannelOverwrite, reason?: string): Promise<void>;
+    /** Entfernt eine Berechtigungsausnahme wieder. */
+    clearOverwrite(channelId: string, targetId: string, reason?: string): Promise<void>;
+    /** Verschiebt einen Kanal in eine andere Kategorie. */
+    move(channelId: string, parentId: string, reason?: string): Promise<void>;
+    /** Benennt einen Kanal um. */
+    rename(channelId: string, name: string, reason?: string): Promise<void>;
+    /** Setzt das Kanalthema; `null` entfernt es. */
+    setTopic(channelId: string, topic: string | null, reason?: string): Promise<void>;
+    /** Löscht einen Kanal. */
+    remove(channelId: string, reason?: string): Promise<void>;
+    /** Einzelner Channel; `null`, wenn es ihn nicht mehr gibt. */
+    get(channelId: string): Promise<GuildChannel | null>;
+  };
+  /**
+   * Sprachkanäle - der bisherige Zugang, unverändert.
+   *
+   * Zeigt auf dieselben Funktionen wie `managedChannels`. Neuer Code nimmt
+   * besser `managedChannels`, weil dort auch Textkanäle liegen.
    */
   voice: {
     /** Legt einen Sprachkanal in einer Kategorie an. */
@@ -156,6 +187,16 @@ export type DiscordButton = DiscordActionButton | DiscordLinkButton;
 export interface DiscordActionRow {
   type: 1;
   components: DiscordButton[];
+}
+
+export interface CreateTextChannelInput {
+  name: string;
+  /** Kategorie, in der der Kanal entsteht. */
+  parentId: string;
+  /** Kanalthema. Enthält bewusst keine sensiblen Angaben - es ist sichtbar. */
+  topic?: string | null;
+  overwrites?: ChannelOverwrite[];
+  reason?: string;
 }
 
 export interface CreateVoiceChannelInput {

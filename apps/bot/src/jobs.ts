@@ -4,6 +4,7 @@ import { purgeExpiredIdempotencyKeys } from '@swisshub/database';
 import { purgeExpiredSessions } from '@swisshub/auth';
 import { jail, level, spielersuche, syncDiscord, writeHeartbeat,
   premium,
+  tickets,
 } from '@swisshub/modules';
 
 const log = createLogger('bot:jobs');
@@ -170,6 +171,20 @@ export function createJobRunner(
       intervalMs: 60 * 1000,
       async run() {
         await level.runGameCleanup();
+      },
+    },
+    {
+      /**
+       * Tickets: erinnern, selbsttaetig schliessen, aufraeumen.
+       *
+       * Fuenf Minuten sind fein genug - Fristen zaehlen in Tagen. Der
+       * Durchgang prueft selbst, ob das Modul eingeschaltet ist; ein
+       * ausgeschaltetes Modul soll im Hintergrund nichts loeschen.
+       */
+      name: 'tickets-tick',
+      intervalMs: 5 * 60 * 1000,
+      async run() {
+        await tickets.runTicketTick();
       },
     },
     {

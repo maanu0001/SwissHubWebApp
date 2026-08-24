@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { AlertTriangle, ArrowLeft, ExternalLink } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, Download, ExternalLink } from 'lucide-react';
 import { tickets } from '@swisshub/modules';
 import { formatDateTime } from '@swisshub/shared';
 import { resolveGuildId } from '@swisshub/discord';
@@ -169,6 +169,28 @@ export default async function TicketDetailPage({
                   Kanal auf Discord öffnen
                 </a>
               ) : null}
+
+              {/* Der Verlauf wird über eine autorisierte Route ausgeliefert -
+                  nie über eine offene Adresse. Die interne Fassung erscheint
+                  nur, wenn Notizen überhaupt gelesen werden dürfen. */}
+              <div className="flex flex-col gap-1.5">
+                <a
+                  href={`/api/tickets/${ticket.id}/transcript`}
+                  className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground hover:underline"
+                >
+                  <Download className="size-3.5" aria-hidden="true" />
+                  Verlauf herunterladen
+                </a>
+                {zugriff.notes ? (
+                  <a
+                    href={`/api/tickets/${ticket.id}/transcript?fassung=intern`}
+                    className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground hover:underline"
+                  >
+                    <Download className="size-3.5" aria-hidden="true" />
+                    Verlauf mit internen Notizen
+                  </a>
+                ) : null}
+              </div>
 
               <TicketControls
                 ticketId={ticket.id}

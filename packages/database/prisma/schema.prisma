@@ -2383,6 +2383,13 @@ model Ticket {
   /// Wann der Kanal geloescht werden darf. Vom Aufraeumer gelesen.
   channelPurgeAt DateTime?
 
+  /// Wann zuletzt an eine Antwort erinnert wurde.
+  ///
+  /// Ohne diesen Zeitpunkt erinnerte jeder Durchgang erneut, solange das
+  /// Ticket wartet - und aus einer Erinnerung wuerde eine stuendliche
+  /// Mahnung.
+  reminderSentAt DateTime?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

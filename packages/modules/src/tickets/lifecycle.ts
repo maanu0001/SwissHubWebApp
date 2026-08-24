@@ -7,6 +7,7 @@ import { getModuleSettings } from '../module-state';
 import { TICKETS_MODULE_ID, type TicketSettings } from './config';
 import type { TicketActor } from './service';
 import { systemMeldung } from './discord';
+import { ensureTranscripts } from './transcript';
 
 const logger = createLogger('tickets:lifecycle');
 
@@ -80,6 +81,11 @@ export async function closeTicket(
       .filter((zeile): zeile is string => Boolean(zeile))
       .join('\n\n'),
   );
+
+  // Der Verlauf wird jetzt festgehalten, solange der Kanal noch steht. Wer
+  // erst beim Aufraeumen sichert, sichert das, was das Aufraeumen uebrig
+  // laesst.
+  await ensureTranscripts(ticketId);
 
   // Kanal stummschalten statt loeschen.
   if (ticket.discordChannelId) {

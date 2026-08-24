@@ -398,6 +398,223 @@ describeWithDatabase('Tickets', () => {
     expect(nachher.subject).toBe('Verwaist');
   });
 
+
+  // --- Transcripts -----------------------------------------------------
+
+  it('hält interne Notizen aus der Nutzerfassung des Transcripts heraus', async () => {
+    const k = await kategorie('Allgemein');
+    const ticket = await tickets.createTicket({
+      guildId: GUILD, categoryId: k.id, subject: 'Verlauf',
+      creatorDiscordId: '900000000000001601', creatorUsername: 'nina',
+      source: 'WEBAPP', actor: actor('900000000000001601', 'nina'),
+    });
+
+    await tickets.sendMessage(ticket.id, 'Mein Problem', {
+      discordId: '900000000000001601', username: 'nina', isStaff: false,
+    });
+    await tickets.addInternalNote(ticket.id, 'Wiederholungstäter, bitte vorsichtig', {
+      discordId: ADMIN.discordId, username: ADMIN.username, isStaff: true,
+    });
+
+    const fuerMitglied = await tickets.renderTranscript(ticket.id, 'USER');
+    const fuerTeam = await tickets.renderTranscript(ticket.id, 'STAFF');
+
+    expect(fuerMitglied.html).toContain('Mein Problem');
+    // Der Text der Notiz darf in der Nutzerfassung nirgends stehen - auch
+    // nicht in einem ausgeblendeten Abschnitt.
+    expect(fuerMitglied.html).not.toContain('Wiederholungstäter');
+    expect(fuerMitglied.messageCount).toBe(1);
+
+    expect(fuerTeam.html).toContain('Wiederholungstäter');
+    expect(fuerTeam.messageCount).toBe(2);
+  });
+
+  it('macht aus Nachrichteninhalt kein HTML', async () => {
+    const k = await kategorie('Allgemein');
+    const ticket = await tickets.createTicket({
+      guildId: GUILD, categoryId: k.id, subject: '<img src=x onerror=alert(1)>',
+      creatorDiscordId: '900000000000001602', creatorUsername: 'mallory',
+      source: 'WEBAPP', actor: actor('900000000000001602', 'mallory'),
+    });
+    await tickets.sendMessage(ticket.id, '<script>alert("hi")</script>', {
+      discordId: '900000000000001602', username: 'mallory', isStaff: false,
+    });
+
+    const verlauf = await tickets.renderTranscript(ticket.id, 'USER');
+    // Geprüft wird die spitze Klammer, nicht der Wortlaut: `onerror=` steht
+    // als harmloser Text im Dokument, sobald das `<` entschärft ist - und
+    // genau darauf kommt es an.
+    expect(verlauf.html).not.toContain('<script');
+    expect(verlauf.html).not.toContain('<img');
+    expect(verlauf.html).toContain('&lt;script&gt;');
+    expect(verlauf.html).toContain('&lt;img src=x onerror=alert(1)&gt;');
+  });
+
+  it('legt beim Schliessen beide Fassungen ab', async () => {
+    const k = await kategorie('Allgemein');
+    const ticket = await tickets.createTicket({
+      guildId: GUILD, categoryId: k.id, subject: 'Wird geschlossen',
+      creatorDiscordId: '900000000000001603', creatorUsername: 'nina',
+      source: 'WEBAPP', actor: actor('900000000000001603', 'nina'),
+    });
+    await tickets.closeTicket(ticket.id, 'erledigt', ADMIN_ACTOR);
+
+    const abgelegt = await prisma.ticketTranscript.findMany({ where: { ticketId: ticket.id } });
+    expect(abgelegt.map((eintrag) => eintrag.audience).sort()).toEqual(['STAFF', 'USER']);
+
+    // Und das Ausliefern kommt auch ohne die Datei aus: der Verlauf steht in
+    // der Datenbank, die Datei ist nur ein Zwischenspeicher.
+    await prisma.ticketTranscript.updateMany({
+      where: { ticketId: ticket.id },
+      data: { fileName: 'transcript-00000000000000000000000000000000.html' },
+    });
+    const geladen = await tickets.loadTranscript(ticket.id, 'USER');
+    expect(geladen.html).toContain('Wird geschlossen');
+  });
+
+  it('entfernt Transcripts erst nach der eingestellten Frist', async () => {
+    const k = await kategorie('Allgemein');
+    const ticket = await tickets.createTicket({
+      guildId: GUILD, categoryId: k.id, subject: 'Alt',
+      creatorDiscordId: '900000000000001604', creatorUsername: 'nina',
+      source: 'WEBAPP', actor: actor('900000000000001604', 'nina'),
+    });
+    await tickets.closeTicket(ticket.id, null, ADMIN_ACTOR);
+    await prisma.ticketTranscript.updateMany({
+      where: { ticketId: ticket.id },
+      data: { createdAt: new Date(Date.now() - 40 * 24 * 3600_000) },
+    });
+
+    // Ohne ausdrückliche Frist geschieht nichts - eine stillschweigende
+    // Voreinstellung, die Daten löscht, wäre die falsche.
+    expect(await tickets.purgeExpiredTranscripts(0)).toBe(0);
+    expect(await prisma.ticketTranscript.count({ where: { ticketId: ticket.id } })).toBe(2);
+
+    expect(await tickets.purgeExpiredTranscripts(30)).toBe(2);
+    expect(await prisma.ticketTranscript.count({ where: { ticketId: ticket.id } })).toBe(0);
+    // Der Verlauf selbst bleibt.
+    expect(await prisma.ticket.count({ where: { id: ticket.id } })).toBe(1);
+  });
+
+  // --- Zeitsteuerung ---------------------------------------------------
+
+  it('erinnert nur einmal je Frist und nur bei Warten auf das Mitglied', async () => {
+    const k = await prisma.ticketCategory.create({
+      data: {
+        guildId: GUILD, name: 'Mit Erinnerung', active: true,
+        discordCategoryId: KATEGORIE_KANAL, supportRoleIds: [SUPPORT_ROLE],
+        reminderAfterDays: 3,
+      },
+    });
+    const ticket = await tickets.createTicket({
+      guildId: GUILD, categoryId: k.id, subject: 'Wartet',
+      creatorDiscordId: '900000000000001701', creatorUsername: 'nina',
+      source: 'WEBAPP', actor: actor('900000000000001701', 'nina'),
+    });
+
+    const langeHer = new Date(Date.now() - 10 * 24 * 3600_000);
+    await prisma.ticket.update({
+      where: { id: ticket.id },
+      data: { status: 'WAITING_FOR_STAFF', lastMessageAt: langeHer },
+    });
+    // Wartet das Ticket auf den Support, ist das nicht das Problem des
+    // Mitglieds - dort zu mahnen wäre die falsche Richtung.
+    expect((await tickets.runTicketReminders()).erinnert).toBe(0);
+
+    await prisma.ticket.update({
+      where: { id: ticket.id },
+      data: { status: 'WAITING_FOR_USER', lastMessageAt: langeHer },
+    });
+    expect((await tickets.runTicketReminders()).erinnert).toBe(1);
+    // Der zweite Durchgang schweigt: sonst würde aus der Erinnerung eine
+    // stündliche Mahnung.
+    expect((await tickets.runTicketReminders()).erinnert).toBe(0);
+  });
+
+  it('schliesst selbsttätig nur, was auf das Mitglied wartet', async () => {
+    const ohne = await kategorie('Ohne Frist');
+    const mit = await prisma.ticketCategory.create({
+      data: {
+        guildId: GUILD, name: 'Mit Frist', active: true,
+        discordCategoryId: KATEGORIE_KANAL, supportRoleIds: [SUPPORT_ROLE],
+        autoCloseAfterDays: 7,
+      },
+    });
+
+    const langeHer = new Date(Date.now() - 30 * 24 * 3600_000);
+    const anlegen = async (categoryId: string, status: 'WAITING_FOR_USER' | 'WAITING_FOR_STAFF', wer: string) => {
+      const ticket = await tickets.createTicket({
+        guildId: GUILD, categoryId, subject: `Alt ${wer}`,
+        creatorDiscordId: wer, creatorUsername: 'nina',
+        source: 'WEBAPP', actor: actor(wer, 'nina'),
+      });
+      await prisma.ticket.update({
+        where: { id: ticket.id },
+        data: { status, lastMessageAt: langeHer },
+      });
+      return ticket.id;
+    };
+
+    const wartetAufMitglied = await anlegen(mit.id, 'WAITING_FOR_USER', '900000000000001801');
+    const wartetAufSupport = await anlegen(mit.id, 'WAITING_FOR_STAFF', '900000000000001802');
+    const ohneFrist = await anlegen(ohne.id, 'WAITING_FOR_USER', '900000000000001803');
+
+    expect((await tickets.runTicketAutoClose()).geschlossen).toBe(1);
+
+    expect((await prisma.ticket.findUniqueOrThrow({ where: { id: wartetAufMitglied } })).status).toBe('CLOSED');
+    expect((await prisma.ticket.findUniqueOrThrow({ where: { id: wartetAufSupport } })).status).toBe('WAITING_FOR_STAFF');
+    expect((await prisma.ticket.findUniqueOrThrow({ where: { id: ohneFrist } })).status).toBe('WAITING_FOR_USER');
+  });
+
+  // --- Kategorien ------------------------------------------------------
+
+  it('lässt eine Kategorie mit Tickets nicht entfernen', async () => {
+    const k = await kategorie('Allgemein');
+    await tickets.createTicket({
+      guildId: GUILD, categoryId: k.id, subject: 'Hängt dran',
+      creatorDiscordId: '900000000000001901', creatorUsername: 'nina',
+      source: 'WEBAPP', actor: actor('900000000000001901', 'nina'),
+    });
+
+    // Sonst verlöre das Archiv die Zuordnung - und mit ihr die Grundlage,
+    // auf der die Sichtbarkeit entschieden wird.
+    await expect(tickets.deleteCategory(k.id)).rejects.toMatchObject({ code: 'CONFLICT' });
+
+    await prisma.ticket.deleteMany({ where: { categoryId: k.id } });
+    await expect(tickets.deleteCategory(k.id)).resolves.toBeUndefined();
+  });
+
+  it('lässt nicht mehr Fragen zu, als ein Discord-Modal fasst', async () => {
+    const feld = (label: string) => ({
+      kind: 'SHORT_TEXT' as const, label, placeholder: null,
+      required: false, minLength: null, maxLength: null,
+    });
+    const basis = {
+      name: 'Zu viele Fragen', description: null, emoji: null, active: true, sortOrder: 0,
+      discordCategoryId: KATEGORIE_KANAL, overflowCategoryId: null,
+      supportRoleIds: [SUPPORT_ROLE], pingSupport: false,
+      defaultPriority: 'NORMAL' as const,
+      channelNameTemplate: 'ticket-{number}', welcomeMessage: null, closeMessage: null,
+      maxOpenPerUser: 0, userCanClose: true,
+      reminderAfterDays: 0, autoCloseAfterDays: 0,
+      responseTargetHours: 0, resolutionTargetHours: 0, sensitive: false,
+    };
+
+    await expect(
+      tickets.createCategory({
+        ...basis,
+        formFields: ['a', 'b', 'c', 'd', 'e'].map(feld),
+      }),
+    ).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
+
+    // Vier gehen - das fünfte Feld im Modal ist der Betreff.
+    const angelegt = await tickets.createCategory({
+      ...basis,
+      formFields: ['a', 'b', 'c', 'd'].map(feld),
+    });
+    expect(await prisma.ticketFormField.count({ where: { categoryId: angelegt.id } })).toBe(4);
+  });
+
   // --- Kanalnamen ------------------------------------------------------
 
   it('macht aus Benutzernamen einen zulässigen Kanalnamen', () => {

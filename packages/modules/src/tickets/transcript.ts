@@ -149,7 +149,7 @@ export async function renderTranscript(
 ${kopf.map(([bezeichnung, wert]) => `  <dt>${escape(bezeichnung)}</dt><dd>${escape(wert)}</dd>`).join('\n')}
 </dl>
 ${zeilen || '<p>Keine Nachrichten.</p>'}
-<footer>${nachrichten.length} Nachrichten · ${audience === 'STAFF' ? 'Team-Fassung mit internen Notizen' : 'Fassung ohne interne Notizen'} · erstellt am ${escape(formatDateTime(new Date()))}</footer>
+<footer>${nachrichten.length} ${nachrichten.length === 1 ? 'Nachricht' : 'Nachrichten'} · ${audience === 'STAFF' ? 'Team-Fassung mit internen Notizen' : 'Fassung ohne interne Notizen'} · erstellt am ${escape(formatDateTime(new Date()))}</footer>
 </main>
 </body>
 </html>`;

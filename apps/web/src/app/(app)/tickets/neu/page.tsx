@@ -5,6 +5,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { EmptyState } from '@/components/shared/states';
 import { PageHeader } from '@/components/shared/page-header';
 import { CreateTicketForm } from '@/modules/tickets/components/create-ticket-form';
+import { can } from '@swisshub/auth';
 import { csrfTokenFor, requirePagePermission } from '@/server/auth';
 
 export const metadata: Metadata = { title: 'Neues Ticket' };
@@ -63,7 +64,11 @@ export default async function NeuesTicketPage(): Promise<React.JSX.Element> {
       />
       <Card>
         <CardContent className="pt-6">
-          <CreateTicketForm csrfToken={csrfTokenFor(context)} kategorien={kategorien} />
+          <CreateTicketForm
+            csrfToken={csrfTokenFor(context)}
+            kategorien={kategorien}
+            darfFuerAndere={can(context, tickets.TICKET_PERMISSIONS.createForUser)}
+          />
         </CardContent>
       </Card>
     </>

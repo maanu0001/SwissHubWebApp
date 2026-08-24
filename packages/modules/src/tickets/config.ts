@@ -40,7 +40,7 @@ export const TICKET_PERMISSIONS = {
   categoriesManage: 'tickets.categories.manage',
   panelsManage: 'tickets.panels.manage',
   templatesManage: 'tickets.templates.manage',
-  settingsManage: 'tickets.settings.manage',
+  settingsManage: 'tickets.settings',
   blockManage: 'tickets.block.manage',
   statsView: 'tickets.stats.view',
 

@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache';
 import { AUDIT_ACTIONS, safeRecordAudit } from '@swisshub/database';
 import { AppError } from '@swisshub/shared';
 import { tickets } from '@swisshub/modules';
+import { can } from '@swisshub/auth';
 import { defineAction } from '@/server/action';
 import { ladeTicketMitZugriff } from '@/server/tickets';
 
@@ -260,6 +261,82 @@ export const removeParticipantAction = defineAction(
   },
 );
 
+export const assignAction = defineAction(
+  {
+    name: 'tickets.assign',
+    module: 'tickets',
+    permission: tickets.TICKET_PERMISSIONS.supportAssign,
+    schema: ticketSchema.extend({
+      // `null` hebt die Zuweisung auf.
+      discordId: z.string().regex(/^\d{17,20}$/u).nullable(),
+      username: z.string().min(1).max(64).nullable(),
+    }),
+    rateLimit: 'ticketWrite',
+    freshness: 'critical',
+  },
+  async ({ ctx, input }) => {
+    const { ticket, zugriff } = await ladeTicketMitZugriff(ctx, input.ticketId);
+    if (!zugriff.asStaff) {
+      throw new AppError('FORBIDDEN', { userMessage: 'Du bist für dieses Ticket nicht zuständig.' });
+    }
+    await tickets.assignTicket(
+      ticket.id,
+      input.discordId && input.username
+        ? { discordId: input.discordId, username: input.username }
+        : null,
+      actor(ctx),
+    );
+    revalidatePath(`/tickets/${ticket.id}`);
+    return { ok: true };
+  },
+);
+
+export const setTagsAction = defineAction(
+  {
+    name: 'tickets.tags',
+    module: 'tickets',
+    permission: tickets.TICKET_PERMISSIONS.supportManageTags,
+    schema: ticketSchema.extend({ tagIds: z.array(z.string().cuid()).max(20) }),
+    rateLimit: 'ticketWrite',
+  },
+  async ({ ctx, input }) => {
+    const { ticket, zugriff } = await ladeTicketMitZugriff(ctx, input.ticketId);
+    if (!zugriff.asStaff) {
+      throw new AppError('FORBIDDEN', { userMessage: 'Du bist für dieses Ticket nicht zuständig.' });
+    }
+    await tickets.setTicketTags(ticket.id, input.tagIds, actor(ctx));
+    revalidatePath(`/tickets/${ticket.id}`);
+    return { ok: true };
+  },
+);
+
+export const feedbackAction = defineAction(
+  {
+    name: 'tickets.feedback',
+    module: 'tickets',
+    // Selbstbedienung: die Bewertung des eigenen Tickets. Wer sie abgeben
+    // darf, entscheidet der Service anhand des Erstellers - nicht eine
+    // Berechtigung, die man einer Rolle geben müsste.
+    selfService: true,
+    schema: ticketSchema.extend({
+      rating: z.number().int().min(1).max(5),
+      comment: z.string().max(500).optional(),
+    }),
+    rateLimit: 'ticketWrite',
+  },
+  async ({ ctx, input }) => {
+    const { ticket } = await ladeTicketMitZugriff(ctx, input.ticketId);
+    await tickets.recordFeedback({
+      ticketId: ticket.id,
+      discordId: ctx.user.discordId,
+      rating: input.rating,
+      comment: input.comment ?? null,
+    });
+    revalidatePath(`/tickets/${ticket.id}`);
+    return { ok: true };
+  },
+);
+
 export const createTicketAction = defineAction(
   {
     name: 'tickets.create',
@@ -273,16 +350,25 @@ export const createTicketAction = defineAction(
       // Browser: sonst koennte ein manipuliertes Formular Pflichtfelder
       // weglassen oder eigene erfinden.
       answers: z.array(z.string().max(4000)).max(10).default([]),
+      // Im Namen eines Mitglieds eröffnen. Braucht eine eigene, kritische
+      // Berechtigung - sonst legte jeder Tickets auf fremde Namen an.
+      forDiscordId: z.string().regex(/^\d{17,20}$/u).optional(),
+      forUsername: z.string().min(1).max(64).optional(),
     }),
     rateLimit: 'ticketCreate',
     freshness: 'critical',
   },
   async ({ ctx, input }) => {
-    const { resolveGuildId } = await import('@swisshub/discord');
-
     const kategorie = await tickets.getCategory(input.categoryId);
     if (!kategorie || !kategorie.active) {
       throw new AppError('NOT_FOUND', { userMessage: 'Diese Kategorie steht nicht zur Verfügung.' });
+    }
+
+    const fuerAndere = input.forDiscordId !== undefined && input.forDiscordId !== ctx.user.discordId;
+    if (fuerAndere && !can(ctx, tickets.TICKET_PERMISSIONS.createForUser)) {
+      throw new AppError('FORBIDDEN', {
+        userMessage: 'Du kannst kein Ticket im Namen eines anderen Mitglieds eröffnen.',
+      });
     }
 
     const formAnswers: Record<string, string> = {};
@@ -319,13 +405,16 @@ export const createTicketAction = defineAction(
     }
 
     const ticket = await tickets.createTicket({
-      guildId: await resolveGuildId(),
       categoryId: kategorie.id,
       subject: input.subject,
-      creatorDiscordId: ctx.user.discordId,
-      creatorUsername: ctx.user.username,
+      creatorDiscordId: fuerAndere ? input.forDiscordId! : ctx.user.discordId,
+      creatorUsername: fuerAndere
+        ? (input.forUsername ?? input.forDiscordId!)
+        : ctx.user.username,
       formAnswers,
-      source: 'WEBAPP',
+      // Ein Ticket, das die Verwaltung anlegt, sagt das auch - sonst sähe es
+      // im Archiv aus, als hätte das Mitglied es selbst eröffnet.
+      source: fuerAndere ? 'ADMIN' : 'WEBAPP',
       actor: actor(ctx),
     });
 

@@ -7,6 +7,7 @@ import { Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input, Textarea } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { MemberPicker, type PickedMember } from '@/modules/members/components/member-picker';
 import { createTicketAction } from '@/modules/tickets/actions';
 import { cn } from '@/lib/utils';
 
@@ -36,9 +37,12 @@ export interface KategorieFuerFormular {
 export function CreateTicketForm({
   csrfToken,
   kategorien,
+  darfFuerAndere = false,
 }: {
   csrfToken: string;
   kategorien: KategorieFuerFormular[];
+  /** Im Namen eines Mitglieds eröffnen - eigene, kritische Berechtigung. */
+  darfFuerAndere?: boolean;
 }): React.JSX.Element {
   const router = useRouter();
   const [kategorieId, setKategorieId] = useState<string | null>(
@@ -47,6 +51,7 @@ export function CreateTicketForm({
   const [betreff, setBetreff] = useState('');
   const [antworten, setAntworten] = useState<Record<string, string>>({});
   const [laeuft, setLaeuft] = useState(false);
+  const [fuerWen, setFuerWen] = useState<PickedMember | null>(null);
 
   const kategorie = useMemo(
     () => kategorien.find((eintrag) => eintrag.id === kategorieId) ?? null,
@@ -80,6 +85,7 @@ export function CreateTicketForm({
       categoryId: kategorie.id,
       subject: betreff.trim(),
       answers: felder.map((feld) => antworten[feld.id] ?? ''),
+      ...(fuerWen ? { forDiscordId: fuerWen.discordId, forUsername: fuerWen.username } : {}),
     });
     if (antwort.ok) {
       toast.success(`Ticket #${String(antwort.data.ticketNumber).padStart(4, '0')} eröffnet.`);
@@ -133,6 +139,21 @@ export function CreateTicketForm({
 
       {kategorie ? (
         <>
+          {darfFuerAndere ? (
+            <div className="space-y-2 rounded-xl border border-border/60 p-4">
+              <MemberPicker
+                csrfToken={csrfToken}
+                value={fuerWen}
+                onChange={setFuerWen}
+                label="Im Namen von (leer = für dich selbst)"
+              />
+              <p className="text-xs text-muted-foreground">
+                Das Ticket erscheint im Archiv als von der Verwaltung angelegt - nicht so, als
+                hätte das Mitglied es selbst eröffnet.
+              </p>
+            </div>
+          ) : null}
+
           <div className="space-y-2">
             <Label htmlFor="ticket-betreff">Betreff</Label>
             <Input

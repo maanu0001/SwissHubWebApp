@@ -246,3 +246,168 @@ export const publishPanelAction = defineAction(
     return { ok: true };
   },
 );
+
+// --- Schlagwörter --------------------------------------------------------
+
+export const createTagAction = defineAction(
+  {
+    name: 'tickets.tags.create',
+    module: 'tickets',
+    permission: tickets.TICKET_PERMISSIONS.supportManageTags,
+    schema: z.object({
+      name: z.string().min(1).max(40),
+      color: z
+        .string()
+        .regex(/^#[0-9a-fA-F]{6}$/u)
+        .nullable()
+        .default(null),
+    }),
+    rateLimit: 'ticketAdmin',
+  },
+  async ({ input }) => {
+    const tag = await tickets.createTag(input.name, input.color);
+    revalidatePath('/tickets/schlagwoerter');
+    return { tagId: tag.id };
+  },
+);
+
+export const deleteTagAction = defineAction(
+  {
+    name: 'tickets.tags.delete',
+    module: 'tickets',
+    permission: tickets.TICKET_PERMISSIONS.supportManageTags,
+    schema: z.object({ tagId: z.string().cuid() }),
+    rateLimit: 'ticketAdmin',
+  },
+  async ({ input }) => {
+    await tickets.deleteTag(input.tagId);
+    revalidatePath('/tickets/schlagwoerter');
+    return { ok: true };
+  },
+);
+
+// --- Antwortvorlagen -----------------------------------------------------
+
+const templateSchema = z.object({
+  title: z.string().min(1).max(100),
+  // Dieselbe Grenze wie eine Antwort: eine Vorlage, die nicht abschickbar
+  // wäre, ist keine Vorlage.
+  content: z.string().min(1).max(1800),
+  categoryId: z.string().cuid().nullable().default(null),
+});
+
+export const createTemplateAction = defineAction(
+  {
+    name: 'tickets.templates.create',
+    module: 'tickets',
+    permission: tickets.TICKET_PERMISSIONS.templatesManage,
+    schema: templateSchema,
+    rateLimit: 'ticketAdmin',
+  },
+  async ({ input }) => {
+    const vorlage = await tickets.createTemplate(input);
+    revalidatePath('/tickets/vorlagen');
+    return { templateId: vorlage.id };
+  },
+);
+
+export const updateTemplateAction = defineAction(
+  {
+    name: 'tickets.templates.update',
+    module: 'tickets',
+    permission: tickets.TICKET_PERMISSIONS.templatesManage,
+    schema: templateSchema.extend({ templateId: z.string().cuid() }),
+    rateLimit: 'ticketAdmin',
+  },
+  async ({ input }) => {
+    const { templateId, ...rest } = input;
+    await tickets.updateTemplate(templateId, rest);
+    revalidatePath('/tickets/vorlagen');
+    return { ok: true };
+  },
+);
+
+export const deleteTemplateAction = defineAction(
+  {
+    name: 'tickets.templates.delete',
+    module: 'tickets',
+    permission: tickets.TICKET_PERMISSIONS.templatesManage,
+    schema: z.object({ templateId: z.string().cuid() }),
+    rateLimit: 'ticketAdmin',
+  },
+  async ({ input }) => {
+    await tickets.deleteTemplate(input.templateId);
+    revalidatePath('/tickets/vorlagen');
+    return { ok: true };
+  },
+);
+
+// --- Sperren -------------------------------------------------------------
+
+export const blockMemberAction = defineAction(
+  {
+    name: 'tickets.blocks.create',
+    module: 'tickets',
+    permission: tickets.TICKET_PERMISSIONS.blockManage,
+    schema: z.object({
+      discordId: z.string().regex(/^\d{17,20}$/u),
+      username: z.string().min(1).max(64).nullable().default(null),
+      reason: z.string().min(3).max(500),
+      /** Tage; 0 bedeutet unbefristet. */
+      days: z.number().int().min(0).max(3650).default(0),
+    }),
+    rateLimit: 'ticketAdmin',
+    freshness: 'critical',
+  },
+  async ({ ctx, input, metadata }) => {
+    const eintrag = await tickets.blockMember(
+      {
+        discordId: input.discordId,
+        username: input.username,
+        reason: input.reason,
+        expiresAt: input.days > 0 ? new Date(Date.now() + input.days * 24 * 3600_000) : null,
+      },
+      { discordId: ctx.user.discordId, username: ctx.user.username, source: 'WEBAPP' },
+    );
+    await safeRecordAudit({
+      action: AUDIT_ACTIONS.TICKET_BLOCKED,
+      module: 'tickets',
+      actorDiscordId: ctx.user.discordId,
+      actorUsername: ctx.user.username,
+      targetDiscordId: input.discordId,
+      targetLabel: input.username ?? input.discordId,
+      success: true,
+      ipHash: metadata.ipHash,
+      userAgent: metadata.userAgent,
+      metadata: { grund: input.reason, tage: input.days },
+    });
+    revalidatePath('/tickets/sperren');
+    return { blockId: eintrag.id };
+  },
+);
+
+export const liftBlockAction = defineAction(
+  {
+    name: 'tickets.blocks.lift',
+    module: 'tickets',
+    permission: tickets.TICKET_PERMISSIONS.blockManage,
+    schema: z.object({ blockId: z.string().cuid() }),
+    rateLimit: 'ticketAdmin',
+    freshness: 'critical',
+  },
+  async ({ ctx, input, metadata }) => {
+    await tickets.liftBlock(input.blockId);
+    await safeRecordAudit({
+      action: AUDIT_ACTIONS.TICKET_UNBLOCKED,
+      module: 'tickets',
+      actorDiscordId: ctx.user.discordId,
+      actorUsername: ctx.user.username,
+      targetLabel: input.blockId,
+      success: true,
+      ipHash: metadata.ipHash,
+      userAgent: metadata.userAgent,
+    });
+    revalidatePath('/tickets/sperren');
+    return { ok: true };
+  },
+);

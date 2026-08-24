@@ -160,7 +160,45 @@ Discord-Kanal.
 
 ---
 
-## 4. Transcripts
+## 4. Support-Alltag
+
+| Bereich                    | Adresse                    | Berechtigung                 |
+| -------------------------- | -------------------------- | ---------------------------- |
+| Schlagwörter               | `/tickets/schlagwoerter`   | `tickets.support.manageTags` |
+| Antwortvorlagen            | `/tickets/vorlagen`        | `tickets.templates.manage`   |
+| Sperren                    | `/tickets/sperren`         | `tickets.block.manage`       |
+
+**Zuweisen** übergibt ein Ticket an eine bestimmte Person
+(`tickets.support.assign`); **Übernehmen** ist der Sonderfall davon, in dem
+man sich selbst einträgt. Die Übergabe steht als Systemmeldung im Kanal.
+
+**Schlagwörter** ordnen ein, sie entscheiden nichts über Sichtbarkeit. Jede
+Änderung steht im Verlauf des Tickets.
+
+**Antwortvorlagen** werden beim Antworten ins Feld gesetzt, nicht abgeschickt.
+Eine Vorlage ist ein Anfang, kein fertiger Text – wer sie unverändert sendet,
+hat das entschieden. Vorlagen ohne Kategorie erscheinen überall, sonst nur bei
+der passenden.
+
+**Sperren** verhindern das Eröffnen neuer Tickets. Bestehende bleiben
+bearbeitbar: eine Sperre schneidet niemanden mitten im Gespräch ab. Sie sind
+befristet oder unbefristet und lassen sich jederzeit aufheben; beides wird im
+Audit festgehalten.
+
+**Rückmeldung**: ist `feedbackEnabled` gesetzt, fragt der Bot nach dem
+Schliessen im Ticket-Kanal nach 1 bis 5 Sternen. Bewerten darf nur, wer das
+Ticket eröffnet hat, nur nach dem Abschluss und nur einmal – eine Statistik
+aus Bewertungen, die jeder abgeben könnte, wäre keine. Dieselbe Bewertung
+lässt sich auch im Dashboard abgeben.
+
+**Für andere eröffnen**: mit `tickets.admin.createForUser` lässt sich unter
+`/tickets/neu` ein Ticket im Namen eines Mitglieds anlegen. Es trägt die
+Quelle `ADMIN` – im Archiv soll nicht aussehen, als hätte das Mitglied es
+selbst eröffnet.
+
+---
+
+## 5. Transcripts
 
 Zwei Fassungen, weil es zwei Publika gibt:
 
@@ -183,7 +221,7 @@ Ohne ausdrücklichen Wert (`0`) wird nichts gelöscht.
 
 ---
 
-## 5. Zeitsteuerung
+## 6. Zeitsteuerung
 
 Ein Job im bestehenden Runner des Bots, alle fünf Minuten
 (`tickets-tick` → `runTicketTick()`). Er prüft selbst, ob das Modul
@@ -203,13 +241,14 @@ ab.
 
 ---
 
-## 6. Discord-Seite
+## 7. Discord-Seite
 
 | Kennung                     | Wirkung                                        |
 | --------------------------- | ---------------------------------------------- |
 | `tickets:open:<categoryId>` | Knopf im Panel → Formular dieser Kategorie     |
 | `tickets:claim`             | Knopf im Ticket-Kanal → übernehmen             |
 | `tickets:close`             | Knopf im Ticket-Kanal → schliessen             |
+| `tickets:feedback:<1-5>`    | Sternknopf nach dem Schliessen → Bewertung     |
 
 Ein Panel trägt **einen Knopf je Kategorie**: das Mitglied wählt in einem
 Schritt statt in zweien, und der Bot weiss beim Klick bereits, worum es geht.
@@ -230,7 +269,7 @@ wirkungslos.
 
 ---
 
-## 7. Berechtigungen
+## 8. Berechtigungen
 
 | Schlüssel                        | Bedeutung                                     |
 | -------------------------------- | --------------------------------------------- |
@@ -246,13 +285,16 @@ wirkungslos.
 | `tickets.support.removeUser`     | Teilnehmer entfernen                          |
 | `tickets.support.close`          | schliessen                                    |
 | `tickets.support.reopen`         | wieder öffnen                                 |
+| `tickets.support.manageTags`     | Schlagwörter anlegen und setzen               |
+| `tickets.templates.manage` ⚠     | Antwortvorlagen pflegen                       |
+| `tickets.admin.createForUser` ⚠  | Ticket im Namen eines Mitglieds eröffnen      |
 | `tickets.notes.view` ⚠           | interne Notizen lesen                         |
 | `tickets.notes.create`           | interne Notizen schreiben                     |
 | `tickets.archive.view`           | Archiv durchsuchen                            |
 | `tickets.transcript.view` ⚠      | fremde Verläufe herunterladen                 |
 | `tickets.categories.manage` ⚠    | Kategorien pflegen                            |
 | `tickets.panels.manage` ⚠        | Panels erstellen und veröffentlichen          |
-| `tickets.settings.manage` ⚠      | Moduleinstellungen ändern                     |
+| `tickets.settings` ⚠            | Moduleinstellungen ändern                     |
 | `tickets.block.manage` ⚠         | Mitglieder vom Ticketsystem ausschliessen     |
 | `tickets.stats.view`             | Kennzahlen ansehen                            |
 | `tickets.admin` ⚠                | alle Tickets, unabhängig von der Kategorie    |
@@ -264,7 +306,7 @@ aber keine Kategorien, Panels oder Einstellungen.
 
 ---
 
-## 8. Produktion
+## 9. Produktion
 
 Die Migration ist **additiv**: neue Tabellen und eine neue nullbare Spalte
 (`Ticket.reminderSentAt`). Bestehende Daten werden nicht angefasst.
@@ -289,7 +331,7 @@ Nach dem Start:
 
 ---
 
-## 9. Wo was liegt
+## 10. Wo was liegt
 
 | Ort                                            | Inhalt                                       |
 | ---------------------------------------------- | -------------------------------------------- |
@@ -301,6 +343,7 @@ Nach dem Start:
 | `packages/modules/src/tickets/transcript.ts`   | Verlauf als Datei, zwei Fassungen            |
 | `packages/modules/src/tickets/scheduler.ts`    | Erinnern, selbsttätig schliessen, abgleichen |
 | `packages/modules/src/tickets/panels.ts`       | Panel-Nachricht und Veröffentlichung         |
+| `packages/modules/src/tickets/support.ts`      | Schlagwörter, Vorlagen, Sperren, Bewertung   |
 | `apps/bot/src/ticket-interactions.ts`          | Panel-Knopf, Formular, Kanal-Knöpfe          |
 | `apps/bot/src/ticket-messages.ts`              | Nachrichten aus Ticket-Kanälen übernehmen    |
 | `apps/web/src/app/(app)/tickets/`              | Seiten                                       |

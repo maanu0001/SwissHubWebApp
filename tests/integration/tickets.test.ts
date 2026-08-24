@@ -17,7 +17,15 @@ const { tickets, setModuleEnabled, syncDiscord, writeModuleSettings } = await im
   '@swisshub/modules'
 );
 
-const GUILD = '100000000000000800';
+/**
+ * Der verbundene Server.
+ *
+ * Wird beim Start aufgeloest statt festgeschrieben: `createTicket` loest ihn
+ * seit jeher selbst auf, und eine zweite, abweichende Kennung im Test hat
+ * genau die Verwechslung nachgestellt, die es in der Anwendung nicht mehr
+ * gibt.
+ */
+let GUILD = '';
 const ADMIN = { discordId: '100000000000000010', username: 'verwaltung' };
 const SUPPORT_ROLE = '900000000000000004'; // @Supporter im Mock
 const ANDERE_ROLE = '900000000000000006'; // @Jail im Mock
@@ -61,6 +69,9 @@ describeWithDatabase('Tickets', () => {
         '"TicketCategory","TicketCounter","ModuleState" RESTART IDENTITY CASCADE',
     );
     await syncDiscord({ trigger: 'manual' });
+    const { resolveGuildId, clearGuildIdCache } = await import('@swisshub/discord');
+    clearGuildIdCache();
+    GUILD = await resolveGuildId();
     await setModuleEnabled(tickets.TICKETS_MODULE_ID, true, ADMIN.discordId);
     await writeModuleSettings(
       tickets.TICKETS_MODULE_ID,
@@ -87,7 +98,6 @@ describeWithDatabase('Tickets', () => {
   it('legt Ticket und Discord-Kanal an', async () => {
     const k = await kategorie('Allgemein');
     const ticket = await tickets.createTicket({
-      guildId: GUILD,
       categoryId: k.id,
       subject: 'Mein Anliegen',
       creatorDiscordId: '900000000000001001',
@@ -104,14 +114,14 @@ describeWithDatabase('Tickets', () => {
   it('achtet auf die Grenze offener Tickets', async () => {
     const k = await kategorie('Allgemein', { max: 1 });
     await tickets.createTicket({
-      guildId: GUILD, categoryId: k.id, subject: 'Erstes',
+      categoryId: k.id, subject: 'Erstes',
       creatorDiscordId: '900000000000001002', creatorUsername: 'nina',
       source: 'WEBAPP', actor: actor('900000000000001002', 'nina'),
     });
 
     await expect(
       tickets.createTicket({
-        guildId: GUILD, categoryId: k.id, subject: 'Zweites',
+      categoryId: k.id, subject: 'Zweites',
         creatorDiscordId: '900000000000001002', creatorUsername: 'nina',
         source: 'WEBAPP', actor: actor('900000000000001002', 'nina'),
       }),
@@ -127,7 +137,7 @@ describeWithDatabase('Tickets', () => {
 
     await expect(
       tickets.createTicket({
-        guildId: GUILD, categoryId: k.id, subject: 'Test',
+      categoryId: k.id, subject: 'Test',
         creatorDiscordId: '900000000000001003', creatorUsername: 'gesperrt',
         source: 'WEBAPP', actor: actor('900000000000001003', 'gesperrt'),
       }),
@@ -147,7 +157,7 @@ describeWithDatabase('Tickets', () => {
 
     await expect(
       tickets.createTicket({
-        guildId: GUILD, categoryId: k.id, subject: 'Test',
+      categoryId: k.id, subject: 'Test',
         creatorDiscordId: '900000000000001004', creatorUsername: 'jemand',
         source: 'WEBAPP', actor: actor('900000000000001004', 'jemand'),
       }),
@@ -159,7 +169,7 @@ describeWithDatabase('Tickets', () => {
   it('lässt nur eine von zehn gleichzeitigen Übernahmen gelingen', async () => {
     const k = await kategorie('Allgemein');
     const ticket = await tickets.createTicket({
-      guildId: GUILD, categoryId: k.id, subject: 'Wer zuerst kommt',
+      categoryId: k.id, subject: 'Wer zuerst kommt',
       creatorDiscordId: '900000000000001005', creatorUsername: 'manuel',
       source: 'WEBAPP', actor: actor('900000000000001005', 'manuel'),
     });
@@ -181,7 +191,7 @@ describeWithDatabase('Tickets', () => {
   it('zeigt einem fremden Mitglied nichts', async () => {
     const k = await kategorie('Allgemein');
     const ticket = await tickets.createTicket({
-      guildId: GUILD, categoryId: k.id, subject: 'Privat',
+      categoryId: k.id, subject: 'Privat',
       creatorDiscordId: '900000000000001006', creatorUsername: 'manuel',
       source: 'WEBAPP', actor: actor('900000000000001006', 'manuel'),
     });
@@ -198,7 +208,7 @@ describeWithDatabase('Tickets', () => {
   it('lässt den Ersteller sein Ticket sehen, aber keine internen Notizen', async () => {
     const k = await kategorie('Allgemein');
     const ticket = await tickets.createTicket({
-      guildId: GUILD, categoryId: k.id, subject: 'Meins',
+      categoryId: k.id, subject: 'Meins',
       creatorDiscordId: '900000000000001007', creatorUsername: 'manuel',
       source: 'WEBAPP', actor: actor('900000000000001007', 'manuel'),
     });
@@ -217,7 +227,7 @@ describeWithDatabase('Tickets', () => {
   it('verwehrt einem Supporter fremde Kategorien', async () => {
     const moderation = await kategorie('Moderation', { rollen: [ANDERE_ROLE] });
     const ticket = await tickets.createTicket({
-      guildId: GUILD, categoryId: moderation.id, subject: 'Meldung',
+      categoryId: moderation.id, subject: 'Meldung',
       creatorDiscordId: '900000000000001008', creatorUsername: 'manuel',
       source: 'WEBAPP', actor: actor('900000000000001008', 'manuel'),
     });
@@ -233,7 +243,7 @@ describeWithDatabase('Tickets', () => {
   it('lässt den zuständigen Supporter arbeiten', async () => {
     const k = await kategorie('Allgemein');
     const ticket = await tickets.createTicket({
-      guildId: GUILD, categoryId: k.id, subject: 'Hilfe',
+      categoryId: k.id, subject: 'Hilfe',
       creatorDiscordId: '900000000000001009', creatorUsername: 'manuel',
       source: 'WEBAPP', actor: actor('900000000000001009', 'manuel'),
     });
@@ -270,7 +280,7 @@ describeWithDatabase('Tickets', () => {
   it('hält interne Notizen aus der Mitgliederansicht heraus', async () => {
     const k = await kategorie('Allgemein');
     const ticket = await tickets.createTicket({
-      guildId: GUILD, categoryId: k.id, subject: 'Frage',
+      categoryId: k.id, subject: 'Frage',
       creatorDiscordId: '900000000000001010', creatorUsername: 'manuel',
       source: 'WEBAPP', actor: actor('900000000000001010', 'manuel'),
     });
@@ -289,7 +299,7 @@ describeWithDatabase('Tickets', () => {
   it('merkt sich die erste Support-Antwort', async () => {
     const k = await kategorie('Allgemein');
     const ticket = await tickets.createTicket({
-      guildId: GUILD, categoryId: k.id, subject: 'Frage',
+      categoryId: k.id, subject: 'Frage',
       creatorDiscordId: '900000000000001011', creatorUsername: 'manuel',
       source: 'WEBAPP', actor: actor('900000000000001011', 'manuel'),
     });
@@ -313,7 +323,7 @@ describeWithDatabase('Tickets', () => {
   it('weist zu lange Nachrichten ab, statt sie zu kürzen', async () => {
     const k = await kategorie('Allgemein');
     const ticket = await tickets.createTicket({
-      guildId: GUILD, categoryId: k.id, subject: 'Frage',
+      categoryId: k.id, subject: 'Frage',
       creatorDiscordId: '900000000000001012', creatorUsername: 'manuel',
       source: 'WEBAPP', actor: actor('900000000000001012', 'manuel'),
     });
@@ -328,7 +338,7 @@ describeWithDatabase('Tickets', () => {
   it('übernimmt dieselbe Discord-Nachricht nur einmal', async () => {
     const k = await kategorie('Allgemein');
     const ticket = await tickets.createTicket({
-      guildId: GUILD, categoryId: k.id, subject: 'Frage',
+      categoryId: k.id, subject: 'Frage',
       creatorDiscordId: '900000000000001013', creatorUsername: 'manuel',
       source: 'WEBAPP', actor: actor('900000000000001013', 'manuel'),
     });
@@ -350,7 +360,7 @@ describeWithDatabase('Tickets', () => {
   it('schliesst und behält den Kanal für die Aufbewahrungsfrist', async () => {
     const k = await kategorie('Allgemein');
     const ticket = await tickets.createTicket({
-      guildId: GUILD, categoryId: k.id, subject: 'Erledigt',
+      categoryId: k.id, subject: 'Erledigt',
       creatorDiscordId: '900000000000001014', creatorUsername: 'manuel',
       source: 'WEBAPP', actor: actor('900000000000001014', 'manuel'),
     });
@@ -366,7 +376,7 @@ describeWithDatabase('Tickets', () => {
   it('öffnet ein geschlossenes Ticket wieder', async () => {
     const k = await kategorie('Allgemein');
     const ticket = await tickets.createTicket({
-      guildId: GUILD, categoryId: k.id, subject: 'Doch nicht',
+      categoryId: k.id, subject: 'Doch nicht',
       creatorDiscordId: '900000000000001015', creatorUsername: 'manuel',
       source: 'WEBAPP', actor: actor('900000000000001015', 'manuel'),
     });
@@ -381,7 +391,7 @@ describeWithDatabase('Tickets', () => {
   it('behält das Ticket, wenn der Discord-Kanal verschwindet', async () => {
     const k = await kategorie('Allgemein');
     const ticket = await tickets.createTicket({
-      guildId: GUILD, categoryId: k.id, subject: 'Verwaist',
+      categoryId: k.id, subject: 'Verwaist',
       creatorDiscordId: '900000000000001016', creatorUsername: 'manuel',
       source: 'WEBAPP', actor: actor('900000000000001016', 'manuel'),
     });
@@ -404,7 +414,7 @@ describeWithDatabase('Tickets', () => {
   it('hält interne Notizen aus der Nutzerfassung des Transcripts heraus', async () => {
     const k = await kategorie('Allgemein');
     const ticket = await tickets.createTicket({
-      guildId: GUILD, categoryId: k.id, subject: 'Verlauf',
+      categoryId: k.id, subject: 'Verlauf',
       creatorDiscordId: '900000000000001601', creatorUsername: 'nina',
       source: 'WEBAPP', actor: actor('900000000000001601', 'nina'),
     });
@@ -432,7 +442,7 @@ describeWithDatabase('Tickets', () => {
   it('macht aus Nachrichteninhalt kein HTML', async () => {
     const k = await kategorie('Allgemein');
     const ticket = await tickets.createTicket({
-      guildId: GUILD, categoryId: k.id, subject: '<img src=x onerror=alert(1)>',
+      categoryId: k.id, subject: '<img src=x onerror=alert(1)>',
       creatorDiscordId: '900000000000001602', creatorUsername: 'mallory',
       source: 'WEBAPP', actor: actor('900000000000001602', 'mallory'),
     });
@@ -453,7 +463,7 @@ describeWithDatabase('Tickets', () => {
   it('legt beim Schliessen beide Fassungen ab', async () => {
     const k = await kategorie('Allgemein');
     const ticket = await tickets.createTicket({
-      guildId: GUILD, categoryId: k.id, subject: 'Wird geschlossen',
+      categoryId: k.id, subject: 'Wird geschlossen',
       creatorDiscordId: '900000000000001603', creatorUsername: 'nina',
       source: 'WEBAPP', actor: actor('900000000000001603', 'nina'),
     });
@@ -475,7 +485,7 @@ describeWithDatabase('Tickets', () => {
   it('entfernt Transcripts erst nach der eingestellten Frist', async () => {
     const k = await kategorie('Allgemein');
     const ticket = await tickets.createTicket({
-      guildId: GUILD, categoryId: k.id, subject: 'Alt',
+      categoryId: k.id, subject: 'Alt',
       creatorDiscordId: '900000000000001604', creatorUsername: 'nina',
       source: 'WEBAPP', actor: actor('900000000000001604', 'nina'),
     });
@@ -507,7 +517,7 @@ describeWithDatabase('Tickets', () => {
       },
     });
     const ticket = await tickets.createTicket({
-      guildId: GUILD, categoryId: k.id, subject: 'Wartet',
+      categoryId: k.id, subject: 'Wartet',
       creatorDiscordId: '900000000000001701', creatorUsername: 'nina',
       source: 'WEBAPP', actor: actor('900000000000001701', 'nina'),
     });
@@ -544,7 +554,7 @@ describeWithDatabase('Tickets', () => {
     const langeHer = new Date(Date.now() - 30 * 24 * 3600_000);
     const anlegen = async (categoryId: string, status: 'WAITING_FOR_USER' | 'WAITING_FOR_STAFF', wer: string) => {
       const ticket = await tickets.createTicket({
-        guildId: GUILD, categoryId, subject: `Alt ${wer}`,
+        categoryId, subject: `Alt ${wer}`,
         creatorDiscordId: wer, creatorUsername: 'nina',
         source: 'WEBAPP', actor: actor(wer, 'nina'),
       });
@@ -571,7 +581,7 @@ describeWithDatabase('Tickets', () => {
   it('lässt eine Kategorie mit Tickets nicht entfernen', async () => {
     const k = await kategorie('Allgemein');
     await tickets.createTicket({
-      guildId: GUILD, categoryId: k.id, subject: 'Hängt dran',
+      categoryId: k.id, subject: 'Hängt dran',
       creatorDiscordId: '900000000000001901', creatorUsername: 'nina',
       source: 'WEBAPP', actor: actor('900000000000001901', 'nina'),
     });
@@ -613,6 +623,146 @@ describeWithDatabase('Tickets', () => {
       formFields: ['a', 'b', 'c', 'd'].map(feld),
     });
     expect(await prisma.ticketFormField.count({ where: { categoryId: angelegt.id } })).toBe(4);
+  });
+
+
+  // --- Schlagwörter, Vorlagen, Sperren, Rückmeldung --------------------
+
+  it('vermerkt jedes gesetzte und entfernte Schlagwort im Verlauf', async () => {
+    const k = await kategorie('Allgemein');
+    const ticket = await tickets.createTicket({
+      categoryId: k.id, subject: 'Mit Schlagwort',
+      creatorDiscordId: '900000000000002001', creatorUsername: 'nina',
+      source: 'WEBAPP', actor: actor('900000000000002001', 'nina'),
+    });
+
+    const eins = await tickets.createTag('Rückfrage offen', '#83060a');
+    const zwei = await tickets.createTag('Wiederkehrend', null);
+
+    await tickets.setTicketTags(ticket.id, [eins.id, zwei.id], ADMIN_ACTOR);
+    expect(await prisma.ticketTagAssignment.count({ where: { ticketId: ticket.id } })).toBe(2);
+
+    await tickets.setTicketTags(ticket.id, [zwei.id], ADMIN_ACTOR);
+    expect(await prisma.ticketTagAssignment.count({ where: { ticketId: ticket.id } })).toBe(1);
+
+    const ereignisse = await prisma.ticketEvent.findMany({
+      where: { ticketId: ticket.id, kind: { in: ['TAG_ADDED', 'TAG_REMOVED'] } },
+    });
+    // Zwei gesetzt, eines entfernt - jede Änderung steht im Verlauf.
+    expect(ereignisse.filter((eintrag) => eintrag.kind === 'TAG_ADDED')).toHaveLength(2);
+    expect(ereignisse.filter((eintrag) => eintrag.kind === 'TAG_REMOVED')).toHaveLength(1);
+  });
+
+  it('weist ein doppeltes Schlagwort ab', async () => {
+    await tickets.createTag('Dringend', null);
+    await expect(tickets.createTag('  Dringend  ', null)).rejects.toMatchObject({
+      code: 'CONFLICT',
+    });
+  });
+
+  it('liefert allgemeine und passende Vorlagen, aber keine fremden', async () => {
+    const eine = await kategorie('Allgemein');
+    const andere = await kategorie('Bewerbung');
+
+    await tickets.createTemplate({ title: 'Gruss', content: 'Hallo!', categoryId: null });
+    await tickets.createTemplate({ title: 'Nur hier', content: 'Text', categoryId: eine.id });
+    await tickets.createTemplate({ title: 'Nur dort', content: 'Text', categoryId: andere.id });
+
+    const fuerEine = await tickets.listTemplates(eine.id);
+    expect(fuerEine.map((vorlage) => vorlage.title).sort()).toEqual(['Gruss', 'Nur hier']);
+  });
+
+  it('sperrt für neue Tickets, lässt bestehende aber laufen', async () => {
+    const k = await kategorie('Allgemein');
+    const wer = '900000000000002101';
+
+    const laufend = await tickets.createTicket({
+      categoryId: k.id, subject: 'Vor der Sperre',
+      creatorDiscordId: wer, creatorUsername: 'mallory',
+      source: 'WEBAPP', actor: actor(wer, 'mallory'),
+    });
+
+    await tickets.blockMember(
+      { discordId: wer, username: 'mallory', reason: 'Missbrauch', expiresAt: null },
+      ADMIN_ACTOR,
+    );
+
+    await expect(
+      tickets.createTicket({
+      categoryId: k.id, subject: 'Nach der Sperre',
+        creatorDiscordId: wer, creatorUsername: 'mallory',
+        source: 'WEBAPP', actor: actor(wer, 'mallory'),
+      }),
+    ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+
+    // Das laufende Ticket bleibt bearbeitbar - eine Sperre schneidet
+    // niemanden mitten im Gespräch ab.
+    await expect(
+      tickets.sendMessage(laufend.id, 'Noch eine Frage', {
+        discordId: wer, username: 'mallory', isStaff: false,
+      }),
+    ).resolves.toBeDefined();
+
+    // Und eine zweite Sperre daneben gibt es nicht.
+    await expect(
+      tickets.blockMember(
+        { discordId: wer, username: 'mallory', reason: 'nochmal', expiresAt: null },
+        ADMIN_ACTOR,
+      ),
+    ).rejects.toMatchObject({ code: 'CONFLICT' });
+  });
+
+  it('hebt eine Sperre auf und lässt danach wieder eröffnen', async () => {
+    const k = await kategorie('Allgemein');
+    const wer = '900000000000002102';
+    const sperre = await tickets.blockMember(
+      { discordId: wer, username: 'nina', reason: 'Versehen', expiresAt: null },
+      ADMIN_ACTOR,
+    );
+    await tickets.liftBlock(sperre.id);
+
+    await expect(
+      tickets.createTicket({
+      categoryId: k.id, subject: 'Wieder erlaubt',
+        creatorDiscordId: wer, creatorUsername: 'nina',
+        source: 'WEBAPP', actor: actor(wer, 'nina'),
+      }),
+    ).resolves.toBeDefined();
+  });
+
+  it('nimmt eine Bewertung nur vom Ersteller, nur einmal, nur nach dem Abschluss', async () => {
+    const k = await kategorie('Allgemein');
+    const wer = '900000000000002201';
+    const ticket = await tickets.createTicket({
+      categoryId: k.id, subject: 'Zu bewerten',
+      creatorDiscordId: wer, creatorUsername: 'nina',
+      source: 'WEBAPP', actor: actor(wer, 'nina'),
+    });
+
+    // Noch offen.
+    await expect(
+      tickets.recordFeedback({ ticketId: ticket.id, discordId: wer, rating: 5 }),
+    ).rejects.toMatchObject({ code: 'CONFLICT' });
+
+    await tickets.closeTicket(ticket.id, null, ADMIN_ACTOR);
+
+    // Jemand anderes.
+    await expect(
+      tickets.recordFeedback({ ticketId: ticket.id, discordId: ADMIN.discordId, rating: 5 }),
+    ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+
+    // Unmöglicher Wert.
+    await expect(
+      tickets.recordFeedback({ ticketId: ticket.id, discordId: wer, rating: 6 }),
+    ).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
+
+    await tickets.recordFeedback({ ticketId: ticket.id, discordId: wer, rating: 4, comment: 'Danke' });
+    expect((await tickets.getFeedback(ticket.id))?.rating).toBe(4);
+
+    // Und kein zweites Mal - sonst liesse sich der Schnitt beliebig ziehen.
+    await expect(
+      tickets.recordFeedback({ ticketId: ticket.id, discordId: wer, rating: 1 }),
+    ).rejects.toMatchObject({ code: 'CONFLICT' });
   });
 
   // --- Kanalnamen ------------------------------------------------------

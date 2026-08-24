@@ -21,18 +21,26 @@ const NOTIZ_MAX = 4000;
  * Deshalb zwei Felder mit eigener Farbe, eigener Beschriftung und eigenem
  * Knopf.
  */
+export interface AntwortVorlage {
+  id: string;
+  title: string;
+  content: string;
+}
+
 export function TicketComposer({
   ticketId,
   csrfToken,
   darfAntworten,
   darfNotieren,
   geschlossen,
+  vorlagen = [],
 }: {
   ticketId: string;
   csrfToken: string;
   darfAntworten: boolean;
   darfNotieren: boolean;
   geschlossen: boolean;
+  vorlagen?: AntwortVorlage[];
 }): React.JSX.Element | null {
   const router = useRouter();
   const [antwort, setAntwort] = useState('');
@@ -95,9 +103,30 @@ export function TicketComposer({
             void senden();
           }}
         >
-          <label htmlFor="ticket-antwort" className="text-sm font-medium">
-            Antwort
-          </label>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <label htmlFor="ticket-antwort" className="text-sm font-medium">
+              Antwort
+            </label>
+            {vorlagen.length > 0 ? (
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className="text-xs text-muted-foreground">Vorlage:</span>
+                {vorlagen.map((vorlage) => (
+                  <button
+                    key={vorlage.id}
+                    type="button"
+                    // Eingesetzt statt gesendet: die Vorlage ist ein Anfang,
+                    // kein fertiger Text - wer sie unverändert abschickt,
+                    // hat das entschieden.
+                    onClick={() => setAntwort(vorlage.content)}
+                    disabled={laeuft !== null}
+                    className="rounded-md border border-border px-2 py-0.5 text-xs text-muted-foreground transition-colors hover:border-primary/50 hover:text-foreground disabled:opacity-50"
+                  >
+                    {vorlage.title}
+                  </button>
+                ))}
+              </div>
+            ) : null}
+          </div>
           <Textarea
             id="ticket-antwort"
             value={antwort}

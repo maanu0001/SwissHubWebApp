@@ -13,7 +13,6 @@ import { prisma } from '@swisshub/database';
 import { createLogger } from '@swisshub/logger';
 import { AppError } from '@swisshub/shared';
 import { tickets } from '@swisshub/modules';
-import { resolveGuildId } from '@swisshub/discord';
 import { buildCommandActor, NO_PERMISSION, type CommandActor } from './commands/context';
 
 const log = createLogger('bot:tickets');
@@ -48,6 +47,13 @@ export function registerTicketInteractions(client: Client): void {
         interaction.customId === tickets.TICKET_BUTTON.close
       ) {
         void behandleTicketKnopf(interaction);
+        return;
+      }
+      if (interaction.customId.startsWith(tickets.FEEDBACK_BUTTON_PREFIX)) {
+        void behandleBewertung(
+          interaction,
+          Number.parseInt(interaction.customId.slice(tickets.FEEDBACK_BUTTON_PREFIX.length), 10),
+        );
       }
       return;
     }
@@ -182,10 +188,6 @@ async function eroeffne(interaction: ModalSubmitInteraction, categoryId: string)
     }
 
     const ticket = await tickets.createTicket({
-      // Bewusst der verbundene Server aus der Konfiguration und nicht der
-      // aus der Interaktion: dieselbe Kennung, mit der auch der Kanal
-      // entsteht - sonst zaehlte die Grenze offener Tickets anderswo.
-      guildId: await resolveGuildId(),
       categoryId: kategorie.id,
       subject: betreff,
       creatorDiscordId: actor.discordId,
@@ -277,6 +279,44 @@ async function behandleTicketKnopf(interaction: ButtonInteraction): Promise<void
         : 'Das hat gerade nicht funktioniert. Bitte später erneut versuchen.';
     if (!(fehler instanceof AppError)) {
       log.error('Ticket-Knopf konnte nicht verarbeitet werden', { fehler });
+    }
+    await interaction.editReply({ content: meldung }).catch(() => undefined);
+  }
+}
+
+/**
+ * Eine Bewertung aus dem Ticket-Kanal.
+ *
+ * Wer bewerten darf, entscheidet der Service anhand des Erstellers - der
+ * Kanal ist fuer alle Beteiligten sichtbar, und ein Klick darin sagt nichts
+ * darueber aus, wessen Ticket es ist.
+ */
+async function behandleBewertung(interaction: ButtonInteraction, sterne: number): Promise<void> {
+  await interaction.deferReply({ flags: MessageFlags.Ephemeral }).catch(() => undefined);
+
+  try {
+    const ticket = await prisma.ticket.findUnique({
+      where: { discordChannelId: interaction.channelId },
+      select: { id: true },
+    });
+    if (!ticket) {
+      await interaction.editReply({ content: 'Zu diesem Kanal gibt es kein Ticket mehr.' });
+      return;
+    }
+
+    await tickets.recordFeedback({
+      ticketId: ticket.id,
+      discordId: interaction.user.id,
+      rating: sterne,
+    });
+    await interaction.editReply({ content: 'Danke für die Rückmeldung.' });
+  } catch (fehler) {
+    const meldung =
+      fehler instanceof AppError
+        ? fehler.userMessage
+        : 'Die Bewertung liess sich nicht speichern. Bitte später erneut versuchen.';
+    if (!(fehler instanceof AppError)) {
+      log.error('Bewertung konnte nicht gespeichert werden', { fehler });
     }
     await interaction.editReply({ content: meldung }).catch(() => undefined);
   }

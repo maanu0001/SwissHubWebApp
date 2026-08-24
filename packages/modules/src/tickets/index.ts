@@ -10,3 +10,4 @@ export * from './panels';
 export * from './discord';
 export * from './transcript';
 export * from './scheduler';
+export * from './support';

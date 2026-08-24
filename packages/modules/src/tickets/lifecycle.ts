@@ -97,6 +97,13 @@ export async function closeTicket(
     });
   }
 
+  // Die Frage nach der Bewertung kommt zuletzt - nach der Sperre, damit sie
+  // unter dem Abschluss steht, und nur wenn die Einstellung es vorsieht.
+  if (settings.feedbackEnabled) {
+    const { frageNachBewertung } = await import('./support');
+    await frageNachBewertung(ticketId, ticket.ticketNumber);
+  }
+
   return geschlossen;
 }
 

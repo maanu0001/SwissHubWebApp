@@ -74,11 +74,20 @@ export function ticketSections(context: AuthContext): TicketSection[] {
   if (can(context, p.archiveView)) {
     sections.push({ href: '/tickets/archiv', label: 'Archiv' });
   }
+  if (can(context, p.supportManageTags)) {
+    sections.push({ href: '/tickets/schlagwoerter', label: 'Schlagwörter' });
+  }
+  if (can(context, p.templatesManage)) {
+    sections.push({ href: '/tickets/vorlagen', label: 'Vorlagen' });
+  }
   if (can(context, p.categoriesManage)) {
     sections.push({ href: '/tickets/kategorien', label: 'Kategorien' });
   }
   if (can(context, p.panelsManage)) {
     sections.push({ href: '/tickets/panels', label: 'Panels' });
+  }
+  if (can(context, p.blockManage)) {
+    sections.push({ href: '/tickets/sperren', label: 'Sperren' });
   }
   if (can(context, p.statsView)) {
     sections.push({ href: '/tickets/statistiken', label: 'Statistiken' });

@@ -111,7 +111,6 @@ export function buildChannelName(
 }
 
 export interface CreateTicketInput {
-  guildId: string;
   categoryId: string;
   subject: string;
   creatorDiscordId: string;
@@ -137,6 +136,11 @@ export interface CreateTicketInput {
  */
 export async function createTicket(input: CreateTicketInput): Promise<Ticket> {
   const settings = await getModuleSettings<TicketSettings>(TICKETS_MODULE_ID);
+  // Der verbundene Server wird hier aufgeloest und nicht uebergeben. Zwei
+  // Quellen fuer dieselbe Kennung sind auseinandergelaufen: die Sperrpruefung
+  // sah in einem Server nach, der Kanal entstand in einem anderen - und die
+  // Sperre wirkte nicht.
+  const guildId = await resolveGuildId();
 
   if (settings.maintenanceMode) {
     throw new AppError('CONFLICT', {
@@ -152,7 +156,7 @@ export async function createTicket(input: CreateTicketInput): Promise<Ticket> {
   // Gesperrt?
   const sperre = await prisma.ticketBlockEntry.findFirst({
     where: {
-      guildId: input.guildId,
+      guildId,
       discordId: input.creatorDiscordId,
       liftedAt: null,
       OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
@@ -168,7 +172,7 @@ export async function createTicket(input: CreateTicketInput): Promise<Ticket> {
   const grenze = kategorie.maxOpenPerUser > 0 ? kategorie.maxOpenPerUser : settings.maxOpenPerUser;
   const offen = await prisma.ticket.count({
     where: {
-      guildId: input.guildId,
+      guildId,
       creatorDiscordId: input.creatorDiscordId,
       status: { notIn: ['CLOSED', 'ARCHIVED', 'CREATION_FAILED'] },
       ...(kategorie.maxOpenPerUser > 0 ? { categoryId: kategorie.id } : {}),
@@ -186,10 +190,10 @@ export async function createTicket(input: CreateTicketInput): Promise<Ticket> {
   // Datensatz und Nummer in einer Transaktion - bricht etwas ab, gibt es
   // weder Ticket noch verbrauchte Nummer.
   const ticket = await prisma.$transaction(async (tx) => {
-    const nummer = await nextTicketNumber(input.guildId, tx);
+    const nummer = await nextTicketNumber(guildId, tx);
     return tx.ticket.create({
       data: {
-        guildId: input.guildId,
+        guildId,
         ticketNumber: nummer,
         categoryId: kategorie.id,
         subject: input.subject.slice(0, 200),

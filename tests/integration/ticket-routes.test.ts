@@ -55,7 +55,10 @@ describe('Ticket-Modul', () => {
       '/tickets/meine',
       '/tickets/neu',
       '/tickets/archiv',
+      '/tickets/schlagwoerter',
+      '/tickets/vorlagen',
       '/tickets/kategorien',
+      '/tickets/sperren',
       '/tickets/panels',
       '/tickets/statistiken',
     ];
@@ -98,6 +101,35 @@ describe('Ticket-Modul', () => {
       tickets.TICKET_PERMISSIONS.blockManage,
     ]) {
       expect(kritisch.has(schluessel), `Nicht als kritisch markiert: ${schluessel}`).toBe(true);
+    }
+  });
+
+  it('lässt keine Berechtigung wirkungslos', () => {
+    // Eine Berechtigung, die nirgends geprüft wird, verspricht etwas, das es
+    // nicht gibt: sie erscheint in der Rechtematrix, lässt sich zuteilen -
+    // und ändert nichts. Genau so sind fünf Berechtigungen dieses Moduls
+    // eine Zeit lang unbenutzt herumgestanden.
+    const quellen = [
+      ...globSync('packages/modules/src/tickets/**/*.ts', { cwd: process.cwd() }),
+      ...globSync('apps/web/src/**/*.{ts,tsx}', { cwd: process.cwd() }),
+      ...globSync('apps/bot/src/**/*.ts', { cwd: process.cwd() }),
+    ]
+      // Die Definition selbst zählt nicht als Verwendung.
+      .filter((datei) => !datei.endsWith('tickets/config.ts'))
+      .map((datei) => readFileSync(join(process.cwd(), datei), 'utf8'))
+      .join('\n');
+
+    for (const [name, schluessel] of Object.entries(tickets.TICKET_PERMISSIONS)) {
+      const verwendet =
+        // Als Eigenschaft - auch über eine Abkürzung wie `p.supportView`.
+        new RegExp(`\\.${name}\\b`, 'u').test(quellen) ||
+        // Oder als Zeichenkette, etwa in einer Berechtigungsvorlage.
+        quellen.includes(`'${schluessel}'`) ||
+        // Die Einstellungsseite eines Moduls leitet ihre Berechtigung aus
+        // dem Präfix ab (`<prefix>.settings`) - dieser eine Schlüssel steht
+        // deshalb nirgends ausgeschrieben und ist trotzdem wirksam.
+        schluessel === `${tickets.TICKETS_MODULE_ID}.settings`;
+      expect(verwendet, `Berechtigung ohne Wirkung: ${schluessel}`).toBe(true);
     }
   });
 

@@ -12,6 +12,9 @@ import { TicketControls } from '@/modules/tickets/components/ticket-controls';
 import { TicketParticipants } from '@/modules/tickets/components/ticket-participants';
 import { TicketThread } from '@/modules/tickets/components/ticket-thread';
 import { TicketTimeline } from '@/modules/tickets/components/ticket-timeline';
+import { TicketAssignment } from '@/modules/tickets/components/ticket-assignment';
+import { TicketFeedback } from '@/modules/tickets/components/ticket-feedback';
+import { can } from '@swisshub/auth';
 import { csrfTokenFor, requireMember } from '@/server/auth';
 import { ladeTicketMitZugriff } from '@/server/tickets';
 
@@ -40,6 +43,13 @@ export default async function TicketDetailPage({
   // `notes` entscheidet ueber die Abfrage, nicht ueber die Darstellung: was
   // nicht geladen wird, kann auch nicht im Seitenquelltext auftauchen.
   const nachrichten = await tickets.listMessages(ticket.id, zugriff.notes);
+
+  // Was das Team zusätzlich braucht, wird auch nur für das Team geladen.
+  const [schlagwoerter, vorlagen, bewertung] = await Promise.all([
+    zugriff.asStaff ? tickets.listTags() : Promise.resolve([]),
+    zugriff.asStaff ? tickets.listTemplates(ticket.categoryId) : Promise.resolve([]),
+    tickets.getFeedback(ticket.id),
+  ]);
 
   const geschlossen = ticket.status === 'CLOSED' || ticket.status === 'ARCHIVED';
   const formAnswers =
@@ -140,6 +150,11 @@ export default async function TicketDetailPage({
             darfAntworten={zugriff.reply}
             darfNotieren={zugriff.notes}
             geschlossen={geschlossen}
+            vorlagen={vorlagen.map((vorlage) => ({
+              id: vorlage.id,
+              title: vorlage.title,
+              content: vorlage.content,
+            }))}
           />
         </div>
 
@@ -206,6 +221,59 @@ export default async function TicketDetailPage({
               />
             </CardContent>
           </Card>
+
+          {zugriff.asStaff ? (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-sm">Einordnung</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <TicketAssignment
+                  ticketId={ticket.id}
+                  csrfToken={csrfToken}
+                  zugewiesenAn={ticket.assignedToUsername}
+                  darfZuweisen={
+                    !geschlossen && can(context, tickets.TICKET_PERMISSIONS.supportAssign)
+                  }
+                  tags={schlagwoerter.map((tag) => ({ id: tag.id, name: tag.name }))}
+                  gesetzteTags={ticket.tags.map((zuweisung) => zuweisung.tagId)}
+                  darfSchlagwoerter={
+                    !geschlossen && can(context, tickets.TICKET_PERMISSIONS.supportManageTags)
+                  }
+                />
+              </CardContent>
+            </Card>
+          ) : null}
+
+          {geschlossen && ticket.creatorDiscordId === context.user.discordId ? (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-sm">Rückmeldung</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <TicketFeedback
+                  ticketId={ticket.id}
+                  csrfToken={csrfToken}
+                  vorhanden={
+                    bewertung ? { rating: bewertung.rating, comment: bewertung.comment } : null
+                  }
+                />
+              </CardContent>
+            </Card>
+          ) : bewertung && zugriff.asStaff ? (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-sm">Rückmeldung</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <TicketFeedback
+                  ticketId={ticket.id}
+                  csrfToken={csrfToken}
+                  vorhanden={{ rating: bewertung.rating, comment: bewertung.comment }}
+                />
+              </CardContent>
+            </Card>
+          ) : null}
 
           <Card>
             <CardHeader>

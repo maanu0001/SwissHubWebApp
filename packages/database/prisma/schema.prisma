@@ -2100,3 +2100,509 @@ model VoicePresence {
 
   @@index([guildId, channelId])
 }
+
+// ===========================================================================
+// SwissHub Tickets
+//
+// Ein Ticket lebt an zwei Orten gleichzeitig: als Discord-Kanal und als
+// Datensatz. Der Kanal ist verletzlich - jemand loescht ihn, Discord ist
+// kurz weg, die Kategorie ist voll. Deshalb ist der Datensatz die Wahrheit:
+// Verlauf, Nachrichten und Archiv ueberleben es, wenn der Kanal verschwindet.
+//
+// Umgekehrt gilt: was auf Discord passiert, wird hier mitgeschrieben, statt
+// beim Schliessen aus dem Kanal rekonstruiert zu werden. Ein geloeschter
+// Kanal duerfte sonst das halbe Archiv mitnehmen.
+// ===========================================================================
+
+enum TicketStatus {
+  /// Angelegt, aber der Discord-Kanal fehlt noch.
+  PENDING
+  OPEN
+  IN_PROGRESS
+  WAITING_FOR_USER
+  WAITING_FOR_STAFF
+  RESOLVED
+  CLOSED
+  ARCHIVED
+  /// Die Kanalerstellung ist gescheitert - die Verwaltung kann es erneut
+  /// versuchen, statt eine halb angelegte Zeile vorzufinden.
+  CREATION_FAILED
+}
+
+enum TicketPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+/// Woher die Erstellung kam - fuer die Fehlersuche und die Statistik.
+enum TicketSource {
+  DISCORD_PANEL
+  DISCORD_COMMAND
+  WEBAPP
+  ADMIN
+}
+
+enum TicketMessageSource {
+  DISCORD
+  WEBAPP
+  BOT
+  SYSTEM
+  /// Interne Notiz - erscheint nie auf Discord und nie im Benutzer-Transcript.
+  INTERNAL_NOTE
+}
+
+enum TicketEventKind {
+  CREATED
+  CLAIMED
+  ASSIGNED
+  UNASSIGNED
+  STATUS_CHANGED
+  PRIORITY_CHANGED
+  TAG_ADDED
+  TAG_REMOVED
+  USER_ADDED
+  USER_REMOVED
+  CLOSED
+  REOPENED
+  ARCHIVED
+  CHANNEL_RECREATED
+  CHANNEL_MISSING
+  ESCALATED
+}
+
+/// Wer eine Aktion ausgeloest hat.
+enum TicketActorSource {
+  WEBAPP
+  DISCORD
+  SYSTEM
+}
+
+enum TicketFormFieldKind {
+  SHORT_TEXT
+  LONG_TEXT
+}
+
+/// Was nach dem Schliessen mit dem Discord-Kanal geschieht.
+enum TicketCloseBehaviour {
+  DELETE_IMMEDIATELY
+  KEEP_24H
+  KEEP_7D
+  KEEP_FOREVER
+}
+
+enum TicketTranscriptAudience {
+  /// Ohne interne Notizen.
+  USER
+  /// Vollstaendig.
+  STAFF
+}
+
+/// Eine Ticket-Kategorie - Support, Moderation, Bewerbung und so weiter.
+///
+/// Bewusst vollstaendig ueber das Dashboard verwaltbar: fest verdrahtete
+/// Kategorien liessen sich nur mit einer Auslieferung aendern.
+model TicketCategory {
+  id      String @id @default(cuid())
+  guildId String
+
+  name        String
+  description String?
+  emoji       String?
+  /// Farbe des Discord-Embeds, als Ganzzahl wie von Discord erwartet.
+  color       Int?
+  active      Boolean @default(true)
+  sortOrder   Int     @default(0)
+
+  /// Discord-Kategorie, in der die Kanaele entstehen. Fehlt sie, greift die
+  /// Vorgabe aus den Moduleinstellungen.
+  discordCategoryId String?
+  /// Ausweichkategorie, wenn die erste voll ist - Discord erlaubt 50 Kanaele.
+  overflowCategoryId String?
+
+  /// Rollen, die Tickets dieser Kategorie sehen und bearbeiten duerfen.
+  supportRoleIds String[] @default([])
+  /// Beim Erstellen erwaehnen?
+  pingSupport    Boolean  @default(false)
+
+  defaultPriority TicketPriority @default(NORMAL)
+
+  /// Vorlage des Kanalnamens. `{number}`, `{username}` werden ersetzt.
+  channelNameTemplate String @default("ticket-{number}-{username}")
+  welcomeMessage      String?
+  closeMessage        String?
+
+  /// 0 = keine eigene Grenze, dann gilt die globale.
+  maxOpenPerUser Int @default(0)
+
+  /// Darf der Ersteller selbst schliessen?
+  userCanClose Boolean @default(true)
+
+  /// Erinnerung und automatisches Schliessen, in Tagen. 0 = aus.
+  reminderAfterDays  Int @default(0)
+  autoCloseAfterDays Int @default(0)
+
+  /// Antwort- und Loesungsziel in Stunden, rein intern. 0 = kein Ziel.
+  responseTargetHours   Int @default(0)
+  resolutionTargetHours Int @default(0)
+
+  /// Heikle Kategorie - Meldungen, Moderation. Strengere Sichtbarkeit.
+  sensitive Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tickets    Ticket[]
+  formFields TicketFormField[]
+  panels     TicketPanelCategory[]
+  templates  TicketTemplate[]
+
+  @@index([guildId, active, sortOrder])
+}
+
+/// Ein Feld im Erstellungsformular einer Kategorie.
+model TicketFormField {
+  id         String         @id @default(cuid())
+  categoryId String
+  category   TicketCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  kind        TicketFormFieldKind @default(SHORT_TEXT)
+  label       String
+  placeholder String?
+  required    Boolean             @default(false)
+  minLength   Int?
+  maxLength   Int?
+  sortOrder   Int                 @default(0)
+
+  createdAt DateTime @default(now())
+
+  @@index([categoryId, sortOrder])
+}
+
+/// Ein Ticket-Erstell-Panel in einem Discord-Kanal.
+model TicketPanel {
+  id      String @id @default(cuid())
+  guildId String
+
+  name        String
+  title       String
+  description String
+  bannerUrl   String?
+  thumbnailUrl String?
+  footerText  String?
+  color       Int?
+
+  discordChannelId String
+  /// Die gesendete Nachricht. `null`, solange nie veroeffentlicht - oder
+  /// wenn sie auf Discord geloescht wurde.
+  discordMessageId String?
+
+  buttonLabel String @default("Ticket erstellen")
+  buttonEmoji String? @default("🎫")
+
+  active Boolean @default(true)
+
+  /// Wann zuletzt festgestellt wurde, dass die Nachricht fehlt.
+  missingSince DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  categories TicketPanelCategory[]
+
+  @@unique([discordMessageId])
+  @@index([guildId, active])
+}
+
+/// Welche Kategorien ein Panel anbietet, in welcher Reihenfolge.
+model TicketPanelCategory {
+  id         String         @id @default(cuid())
+  panelId    String
+  panel      TicketPanel    @relation(fields: [panelId], references: [id], onDelete: Cascade)
+  categoryId String
+  category   TicketCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  sortOrder Int @default(0)
+
+  @@unique([panelId, categoryId])
+  @@index([panelId, sortOrder])
+}
+
+/// Ein Ticket.
+model Ticket {
+  id      String @id @default(cuid())
+  guildId String
+
+  /// Fortlaufend je Guild. Die Eindeutigkeit unten ist der einzige
+  /// verlaessliche Schutz gegen zwei gleichzeitige Erstellungen - eine
+  /// Zaehlung in der Anwendung verliert dieses Rennen.
+  ticketNumber Int
+
+  categoryId String?
+  category   TicketCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+
+  subject String
+
+  status   TicketStatus   @default(PENDING)
+  priority TicketPriority @default(NORMAL)
+  source   TicketSource   @default(DISCORD_PANEL)
+
+  creatorDiscordId String
+  creatorUsername  String
+
+  assignedToDiscordId String?
+  assignedToUsername  String?
+  assignedAt          DateTime?
+
+  /// Der Discord-Kanal. `null`, wenn er nie entstand oder geloescht wurde -
+  /// das Ticket bleibt trotzdem vollstaendig erhalten.
+  discordChannelId String?
+  /// Die angepinnte Startnachricht mit den Knoepfen.
+  discordMessageId String?
+  /// Der Kanal fehlt auf Discord. Vom Abgleich gesetzt.
+  channelMissing   Boolean @default(false)
+
+  /// Antworten aus dem Erstellungsformular, als Feld-ID zu Antwort.
+  formAnswers Json @default("{}")
+
+  /// Zeitpunkte fuer die Kennzahlen. Bewusst hier und nicht errechnet:
+  /// spaeter geloeschte Nachrichten wuerden die Rechnung sonst verfaelschen.
+  firstStaffResponseAt DateTime?
+  lastMessageAt        DateTime?
+  /// Wer zuletzt geschrieben hat - danach sortiert die Warteschlange.
+  lastMessageByStaff   Boolean?
+
+  closedAt          DateTime?
+  closedByDiscordId String?
+  closeReason       String?
+
+  reopenedAt DateTime?
+  archivedAt DateTime?
+
+  /// Wann der Kanal geloescht werden darf. Vom Aufraeumer gelesen.
+  channelPurgeAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  participants TicketParticipant[]
+  messages     TicketMessage[]
+  events       TicketEvent[]
+  tags         TicketTagAssignment[]
+  transcripts  TicketTranscript[]
+  feedback     TicketFeedback?
+
+  @@unique([guildId, ticketNumber])
+  @@unique([discordChannelId])
+  @@index([guildId, status, priority])
+  @@index([guildId, categoryId, status])
+  @@index([creatorDiscordId, createdAt])
+  @@index([assignedToDiscordId, status])
+  @@index([status, lastMessageAt])
+  @@index([guildId, closedAt])
+}
+
+/// Wer ausser dem Ersteller Zugriff auf ein Ticket hat.
+model TicketParticipant {
+  id       String @id @default(cuid())
+  ticketId String
+  ticket   Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  discordId String
+  username  String
+
+  addedByDiscordId String?
+  addedAt          DateTime  @default(now())
+  removedAt        DateTime?
+
+  @@unique([ticketId, discordId])
+  @@index([discordId])
+}
+
+/// Eine Nachricht im Ticket - aus Discord, aus der WebApp oder vom System.
+model TicketMessage {
+  id       String @id @default(cuid())
+  ticketId String
+  ticket   Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  source TicketMessageSource
+
+  /// Die Discord-Nachricht, sofern es eine gibt. Interne Notizen haben keine.
+  discordMessageId String?
+
+  authorDiscordId String?
+  authorUsername  String?
+  authorAvatarHash String?
+  /// Hat Support geschrieben? Grundlage der Antwortzeiten und der Sortierung.
+  fromStaff       Boolean @default(false)
+
+  content String @db.Text
+
+  createdAt DateTime  @default(now())
+  editedAt  DateTime?
+  /// Auf Discord geloescht - der Eintrag bleibt, damit der Verlauf stimmt.
+  deletedAt DateTime?
+
+  attachments TicketAttachment[]
+
+  @@unique([discordMessageId])
+  @@index([ticketId, createdAt])
+  @@index([ticketId, source])
+}
+
+/// Ein Anhang einer Ticket-Nachricht.
+model TicketAttachment {
+  id        String        @id @default(cuid())
+  messageId String
+  message   TicketMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  fileName    String
+  contentType String?
+  sizeBytes   Int      @default(0)
+  /// Discord-CDN-Adresse oder der Name im eigenen Speicher.
+  url         String   @db.Text
+  /// Im eigenen Speicher abgelegt? Discord-Adressen laufen ab.
+  stored      Boolean  @default(false)
+
+  createdAt DateTime @default(now())
+
+  @@index([messageId])
+}
+
+/// Ein Schlagwort - reine Ticket-Metadaten, keine Discord-Rolle.
+model TicketTag {
+  id      String @id @default(cuid())
+  guildId String
+
+  name  String
+  color String?
+
+  createdAt DateTime @default(now())
+
+  assignments TicketTagAssignment[]
+
+  @@unique([guildId, name])
+}
+
+model TicketTagAssignment {
+  id       String    @id @default(cuid())
+  ticketId String
+  ticket   Ticket    @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  tagId    String
+  tag      TicketTag @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  addedByDiscordId String?
+  addedAt          DateTime @default(now())
+
+  @@unique([ticketId, tagId])
+  @@index([tagId])
+}
+
+/// Was mit einem Ticket geschehen ist.
+///
+/// Nur den aktuellen Status zu speichern hiesse, den Weg dorthin zu
+/// verlieren - und genau der ist es, den Support und Verwaltung brauchen.
+model TicketEvent {
+  id       String @id @default(cuid())
+  ticketId String
+  ticket   Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  kind   TicketEventKind
+  actorDiscordId String?
+  actorUsername  String?
+  actorSource    TicketActorSource @default(SYSTEM)
+
+  /// Was sich geaendert hat - alter und neuer Wert, Rollenname, und so weiter.
+  detail Json @default("{}")
+
+  createdAt DateTime @default(now())
+
+  @@index([ticketId, createdAt])
+}
+
+/// Ein erzeugtes Transcript.
+model TicketTranscript {
+  id       String @id @default(cuid())
+  ticketId String
+  ticket   Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  audience TicketTranscriptAudience
+
+  /// Dateiname im Speicher - nicht der Pfad. Der Zugriff laeuft immer ueber
+  /// eine autorisierte Route, nie ueber eine offene Adresse.
+  fileName    String
+  sizeBytes   Int    @default(0)
+  messageCount Int   @default(0)
+
+  createdAt DateTime @default(now())
+
+  @@unique([ticketId, audience])
+  @@index([ticketId])
+}
+
+/// Rueckmeldung nach dem Schliessen.
+model TicketFeedback {
+  id       String @id @default(cuid())
+  ticketId String
+  ticket   Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  /// 1 bis 5.
+  rating  Int
+  comment String?
+
+  givenByDiscordId String
+  createdAt        DateTime @default(now())
+
+  @@unique([ticketId])
+  @@index([createdAt])
+}
+
+/// Wer keine Tickets mehr eroeffnen darf.
+model TicketBlockEntry {
+  id      String @id @default(cuid())
+  guildId String
+
+  discordId String
+  username  String?
+  reason    String
+
+  blockedByDiscordId String
+  createdAt          DateTime  @default(now())
+  /// `null` = unbefristet.
+  expiresAt          DateTime?
+  liftedAt           DateTime?
+
+  @@index([guildId, discordId, liftedAt])
+}
+
+/// Antwortvorlagen fuer den Support.
+model TicketTemplate {
+  id      String @id @default(cuid())
+  guildId String
+
+  title   String
+  content String @db.Text
+
+  /// Nur fuer diese Kategorie, oder fuer alle wenn leer.
+  categoryId String?
+  category   TicketCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([guildId, categoryId])
+}
+
+/// Der Zaehler fuer die Ticketnummern.
+///
+/// Eine eigene Zeile je Guild statt `MAX(ticketNumber) + 1`: die Rechnung
+/// ueber alle Tickets liefert zwei gleichzeitigen Erstellungen dieselbe
+/// Nummer. Ein `UPDATE ... RETURNING` auf diese Zeile nicht.
+model TicketCounter {
+  guildId String @id
+  /// Zuletzt vergebene Nummer.
+  lastNumber Int @default(0)
+
+  updatedAt DateTime @updatedAt
+}

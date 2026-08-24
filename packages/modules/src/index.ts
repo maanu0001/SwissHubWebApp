@@ -28,6 +28,7 @@ export * as jail from './jail';
 export * as communication from './communication';
 export * as premium from './premium';
 export * as music from './music';
+export * as tickets from './tickets';
 export * as spielersuche from './spielersuche';
 export * as level from './level';
 export * from './bot-status';

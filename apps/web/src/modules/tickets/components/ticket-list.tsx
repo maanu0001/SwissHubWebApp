@@ -58,10 +58,14 @@ export function TicketList({
                 {categoryName ? `${categoryName} · ` : ''}
                 @{ticket.creatorUsername}
                 {ticket.assignedToUsername ? ` · bearbeitet von @${ticket.assignedToUsername}` : ''}
-                {messageCount > 0 ? ` · ${messageCount} Nachrichten` : ''}
+                {messageCount > 0
+                  ? ` · ${messageCount} ${messageCount === 1 ? 'Nachricht' : 'Nachrichten'}`
+                  : ''}
               </span>
             </span>
-            <span className="flex shrink-0 flex-wrap items-center gap-1.5">
+            {/* Bewusst schrumpfbar: bei schmalem Fenster sollen die Abzeichen
+                umbrechen statt am Rand abgeschnitten zu werden. */}
+            <span className="flex flex-wrap items-center gap-1.5">
               {tagNames.slice(0, 2).map((name) => (
                 <span
                   key={name}

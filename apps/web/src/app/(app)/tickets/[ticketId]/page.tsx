@@ -222,7 +222,10 @@ export default async function TicketDetailPage({
             </CardContent>
           </Card>
 
-          {zugriff.asStaff ? (
+          {/* Bei geschlossenem Ticket gäbe es hier nichts zu tun - eine
+              Karte mit Überschrift und leerem Inhalt sieht aus, als fehle
+              etwas. */}
+          {zugriff.asStaff && !geschlossen ? (
             <Card>
               <CardHeader>
                 <CardTitle className="text-sm">Einordnung</CardTitle>
@@ -232,14 +235,10 @@ export default async function TicketDetailPage({
                   ticketId={ticket.id}
                   csrfToken={csrfToken}
                   zugewiesenAn={ticket.assignedToUsername}
-                  darfZuweisen={
-                    !geschlossen && can(context, tickets.TICKET_PERMISSIONS.supportAssign)
-                  }
+                  darfZuweisen={can(context, tickets.TICKET_PERMISSIONS.supportAssign)}
                   tags={schlagwoerter.map((tag) => ({ id: tag.id, name: tag.name }))}
                   gesetzteTags={ticket.tags.map((zuweisung) => zuweisung.tagId)}
-                  darfSchlagwoerter={
-                    !geschlossen && can(context, tickets.TICKET_PERMISSIONS.supportManageTags)
-                  }
+                  darfSchlagwoerter={can(context, tickets.TICKET_PERMISSIONS.supportManageTags)}
                 />
               </CardContent>
             </Card>

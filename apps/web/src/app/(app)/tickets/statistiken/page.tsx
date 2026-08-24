@@ -63,7 +63,7 @@ export default async function TicketStatistikenPage(): Promise<React.JSX.Element
           value={zahlen.bewertung ? zahlen.bewertung.schnitt.toFixed(1) : '—'}
           hint={
             zahlen.bewertung
-              ? `${zahlen.bewertung.anzahl} Rückmeldungen`
+              ? `${zahlen.bewertung.anzahl} ${zahlen.bewertung.anzahl === 1 ? 'Rückmeldung' : 'Rückmeldungen'}`
               : 'Noch keine Rückmeldungen'
           }
           icon={<Star />}

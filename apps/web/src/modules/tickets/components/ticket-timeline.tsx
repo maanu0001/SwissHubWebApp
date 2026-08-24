@@ -1,4 +1,5 @@
 import { formatDayTime } from '@swisshub/shared';
+import { PRIORITAET_LABEL, STATUS_LABEL } from './ticket-badges';
 
 export interface TimelineEreignis {
   id: string;
@@ -38,11 +39,24 @@ function zusatz(kind: string, detail: unknown): string | null {
     typeof wert === 'string' && wert.length > 0 ? wert : null;
 
   if (kind === 'STATUS_CHANGED' || kind === 'PRIORITY_CHANGED') {
-    const von = alsText(werte.von);
-    const zu = alsText(werte.zu);
+    // Dieselben Beschriftungen wie auf den Abzeichen. `NORMAL → URGENT` im
+    // Verlauf zu zeigen, während daneben «Dringend» steht, liest sich wie
+    // zwei verschiedene Angaben.
+    const woerterbuch = kind === 'STATUS_CHANGED' ? STATUS_LABEL : PRIORITAET_LABEL;
+    const uebersetze = (wert: unknown): string | null => {
+      const roh = alsText(wert);
+      return roh === null ? null : (woerterbuch[roh] ?? roh);
+    };
+    const von = uebersetze(werte.von);
+    const zu = uebersetze(werte.zu);
     return von && zu ? `${von} → ${zu}` : zu;
   }
-  if (kind === 'USER_ADDED' || kind === 'USER_REMOVED') {
+  if (
+    kind === 'USER_ADDED' ||
+    kind === 'USER_REMOVED' ||
+    kind === 'TAG_ADDED' ||
+    kind === 'TAG_REMOVED'
+  ) {
     return alsText(werte.wer);
   }
   if (kind === 'ASSIGNED') {

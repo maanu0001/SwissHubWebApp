@@ -15,6 +15,8 @@ const EREIGNIS_TEXT: Record<string, string> = {
   REGISTRATION_CLOSED: 'Anmeldung geschlossen',
   CHECKIN_OPENED: 'Check-in geöffnet',
   CHECKIN_CLOSED: 'Check-in geschlossen',
+  REGISTERED: 'Angemeldet',
+  CHECKED_IN: 'Eingecheckt',
   BRACKET_GENERATED: 'Bracket erzeugt',
   BRACKET_RESEEDED: 'Neu gesetzt',
   ROUND_STARTED: 'Runde gestartet',

@@ -261,12 +261,12 @@ function pruefeErgebnis(input: ReportInput, bestOf: number): void {
     const hoechster = Math.max(input.scoreA, input.scoreB);
     if (bestOf > 1 && hoechster !== noetig) {
       throw new AppError('VALIDATION_FAILED', {
-        userMessage: `Bei Best of ${bestOf} gewinnt, wer ${noetig} Maps holt - gemeldet wurde ${input.scoreA}:${input.scoreB}.`,
+        userMessage: `Bei Best of ${bestOf} gewinnt, wer ${noetig} ${noetig === 1 ? 'Map' : 'Maps'} holt - gemeldet wurde ${input.scoreA}:${input.scoreB}.`,
       });
     }
     if (input.scoreA + input.scoreB > bestOf) {
       throw new AppError('VALIDATION_FAILED', {
-        userMessage: `Bei Best of ${bestOf} sind höchstens ${bestOf} Maps möglich.`,
+        userMessage: `Bei Best of ${bestOf} sind höchstens ${bestOf} ${bestOf === 1 ? 'Map' : 'Maps'} möglich.`,
       });
     }
   }

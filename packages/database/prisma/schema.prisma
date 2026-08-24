@@ -2795,6 +2795,12 @@ enum TournamentEventKind {
   REGISTRATION_CLOSED
   CHECKIN_OPENED
   CHECKIN_CLOSED
+  /// Jemand hat sich angemeldet. Nicht zu verwechseln mit
+  /// REGISTRATION_APPROVED - das ist die Freigabe durch die Leitung.
+  REGISTERED
+  /// Jemand hat eingecheckt. Nicht zu verwechseln mit CHECKIN_OPENED - das
+  /// ist der Phasenwechsel des ganzen Turniers.
+  CHECKED_IN
   BRACKET_GENERATED
   BRACKET_RESEEDED
   ROUND_STARTED

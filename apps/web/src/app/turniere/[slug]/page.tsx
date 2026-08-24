@@ -376,8 +376,25 @@ function Hero({
   );
 }
 
-/** Welche Frist als nächste läuft - eine Zeile statt eines ganzen Zeitplans. */
+/**
+ * Welche Frist als nächste läuft - eine Zeile statt eines ganzen Zeitplans.
+ *
+ * Nur solange das Turnier noch vor sich hat, worauf gezählt wird. Ein
+ * abgeschlossenes Turnier mit «Start in 3 Tagen» im Kopf ist kein Detail: es
+ * lässt jemanden glauben, er könne noch mitspielen.
+ */
 function naechsterTermin(turnier: PublicTurnier): string | null {
+  const VORHER: string[] = [
+    'REGISTRATION_OPEN',
+    'REGISTRATION_CLOSED',
+    'CHECKIN_OPEN',
+    'CHECKIN_CLOSED',
+    'READY',
+  ];
+  if (!VORHER.includes(turnier.status)) {
+    return null;
+  }
+
   const jetzt = new Date();
   const kandidaten: Array<[Date | null, string]> = [
     [turnier.registrationClosesAt, 'Anmeldeschluss'],

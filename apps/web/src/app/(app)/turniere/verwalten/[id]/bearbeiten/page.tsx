@@ -6,7 +6,8 @@ import {
   CustomFieldsAdmin,
   type FeldArt,
 } from '@/modules/tournaments/components/custom-fields-admin';
-import { fuerZeitfeld, TournamentForm } from '@/modules/tournaments/components/tournament-form';
+import { TournamentForm } from '@/modules/tournaments/components/tournament-form';
+import { fuerZeitfeld } from '@/modules/tournaments/zeitfeld';
 import { csrfTokenFor, requireMember } from '@/server/auth';
 import { loadDiscordOptions } from '@/server/configuration';
 import { ladeTurnierMitZugriff } from '@/server/tournaments';

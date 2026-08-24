@@ -581,6 +581,22 @@ describeWithDatabase('Turniere', () => {
 
   // --- Öffentliche Sicht -------------------------------------------------
 
+  it('führt ein abgeschlossenes Turnier nur unter «Vorbei»', async () => {
+    const t = await turnier({ name: 'Vorbei' });
+    await tournaments.publishTournament(t.id, actor(ADMIN.discordId, ADMIN.username));
+    for (const status of ['REGISTRATION_CLOSED', 'READY', 'RUNNING', 'COMPLETED'] as const) {
+      await tournaments.setTournamentStatus(t.id, status, actor(ADMIN.discordId, ADMIN.username));
+    }
+
+    const laufend = await tournaments.listPublicTournaments();
+    const vergangen = await tournaments.listPublicTournaments({ archiv: true });
+
+    // Beide Listen muessen sich ausschliessen - sonst steht dasselbe Turnier
+    // auf der oeffentlichen Seite zweimal.
+    expect(laufend.map((eintrag) => eintrag.id)).not.toContain(t.id);
+    expect(vergangen.map((eintrag) => eintrag.id)).toContain(t.id);
+  });
+
   it('zeigt Entwürfe nicht auf der öffentlichen Seite', async () => {
     const entwurf = await turnier({ name: 'Noch nicht fertig' });
     const offen = await turnier({ name: 'Ausgeschrieben' });

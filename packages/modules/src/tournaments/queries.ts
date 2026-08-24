@@ -2,7 +2,7 @@ import { prisma } from '@swisshub/database';
 import type { Prisma, TournamentStatus } from '@swisshub/database';
 import { resolveGuildId } from '@swisshub/discord';
 import { tournamentSichtbarkeitsFilter, type TournamentViewer } from './access';
-import { AKTIVE_STATUS, OEFFENTLICHE_STATUS } from './service';
+import { AKTIVE_STATUS } from './service';
 
 /**
  * Der verbundene Server als Filter.
@@ -106,9 +106,11 @@ export async function listPublicTournaments(options: { archiv?: boolean; limit?:
   return prisma.tournament.findMany({
     where: {
       ...(await guildFilter()),
+      // Beide Listen muessen sich ausschliessen, sonst steht dasselbe
+      // Turnier unter «Aktuell» und unter «Vorbei».
       status: options.archiv
-        ? { in: ['COMPLETED', 'ARCHIVED'] }
-        : { in: OEFFENTLICHE_STATUS.filter((status) => status !== 'ARCHIVED') },
+        ? { in: ['COMPLETED', 'CANCELLED', 'ARCHIVED'] }
+        : { in: AKTIVE_STATUS },
     },
     orderBy: options.archiv ? [{ completedAt: 'desc' }] : [{ startsAt: 'asc' }],
     take: options.limit ?? 50,

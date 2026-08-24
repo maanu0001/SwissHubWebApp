@@ -194,7 +194,7 @@ export async function register(
     return eintrag;
   });
 
-  await tournamentEvent(input.tournamentId, 'REGISTRATION_APPROVED', actor, {
+  await tournamentEvent(input.tournamentId, 'REGISTERED', actor, {
     wer: registration.username,
     status: registration.status,
     teamId: registration.teamId,

@@ -35,7 +35,7 @@ import {
   scheduleMatchAction,
   setMatchStreamAction,
 } from '@/modules/tournaments/admin-actions';
-import { fuerZeitfeld } from './tournament-form';
+import { fuerZeitfeld } from '@/modules/tournaments/zeitfeld';
 
 export interface MatchMeldung {
   id: string;

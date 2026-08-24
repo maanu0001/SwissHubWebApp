@@ -84,7 +84,7 @@ export async function checkIn(
     data: { checkinStatus: 'CHECKED_IN', checkedInAt: new Date(), checkedInBy: discordId },
   });
 
-  await tournamentEvent(tournamentId, 'CHECKIN_OPENED', actor, {
+  await tournamentEvent(tournamentId, 'CHECKED_IN', actor, {
     wer: registration.username,
     eingecheckt: true,
   });
@@ -131,7 +131,7 @@ export async function adminConfirmCheckin(
       checkedInBy: actor.discordId,
     },
   });
-  await tournamentEvent(eintrag.tournamentId, 'CHECKIN_OPENED', actor, {
+  await tournamentEvent(eintrag.tournamentId, 'CHECKED_IN', actor, {
     wer: eintrag.username,
     vonHand: true,
   });

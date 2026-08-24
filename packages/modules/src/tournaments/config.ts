@@ -292,6 +292,30 @@ async function tournamentHealthChecks(context: ModuleHealthContext): Promise<Mod
     );
   }
 
+  // Darf ueberhaupt jemand teilnehmen?
+  //
+  // Ohne diese Berechtigung laesst sich ein Turnier anlegen, veroeffentlichen
+  // und ankuendigen - nur anmelden kann sich niemand, und der Knopf sagt
+  // lediglich, dass eine Berechtigung fehlt. Das faellt sonst erst auf, wenn
+  // die ersten Mitglieder nachfragen.
+  const { loadRoleConfiguration } = await import('@swisshub/permissions');
+  const rollen = await loadRoleConfiguration().catch(() => null);
+  const darfTeilnehmen =
+    rollen?.mappings.some(
+      (zuordnung) => zuordnung.permission === TOURNAMENT_PERMISSIONS.participate,
+    ) ?? false;
+  checks.push(
+    darfTeilnehmen
+      ? { label: 'Teilnahme', status: 'ok', detail: 'Mindestens eine Rolle darf teilnehmen.' }
+      : {
+          label: 'Teilnahme',
+          status: 'error',
+          detail:
+            'Keine Rolle hat «An Turnieren teilnehmen» - niemand kann sich anmelden.',
+          fixHref: '/server/permissions',
+        },
+  );
+
   // Match-Kategorie.
   if (settings.createMatchChannels) {
     if (!settings.defaultMatchCategoryId) {

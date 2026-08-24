@@ -19,6 +19,7 @@ import {
   createTournamentAction,
   updateTournamentAction,
 } from '@/modules/tournaments/admin-actions';
+import { ausZeitfeld } from '@/modules/tournaments/zeitfeld';
 import { FORMAT_LABEL } from './tournament-badges';
 
 const MODI = [
@@ -166,20 +167,6 @@ function textOderNull(wert: string): string | null {
 }
 
 /**
- * Ein Zeitpunkt aus dem Formular.
- *
- * `datetime-local` liefert Ortszeit ohne Zone. `new Date(...)` legt die Zone
- * des Browsers zugrunde - genau das, was jemand meint, der «20:00» eintippt.
- */
-function zeitOderNull(wert: string): string | null {
-  if (wert.trim() === '') {
-    return null;
-  }
-  const zeitpunkt = new Date(wert);
-  return Number.isNaN(zeitpunkt.getTime()) ? null : zeitpunkt.toISOString();
-}
-
-/**
  * Das Turnierformular - dasselbe zum Anlegen und zum Bearbeiten.
  *
  * Bewusst ein Formular statt eines Assistenten: wer ein Turnier zum dritten
@@ -237,13 +224,13 @@ export function TournamentForm({
       maxSubstitutes: werte.maxSubstitutes,
       maxParticipants: werte.maxParticipants,
       minParticipants: werte.minParticipants,
-      registrationOpensAt: zeitOderNull(werte.registrationOpensAt),
-      registrationClosesAt: zeitOderNull(werte.registrationClosesAt),
-      checkinOpensAt: zeitOderNull(werte.checkinOpensAt),
-      checkinClosesAt: zeitOderNull(werte.checkinClosesAt),
-      rosterLockAt: zeitOderNull(werte.rosterLockAt),
-      startsAt: zeitOderNull(werte.startsAt),
-      estimatedEndAt: zeitOderNull(werte.estimatedEndAt),
+      registrationOpensAt: ausZeitfeld(werte.registrationOpensAt),
+      registrationClosesAt: ausZeitfeld(werte.registrationClosesAt),
+      checkinOpensAt: ausZeitfeld(werte.checkinOpensAt),
+      checkinClosesAt: ausZeitfeld(werte.checkinClosesAt),
+      rosterLockAt: ausZeitfeld(werte.rosterLockAt),
+      startsAt: ausZeitfeld(werte.startsAt),
+      estimatedEndAt: ausZeitfeld(werte.estimatedEndAt),
       checkinRequired: werte.checkinRequired,
       autoRemoveMissedCheckin: werte.autoRemoveMissedCheckin,
       groupCount: werte.groupCount,
@@ -965,13 +952,4 @@ function Schalter({
       <Switch checked={an} onCheckedChange={aendern} aria-label={label} />
     </div>
   );
-}
-
-/** Einen Zeitpunkt für `datetime-local` schreiben - in Ortszeit, ohne Zone. */
-export function fuerZeitfeld(zeitpunkt: Date | null): string {
-  if (!zeitpunkt) {
-    return '';
-  }
-  const versetzt = new Date(zeitpunkt.getTime() - zeitpunkt.getTimezoneOffset() * 60_000);
-  return versetzt.toISOString().slice(0, 16);
 }

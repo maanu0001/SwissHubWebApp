@@ -52,6 +52,12 @@ export const RATE_LIMITS = {
   musicSearch: { limit: 40, windowMs: 60 * 1000 },
   /** Eine Session starten oder beenden - selten und folgenreich. */
   musicSession: { limit: 20, windowMs: 10 * 60 * 1000 },
+  /** Antworten, Notizen, Statusaenderungen - Support arbeitet zuegig. */
+  ticketWrite: { limit: 120, windowMs: 5 * 60 * 1000 },
+  /** Neue Tickets - eng, damit das Panel nicht als Spamknopf dient. */
+  ticketCreate: { limit: 3, windowMs: 10 * 60 * 1000 },
+  /** Kategorien und Panels pflegen - Verwaltung, nicht Alltag. */
+  ticketAdmin: { limit: 40, windowMs: 10 * 60 * 1000 },
 } as const satisfies Record<string, RateLimitRule>;
 
 export type RateLimitName = keyof typeof RATE_LIMITS;

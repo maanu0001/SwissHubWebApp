@@ -13,6 +13,7 @@ import { discord, DISCORD_PERMISSIONS, resolveGuildId } from '@swisshub/discord'
 import { getModuleSettings } from '../module-state';
 import { TICKETS_MODULE_ID, type TicketSettings } from './config';
 import { nextTicketNumber } from './numbering';
+import { sendeEroeffnung, systemMeldung } from './discord';
 
 const logger = createLogger('tickets:service');
 
@@ -25,6 +26,26 @@ export interface TicketActor {
 
 /** Discord erlaubt 50 Kanaele je Kategorie. */
 const KATEGORIE_LIMIT = 50;
+
+/** Deutsche Beschriftungen fuer die Systemmeldungen im Kanal. */
+const STATUS_TEXT: Record<string, string> = {
+  PENDING: 'Wird angelegt',
+  OPEN: 'Offen',
+  IN_PROGRESS: 'In Bearbeitung',
+  WAITING_FOR_USER: 'Wartet auf Mitglied',
+  WAITING_FOR_STAFF: 'Wartet auf Support',
+  RESOLVED: 'Gelöst',
+  CLOSED: 'Geschlossen',
+  ARCHIVED: 'Archiviert',
+  CREATION_FAILED: 'Erstellung fehlgeschlagen',
+};
+
+const PRIORITAET_TEXT: Record<string, string> = {
+  LOW: 'Niedrig',
+  NORMAL: 'Normal',
+  HIGH: 'Hoch',
+  URGENT: 'Dringend',
+};
 
 async function ereignis(
   ticketId: string,
@@ -190,10 +211,14 @@ export async function createTicket(input: CreateTicketInput): Promise<Ticket> {
   // Jetzt der Kanal. Scheitert er, bleibt das Ticket sichtbar.
   try {
     const kanal = await erstelleKanal(ticket, kategorie, settings);
-    return await prisma.ticket.update({
+    const offen = await prisma.ticket.update({
       where: { id: ticket.id },
       data: { discordChannelId: kanal.id, status: 'OPEN', channelMissing: false },
     });
+    // Erst jetzt, mit Kanal: die Nachricht traegt die Angaben aus dem
+    // Formular, damit der Kanal fuer sich stehen kann.
+    await sendeEroeffnung(offen, kategorie, settings);
+    return offen;
   } catch (fehler) {
     logger.warn('Ticket-Kanal konnte nicht erstellt werden', {
       ticketId: ticket.id,
@@ -332,6 +357,7 @@ export async function claimTicket(ticketId: string, actor: TicketActor): Promise
     return false;
   }
   await ereignis(ticketId, 'CLAIMED', actor);
+  await systemMeldung(ticketId, `**${actor.username}** bearbeitet dieses Ticket.`);
   return true;
 }
 
@@ -351,6 +377,12 @@ export async function assignTicket(
   await ereignis(ticketId, ziel ? 'ASSIGNED' : 'UNASSIGNED', actor, {
     zu: ziel?.username ?? null,
   });
+  await systemMeldung(
+    ticketId,
+    ziel
+      ? `**${actor.username}** hat dieses Ticket an **${ziel.username}** übergeben.`
+      : `**${actor.username}** hat die Zuweisung aufgehoben.`,
+  );
 }
 
 export async function changeStatus(
@@ -367,6 +399,10 @@ export async function changeStatus(
   }
   await prisma.ticket.update({ where: { id: ticketId }, data: { status } });
   await ereignis(ticketId, 'STATUS_CHANGED', actor, { von: vorher.status, zu: status });
+  await systemMeldung(
+    ticketId,
+    `**${actor.username}** hat den Status auf ${STATUS_TEXT[status] ?? status} gesetzt.`,
+  );
 }
 
 export async function changePriority(
@@ -383,6 +419,10 @@ export async function changePriority(
   }
   await prisma.ticket.update({ where: { id: ticketId }, data: { priority } });
   await ereignis(ticketId, 'PRIORITY_CHANGED', actor, { von: vorher.priority, zu: priority });
+  await systemMeldung(
+    ticketId,
+    `**${actor.username}** hat die Priorität auf ${PRIORITAET_TEXT[priority] ?? priority} gesetzt.`,
+  );
 }
 
 export async function addParticipant(
@@ -424,6 +464,7 @@ export async function addParticipant(
   }
 
   await ereignis(ticketId, 'USER_ADDED', actor, { wer: teilnehmer.username });
+  await systemMeldung(ticketId, `**${actor.username}** hat **${teilnehmer.username}** hinzugefügt.`);
 }
 
 export async function removeParticipant(
@@ -460,4 +501,5 @@ export async function removeParticipant(
   }
 
   await ereignis(ticketId, 'USER_REMOVED', actor, { wer: eintrag.username });
+  await systemMeldung(ticketId, `**${actor.username}** hat **${eintrag.username}** entfernt.`);
 }

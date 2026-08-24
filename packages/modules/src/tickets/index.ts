@@ -4,3 +4,7 @@ export * from './numbering';
 export * from './service';
 export * from './lifecycle';
 export * from './messages';
+export * from './queries';
+export * from './categories';
+export * from './panels';
+export * from './discord';

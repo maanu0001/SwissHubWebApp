@@ -6,6 +6,7 @@ import { discord, DISCORD_PERMISSIONS, resolveGuildId } from '@swisshub/discord'
 import { getModuleSettings } from '../module-state';
 import { TICKETS_MODULE_ID, type TicketSettings } from './config';
 import type { TicketActor } from './service';
+import { systemMeldung } from './discord';
 
 const logger = createLogger('tickets:lifecycle');
 
@@ -60,6 +61,25 @@ export async function closeTicket(
       detail: { grund: reason ?? null } as never,
     },
   });
+
+  // Zuerst die Meldung, dann die Sperre: nach dem Stummschalten koennte der
+  // Bot je nach Rechtelage selbst nicht mehr schreiben.
+  const abschluss = ticket.categoryId
+    ? await prisma.ticketCategory.findUnique({
+        where: { id: ticket.categoryId },
+        select: { closeMessage: true },
+      })
+    : null;
+  await systemMeldung(
+    ticketId,
+    [
+      `**${actor.username}** hat dieses Ticket geschlossen.`,
+      reason ? `Grund: ${reason}` : null,
+      abschluss?.closeMessage ?? null,
+    ]
+      .filter((zeile): zeile is string => Boolean(zeile))
+      .join('\n\n'),
+  );
 
   // Kanal stummschalten statt loeschen.
   if (ticket.discordChannelId) {
@@ -166,6 +186,8 @@ export async function reopenTicket(
       detail: {} as never,
     },
   });
+
+  await systemMeldung(ticketId, `**${actor.username}** hat dieses Ticket wieder geöffnet.`);
 
   return geoeffnet;
 }

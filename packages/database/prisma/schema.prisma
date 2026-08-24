@@ -886,6 +886,9 @@ model SpielersucheGame {
   rolePing           SpielersucheRolePing?
 
   @@index([enabled, name])
+
+  /// Turniere, die dieses Spiel verwenden.
+  tournaments Tournament[]
 }
 
 /// Eine Spielersuche.
@@ -2612,4 +2615,928 @@ model TicketCounter {
   lastNumber Int @default(0)
 
   updatedAt DateTime @updatedAt
+}
+
+// ===========================================================================
+// Turniere
+// ===========================================================================
+//
+// Ein Turnier lebt an zwei Orten: als Datensatz und als Discord-Server voller
+// Kanaele, Rollen und Nachrichten. Der Datensatz ist die Wahrheit. Kanaele
+// werden geloescht, Nachrichten verschwinden, ein Server wird umgebaut - das
+// Turnier, seine Teilnehmer, sein Bracket und sein Sieger bleiben trotzdem
+// nachschlagbar. Deshalb traegt kein Modell hier eine Discord-Kennung als
+// Pflichtfeld, und das Archiv kommt ohne Discord aus.
+
+enum TournamentStatus {
+  DRAFT
+  REGISTRATION_OPEN
+  REGISTRATION_CLOSED
+  CHECKIN_OPEN
+  CHECKIN_CLOSED
+  READY
+  RUNNING
+  PAUSED
+  COMPLETED
+  CANCELLED
+  ARCHIVED
+}
+
+/// Einzelspieler oder Team - entscheidet den ganzen Anmeldeweg.
+enum TournamentMode {
+  SOLO
+  TEAM
+}
+
+/// Wer sich anmelden darf.
+enum TournamentAccessMode {
+  /// Jeder, sofort bestaetigt.
+  OPEN
+  /// Jeder, aber die Verwaltung gibt frei.
+  APPROVAL
+  /// Nur ausdruecklich Eingeladene.
+  INVITE_ONLY
+}
+
+enum TournamentFormat {
+  SINGLE_ELIMINATION
+  DOUBLE_ELIMINATION
+  ROUND_ROBIN
+  SWISS
+  GROUPS_THEN_ELIMINATION
+}
+
+enum TournamentSeeding {
+  RANDOM
+  MANUAL
+  REGISTRATION_ORDER
+  RATING
+}
+
+enum TournamentStaffRole {
+  OWNER
+  ADMIN
+  REFEREE
+  CASTER
+  OBSERVER
+}
+
+enum TournamentRegistrationStatus {
+  PENDING
+  CONFIRMED
+  WAITLISTED
+  REJECTED
+  CANCELLED
+}
+
+enum TournamentCheckinStatus {
+  NOT_REQUIRED
+  PENDING
+  CHECKED_IN
+  MISSED
+  ADMIN_CONFIRMED
+}
+
+enum TournamentTeamStatus {
+  FORMING
+  REGISTERED
+  CONFIRMED
+  WAITLISTED
+  WITHDRAWN
+  DISQUALIFIED
+}
+
+enum TournamentTeamMemberRole {
+  CAPTAIN
+  PLAYER
+  SUBSTITUTE
+  COACH
+}
+
+enum TournamentInviteStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  EXPIRED
+  REVOKED
+}
+
+/// Abschnitt eines Turniers - Gruppenphase, Hauptrunde, Verliererrunde.
+enum TournamentStageKind {
+  GROUPS
+  SWISS
+  ROUND_ROBIN
+  WINNERS
+  LOSERS
+  GRAND_FINAL
+}
+
+enum TournamentMatchStatus {
+  PENDING
+  READY
+  SCHEDULED
+  LIVE
+  AWAITING_RESULT
+  DISPUTED
+  COMPLETED
+  FORFEIT
+  CANCELLED
+}
+
+/// Warum ein Match so ausging, wie es ausging.
+enum TournamentResultReason {
+  PLAYED
+  FORFEIT
+  NO_SHOW
+  BYE
+  ADMIN_DECISION
+}
+
+enum TournamentStreamStatus {
+  NOT_STREAMED
+  PLANNED
+  LIVE
+  FINISHED
+}
+
+enum TournamentDisputeStatus {
+  OPEN
+  IN_REVIEW
+  RESOLVED
+  REJECTED
+}
+
+enum TournamentPrizeStatus {
+  PENDING
+  AWARDED
+  DELIVERED
+}
+
+/// Welche Discord-Ressource das Modul selbst angelegt hat.
+enum TournamentResourceKind {
+  MATCH_CHANNEL
+  ANNOUNCEMENT_MESSAGE
+  PARTICIPANT_ROLE
+  WINNER_ROLE
+}
+
+enum TournamentCustomFieldKind {
+  SHORT_TEXT
+  LONG_TEXT
+  URL
+  SELECT
+}
+
+/// Was im Turnierverlauf geschehen ist.
+enum TournamentEventKind {
+  CREATED
+  PUBLISHED
+  REGISTRATION_OPENED
+  REGISTRATION_CLOSED
+  CHECKIN_OPENED
+  CHECKIN_CLOSED
+  BRACKET_GENERATED
+  BRACKET_RESEEDED
+  ROUND_STARTED
+  ROUND_COMPLETED
+  STARTED
+  PAUSED
+  RESUMED
+  COMPLETED
+  CANCELLED
+  ARCHIVED
+  REGISTRATION_APPROVED
+  REGISTRATION_REJECTED
+  REGISTRATION_WITHDRAWN
+  WAITLIST_PROMOTED
+  TEAM_CREATED
+  TEAM_UPDATED
+  TEAM_DISQUALIFIED
+  MATCH_SCHEDULED
+  MATCH_RESULT_REPORTED
+  MATCH_RESULT_CONFIRMED
+  MATCH_RESULT_OVERRIDDEN
+  DISPUTE_OPENED
+  DISPUTE_RESOLVED
+  PRIZE_UPDATED
+  STAFF_CHANGED
+}
+
+model Tournament {
+  id      String @id @default(cuid())
+  guildId String
+
+  /// Teil der Adresse: /turniere/<slug>. Je Server eindeutig.
+  slug String
+  name String
+
+  /// Freier Spielname oder Verweis auf die bestehende Spieleliste der
+  /// Spielersuche - eine zweite Spieleverwaltung braucht es nicht.
+  gameName String
+  gameId   String?
+  game     SpielersucheGame? @relation(fields: [gameId], references: [id], onDelete: SetNull)
+
+  description String? @db.Text
+  /// Regelwerk als Markdown. Die Web-Fassung ist die verbindliche.
+  rules        String? @db.Text
+  /// Wird erhoeht, wenn sich die Regeln wesentlich aendern. Teilnehmer, die
+  /// eine aeltere Fassung bestaetigt haben, muessen erneut bestaetigen.
+  rulesVersion Int     @default(1)
+  rulesUrl     String?
+
+  bannerUrl String?
+  logoUrl   String?
+  /// Akzentfarbe als Ganzzahl wie von Discord erwartet; sonst SwissHub-Rot.
+  accentColor Int?
+
+  status TournamentStatus @default(DRAFT)
+  mode   TournamentMode   @default(TEAM)
+  access TournamentAccessMode @default(OPEN)
+  format TournamentFormat @default(SINGLE_ELIMINATION)
+  seeding TournamentSeeding @default(RANDOM)
+
+  /// Teamgroesse. Bei SOLO ohne Bedeutung.
+  minTeamSize    Int @default(1)
+  maxTeamSize    Int @default(5)
+  maxSubstitutes Int @default(0)
+
+  /// 0 = keine Obergrenze. Darueber hinaus geht es auf die Warteliste.
+  maxParticipants Int @default(0)
+  minParticipants Int @default(2)
+
+  registrationOpensAt  DateTime?
+  registrationClosesAt DateTime?
+  checkinOpensAt       DateTime?
+  checkinClosesAt      DateTime?
+  /// Ab hier keine Teamaenderung mehr ohne Verwaltung.
+  rosterLockAt         DateTime?
+  startsAt             DateTime?
+  estimatedEndAt       DateTime?
+
+  /// Check-in ueberhaupt verlangen?
+  checkinRequired Boolean @default(true)
+  /// Nicht Eingecheckte selbsttaetig entfernen, oder von Hand pruefen?
+  autoRemoveMissedCheckin Boolean @default(false)
+
+  // --- Format-Feinheiten -------------------------------------------------
+  /// Anzahl Gruppen bei GROUPS_THEN_ELIMINATION.
+  groupCount        Int @default(0)
+  /// Wie viele je Gruppe weiterkommen.
+  advancePerGroup   Int @default(2)
+  /// Runden bei SWISS. 0 = aus der Teilnehmerzahl ableiten.
+  swissRounds       Int @default(0)
+  pointsPerWin      Int @default(3)
+  pointsPerDraw     Int @default(1)
+  pointsPerLoss     Int @default(0)
+  /// Reihenfolge der Tiebreaker als Liste von Kennungen.
+  tiebreakers       String[] @default([])
+
+  /// Standard-Format der Matches; einzelne Runden duerfen abweichen.
+  defaultBestOf Int      @default(1)
+  mapPool       String[] @default([])
+  serverRegion  String?
+
+  // --- Discord -----------------------------------------------------------
+  announcementChannelId String?
+  matchCategoryId       String?
+  staffCategoryId       String?
+  streamChannelId       String?
+  /// Rollen, die bei Ankuendigungen erwaehnt werden duerfen.
+  pingRoleIds           String[] @default([])
+  /// Temporaere Rolle fuer aktive Teilnehmer.
+  participantRoleId     String?
+  /// Rolle fuer den Sieger.
+  winnerRoleId          String?
+  /// Match-Kanaele: sofort, nach Stunden, oder am Turnierende (0).
+  matchChannelRetentionHours Int @default(0)
+  /// Match-Kanaele ueberhaupt anlegen?
+  createMatchChannels        Boolean @default(true)
+
+  // --- Livestream --------------------------------------------------------
+  twitchUrl  String?
+  youtubeUrl String?
+  streamUrl  String?
+
+  // --- Eignung -----------------------------------------------------------
+  /// Rolle, ohne die niemand teilnehmen darf.
+  requiredRoleId  String?
+  /// Mindest-Level aus dem Level-System. 0 = keine Bedingung.
+  minLevel        Int     @default(0)
+  /// Nur mit laufendem Premium-Abo.
+  requiresPremium Boolean @default(false)
+
+  publishedAt DateTime?
+  startedAt   DateTime?
+  pausedAt    DateTime?
+  completedAt DateTime?
+  cancelledAt DateTime?
+  cancelReason String?
+  archivedAt  DateTime?
+
+  createdByDiscordId String
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  staff          TournamentStaff[]
+  stages         TournamentStage[]
+  groups         TournamentGroup[]
+  registrations  TournamentRegistration[]
+  teams          TournamentTeam[]
+  invites        TournamentTeamInvite[]
+  matches        TournamentMatch[]
+  prizes         TournamentPrize[]
+  announcements  TournamentAnnouncement[]
+  resources      TournamentResource[]
+  customFields   TournamentCustomField[]
+  events         TournamentEvent[]
+  disputes       TournamentDispute[]
+  participants   TournamentParticipant[]
+
+  @@unique([guildId, slug])
+  @@index([guildId, status, startsAt])
+  @@index([guildId, gameId])
+  @@index([status, registrationClosesAt])
+  @@index([status, checkinClosesAt])
+  @@index([status, startsAt])
+}
+
+/// Wer dieses eine Turnier betreut.
+///
+/// Bewusst je Turnier und nicht nur ueber das zentrale Rechtesystem: jemand
+/// kann Turnier A leiten und bei Turnier B blosser Teilnehmer sein.
+model TournamentStaff {
+  id           String     @id @default(cuid())
+  tournamentId String
+  tournament   Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+
+  discordId String
+  username  String
+  role      TournamentStaffRole @default(REFEREE)
+
+  addedByDiscordId String?
+  createdAt        DateTime @default(now())
+
+  @@unique([tournamentId, discordId])
+  @@index([discordId])
+}
+
+/// Ein Abschnitt: Gruppenphase, Winner-Bracket, Loser-Bracket, Finale.
+model TournamentStage {
+  id           String     @id @default(cuid())
+  tournamentId String
+  tournament   Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+
+  kind      TournamentStageKind
+  name      String
+  /// Reihenfolge der Abschnitte.
+  sortOrder Int @default(0)
+  /// Wie viele Runden dieser Abschnitt hat.
+  roundCount Int @default(0)
+
+  startedAt   DateTime?
+  completedAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  groups  TournamentGroup[]
+  matches TournamentMatch[]
+
+  @@unique([tournamentId, kind, sortOrder])
+  @@index([tournamentId, sortOrder])
+}
+
+model TournamentGroup {
+  id           String     @id @default(cuid())
+  tournamentId String
+  tournament   Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  stageId      String
+  stage        TournamentStage @relation(fields: [stageId], references: [id], onDelete: Cascade)
+
+  name      String
+  sortOrder Int @default(0)
+
+  createdAt DateTime @default(now())
+
+  members TournamentGroupMember[]
+  matches TournamentMatch[]
+
+  @@unique([stageId, name])
+  @@index([tournamentId])
+}
+
+/// Wer in welcher Gruppe steht. Die Tabelle selbst wird aus den Matches
+/// gerechnet - hier steht nur die Zugehoerigkeit.
+model TournamentGroupMember {
+  id      String          @id @default(cuid())
+  groupId String
+  group   TournamentGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  participantId String
+  participant   TournamentParticipant @relation(fields: [participantId], references: [id], onDelete: Cascade)
+
+  sortOrder Int @default(0)
+
+  @@unique([groupId, participantId])
+  @@index([participantId])
+}
+
+/// Wer antritt - eine Person bei SOLO, ein Team bei TEAM.
+///
+/// Ein gemeinsames Modell, damit Bracket und Match nicht zwei Arten von
+/// Gegnern kennen muessen. Ohne diese Zwischenschicht traegt jedes Match zwei
+/// Fremdschluessel je Modus, und jede Abfrage muss beide Faelle unterscheiden.
+model TournamentParticipant {
+  id           String     @id @default(cuid())
+  tournamentId String
+  tournament   Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+
+  /// Bei SOLO gesetzt.
+  discordId String?
+  username  String?
+
+  /// Bei TEAM gesetzt.
+  teamId String? @unique
+  team   TournamentTeam? @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  /// Setzplatz im Bracket. `null`, solange nicht gesetzt.
+  seed Int?
+
+  /// Ausgeschieden, disqualifiziert oder zurueckgezogen.
+  eliminatedAt DateTime?
+  /// Endplatzierung; erst nach Turnierende gesetzt.
+  placement    Int?
+
+  createdAt DateTime @default(now())
+
+  registration TournamentRegistration?
+  groupMembers TournamentGroupMember[]
+  matchesAsA   TournamentMatch[] @relation("MatchParticipantA")
+  matchesAsB   TournamentMatch[] @relation("MatchParticipantB")
+  matchesWon   TournamentMatch[] @relation("MatchWinner")
+  matchesLost  TournamentMatch[] @relation("MatchLoser")
+
+  @@unique([tournamentId, discordId])
+  @@index([tournamentId, seed])
+  @@index([tournamentId, placement])
+}
+
+model TournamentRegistration {
+  id           String     @id @default(cuid())
+  tournamentId String
+  tournament   Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+
+  /// Wer angemeldet hat - bei Teams der Captain.
+  discordId String
+  username  String
+
+  /// Bei SOLO gesetzt; bei TEAM steht die Anmeldung am Team.
+  participantId String? @unique
+  participant   TournamentParticipant? @relation(fields: [participantId], references: [id], onDelete: SetNull)
+
+  /// Eindeutig, weil ein Team genau eine Anmeldung hat. Mehrere NULL-Werte
+  /// bleiben erlaubt - Einzelanmeldungen tragen hier nichts.
+  teamId String? @unique
+  team   TournamentTeam? @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  status TournamentRegistrationStatus @default(PENDING)
+  /// Position in der Warteliste; `null`, wenn nicht auf der Warteliste.
+  waitlistPosition Int?
+
+  checkinStatus TournamentCheckinStatus @default(NOT_REQUIRED)
+  checkedInAt   DateTime?
+  checkedInBy   String?
+
+  rulesAcceptedAt DateTime?
+  rulesVersion    Int?
+
+  /// Grund einer Ablehnung oder Absage.
+  reason String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  responses TournamentCustomFieldResponse[]
+
+  @@unique([tournamentId, discordId])
+  @@index([tournamentId, status])
+  @@index([tournamentId, status, waitlistPosition])
+  @@index([tournamentId, checkinStatus])
+  @@index([discordId])
+}
+
+model TournamentTeam {
+  id           String     @id @default(cuid())
+  tournamentId String
+  tournament   Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+
+  name String
+  tag  String?
+  logoUrl String?
+
+  captainDiscordId String
+  captainUsername  String
+
+  status TournamentTeamStatus @default(FORMING)
+
+  /// Nach dem Roster Lock von der Verwaltung ausdruecklich geoeffnet.
+  rosterUnlockedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  members      TournamentTeamMember[]
+  invites      TournamentTeamInvite[]
+  registration TournamentRegistration?
+  participant  TournamentParticipant?
+
+  @@unique([tournamentId, name])
+  @@index([tournamentId, status])
+  @@index([captainDiscordId])
+}
+
+model TournamentTeamMember {
+  id     String         @id @default(cuid())
+  teamId String
+  team   TournamentTeam @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  discordId String
+  username  String
+  role      TournamentTeamMemberRole @default(PLAYER)
+
+  joinedAt DateTime @default(now())
+  /// Entfernt, aber im Verlauf erhalten.
+  removedAt DateTime?
+
+  @@unique([teamId, discordId])
+  @@index([discordId])
+}
+
+model TournamentTeamInvite {
+  id           String     @id @default(cuid())
+  tournamentId String
+  tournament   Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  teamId       String
+  team         TournamentTeam @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  discordId String
+  username  String
+  role      TournamentTeamMemberRole @default(PLAYER)
+
+  status TournamentInviteStatus @default(PENDING)
+
+  invitedByDiscordId String
+  createdAt          DateTime  @default(now())
+  respondedAt        DateTime?
+  expiresAt          DateTime?
+
+  @@index([teamId, status])
+  @@index([discordId, status])
+  @@index([tournamentId, status])
+}
+
+model TournamentMatch {
+  id           String     @id @default(cuid())
+  tournamentId String
+  tournament   Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  stageId      String
+  stage        TournamentStage @relation(fields: [stageId], references: [id], onDelete: Cascade)
+  groupId      String?
+  group        TournamentGroup? @relation(fields: [groupId], references: [id], onDelete: SetNull)
+
+  /// Fortlaufende Nummer je Turnier - das, was Teilnehmer nennen.
+  matchNumber Int
+  round       Int
+  /// Platz innerhalb der Runde. Zusammen mit `round` eindeutig je Abschnitt.
+  position    Int
+
+  participantAId String?
+  participantA   TournamentParticipant? @relation("MatchParticipantA", fields: [participantAId], references: [id], onDelete: SetNull)
+  participantBId String?
+  participantB   TournamentParticipant? @relation("MatchParticipantB", fields: [participantBId], references: [id], onDelete: SetNull)
+
+  /// Wohin der Sieger geht. Ohne diese Verweise muesste das Weiterkommen die
+  /// Bracket-Form jedes Mal neu ausrechnen - und zwei Stellen, die dasselbe
+  /// ausrechnen, sind irgendwann uneinig.
+  winnerToMatchId String?
+  /// A oder B im Zielmatch.
+  winnerToSlot    String?
+  /// Bei Double Elimination: wohin der Verlierer faellt.
+  loserToMatchId  String?
+  loserToSlot     String?
+
+  status   TournamentMatchStatus @default(PENDING)
+  bestOf   Int                   @default(1)
+
+  scheduledAt DateTime?
+  startedAt   DateTime?
+  completedAt DateTime?
+
+  scoreA Int @default(0)
+  scoreB Int @default(0)
+
+  winnerId String?
+  winner   TournamentParticipant? @relation("MatchWinner", fields: [winnerId], references: [id], onDelete: SetNull)
+  loserId  String?
+  loser    TournamentParticipant? @relation("MatchLoser", fields: [loserId], references: [id], onDelete: SetNull)
+
+  resultReason TournamentResultReason @default(PLAYED)
+
+  /// Bereitmeldung beider Seiten vor dem Start.
+  readyA Boolean @default(false)
+  readyB Boolean @default(false)
+
+  discordChannelId String?
+  /// Der Kanal fehlt auf Discord. Vom Abgleich gesetzt.
+  channelMissing   Boolean @default(false)
+
+  streamStatus TournamentStreamStatus @default(NOT_STREAMED)
+  streamUrl    String?
+  vodUrl       String?
+  highlightUrl String?
+
+  /// Interne Notiz der Verwaltung - fuer Teilnehmer nie sichtbar.
+  staffNote String? @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  games       TournamentMatchGame[]
+  submissions TournamentResultSubmission[]
+  disputes    TournamentDispute[]
+  casters     TournamentMatchCaster[]
+
+  @@unique([tournamentId, matchNumber])
+  @@unique([stageId, round, position])
+  @@unique([discordChannelId])
+  @@index([tournamentId, status])
+  @@index([tournamentId, scheduledAt])
+  @@index([stageId, round])
+  @@index([status, scheduledAt])
+}
+
+/// Eine einzelne Map oder Partie innerhalb eines Matches.
+model TournamentMatchGame {
+  id      String          @id @default(cuid())
+  matchId String
+  match   TournamentMatch @relation(fields: [matchId], references: [id], onDelete: Cascade)
+
+  /// 1-basiert: Map 1, Map 2, ...
+  index Int
+  map   String?
+
+  scoreA Int @default(0)
+  scoreB Int @default(0)
+  /// A, B oder null bei unentschieden.
+  winnerSlot String?
+
+  @@unique([matchId, index])
+}
+
+/// Eine gemeldete Resultatfassung.
+///
+/// Bewusst mehrere Meldungen je Match statt eines Feldes: erst wenn zwei
+/// Seiten dasselbe sagen, ist ein Resultat gueltig. Ohne die einzelnen
+/// Meldungen liesse sich hinterher nicht mehr zeigen, wer was gemeldet hat.
+model TournamentResultSubmission {
+  id      String          @id @default(cuid())
+  matchId String
+  match   TournamentMatch @relation(fields: [matchId], references: [id], onDelete: Cascade)
+
+  /// A oder B - fuer welche Seite gemeldet wurde.
+  slot String
+
+  reportedByDiscordId String
+  reportedByUsername  String
+
+  scoreA Int
+  scoreB Int
+  reason TournamentResultReason @default(PLAYED)
+  /// Map-Ergebnisse als Liste von {index, map, scoreA, scoreB}.
+  games  Json @default("[]")
+
+  comment      String?
+  evidenceUrl  String?
+  /// Dateiname im Speicher - nie der Pfad.
+  evidenceFile String?
+
+  /// Von der Gegenseite bestaetigt.
+  confirmedAt          DateTime?
+  confirmedByDiscordId String?
+  /// Von der Gegenseite bestritten.
+  rejectedAt           DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@index([matchId, createdAt])
+  @@index([matchId, slot])
+}
+
+model TournamentDispute {
+  id           String     @id @default(cuid())
+  tournamentId String
+  tournament   Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  matchId      String
+  match        TournamentMatch @relation(fields: [matchId], references: [id], onDelete: Cascade)
+
+  openedByDiscordId String
+  openedByUsername  String
+  reason            String @db.Text
+
+  status TournamentDisputeStatus @default(OPEN)
+
+  /// Nur fuer die Verwaltung.
+  staffNote String? @db.Text
+
+  resolvedByDiscordId String?
+  resolvedAt          DateTime?
+  resolution          String? @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([tournamentId, status])
+  @@index([matchId])
+}
+
+/// Wer ein Match kommentiert oder beobachtet.
+model TournamentMatchCaster {
+  id      String          @id @default(cuid())
+  matchId String
+  match   TournamentMatch @relation(fields: [matchId], references: [id], onDelete: Cascade)
+
+  discordId String
+  username  String
+  /// CASTER, OBSERVER oder HOST.
+  role      String @default("CASTER")
+
+  createdAt DateTime @default(now())
+
+  @@unique([matchId, discordId])
+}
+
+model TournamentPrize {
+  id           String     @id @default(cuid())
+  tournamentId String
+  tournament   Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+
+  /// 1 = Sieger, 2 = Zweiter, ...
+  placement   Int
+  title       String
+  description String?
+  /// Freitext statt Betrag: der Preis kann Geld, Hardware oder eine Rolle sein.
+  value       String?
+  sponsorName String?
+  sponsorUrl  String?
+  sponsorLogoUrl String?
+
+  status TournamentPrizeStatus @default(PENDING)
+
+  /// Wer ihn bekommen hat - erst nach dem Turnier bekannt.
+  awardedParticipantId String?
+  awardedAt            DateTime?
+  deliveredAt          DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([tournamentId, placement])
+  @@index([tournamentId])
+}
+
+/// Eine gesendete Turnier-Ankuendigung.
+///
+/// Der Versand selbst laeuft ueber das Kommunikationsmodul; hier steht nur,
+/// welche Ankuendigung fuer dieses Turnier bereits hinausging. Sonst schickte
+/// ein zweimal laufender Zeitgeber dieselbe Erinnerung zweimal.
+model TournamentAnnouncement {
+  id           String     @id @default(cuid())
+  tournamentId String
+  tournament   Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+
+  /// Kennung der Art, z.B. REGISTRATION_OPEN oder ROUND_START:2.
+  kind String
+
+  channelId        String?
+  discordMessageId String?
+  /// Verweis auf den Eintrag im Kommunikationsverlauf.
+  communicationMessageId String?
+
+  sentByDiscordId String?
+  sentAt          DateTime @default(now())
+
+  @@unique([tournamentId, kind])
+  @@index([tournamentId, sentAt])
+}
+
+/// Was das Turniermodul auf Discord selbst angelegt hat.
+///
+/// Nur was hier steht, wird spaeter auch wieder entfernt. Ohne diese Liste
+/// muesste das Aufraeumen raten, welcher Kanal zum Turnier gehoert - und
+/// loeschte irgendwann einen, der jemand anderem gehoert.
+model TournamentResource {
+  id           String     @id @default(cuid())
+  tournamentId String
+  tournament   Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+
+  kind      TournamentResourceKind
+  discordId String
+  /// Bei Nachrichten der Kanal, in dem sie steht.
+  parentId  String?
+  label     String?
+
+  createdAt DateTime  @default(now())
+  removedAt DateTime?
+  /// Auf Discord nicht mehr auffindbar. Vom Abgleich gesetzt.
+  missingSince DateTime?
+
+  @@unique([tournamentId, kind, discordId])
+  @@index([tournamentId, kind])
+}
+
+/// Zusaetzliche Frage im Anmeldeformular.
+model TournamentCustomField {
+  id           String     @id @default(cuid())
+  tournamentId String
+  tournament   Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+
+  kind        TournamentCustomFieldKind @default(SHORT_TEXT)
+  label       String
+  description String?
+  placeholder String?
+  required    Boolean @default(false)
+  /// Auswahlmoeglichkeiten bei SELECT.
+  options     String[] @default([])
+  maxLength   Int?
+  sortOrder   Int @default(0)
+
+  createdAt DateTime @default(now())
+
+  responses TournamentCustomFieldResponse[]
+
+  @@index([tournamentId, sortOrder])
+}
+
+model TournamentCustomFieldResponse {
+  id      String                @id @default(cuid())
+  fieldId String
+  field   TournamentCustomField @relation(fields: [fieldId], references: [id], onDelete: Cascade)
+
+  registrationId String
+  registration   TournamentRegistration @relation(fields: [registrationId], references: [id], onDelete: Cascade)
+
+  value String @db.Text
+
+  @@unique([fieldId, registrationId])
+  @@index([registrationId])
+}
+
+model TournamentEvent {
+  id           String     @id @default(cuid())
+  tournamentId String
+  tournament   Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+
+  kind TournamentEventKind
+
+  actorDiscordId String?
+  actorUsername  String?
+  /// WEBAPP, DISCORD oder SYSTEM.
+  actorSource    String @default("SYSTEM")
+
+  detail Json @default("{}")
+
+  createdAt DateTime @default(now())
+
+  @@index([tournamentId, createdAt])
+  @@index([tournamentId, kind])
+}
+
+/// Fortlaufende Matchnummern je Turnier.
+///
+/// Dieselbe Ueberlegung wie beim Ticketzaehler: `MAX+1` verliert das Rennen,
+/// sobald zwei Vorgaenge gleichzeitig ein Match anlegen.
+model TournamentMatchCounter {
+  tournamentId String @id
+  lastNumber   Int    @default(0)
+
+  updatedAt DateTime @updatedAt
+}
+
+/// Wer von der Teilnahme ausgeschlossen ist.
+///
+/// Ausdruecklich nicht dasselbe wie ein Discord-Bann: jemand darf im Server
+/// bleiben und trotzdem an keinem Turnier mehr teilnehmen.
+model TournamentBlockEntry {
+  id      String @id @default(cuid())
+  guildId String
+
+  discordId String
+  username  String?
+  reason    String
+
+  blockedByDiscordId String
+  createdAt          DateTime  @default(now())
+  expiresAt          DateTime?
+  liftedAt           DateTime?
+
+  @@index([guildId, discordId, liftedAt])
 }

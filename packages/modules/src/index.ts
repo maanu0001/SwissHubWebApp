@@ -8,6 +8,7 @@ import './music/config';
 import './tickets/config';
 import './spielersuche/config';
 import './level/config';
+import './tournaments/config';
 import { registerGuildResolver } from './guild/config';
 
 // Ab hier löst jeder Discord-Aufruf die Guild aus der Datenbank auf.
@@ -32,6 +33,7 @@ export * as music from './music';
 export * as tickets from './tickets';
 export * as spielersuche from './spielersuche';
 export * as level from './level';
+export * as tournaments from './tournaments';
 export * from './bot-status';
 export * from './members/service';
 export * from './members/avatars';

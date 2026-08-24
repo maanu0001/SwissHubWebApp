@@ -28,8 +28,8 @@ import {
   updateCategoryAction,
 } from '@/modules/tickets/admin-actions';
 
-/** Discord erlaubt fünf Felder je Modal - dieselbe Grenze wie auf dem Server. */
-const MAX_FELDER = 5;
+/** Vier eigene Fragen: das fünfte Modal-Feld ist der Betreff. Wie auf dem Server. */
+const MAX_FELDER = 4;
 
 export interface KategorieWerte {
   categoryId?: string;
@@ -411,8 +411,8 @@ export function CategoryEditor({
       <fieldset className="space-y-3 rounded-xl border border-border/60 p-4">
         <legend className="px-2 text-sm font-semibold">Fragen beim Eröffnen</legend>
         <p className="text-xs text-muted-foreground">
-          Discord erlaubt höchstens {MAX_FELDER} Felder. Ohne eigene Fragen wird nur nach dem
-          Anliegen gefragt.
+          Discord erlaubt höchstens {MAX_FELDER} eigene Fragen - das fünfte Feld im Modal ist der
+          Betreff. Ohne eigene Fragen wird nur nach dem Anliegen gefragt.
         </p>
 
         {form.formFields.map((feld, index) => (

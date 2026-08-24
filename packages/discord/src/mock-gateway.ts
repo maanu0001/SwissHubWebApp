@@ -388,6 +388,9 @@ export function createMockGateway(): DiscordGateway {
       async highestRolePosition() {
         return 80;
       },
+      async messageContentAllowed() {
+        return true;
+      },
     },
     isMock: true,
   };

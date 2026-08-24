@@ -542,6 +542,19 @@ export function createRestGateway(): DiscordGateway {
       return members.get(identity.id);
     },
 
+    async messageContentAllowed() {
+      return cached('bot:message-content', false, async () => {
+        // Die Anwendung traegt die Freischaltung in ihren Flags: Bit 18 fuer
+        // die unbegrenzte, Bit 19 fuer die auf 100 Server begrenzte Fassung.
+        // Beide bedeuten dasselbe fuer uns - der Inhalt kommt an.
+        const raw = await discordRequest<{ flags?: number }>('/applications/@me');
+        const flags = typeof raw?.flags === 'number' ? raw.flags : 0;
+        const UNBEGRENZT = 1 << 18;
+        const BEGRENZT = 1 << 19;
+        return (flags & UNBEGRENZT) !== 0 || (flags & BEGRENZT) !== 0;
+      });
+    },
+
     async highestRolePosition() {
       const [botMember, allRoles] = await Promise.all([bot.member(), roles.list()]);
       if (!botMember) {

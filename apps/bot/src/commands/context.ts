@@ -1,4 +1,4 @@
-import type { ChatInputCommandInteraction, Interaction } from 'discord.js';
+import type { ChatInputCommandInteraction, GuildMember, Interaction } from 'discord.js';
 import { bootstrapConfig } from '@swisshub/config';
 import {
   hasPermission,
@@ -35,8 +35,7 @@ export interface CommandActor {
   permissionKeys: string[];
 }
 
-function memberRoleIds(interaction: Interaction): string[] {
-  const member = interaction.member;
+function memberRoleIds(member: Interaction['member'] | GuildMember | null): string[] {
   if (member && 'roles' in member && member.roles && 'cache' in member.roles) {
     return [...member.roles.cache.keys()];
   }
@@ -44,18 +43,33 @@ function memberRoleIds(interaction: Interaction): string[] {
 }
 
 export async function buildCommandActor(interaction: Interaction): Promise<CommandActor> {
-  const roleIds = memberRoleIds(interaction);
-  const isOwner = bootstrapConfig.ownerDiscordId === interaction.user.id;
+  return buildActor(interaction.user, interaction.member);
+}
+
+/**
+ * Derselbe Kontext ohne Interaktion.
+ *
+ * Wird gebraucht, wo kein Klick zugrunde liegt - etwa bei einer Nachricht in
+ * einem Ticket-Kanal, bei der zu entscheiden ist, ob sie als Support-Antwort
+ * zaehlt. Bewusst dieselbe Funktion: eine zweite Ableitung der Rechte waere
+ * genau die Stelle, an der Discord und Dashboard auseinanderliefen.
+ */
+export async function buildActor(
+  user: { id: string; username: string; avatar: string | null },
+  member: Interaction['member'] | GuildMember | null,
+): Promise<CommandActor> {
+  const roleIds = memberRoleIds(member);
+  const isOwner = bootstrapConfig.ownerDiscordId === user.id;
   const configuration = await loadRoleConfiguration();
   const resolution = resolvePermissions(
-    { discordId: interaction.user.id, roleIds, isOwner },
+    { discordId: user.id, roleIds, isOwner },
     configuration.mappings,
   );
 
   return {
-    discordId: interaction.user.id,
-    username: interaction.user.username,
-    avatarHash: interaction.user.avatar ?? null,
+    discordId: user.id,
+    username: user.username,
+    avatarHash: user.avatar ?? null,
     roleIds,
     isOwner,
     moderationLevel: moderationLevelOf(roleIds, configuration.moderationLevels),

@@ -124,6 +124,16 @@ export interface DiscordGateway {
     member(): Promise<GuildMember | null>;
     /** Höchste Rollenposition des Bots in der Guild. */
     highestRolePosition(): Promise<number>;
+    /**
+     * Darf der Bot Nachrichteninhalte über das Gateway empfangen?
+     *
+     * Das privilegierte Intent «Message Content» wird im Discord Developer
+     * Portal freigeschaltet. Ohne es liefert Discord leere Inhalte - und
+     * discord.js verweigert den Login, wenn ein Bot das Intent anfordert,
+     * das er nicht hat. Deshalb wird vor dem Verbinden gefragt statt
+     * hinterher gescheitert.
+     */
+    messageContentAllowed(): Promise<boolean>;
   };
   /** True, wenn deterministische Mock-Daten geliefert werden. */
   readonly isMock: boolean;

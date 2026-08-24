@@ -257,6 +257,26 @@ async function ticketHealthChecks(context: ModuleHealthContext): Promise<ModuleH
     checks.push({ label: 'Support-Rollen', status: 'ok', detail: 'Zugeordnet' });
   }
 
+  // Nachrichten aus den Ticket-Kanaelen.
+  const { discord } = await import('@swisshub/discord');
+  const inhalte = await discord.bot.messageContentAllowed().catch(() => null);
+  checks.push(
+    inhalte === null
+      ? {
+          label: 'Nachrichten aus Discord',
+          status: 'warning',
+          detail: 'Discord war nicht erreichbar - der Zustand ist unbekannt.',
+        }
+      : inhalte
+        ? { label: 'Nachrichten aus Discord', status: 'ok', detail: 'Werden in den Verlauf übernommen' }
+        : {
+            label: 'Nachrichten aus Discord',
+            status: 'warning',
+            detail:
+              'Das Intent «Message Content» ist nicht freigeschaltet. Antworten aus dem Ticket-Kanal erscheinen weder im Dashboard noch im Transcript. Im Discord Developer Portal unter Bot → Privileged Gateway Intents aktivieren und den Bot neu starten.',
+          },
+  );
+
   if (settings.maintenanceMode) {
     checks.push({
       label: 'Betrieb',

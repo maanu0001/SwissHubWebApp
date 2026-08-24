@@ -6,7 +6,7 @@ import {
   discordMocksEnabled,
   listDeprecatedEnvKeys,
 } from '@swisshub/config';
-import { clearGuildIdCache, tryResolveGuildId } from '@swisshub/discord';
+import { clearGuildIdCache, discord, tryResolveGuildId } from '@swisshub/discord';
 import { createLogger } from '@swisshub/logger';
 import { disconnectDatabase } from '@swisshub/database';
 import { invalidateIdentity } from '@swisshub/auth';
@@ -27,6 +27,8 @@ import { registerRaffleButtons } from './raffle-buttons';
 import { recoverVoiceSessions, registerSpielersucheVoice } from './spielersuche-voice';
 import { registerVoicePresence } from './voice-presence';
 import { registerLevelGameButtons } from './level-games';
+import { registerTicketInteractions } from './ticket-interactions';
+import { registerTicketMessageSync } from './ticket-messages';
 import {
   recoverVoiceMembers,
   registerLevelMessageXp,
@@ -70,13 +72,24 @@ async function main(): Promise<void> {
     );
   }
 
+  /**
+   * Darf der Bot Nachrichteninhalte empfangen?
+   *
+   * Das Ticket-Modul spiegelt Nachrichten aus den Ticket-Kanälen; dafür
+   * braucht es das privilegierte Intent «Message Content». Angefordert wird
+   * es nur, wenn es im Developer Portal auch freigeschaltet ist: discord.js
+   * verweigert sonst den Login, und der ganze Bot bliebe unten - wegen einer
+   * Funktion, die nur ein Modul braucht.
+   */
+  const messageContent = mockMode ? false : await discord.bot.messageContentAllowed().catch(() => false);
+
   const client = new Client({
     intents: [
       GatewayIntentBits.Guilds,
       GatewayIntentBits.GuildMembers,
-      // Nachrichten-Ereignisse für XP im Chat. Der Inhalt wird nicht gelesen,
-      // deshalb reicht `GuildMessages` ohne das privilegierte MessageContent.
+      // Nachrichten-Ereignisse für XP im Chat und für die Ticket-Kanäle.
       GatewayIntentBits.GuildMessages,
+      ...(messageContent ? [GatewayIntentBits.MessageContent] : []),
       // Voice-Zustände: XP für Zeit im Sprachkanal und das Aufräumen der
       // Spielersuche-Kanäle. Ohne dieses Intent liefert Discord die
       // Ereignisse nicht - die Handler liefen bisher ins Leere.
@@ -113,6 +126,9 @@ async function main(): Promise<void> {
   registerLevelMessageXp(client);
   registerLevelVoiceTracking(client);
   registerLevelGameButtons(client);
+  // Ticket-Panels, Formular und die Knöpfe im Ticket-Kanal.
+  registerTicketInteractions(client);
+  registerTicketMessageSync(client, messageContent);
 
   /**
    * Aktive Guild-ID. Sie kann sich zur Laufzeit ändern (Einrichtungsassistent),

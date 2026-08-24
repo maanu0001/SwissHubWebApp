@@ -47,13 +47,14 @@ export interface TicketCategoryInput {
 }
 
 /**
- * Discord erlaubt hoechstens fuenf Felder je Modal.
+ * Wie viele eigene Fragen eine Kategorie stellen darf.
  *
- * Die Grenze steht hier und nicht nur im Formular: ein sechstes Feld liesse
- * das Modal zur Laufzeit scheitern, und zwar erst dann, wenn ein Mitglied
- * ein Ticket eroeffnen will.
+ * Discord erlaubt fuenf Felder je Modal, und eines davon ist immer der
+ * Betreff - bleiben vier. Die Grenze steht hier und nicht nur im Formular:
+ * ein fuenftes Feld liesse das Modal zur Laufzeit scheitern, und zwar erst
+ * dann, wenn ein Mitglied ein Ticket eroeffnen will.
  */
-export const MAX_FORM_FIELDS = 5;
+export const MAX_FORM_FIELDS = 4;
 
 export async function listCategories(): Promise<
   Array<TicketCategory & { formFields: Array<{ id: string; label: string; kind: TicketFormFieldKind; required: boolean; placeholder: string | null; minLength: number | null; maxLength: number | null; sortOrder: number }>; ticketCount: number }>
@@ -90,7 +91,7 @@ export async function getCategory(categoryId: string) {
 function pruefe(input: TicketCategoryInput): void {
   if (input.formFields.length > MAX_FORM_FIELDS) {
     throw new AppError('VALIDATION_FAILED', {
-      userMessage: `Discord erlaubt höchstens ${MAX_FORM_FIELDS} Felder je Formular.`,
+      userMessage: `Discord erlaubt höchstens ${MAX_FORM_FIELDS} eigene Fragen - das fünfte Feld ist der Betreff.`,
     });
   }
   for (const feld of input.formFields) {

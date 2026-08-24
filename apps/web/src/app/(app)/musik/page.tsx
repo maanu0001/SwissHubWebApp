@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { EmptyState } from '@/components/shared/states';
 import { DiscordAvatar } from '@/components/shared/discord-avatar';
 import { MusicSectionNav } from '@/modules/music/components/section-nav';
+import { LiveSession } from '@/modules/music/components/live-session';
 import { PlayerControls } from '@/modules/music/components/player-controls';
 import { ProgressBar } from '@/modules/music/components/progress-bar';
 import { QueueList } from '@/modules/music/components/queue-list';
@@ -121,6 +122,7 @@ export default async function MusikPage(): Promise<React.JSX.Element> {
                 {zustand.session.listenerCount}
               </span>
               <span>{zustand.bot?.name ?? zustand.bot?.key ?? 'Bot'}</span>
+              <LiveSession sessionId={zustand.session.id} />
             </span>
           </div>
 

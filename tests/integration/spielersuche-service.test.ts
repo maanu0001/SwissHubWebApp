@@ -210,9 +210,14 @@ describeWithDatabase('Spielersuche starten', () => {
 
   it('erstellt die Suche auch ohne Sprachkanal, meldet das aber', async () => {
     const gameId = await createGame('CS2', ROLE_CS2);
+    // Beide Zugaenge lahmlegen: `voice.create` ist der aeltere Name fuer
+    // `managedChannels.createVoice`, und der Test soll nicht davon abhaengen,
+    // welchen die Anwendung gerade verwendet.
+    const verweigert = vi.fn().mockRejectedValue(new Error('Forbidden'));
     const failing = {
       ...gateway,
-      voice: { ...gateway.voice, create: vi.fn().mockRejectedValue(new Error('Forbidden')) },
+      voice: { ...gateway.voice, create: verweigert },
+      managedChannels: { ...gateway.managedChannels, createVoice: verweigert },
     };
 
     const result = await spielersuche.createSearch(search(gameId), ALICE, { gateway: failing });
@@ -640,7 +645,8 @@ async function resetDatabase(): Promise<void> {
     TRUNCATE TABLE
       "SpielersucheImportItem", "SpielersucheImport", "SpielersucheVoiceSession",
       "SpielersucheParticipant", "SpielersucheRolePing", "SpielersucheUsage",
-      "SpielersucheMatch", "SpielersucheGame", "AuditLog", "IdempotencyRecord", "ModuleState"
+      "SpielersucheMatch", "SpielersucheGame",
+      "TemporaryVoiceAccess", "TemporaryVoiceChannel", "VoiceHubEvent", "AuditLog", "IdempotencyRecord", "ModuleState"
     RESTART IDENTITY CASCADE
   `);
 }
@@ -667,7 +673,10 @@ describeWithDatabase('Sprachkanal-Verhalten des Vorgängers', () => {
   });
 
   it('legt den Kanal mit diesem Limit an', async () => {
-    const created = vi.spyOn(gateway.voice, 'create');
+    // Auf `managedChannels.createVoice` gespaeht: `voice.create` ist derselbe
+    // Aufruf unter dem aelteren Namen, und die gemeinsame Engine verwendet
+    // den neueren.
+    const created = vi.spyOn(gateway.managedChannels, 'createVoice');
     const gameId = await createGame('Minecraft', ROLE_LOL, null);
 
     await spielersuche.createSearch(search(gameId, 3), ALICE, { gateway });

@@ -123,6 +123,8 @@ export async function createVoiceChannel(
       // spontan jemand dazustossen kann - unabhaengig davon, was die
       // Kategorie sagt. Genau so hielt es der alte Bot.
       everyoneAllow: PARTICIPANT_ALLOW,
+      // Den durchgereichten Zugang verwenden, nicht den globalen.
+      gateway: context.gateway,
     });
 
     if (!kanal.discordChannelId) {

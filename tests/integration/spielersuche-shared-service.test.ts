@@ -121,6 +121,7 @@ async function reset(): Promise<void> {
     TRUNCATE TABLE
       "SpielersucheVoiceSession", "SpielersucheParticipant", "SpielersucheRolePing",
       "SpielersucheUsage", "SpielersucheMatch", "SpielersucheGame",
+      "TemporaryVoiceAccess", "TemporaryVoiceChannel", "VoiceHubEvent",
       "RolePermission", "ManagedRole", "AuditLog", "IdempotencyRecord", "ModuleState"
     RESTART IDENTITY CASCADE
   `);

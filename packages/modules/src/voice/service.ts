@@ -1,6 +1,11 @@
 import { prisma } from '@swisshub/database';
 import type { TemporaryVoiceChannel, TemporaryVoiceSource, VoiceHubEventKind } from '@swisshub/database';
-import { discord, resolveGuildId, type ChannelOverwrite } from '@swisshub/discord';
+import {
+  discord,
+  resolveGuildId,
+  type ChannelOverwrite,
+  type DiscordGateway,
+} from '@swisshub/discord';
 import { createLogger } from '@swisshub/logger';
 import { AppError } from '@swisshub/shared';
 import {
@@ -75,6 +80,15 @@ export interface CreateTemporaryVoiceInput {
    * unabhaengig davon, was die Kategorie sagt. Genau dafuer ist dieses Feld.
    */
   everyoneAllow?: bigint | null;
+  /**
+   * Der zu verwendende Zugang zu Discord.
+   *
+   * Ohne Angabe der uebliche. Die Spielersuche reicht seit jeher ihren
+   * eigenen durch - unter anderem, damit sich im Test ein Fehlschlag beim
+   * Anlegen nachstellen laesst. Diese Moeglichkeit soll ihr die gemeinsame
+   * Engine nicht nehmen.
+   */
+  gateway?: DiscordGateway;
 }
 
 /**
@@ -128,6 +142,11 @@ export async function createTemporaryVoice(
   }
 
   // --- Discord -----------------------------------------------------------
+  //
+  // Ausserhalb der Reservierung, weil der Aufruf je nach Laune der API
+  // hunderte Millisekunden dauert - solange soll niemand eine Sperre halten.
+  const gateway = input.gateway ?? discord;
+  let angelegt: { id: string; name: string } | null = null;
   try {
     const overwrites = await baueStartAusnahmen(input);
 
@@ -141,7 +160,9 @@ export async function createTemporaryVoice(
         reason: `Voice Hub: Talk von ${input.ownerUsername}`,
       },
       input.overflowParentId ?? null,
+      gateway,
     );
+    angelegt = { id: kanal.id, name: kanal.name };
 
     const fertig = await prisma.temporaryVoiceChannel.update({
       where: { id: reservierung.id },
@@ -161,14 +182,25 @@ export async function createTemporaryVoice(
     });
     return fertig;
   } catch (error) {
+    // Der Kanal steht schon auf Discord, aber die Zeile dazu nicht. Ohne
+    // dieses Aufraeumen bliebe ein Kanal stehen, von dem die Anwendung nichts
+    // weiss - und den folglich auch kein Abgleich je wieder findet.
+    if (angelegt) {
+      await gateway.managedChannels
+        .remove(angelegt.id, 'Talk konnte nicht vollständig angelegt werden')
+        .catch(() => undefined);
+    }
+
     // Die Reservierung wieder freigeben - sonst blockiert sie den naechsten
     // Versuch derselben Person auf Dauer.
     await prisma.temporaryVoiceChannel
       .delete({ where: { id: reservierung.id } })
       .catch(() => undefined);
+
     log.error('Sprachkanal konnte nicht erstellt werden', {
       error: error instanceof Error ? error.message : 'unbekannt',
       ownerDiscordId: input.ownerDiscordId,
+      aufgeraeumt: angelegt !== null,
     });
     throw error;
   }
@@ -192,9 +224,10 @@ async function erstelleMitAusweich(
     reason: string;
   },
   ausweichId: string | null,
+  gateway: DiscordGateway,
 ) {
   try {
-    return await discord.managedChannels.createVoice(eingabe);
+    return await gateway.managedChannels.createVoice(eingabe);
   } catch (error) {
     if (!ausweichId) {
       throw error;
@@ -203,12 +236,13 @@ async function erstelleMitAusweich(
       parentId: eingabe.parentId,
       ausweichId,
     });
-    return discord.managedChannels.createVoice({ ...eingabe, parentId: ausweichId });
+    return gateway.managedChannels.createVoice({ ...eingabe, parentId: ausweichId });
   }
 }
 
 /** Die Ausnahmen, mit denen ein neuer Kanal startet. */
 async function baueStartAusnahmen(input: CreateTemporaryVoiceInput): Promise<ChannelOverwrite[]> {
+  const gateway = input.gateway ?? discord;
   const overwrites: ChannelOverwrite[] = [
     {
       id: input.ownerDiscordId,
@@ -230,7 +264,7 @@ async function baueStartAusnahmen(input: CreateTemporaryVoiceInput): Promise<Cha
     }
   }
 
-  const bot = await discord.bot.identity().catch(() => null);
+  const bot = await gateway.bot.identity().catch(() => null);
   if (bot) {
     overwrites.push({ id: bot.id, type: 1, allow: BOT_ERLAUBT, deny: 0n });
   }

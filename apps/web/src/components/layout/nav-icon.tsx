@@ -26,6 +26,7 @@ import {
   TrendingUp,
   Trophy,
   Users,
+  UserRound,
   UserSearch,
   Volume2,
   type LucideIcon,
@@ -66,6 +67,7 @@ const ICONS: Record<string, LucideIcon> = {
   TrendingUp,
   Trophy,
   Users,
+  UserRound,
   UserSearch,
   Volume2,
 };

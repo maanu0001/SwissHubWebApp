@@ -3873,3 +3873,46 @@ model VoiceHubEvent {
   @@index([channelId, createdAt])
   @@index([guildId, kind, createdAt])
 }
+
+/// Interne Notiz zu einem Mitglied.
+///
+/// Das einzige, was das Member Center selbst speichert. Alles andere - Level,
+/// Tickets, Turniere, Premium, Moderation - bleibt beim jeweiligen Modul; das
+/// Member Center fuehrt es nur zusammen. Eine Kopie dieser Daten waere eine
+/// zweite Wahrheit, die irgendwann von der ersten abweicht.
+///
+/// Notizen sind ausdruecklich intern: sie sind fuer das betroffene Mitglied
+/// nicht sichtbar, auch nicht im eigenen Profil.
+model MemberNote {
+  id      String @id @default(cuid())
+  guildId String
+
+  /// Die Person, um die es geht.
+  targetDiscordId String
+  /// Wer die Notiz geschrieben hat - immer aus der Sitzung, nie aus der
+  /// Eingabe.
+  authorDiscordId String
+  /// Anzeigename des Autors zum Zeitpunkt des Schreibens.
+  ///
+  /// Bewusst mitgefuehrt: wer den Server verlaesst, ist bei Discord nicht mehr
+  /// abfragbar, und eine Notiz ohne erkennbaren Absender ist wertlos.
+  authorUsername  String
+
+  content String
+
+  /// Freie Einordnung, z.B. «Verhalten» oder «Support».
+  category String?
+  /// Angeheftete Notizen stehen oben.
+  pinned   Boolean @default(false)
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  /// Gesetzt, sobald jemand den Text geaendert hat - `updatedAt` allein sagt
+  /// das nicht, es wandert auch beim Anheften.
+  editedAt  DateTime?
+
+  @@index([guildId, targetDiscordId, createdAt])
+  @@index([guildId, targetDiscordId, pinned, createdAt])
+  @@index([authorDiscordId])
+  @@index([createdAt])
+}

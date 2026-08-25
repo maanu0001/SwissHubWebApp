@@ -22,6 +22,10 @@ Login mit Discord  ->  Guild-Check  ->  Permission Engine  ->  Moderation Policy
   Dazu `/spielersuche`, `/spielersuche-hilf`, `/spielersuche-stats` und `/spielersucheadmin`.
 - **Spielersuche:** Mitspieler finden - `/spielersuche` und Dashboard nutzen dieselbe Engine,
   inklusive automatischem Sprachkanal, Rollen-Ping mit Sperrfrist und Statistik.
+- **Member Center:** Die Mitgliederakte - Level, Tickets, Turniere, Premium, Spielersuche und
+  Moderation zu einer Person an einem Ort. Jeder Abschnitt hat eine eigene Berechtigung mit
+  Geltungsbereich (nur eigene Daten / alle); was jemand nicht sehen darf, wird gar nicht erst
+  geladen.
 - **Voice Hub:** Wer einen Hub-Channel betritt, bekommt seinen eigenen Talk - mit Bedienfeld
   im Textchat des Kanals und derselben Verwaltung im Dashboard. Die Spielersuche legt ihre
   Sprachkanäle über dieselbe Engine an - kein zweites Temp-Voice-System.
@@ -325,6 +329,7 @@ docs/
   XP_RAFFLE.md             XP-Verlosungen: Einsatzmodelle, Fairness, Ziehung
   COMMUNICATION.md         Neuigkeiten, Events, Umfragen, /post, Erwähnungen
   VOICE_HUB.md             Join-to-Create, Bedienfeld, Besitz, Abgleich
+  MEMBER_CENTER.md         Mitgliederakte: Aggregation, Berechtigungen, Geltungsbereiche
 
 tests/                     Unit- und Integrationstests (Vitest)
 ```

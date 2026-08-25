@@ -5,3 +5,4 @@ export * from './moderation-policy';
 export * from './store';
 export * from './presets';
 export * from './lockout';
+export * from './member-center';

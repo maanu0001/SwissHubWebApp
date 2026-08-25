@@ -28,6 +28,23 @@ export const PERMISSION_PRESETS: PermissionPreset[] = [
     moderationLevel: 10,
   },
   {
+    id: 'mitglied',
+    label: 'Mitglied',
+    description:
+      'Sieht im System ausschliesslich die eigenen Daten: Profil, Level, Turniere, eigene Tickets, eigener Premium-Status. Keine fremden Profile, keine Moderation, keine internen Notizen.',
+    permissions: [
+      'members.view.basic.own',
+      'members.view.roles.own',
+      'members.view.activity.own',
+      'members.view.level.own',
+      'members.view.spielersuche.own',
+      'members.view.tournaments.own',
+      'members.view.tickets.own',
+      'members.view.premium.own',
+    ],
+    moderationLevel: 0,
+  },
+  {
     id: 'moderator',
     label: 'Moderator',
     description: 'Darf Mitglieder jailen und wieder freigeben, aber nichts konfigurieren.',
@@ -39,6 +56,14 @@ export const PERMISSION_PRESETS: PermissionPreset[] = [
       'jail.view',
       'jail.create',
       'jail.release',
+      // Die Mitgliederakte, soweit sie zur Moderation gehoert. Premium- und
+      // XP-Verwaltung sind ausdruecklich nicht dabei.
+      'members.view.basic.all',
+      'members.view.roles.all',
+      'members.view.activity.all',
+      'members.view.moderation.all',
+      'members.view.notes.all',
+      'members.notes.create',
     ],
     moderationLevel: 50,
   },

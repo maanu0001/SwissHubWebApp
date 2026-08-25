@@ -117,6 +117,27 @@ export async function searchMembers(
   return decorate(await gateway.members.search(query, limit), gateway);
 }
 
+/**
+ * Die Basisdaten eines Mitglieds.
+ *
+ * Ohne Verlauf: wer den Jail-Verlauf oder die Moderationshistorie braucht,
+ * fragt sie einzeln an. Frueher lieferte diese Datei beides ungefragt mit,
+ * und die Profilseite zeigte es jedem, der Mitglieder ansehen durfte - das
+ * Member Center entscheidet nun je Abschnitt.
+ */
+export async function getMemberSummary(
+  discordId: string,
+  options: { gateway?: DiscordGateway } = {},
+): Promise<MemberSummary | null> {
+  const gateway = options.gateway ?? defaultDiscord;
+  const member = await gateway.members.get(discordId);
+  if (!member) {
+    return null;
+  }
+  const [summary] = await decorate([member], gateway);
+  return summary ?? null;
+}
+
 export async function getMemberProfile(
   discordId: string,
   options: { gateway?: DiscordGateway } = {},
@@ -145,4 +166,89 @@ export async function getMemberProfile(
   ]);
 
   return { ...summary, jailHistory, moderationHistory };
+}
+
+/**
+ * Filter der Mitgliederliste.
+ *
+ * Bewusst nur diese vier. Ein Filter ist ein Versprechen, dass die Liste
+ * danach vollstaendig ist - und das laesst sich nur halten, wo die Daten
+ * ohne zusaetzliche Anfrage je Mitglied vorliegen. «Online» zum Beispiel
+ * fehlt: die Anwesenheit kennt nur das Gateway, und sie fuer eine
+ * Filterzeile abzufragen hiesse, sie dauerhaft zu speichern.
+ */
+export interface MemberFilter {
+  /** Nur Mitglieder mit dieser Rolle. */
+  roleId?: string | null;
+  /** Nur Mitglieder mit laufendem Jail. */
+  jailed?: boolean;
+  /** Nur Mitglieder mit laufendem Premium. */
+  premium?: boolean;
+  /** Bots ausblenden. */
+  ohneBots?: boolean;
+}
+
+export interface MemberPage {
+  members: MemberSummary[];
+  /** Treffer vor der Seitenaufteilung. */
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+/**
+ * Mitglieder suchen, filtern und seitenweise ausgeben.
+ *
+ * Die Suche selbst laeuft weiterhin bei Discord und serverseitig; gefiltert
+ * und geblaettert wird danach hier. Die vollstaendige Mitgliederliste
+ * verlaesst den Server nie.
+ */
+export async function listMembersPage(
+  rawQuery: string,
+  filter: MemberFilter = {},
+  options: { page?: number; pageSize?: number; gateway?: DiscordGateway } = {},
+): Promise<MemberPage> {
+  const pageSize = Math.min(Math.max(options.pageSize ?? 24, 1), 100);
+  const page = Math.max(options.page ?? 1, 1);
+
+  // Genug Kandidaten holen, damit auch nach dem Filtern noch Seiten
+  // uebrigbleiben - aber gedeckelt, damit niemand die Guild abraeumt.
+  const kandidaten = await searchMembers(rawQuery, {
+    limit: 200,
+    gateway: options.gateway,
+  });
+
+  let gefiltert = kandidaten;
+
+  if (filter.ohneBots === true) {
+    gefiltert = gefiltert.filter((member) => !member.isBot);
+  }
+  if (filter.roleId) {
+    gefiltert = gefiltert.filter((member) =>
+      member.roles.some((role) => role.id === filter.roleId),
+    );
+  }
+  if (filter.jailed === true) {
+    gefiltert = gefiltert.filter((member) => member.activeJail !== null);
+  }
+  if (filter.premium === true) {
+    // Eine Abfrage fuer alle Kandidaten statt einer je Mitglied.
+    const mitPremium = await prisma.premiumSubscription.findMany({
+      where: {
+        discordId: { in: gefiltert.map((member) => member.discordId) },
+        status: 'ACTIVE',
+      },
+      select: { discordId: true },
+    });
+    const menge = new Set(mitPremium.map((eintrag) => eintrag.discordId));
+    gefiltert = gefiltert.filter((member) => menge.has(member.discordId));
+  }
+
+  const start = (page - 1) * pageSize;
+  return {
+    members: gefiltert.slice(start, start + pageSize),
+    total: gefiltert.length,
+    page,
+    pageSize,
+  };
 }

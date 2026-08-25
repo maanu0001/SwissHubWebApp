@@ -11,6 +11,7 @@ export const RATE_LIMITS = {
   login: { limit: 10, windowMs: 10 * 60 * 1000 },
   oauthCallback: { limit: 20, windowMs: 10 * 60 * 1000 },
   memberSearch: { limit: 40, windowMs: 60 * 1000 },
+  memberCenter: { limit: 60, windowMs: 5 * 60 * 1000 },
   jailCreate: { limit: 10, windowMs: 5 * 60 * 1000 },
   jailRelease: { limit: 20, windowMs: 5 * 60 * 1000 },
   settingsWrite: { limit: 30, windowMs: 5 * 60 * 1000 },

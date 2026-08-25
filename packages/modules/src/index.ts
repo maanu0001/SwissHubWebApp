@@ -41,3 +41,6 @@ export * as voiceHub from './voice-hub';
 export * from './bot-status';
 export * from './members/service';
 export * from './members/avatars';
+// Das Member Center. Die beiden Zeilen darueber bleiben, damit bestehende
+// Aufrufer von `searchMembers` und `getMemberProfile` unveraendert laufen.
+export * as members from './members';

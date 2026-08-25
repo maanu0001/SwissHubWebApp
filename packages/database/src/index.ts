@@ -27,6 +27,7 @@ export type {
   CommunicationStatus,
   CommunicationType,
   JailEntry,
+  MemberNote,
   JailImport,
   JailImportRow,
   JailImportRowAction,

@@ -1,4 +1,4 @@
-import { CORE_PERMISSIONS } from '@swisshub/permissions';
+import { CORE_PERMISSIONS, MEMBER_CENTER_PERMISSIONS } from '@swisshub/permissions';
 import { registerModule } from './registry';
 
 /**
@@ -40,7 +40,10 @@ registerModule({
   permissionPrefix: 'members',
   core: true,
   defaultEnabled: true,
-  permissions: corePermission('members.view'),
+  // `members.view` oeffnet den Bereich und die Suche - unveraendert. Die
+  // granularen Berechtigungen daneben entscheiden, welche Abschnitte eines
+  // Profils jemand tatsaechlich zu sehen bekommt.
+  permissions: [...corePermission('members.view'), ...MEMBER_CENTER_PERMISSIONS],
   navigation: [
     {
       href: '/members',
@@ -49,6 +52,17 @@ registerModule({
       permission: 'members.view',
       icon: 'Users',
       group: 'moderation',
+      order: 20,
+    },
+    {
+      href: '/profile',
+      label: 'Mein Profil',
+      description: 'Die eigenen Daten im SwissHub System',
+      // Wer nur sich selbst sehen darf, braucht die Mitgliedersuche nicht -
+      // und ohne diesen Eintrag fuehrte kein Weg zum eigenen Profil.
+      permission: 'members.view.basic.own',
+      icon: 'UserRound',
+      group: 'overview',
       order: 20,
     },
   ],

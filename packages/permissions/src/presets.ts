@@ -31,8 +31,17 @@ export const PERMISSION_PRESETS: PermissionPreset[] = [
     id: 'mitglied',
     label: 'Mitglied',
     description:
-      'Sieht im System ausschliesslich die eigenen Daten: Profil, Level, Turniere, eigene Tickets, eigener Premium-Status. Keine fremden Profile, keine Moderation, keine internen Notizen.',
+      'Die gewöhnliche Mitgliederrolle: eigenes Profil, eigenes Level, eigene Tickets, Spielersuche, Turniere, Talks und Musik. Sieht ausschliesslich die eigenen Daten - keine fremden Profile, keine Moderation, keine internen Notizen, keine Verwaltung.',
     permissions: [
+      // Eine Vorlage ersetzt die Berechtigungen einer Rolle vollstaendig.
+      // Deshalb steht hier alles, was ein gewoehnliches Mitglied taeglich
+      // braucht - nicht nur der Member-Center-Teil. Eine Vorlage, die nur
+      // einen Ausschnitt enthaelt, nimmt der Rolle beim Anwenden alles
+      // uebrige weg, und das faellt erst auf, wenn jemand etwas nicht mehr
+      // kann, das er gestern noch konnte.
+      'dashboard.view',
+
+      // Member Center - ausschliesslich die eigenen Daten.
       'members.view.basic.own',
       'members.view.roles.own',
       'members.view.activity.own',
@@ -41,7 +50,55 @@ export const PERMISSION_PRESETS: PermissionPreset[] = [
       'members.view.tournaments.own',
       'members.view.tickets.own',
       'members.view.premium.own',
+
+      // Spielersuche: eine eroeffnen, einer beitreten, die eigene schliessen.
+      'spielersuche.view',
+      'spielersuche.create',
+      'spielersuche.join',
+      'spielersuche.closeOwn',
+      'spielersuche.stats.viewOwn',
+
+      // Tickets: ein eigenes eroeffnen und die eigenen lesen. Ausdruecklich
+      // nicht `tickets.view` - das ist die Support-Sicht auf fremde.
+      'tickets.create',
+      'tickets.viewOwn',
+
+      // Level: den eigenen Stand, die Rangliste, die Spiele mitspielen.
+      'level.view',
+      'level.leaderboard.view',
+      'level.games.view',
+      'level.games.play.basic',
+      'level.raffle.view',
+      'level.raffle.participate',
+
+      // Turniere: ansehen und teilnehmen.
+      'tournaments.view',
+      'tournaments.participate',
+
+      // Premium: die Shop-Seite und das eigene Abo.
+      'premium.view',
+
+      // Voice Hub: einen eigenen Talk oeffnen und ihn verwalten.
+      'voiceHub.view',
+      'voiceHub.use',
+      'voiceHub.manageOwn',
+      'voiceHub.manageUsers',
+      'voiceHub.transferOwnership',
+
+      // Musik: die eigene Session. Ohne `sessions.manageAll`, ohne Worker
+      // und ohne Einstellungen - das ist Verwaltung.
+      'music.view',
+      'music.play',
+      'music.queue.manage',
+      'music.skip',
+      'music.pause',
+      'music.loop',
+      'music.volume',
+      'music.session.start',
+      'music.session.stop',
     ],
+    // Null heisst hier: keine Moderationsstufe. Ein gewoehnliches Mitglied
+    // steht in der Rollenhierarchie der Anwendung ganz unten.
     moderationLevel: 0,
   },
   {
@@ -81,7 +138,11 @@ export const PERMISSION_PRESETS: PermissionPreset[] = [
       'jail.view',
       'jail.create',
       'jail.release',
-      'jail.extend',
+      // Frueher stand hier `jail.extend` - diese Berechtigung gibt es nicht.
+      // Sie fiel beim Aufloesen stillschweigend weg, und die Vorlage hielt
+      // ihr eigenes Versprechen nicht: der Senior Moderator bekam die
+      // Verlaengerung nie. Der richtige Schluessel heisst `jail.edit`.
+      'jail.edit',
     ],
     moderationLevel: 70,
   },
@@ -157,14 +218,32 @@ export function getPermissionPreset(id: string): PermissionPreset | undefined {
 
 /**
  * Löst eine Vorlage gegen die tatsächlich registrierten Permissions auf.
- * Unbekannte Einträge (z.B. aus einem deaktivierten Modul) fallen weg.
+ * Unbekannte Einträge (z.B. aus einer entfernten Berechtigung) fallen weg.
+ *
+ * Fällt dabei *alles* weg, ist das kein leeres Ergebnis, sondern ein Fehler.
+ * Die Registry füllt sich, sobald `@swisshub/modules` geladen ist; wer sie
+ * vorher fragt, sieht nur die Kern-Berechtigungen. Eine Vorlage wie
+ * «Mitglied», die ausschliesslich aus Modul-Berechtigungen besteht, käme dann
+ * als leere Liste zurück - und der Aufrufer, der damit eine Rolle setzt,
+ * löscht ihr sämtliche Berechtigungen und vergibt keine neue. Eine Rolle, die
+ * nach dem Anwenden einer Vorlage gar nichts mehr darf, ist der denkbar
+ * schlechteste stille Ausgang.
  */
 export function resolvePreset(preset: PermissionPreset): string[] {
   const known = new Set(listPermissions().map((definition) => definition.key));
   if (preset.permissions.includes('*')) {
     return [...known];
   }
-  return preset.permissions.filter((permission) => known.has(permission));
+  const aufgeloest = preset.permissions.filter((permission) => known.has(permission));
+
+  if (preset.permissions.length > 0 && aufgeloest.length === 0) {
+    throw new Error(
+      `Die Vorlage «${preset.label}» liess sich gegen keine bekannte Berechtigung auflösen. ` +
+        'Vermutlich wurde die Module Registry noch nicht geladen (Import von `@swisshub/modules`).',
+    );
+  }
+
+  return aufgeloest;
 }
 
 /** Vorlage, die exakt zur aktuellen Auswahl passt (für die Anzeige). */

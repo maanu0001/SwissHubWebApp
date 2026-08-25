@@ -166,11 +166,41 @@ braucht ihn nicht.
 
 ### Neue Vorlagen
 
-- **Mitglied** – nur eigene Daten (`*.own`), nichts Sensibles. Für die
-  gewöhnliche Mitgliederrolle.
+- **Mitglied** – die gewöhnliche Mitgliederrolle.
 - **Moderator** – zusätzlich `basic/roles/activity/moderation/notes = ALL`
   und `members.notes.create`. Ausdrücklich **ohne** Premium- und
   XP-Verwaltung.
+
+#### Warum «Mitglied» mehr enthält als das Member Center
+
+**Eine Vorlage ersetzt die Berechtigungen einer Rolle vollständig** – das sagt
+auch die Oberfläche: «Vorlagen werden sofort gespeichert und ersetzen die
+bisherige Auswahl.»
+
+Deshalb steht in «Mitglied» alles, was ein gewöhnliches Mitglied täglich
+braucht, und nicht nur der Member-Center-Teil: Dashboard, Spielersuche
+(eröffnen, beitreten, eigene schliessen), eigene Tickets, Level und
+XP-Spiele, Turnierteilnahme, eigener Talk im Voice Hub, eigene Musik-Session
+– dazu die acht `members.view.*.own`.
+
+Eine Vorlage, die nur einen Ausschnitt enthielte, nähme der Rolle beim
+Anwenden alles Übrige weg. Das fiele erst auf, wenn jemand etwas nicht mehr
+kann, das er gestern noch konnte.
+
+Nicht enthalten ist alles Verwaltende: keine fremden Profile, keine
+Moderation, keine internen Notizen, keine Rollen-, XP- oder
+Premium-Verwaltung, keine Support-Sicht auf fremde Tickets. Ein Test hält das
+fest – die Vorlage landet auf einer Rolle, die jeder auf dem Server trägt.
+
+> **Beim Auflösen fällt nichts mehr stillschweigend weg.** Löst sich eine
+> Vorlage gegen *keine* bekannte Berechtigung auf, wirft `resolvePreset` –
+> sonst hätte der Aufrufer der Rolle sämtliche Berechtigungen gelöscht und
+> keine neue vergeben. Ein weiterer Test prüft, dass jede Vorlage vollständig
+> auflöst; er hat dabei einen Altbestand gefunden: die Vorlage
+> **Senior Moderator** führte `jail.extend`, eine Berechtigung, die es nicht
+> gibt. Sie verschwand beim Auflösen, und die Vorlage hielt ihr eigenes
+> Versprechen («Verlängerung laufender Massnahmen») nie ein. Der richtige
+> Schlüssel ist `jail.edit`.
 
 ---
 

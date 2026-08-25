@@ -46,4 +46,90 @@ describe('Permission Presets', () => {
   it('bildet Administrator auf Vollzugriff ab', () => {
     expect(resolvePreset(getPermissionPreset('administrator')!)).toEqual([ADMIN_FULL]);
   });
+
+  /**
+   * Der Test darueber prueft, dass nichts Unbekanntes herauskommt. Dieser
+   * prueft die andere Richtung: dass nichts verlorengeht.
+   *
+   * Ein Tippfehler in einem Schluessel faellt sonst nirgends auf - die
+   * Berechtigung verschwindet beim Aufloesen stillschweigend, und die Rolle
+   * bekommt beim Anwenden der Vorlage weniger, als draufsteht.
+   */
+  it('lässt beim Auflösen keine Berechtigung fallen', () => {
+    for (const preset of PERMISSION_PRESETS) {
+      if (preset.permissions.includes(ADMIN_FULL)) {
+        continue;
+      }
+      const aufgeloest = resolvePreset(preset);
+      const verloren = preset.permissions.filter((key) => !aufgeloest.includes(key));
+      expect(verloren, `${preset.id}: unbekannte Berechtigungen ${verloren.join(', ')}`).toEqual([]);
+    }
+  });
+
+  /**
+   * Die Vorlage «Mitglied» ist die einzige, die auf eine Rolle kommt, die
+   * jeder auf dem Server traegt. Was hier hineinrutscht, hat damit jeder.
+   */
+  it('gibt der Vorlage "Mitglied" nichts Verwaltendes', () => {
+    const permissions = resolvePreset(getPermissionPreset('mitglied')!);
+
+    expect(permissions).not.toContain(ADMIN_FULL);
+    for (const verboten of [
+      'members.view',
+      'members.view.basic.all',
+      'members.view.moderation.all',
+      'members.view.notes.all',
+      'members.roles.manage',
+      'members.notes.create',
+      'moderation.view',
+      'moderation.execute',
+      'jail.create',
+      'audit.view',
+      'permissions.manage',
+      'settings.edit',
+      'modules.manage',
+      'level.members.manage',
+      'premium.subscriptions.manage',
+      'tickets.view',
+      'tickets.support.view',
+      'spielersuche.closeAny',
+      'voiceHub.admin.view',
+    ]) {
+      expect(permissions, `«Mitglied» darf ${verboten} nicht enthalten`).not.toContain(verboten);
+    }
+
+    // Und die Gegenprobe: das Alltaegliche muss drin sein, sonst nimmt die
+    // Vorlage der Rolle beim Anwenden mehr weg, als sie gibt.
+    for (const noetig of [
+      'dashboard.view',
+      'members.view.basic.own',
+      'members.view.level.own',
+      'spielersuche.create',
+      'tickets.create',
+      'tickets.viewOwn',
+      'level.view',
+      'tournaments.participate',
+      'voiceHub.use',
+    ]) {
+      expect(permissions, `«Mitglied» braucht ${noetig}`).toContain(noetig);
+    }
+  });
+
+  /**
+   * Die Registry fuellt sich erst mit dem Import von `@swisshub/modules`.
+   * Wer sie vorher fragt, bekaeme fuer «Mitglied» eine leere Liste - und
+   * loeschte damit einer Rolle saemtliche Berechtigungen, ohne eine neue zu
+   * vergeben. Das muss knallen statt still durchzugehen.
+   */
+  it('scheitert laut, wenn sich eine Vorlage gegen nichts auflösen lässt', () => {
+    expect(() =>
+      resolvePreset({
+        id: 'erfunden',
+        label: 'Erfunden',
+        description: 'Nur erfundene Berechtigungen.',
+        permissions: ['gibt.es.nicht', 'auch.nicht'],
+        moderationLevel: 0,
+      }),
+    ).toThrow(/auflösen/u);
+  });
 });

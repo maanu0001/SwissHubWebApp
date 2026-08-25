@@ -266,6 +266,13 @@ export const voiceHubModule: ModuleDefinition = registerModule({
     'READ_MESSAGE_HISTORY',
   ],
   healthChecks: voiceHubHealthChecks,
+  // Ohne Vorlage stuende der Verwalter vor einer leeren Seite und muesste
+  // raten, was ein Preset ueberhaupt ist. Idempotent - das Modul laesst sich
+  // beliebig oft aus- und wieder einschalten.
+  onEnable: async () => {
+    const { seedPresets } = await import('./presets');
+    await seedPresets();
+  },
   permissions: [
     {
       key: VOICE_HUB_PERMISSIONS.view,

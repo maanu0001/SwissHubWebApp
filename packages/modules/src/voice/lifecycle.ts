@@ -1,5 +1,5 @@
 import { prisma } from '@swisshub/database';
-import type { TemporaryVoiceChannel } from '@swisshub/database';
+import type { Prisma, TemporaryVoiceChannel } from '@swisshub/database';
 import { discord } from '@swisshub/discord';
 import { createLogger } from '@swisshub/logger';
 import { schreibeEreignis, SYSTEM_ACTOR, type VoiceActor } from './service';
@@ -20,6 +20,28 @@ const log = createLogger('voice:lifecycle');
  * ist. Er ist damit zugleich die Rettung nach einem Absturz und das Netz
  * gegen Ereignisse, die Discord nie geschickt hat.
  */
+
+/**
+ * Schliesst Talk-Zeilen - die einzige Stelle, die `closedAt` setzt.
+ *
+ * Beim Schliessen muss zwingend auch `activeOwnerKey` fallen: der Wert
+ * traegt die Eindeutigkeit "ein Beitritt, ein Talk", und bliebe er stehen,
+ * koennte der Besitzer eines laengst beendeten Talks im selben Hub nie wieder
+ * einen eroeffnen. Zwei Felder, die nur gemeinsam richtig sind, gehoeren
+ * nicht auf fuenf Aufrufer verteilt.
+ *
+ * `closedAt: null` in der Bedingung macht den Aufruf wiederholbar: ein
+ * zweites Ereignis zum selben Kanal schliesst nichts erneut und meldet 0.
+ */
+export async function schliesseZeilen(
+  where: Prisma.TemporaryVoiceChannelWhereInput,
+): Promise<number> {
+  const { count } = await prisma.temporaryVoiceChannel.updateMany({
+    where: { ...where, closedAt: null },
+    data: { closedAt: new Date(), deleteScheduledAt: null, activeOwnerKey: null },
+  });
+  return count;
+}
 
 /** Wer gerade in diesem Sprachkanal sitzt - Menschen wie Bots. */
 export async function anwesende(discordChannelId: string) {
@@ -92,10 +114,7 @@ export async function deleteTemporaryVoice(
     });
   }
 
-  const { count } = await prisma.temporaryVoiceChannel.updateMany({
-    where: { id: kanal.id, closedAt: null },
-    data: { closedAt: new Date(), deleteScheduledAt: null },
-  });
+  const count = await schliesseZeilen({ id: kanal.id });
 
   if (count > 0) {
     await schreibeEreignis(kanal, 'VOICE_DELETED', actor, { grund });

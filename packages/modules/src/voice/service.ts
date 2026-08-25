@@ -96,9 +96,10 @@ export interface CreateTemporaryVoiceInput {
  *
  * Zwei Schritte mit Absicht: erst die Reservierung in der Datenbank, dann der
  * Kanal auf Discord. Die Reservierung ist eine Zeile ohne `discordChannelId`,
- * und der Teilindex laesst je Hub nur eine offene Zeile pro Person zu. Zwei
- * gleichzeitige Beitritte kaempfen damit in der Datenbank um den Platz statt
- * bei Discord - dort haetten beide einen Kanal bekommen.
+ * und die Eindeutigkeit ueber `activeOwnerKey` laesst je Hub nur eine
+ * offene Zeile pro Person zu. Zwei gleichzeitige Beitritte kaempfen damit in
+ * der Datenbank um den Platz statt bei Discord - dort haetten beide einen
+ * Kanal bekommen.
  *
  * Der Discord-Aufruf liegt ausdruecklich nicht in der Transaktion: er dauert
  * je nach Laune der API hunderte Millisekunden, und solange haelt niemand eine
@@ -123,6 +124,10 @@ export async function createTemporaryVoice(
         externalRef: input.externalRef ?? null,
         ownerDiscordId: input.ownerDiscordId,
         ownerUsername: input.ownerUsername.slice(0, 64),
+        // Der Schluessel, an dem sich zwei gleichzeitige Beitritte stossen.
+        // Er folgt dem Besitz und wandert bei einer Uebergabe mit; ohne Hub
+        // bleibt er leer. Beides ist im Schema begruendet.
+        activeOwnerKey: input.hubId ? input.ownerDiscordId : null,
         name,
         userLimit: input.userLimit ?? 0,
         bitrate: input.bitrate ?? null,
@@ -131,7 +136,7 @@ export async function createTemporaryVoice(
       },
     });
   } catch (error) {
-    // Der Teilindex hat zugeschlagen: jemand war schneller. Das ist kein
+    // Die Eindeutigkeit hat zugeschlagen: jemand war schneller. Das ist kein
     // Fehler, sondern die Antwort auf ein doppeltes Ereignis.
     if (istEindeutigkeitsFehler(error)) {
       throw new AppError('CONFLICT', {

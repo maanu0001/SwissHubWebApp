@@ -7,6 +7,7 @@ import { getModuleSettings, isModuleEnabled } from '../module-state';
 import { baueKanalName } from '../voice/naming';
 import { createTemporaryVoice } from '../voice/service';
 import { allowMember } from '../voice/members';
+import { schliesseZeilen } from '../voice/lifecycle';
 import { VOICE_HUB_MODULE_ID, type VoiceHubSettings } from './config';
 import { darfHubNutzen, findeHubZuKanal, type HubMitPreset } from './hubs';
 
@@ -102,10 +103,7 @@ export async function handleHubJoin(anfrage: JoinAnfrage): Promise<JoinErgebnis>
     if (existiert) {
       lebendige.push(kandidat);
     } else {
-      await prisma.temporaryVoiceChannel.updateMany({
-        where: { id: kandidat.id, closedAt: null },
-        data: { closedAt: new Date(), deleteScheduledAt: null },
-      });
+      await schliesseZeilen({ id: kandidat.id });
       log.info('Verwaiste Talk-Zeile beim Beitritt bereinigt', { id: kandidat.id });
     }
   }

@@ -3754,8 +3754,35 @@ model TemporaryVoiceChannel {
   /// Gesetzt, sobald der Kanal weg ist. Die Zeile bleibt fuer die Statistik.
   closedAt     DateTime?
 
+  /// Gesetzt, solange ein Talk aus einem Hub offen ist - die Discord-Kennung
+  /// seines Besitzers. Zusammen mit der Eindeutigkeit unten begrenzt das die
+  /// Zahl gleichzeitiger Talks je Person und Hub auf Datenbankebene: zwei
+  /// Beitritte im selben Augenblick koennen nicht beide einen Kanal anlegen.
+  ///
+  /// Nur fuer Talks mit `hubId`. Ein Kanal der Spielersuche laesst den Wert
+  /// leer - dort entscheidet die Spielersuche, wie viele Suchen jemand
+  /// gleichzeitig laufen lassen darf.
+  ///
+  /// Der Wert wandert bei einer Uebergabe mit. Bliebe er beim Erzeuger,
+  /// widerspraeche die Datenbank dem Beitritt: der prueft, ob jemand hier
+  /// schon einen Talk *besitzt*, und ein Erzeuger, der laengst uebergeben
+  /// hat, bekaeme beim naechsten Beitritt "Du hast hier bereits einen Talk"
+  /// zu lesen, obwohl er keinen besitzt. Der Preis ist die Kehrseite: eine
+  /// Uebergabe an jemanden, der im selben Hub schon einen Talk hat, schlaegt
+  /// fehl - aber das ist die Wahrheit und keine Falschmeldung.
+  ///
+  /// Beim Schliessen wird der Wert geleert; mehrere NULL verletzen eine
+  /// Eindeutigkeit nicht, geschlossene Zeilen bleiben also liegen.
+  ///
+  /// Dieselbe Bauart wie `SpielersucheMatch.activeCreatorKey`. Ein Teilindex
+  /// waere ausdrucksstaerker, aber Prisma kennt ihn in der Schemasprache
+  /// nicht - er waere fuer `prisma db push` unsichtbar und fuer
+  /// `migrate dev` eine Abweichung.
+  activeOwnerKey String?
+
   access TemporaryVoiceAccess[]
 
+  @@unique([guildId, hubId, activeOwnerKey])
   @@index([guildId, closedAt])
   @@index([guildId, ownerDiscordId, closedAt])
   @@index([deleteScheduledAt])

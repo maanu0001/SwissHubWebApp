@@ -6,7 +6,9 @@ import {
   deleteTemporaryVoice,
   findeNachfolger,
   menschenImKanal,
+  merkeBesitzerFort,
   planeLoeschung,
+  schliesseZeilen,
   uebergibAnNachfolger,
 } from './lifecycle';
 
@@ -75,16 +77,11 @@ export async function reconcileTemporaryVoices(): Promise<ReconcileErgebnis> {
   }
 
   // --- Liegengebliebene Reservierungen ------------------------------------
-  const abgelaufen = await prisma.temporaryVoiceChannel.updateMany({
-    where: {
-      guildId,
-      closedAt: null,
-      discordChannelId: null,
-      createdAt: { lt: new Date(Date.now() - RESERVIERUNG_MAX_MS) },
-    },
-    data: { closedAt: new Date() },
+  ergebnis.reservierungen = await schliesseZeilen({
+    guildId,
+    discordChannelId: null,
+    createdAt: { lt: new Date(Date.now() - RESERVIERUNG_MAX_MS) },
   });
-  ergebnis.reservierungen = abgelaufen.count;
 
   const offene = await prisma.temporaryVoiceChannel.findMany({
     where: { guildId, closedAt: null, discordChannelId: { not: null } },
@@ -102,10 +99,7 @@ export async function reconcileTemporaryVoices(): Promise<ReconcileErgebnis> {
     // --- Gibt es den Kanal ueberhaupt noch? -------------------------------
     const aufDiscord = await discord.managedChannels.get(channelId).catch(() => null);
     if (!aufDiscord) {
-      await prisma.temporaryVoiceChannel.updateMany({
-        where: { id: kanal.id, closedAt: null },
-        data: { closedAt: new Date(), deleteScheduledAt: null },
-      });
+      await schliesseZeilen({ id: kanal.id });
       ergebnis.verwaist += 1;
       log.info('Talk war auf Discord nicht mehr vorhanden', { id: kanal.id, channelId });
       continue;
@@ -142,6 +136,23 @@ export async function reconcileTemporaryVoices(): Promise<ReconcileErgebnis> {
     // Suche, nur weil er laenger im Kanal sitzt.
     if (!LOESCHT_LEERE_SELBST.has(kanal.source)) {
       continue;
+    }
+
+    // --- Besitzer sitzt gar nicht drin, ohne dass es jemand gemerkt hat ---
+    //
+    // Zwei Wege fuehren hierher: das Ereignis kam nie an, weil der Bot gerade
+    // neu startete - oder der Talk wurde an jemanden uebergeben, der nie im
+    // Kanal war. In beiden Faellen laeuft keine Schonfrist, und der Talk
+    // haette auf Dauer einen abwesenden Besitzer. Hier faengt die Uhr an; ab
+    // dann greift der Block darunter wie bei jedem anderen verwaisten Talk.
+    if (!kanal.ownerLeftAt) {
+      const besitzerDrin = await prisma.voicePresence.count({
+        where: { channelId, discordId: kanal.ownerDiscordId },
+      });
+      if (besitzerDrin === 0) {
+        await merkeBesitzerFort(kanal.id);
+        continue;
+      }
     }
 
     // --- Besitzer weg und Schonfrist vorbei -------------------------------

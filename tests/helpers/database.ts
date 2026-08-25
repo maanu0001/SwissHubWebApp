@@ -64,11 +64,26 @@ export function useTestSchema(name: string): string {
  *
  * `db push` statt `migrate deploy`: die Testdatenbank ist ein Wegwerfobjekt,
  * ihre Migrationshistorie interessiert niemanden.
+ *
+ * `--accept-data-loss` aus demselben Grund: das Schema behaelt zwischen
+ * Laeufen die Zeilen des letzten Laufs, und eine neu hinzugekommene
+ * Eindeutigkeit oder eine entfallene Spalte laesst `db push` sonst mit einer
+ * Warnung stehenbleiben - der Lauf braeche ab, obwohl genau diese Altdaten
+ * niemanden interessieren. Auf eine echte Datenbank zeigt `pushSchema` nie:
+ * es laeuft ausschliesslich gegen `SWISSHUB_TEST_DATABASE_URL`.
  */
 export function pushSchema(): void {
   execFileSync(
     'npx',
-    ['prisma', 'db', 'push', '--schema', 'packages/database/prisma/schema.prisma', '--skip-generate'],
+    [
+      'prisma',
+      'db',
+      'push',
+      '--schema',
+      'packages/database/prisma/schema.prisma',
+      '--skip-generate',
+      '--accept-data-loss',
+    ],
     {
       // `process.env.DATABASE_URL` zeigt hier bereits auf das Schema dieser
       // Datei (siehe `useTestSchema`).

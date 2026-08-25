@@ -4,7 +4,7 @@ import { discord, DISCORD_PERMISSIONS } from '@swisshub/discord';
 import { createLogger } from '@swisshub/logger';
 import { AppError } from '@swisshub/shared';
 import { besitzerRechte, TEILNEHMER_ERLAUBT } from './permissions';
-import { schreibeEreignis, type VoiceActor } from './service';
+import { istEindeutigkeitsFehler, schreibeEreignis, type VoiceActor } from './service';
 
 const log = createLogger('voice:members');
 
@@ -194,15 +194,30 @@ export async function transferOwnership(
 
   // Die Zeile nur aendern, wenn der Besitzer noch der erwartete ist. Zwei
   // gleichzeitige Uebergaben duerfen nicht beide gewinnen.
-  const { count } = await prisma.temporaryVoiceChannel.updateMany({
-    where: { id: kanal.id, ownerDiscordId: kanal.ownerDiscordId, closedAt: null },
-    data: {
-      ownerDiscordId: neuerBesitzer.discordId,
-      ownerUsername: neuerBesitzer.username.slice(0, 64),
-      ownerLeftAt: null,
-      lastActiveAt: new Date(),
-    },
-  });
+  let count = 0;
+  try {
+    ({ count } = await prisma.temporaryVoiceChannel.updateMany({
+      where: { id: kanal.id, ownerDiscordId: kanal.ownerDiscordId, closedAt: null },
+      data: {
+        ownerDiscordId: neuerBesitzer.discordId,
+        ownerUsername: neuerBesitzer.username.slice(0, 64),
+        ownerLeftAt: null,
+        lastActiveAt: new Date(),
+        // Der Schluessel folgt dem Besitz. Ohne Hub bleibt er leer - dort
+        // gibt es die Regel "ein Beitritt, ein Talk" nicht.
+        ...(kanal.hubId ? { activeOwnerKey: neuerBesitzer.discordId } : {}),
+      },
+    }));
+  } catch (error) {
+    // Der Empfaenger besitzt in diesem Hub schon einen Talk. Zwei koennen
+    // ihm nicht gehoeren - genau das haelt die Eindeutigkeit fest.
+    if (istEindeutigkeitsFehler(error)) {
+      throw new AppError('CONFLICT', {
+        userMessage: 'Diese Person besitzt hier bereits einen Talk.',
+      });
+    }
+    throw error;
+  }
 
   if (count === 0) {
     // Jemand war schneller. Die eben gesetzten Rechte schaden nicht - sie

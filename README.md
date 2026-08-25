@@ -20,6 +20,9 @@ Login mit Discord  ->  Guild-Check  ->  Permission Engine  ->  Moderation Policy
   Dazu `/spielersuche`, `/spielersuche-hilf`, `/spielersuche-stats` und `/spielersucheadmin`.
 - **Spielersuche:** Mitspieler finden - `/spielersuche` und Dashboard nutzen dieselbe Engine,
   inklusive automatischem Sprachkanal, Rollen-Ping mit Sperrfrist und Statistik.
+- **Voice Hub:** Wer einen Hub-Channel betritt, bekommt seinen eigenen Talk - mit Bedienfeld
+  im Textchat des Kanals und derselben Verwaltung im Dashboard. Die Spielersuche legt ihre
+  Sprachkanäle über dieselbe Engine an - kein zweites Temp-Voice-System.
 - **Kommunikation:** Neuigkeiten, Events und Umfragen als Discord-Embeds mit Live-Vorschau –
   auch über den Slash Command `/post`.
 - **Level-System:** XP für Nachrichten und Zeit im Voice, Level-Rollen, Inaktivitäts-Abzug und
@@ -319,6 +322,7 @@ docs/
   LEVEL_MIGRATION.md       Übernahme des Level-/XP-Bots (levels.db)
   XP_RAFFLE.md             XP-Verlosungen: Einsatzmodelle, Fairness, Ziehung
   COMMUNICATION.md         Neuigkeiten, Events, Umfragen, /post, Erwähnungen
+  VOICE_HUB.md             Join-to-Create, Bedienfeld, Besitz, Abgleich
 
 tests/                     Unit- und Integrationstests (Vitest)
 ```
@@ -565,17 +569,21 @@ Discord-Rollen vergeben.
 5. **Spielersuche einrichten**: _Spielersuche -> Einstellungen_ (Channel und Voice-Kategorie),
    danach _Spielersuche -> Spiele_. Einen bestehenden Spielersuche-Bot löst
    _Spielersuche -> Import_ ab: [docs/SPIELERSUCHE_MIGRATION.md](docs/SPIELERSUCHE_MIGRATION.md).
-6. **Level-System einrichten**: _Level-System -> XP-Regeln_ und _-> Voice XP_ (XP pro Nachricht,
+6. **Voice Hub einrichten**: _Voice Hub -> Presets_ (drei Vorlagen entstehen beim Einschalten
+   von selbst), danach _Voice Hub -> Hub-Channels_: ein leerer Sprachkanal zum Betreten und die
+   Kategorie, in der die Talks entstehen. Ohne eine Rolle mit `voiceHub.use` kann niemand einen
+   Talk öffnen. Vollständige Anleitung: [docs/VOICE_HUB.md](docs/VOICE_HUB.md).
+7. **Level-System einrichten**: _Level-System -> XP-Regeln_ und _-> Voice XP_ (XP pro Nachricht,
    Cooldowns, Channels ohne XP), danach _-> Level & Rollen_ für die Meilenstein-Rollen. Einen
    bestehenden Level-Bot löst _Level-System -> Import_ ab:
    [docs/LEVEL_MIGRATION.md](docs/LEVEL_MIGRATION.md).
-7. **Alten Jail-Bot ablösen** (nur bei einer bestehenden Installation): _Module -> Jail-Import_.
+8. **Alten Jail-Bot ablösen** (nur bei einer bestehenden Installation): _Module -> Jail-Import_.
    Der Assistent liest `jail_data.db`, zeigt für jede Zeile, was mit ihr geschieht, und übernimmt
    sie erst nach ausdrücklicher Bestätigung. Vollständige Anleitung:
    [docs/JAIL_MIGRATION.md](docs/JAIL_MIGRATION.md).
-8. **Testen**: _Mitglieder_ -> Mitglied öffnen -> _Mitglied jailen_. Nach Ablauf gibt der Bot das
+9. **Testen**: _Mitglieder_ -> Mitglied öffnen -> _Mitglied jailen_. Nach Ablauf gibt der Bot das
    Mitglied automatisch frei und stellt die Rollen wieder her. Dasselbe über Discord: `/jail`.
-9. **Nachvollziehen**: _Audit Log_ zeigt jede Aktion inklusive Integritätsprüfung der Hash-Chain.
+10. **Nachvollziehen**: _Audit Log_ zeigt jede Aktion inklusive Integritätsprüfung der Hash-Chain.
 
 ---
 
@@ -598,6 +606,9 @@ Discord-Rollen vergeben.
 | Logo-Upload schlägt fehl                                       | `npm run doctor` prüft im Abschnitt _Uploads_, ob das Verzeichnis beschreibbar ist. Hinter nginx zusätzlich `client_max_body_size` (mindestens 8m) kontrollieren.                                                |
 | `/spielersuche` findet keine Spiele                            | Unter _Spielersuche -> Spiele_ ist kein aktives Spiel hinterlegt.                                                                                                                                                |
 | Spielersuche erstellt keinen Sprachkanal                       | Voice-Kategorie fehlt (_Spielersuche -> Einstellungen_) oder dem Bot fehlt dort `Kanäle verwalten`.                                                                                                              |
+| Betreten des Hub-Channels erzeugt keinen Talk                  | Modul aus, Wartungsmodus an, oder der Rolle fehlt `voiceHub.use`. _Module -> Voice Hub_ nennt im Gesundheitsbereich, was fehlt.                                                                                   |
+| Talk entsteht, aber niemand landet darin                       | Dem Bot fehlt `Mitglieder verschieben` in der Zielkategorie.                                                                                                                                                     |
+| Im Talk fehlt das Bedienfeld                                   | Dem Bot fehlt `Nachrichten senden` oder `Links einbetten` im Kanal. Der Talk bleibt bedienbar - im Dashboard unter _Voice Hub -> Talks_, oder über **Mehr -> Bedienfeld erneuern**.                               |
 | Spielrolle wird nicht gepingt                                  | Sperrfrist je Spiel (Standard 5 Minuten). Die Suche entsteht trotzdem; die Rückmeldung nennt die verbleibende Zeit.                                                                                              |
 | Slash Commands erscheinen nicht auf Discord                    | Der Bot muss mit dem Scope `applications.commands` eingeladen sein; die Befehle werden beim Start pro Server registriert (Bot-Log prüfen).                                                                       |
 | `/jail` meldet "kei Berächtigung"                              | Die Berechtigungen sind dieselben wie im Dashboard: _Server -> Berechtigungen_, Rolle mit `jail.create` bzw. `jail.release` versehen.                                                                            |

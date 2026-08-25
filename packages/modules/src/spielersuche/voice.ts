@@ -217,10 +217,8 @@ export async function deleteVoiceChannel(
 
   // Auch die Zeile der gemeinsamen Engine schliessen - sonst suchte der
   // Abgleich weiter nach einem Kanal, den es nicht mehr gibt.
-  await prisma.temporaryVoiceChannel.updateMany({
-    where: { discordChannelId: match.voiceChannelId, closedAt: null },
-    data: { closedAt: new Date(), deleteScheduledAt: null },
-  });
+  const { schliesseZeilen } = await import('../voice/lifecycle');
+  await schliesseZeilen({ discordChannelId: match.voiceChannelId });
 
   await prisma.spielersucheMatch.update({
     where: { id: matchId },

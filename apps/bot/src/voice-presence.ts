@@ -49,12 +49,14 @@ async function aktualisiere(before: VoiceState, after: VoiceState): Promise<void
       guildId: kanal.guild.id,
       channelId: kanal.id,
       channelName: kanal.name,
+      displayName: after.member?.displayName ?? null,
       isBot: after.member?.user.bot ?? false,
     },
     update: {
       guildId: kanal.guild.id,
       channelId: kanal.id,
       channelName: kanal.name,
+      displayName: after.member?.displayName ?? null,
       isBot: after.member?.user.bot ?? false,
     },
   });
@@ -84,12 +86,14 @@ async function grundzustand(client: Client): Promise<void> {
           guildId: guild.id,
           channelId: kanal.id,
           channelName: kanal.name,
+          displayName: state.member?.displayName ?? null,
           isBot: state.member?.user.bot ?? false,
         },
         update: {
           guildId: guild.id,
           channelId: kanal.id,
           channelName: kanal.name,
+          displayName: state.member?.displayName ?? null,
           isBot: state.member?.user.bot ?? false,
         },
       });

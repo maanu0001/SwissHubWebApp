@@ -220,3 +220,4 @@ ALTER TABLE "TemporaryVoiceAccess" ADD CONSTRAINT "TemporaryVoiceAccess_channelI
 CREATE UNIQUE INDEX "TemporaryVoiceChannel_offen_je_hub"
   ON "TemporaryVoiceChannel" ("guildId", "ownerDiscordId", "hubId")
   WHERE "closedAt" IS NULL AND "hubId" IS NOT NULL;
+

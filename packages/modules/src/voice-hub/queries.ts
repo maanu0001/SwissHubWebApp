@@ -15,7 +15,7 @@ export interface AktiverTalk {
   hub: Pick<VoiceHub, 'id' | 'name'> | null;
   preset: Pick<VoicePreset, 'id' | 'name' | 'maxUserLimit'> | null;
   /** Wer gerade drin sitzt - aus der Anwesenheitstabelle, nicht von Discord. */
-  mitglieder: Array<{ discordId: string; isBot: boolean }>;
+  mitglieder: Array<{ discordId: string; displayName: string | null; isBot: boolean }>;
 }
 
 /**
@@ -57,13 +57,20 @@ export async function listActiveTalks(
   const kennungen = kanaele.map((kanal) => kanal.discordChannelId!).filter(Boolean);
   const anwesend = await prisma.voicePresence.findMany({
     where: { guildId, channelId: { in: kennungen } },
-    select: { discordId: true, channelId: true, isBot: true },
+    select: { discordId: true, channelId: true, displayName: true, isBot: true },
   });
 
-  const nachKanal = new Map<string, Array<{ discordId: string; isBot: boolean }>>();
+  const nachKanal = new Map<
+    string,
+    Array<{ discordId: string; displayName: string | null; isBot: boolean }>
+  >();
   for (const eintrag of anwesend) {
     const liste = nachKanal.get(eintrag.channelId) ?? [];
-    liste.push({ discordId: eintrag.discordId, isBot: eintrag.isBot });
+    liste.push({
+      discordId: eintrag.discordId,
+      displayName: eintrag.displayName,
+      isBot: eintrag.isBot,
+    });
     nachKanal.set(eintrag.channelId, liste);
   }
 

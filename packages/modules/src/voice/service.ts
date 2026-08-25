@@ -63,6 +63,18 @@ export interface CreateTemporaryVoiceInput {
   ownerModeration?: boolean;
   /** Wie lange ein leerer Kanal stehen bleibt. */
   deleteGraceSeconds?: number;
+  /**
+   * Ausdrueckliche Erlaubnis fuer `@everyone`.
+   *
+   * Normalerweise bekommt `@everyone` gar keine Ausnahme und der Kanal erbt
+   * von seiner Kategorie - ein oeffentlicher Talk in einer geschlossenen
+   * Kategorie soll geschlossen bleiben.
+   *
+   * Die Spielersuche will das Gegenteil: ihr Gruppenkanal ist ausdruecklich
+   * fuer alle offen, damit spontan jemand dazustossen kann, und zwar
+   * unabhaengig davon, was die Kategorie sagt. Genau dafuer ist dieses Feld.
+   */
+  everyoneAllow?: bigint | null;
 }
 
 /**
@@ -206,12 +218,16 @@ async function baueStartAusnahmen(input: CreateTemporaryVoiceInput): Promise<Cha
     },
   ];
 
-  const everyone = everyoneAusnahme(input.guildId, {
-    locked: input.locked ?? false,
-    hidden: input.hidden ?? false,
-  });
-  if (everyone) {
-    overwrites.push(everyone);
+  if (input.everyoneAllow !== undefined && input.everyoneAllow !== null) {
+    overwrites.push({ id: input.guildId, type: 0, allow: input.everyoneAllow, deny: 0n });
+  } else {
+    const everyone = everyoneAusnahme(input.guildId, {
+      locked: input.locked ?? false,
+      hidden: input.hidden ?? false,
+    });
+    if (everyone) {
+      overwrites.push(everyone);
+    }
   }
 
   const bot = await discord.bot.identity().catch(() => null);

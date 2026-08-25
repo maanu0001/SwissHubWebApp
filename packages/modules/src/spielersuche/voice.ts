@@ -1,4 +1,4 @@
-import { DISCORD_PERMISSIONS, type ChannelOverwrite, type DiscordGateway } from '@swisshub/discord';
+import { DISCORD_PERMISSIONS, type DiscordGateway } from '@swisshub/discord';
 import { createLogger } from '@swisshub/logger';
 import { prisma } from '@swisshub/database';
 import type { SpielersucheMatch } from '@swisshub/database';
@@ -30,9 +30,6 @@ const CREATOR_MODERATION =
   DISCORD_PERMISSIONS.MUTE_MEMBERS |
   DISCORD_PERMISSIONS.DEAFEN_MEMBERS |
   DISCORD_PERMISSIONS.MOVE_MEMBERS;
-
-/** Rechte des Bots - ohne sie könnte er den Kanal nicht wieder aufräumen. */
-const BOT_ALLOW = PARTICIPANT_ALLOW | DISCORD_PERMISSIONS.MANAGE_CHANNELS | DISCORD_PERMISSIONS.MOVE_MEMBERS;
 
 export function creatorAllowBits(moderation: boolean): bigint {
   return moderation ? PARTICIPANT_ALLOW | CREATOR_MODERATION : PARTICIPANT_ALLOW;
@@ -106,34 +103,38 @@ export async function createVoiceChannel(
     id: match.id,
   });
 
-  const overwrites: ChannelOverwrite[] = [
-    // Der Bot zuerst - ohne diese Rechte kann er den Kanal später nicht mehr
-    // anfassen, falls die Kategorie sie ihm nicht ohnehin gibt.
-    { id: options.guildId, type: 0, allow: PARTICIPANT_ALLOW, deny: 0n },
-    {
-      id: match.creatorDiscordId,
-      type: 1,
-      allow: creatorAllowBits(context.settings.voiceCreatorModeration),
-      deny: 0n,
-    },
-  ];
-
-  const botIdentity = await context.gateway.bot.identity().catch(() => null);
-  if (botIdentity) {
-    overwrites.push({ id: botIdentity.id, type: 1, allow: BOT_ALLOW, deny: 0n });
-  }
-
   try {
-    const channel = await context.gateway.voice.create({
+    // Ueber die gemeinsame Engine: dadurch bekommt auch dieser Kanal eine
+    // Zeile, einen Eintrag im Abgleich und dieselbe Aufraeumlogik nach einem
+    // Neustart. Wann er verschwindet, entscheidet weiterhin die Spielersuche -
+    // sie schliesst dabei auch die Suche, und das weiss nur sie.
+    const { createTemporaryVoice } = await import('../voice/service');
+    const kanal = await createTemporaryVoice({
+      guildId: options.guildId,
+      ownerDiscordId: match.creatorDiscordId,
+      ownerUsername: options.creatorLabel,
       name,
       parentId: context.voiceCategoryId,
+      source: 'PLAYER_SEARCH',
+      externalRef: match.id,
       userLimit: voiceUserLimit(match),
-      overwrites,
-      reason: `Spielersuche ${match.gameName} von ${options.creatorLabel}`,
+      ownerModeration: context.settings.voiceCreatorModeration,
+      // Der Kanal der Spielersuche ist ausdruecklich fuer alle offen, damit
+      // spontan jemand dazustossen kann - unabhaengig davon, was die
+      // Kategorie sagt. Genau so hielt es der alte Bot.
+      everyoneAllow: PARTICIPANT_ALLOW,
     });
 
-    log.info('Sprachkanal erstellt', { matchId: match.id, channelId: channel.id, name });
-    return { channelId: channel.id, name: channel.name };
+    if (!kanal.discordChannelId) {
+      return null;
+    }
+
+    log.info('Sprachkanal erstellt', {
+      matchId: match.id,
+      channelId: kanal.discordChannelId,
+      name: kanal.name,
+    });
+    return { channelId: kanal.discordChannelId, name: kanal.name };
   } catch (error) {
     log.error('Sprachkanal konnte nicht erstellt werden', { error, matchId: match.id });
     return null;
@@ -211,6 +212,13 @@ export async function deleteVoiceChannel(
     log.warn('Sprachkanal konnte nicht gelöscht werden', { error, matchId });
     return false;
   }
+
+  // Auch die Zeile der gemeinsamen Engine schliessen - sonst suchte der
+  // Abgleich weiter nach einem Kanal, den es nicht mehr gibt.
+  await prisma.temporaryVoiceChannel.updateMany({
+    where: { discordChannelId: match.voiceChannelId, closedAt: null },
+    data: { closedAt: new Date(), deleteScheduledAt: null },
+  });
 
   await prisma.spielersucheMatch.update({
     where: { id: matchId },

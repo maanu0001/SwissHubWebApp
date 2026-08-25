@@ -142,6 +142,15 @@ export const AUDIT_ACTIONS = {
   TOURNAMENT_DISPUTE_RESOLVED: 'TOURNAMENT_DISPUTE_RESOLVED',
   TOURNAMENT_PRIZE_UPDATED: 'TOURNAMENT_PRIZE_UPDATED',
   TOURNAMENT_STAFF_CHANGED: 'TOURNAMENT_STAFF_CHANGED',
+  // --- Voice Hub -----------------------------------------------------------
+  //
+  // Nur Eingriffe in fremde Talks. Wer seinen eigenen umbenennt oder
+  // schliesst, tut nichts, was ein Protokoll rechtfertigt - es waere eine
+  // Bewegungsakte und keine Sicherheitsspur.
+  VOICE_TALK_DELETED: 'VOICE_TALK_DELETED',
+  VOICE_OWNER_CHANGED: 'VOICE_OWNER_CHANGED',
+  VOICE_HUB_CHANGED: 'VOICE_HUB_CHANGED',
+  VOICE_PRESET_CHANGED: 'VOICE_PRESET_CHANGED',
   TOURNAMENT_BLOCKED: 'TOURNAMENT_BLOCKED',
   TOURNAMENT_UNBLOCKED: 'TOURNAMENT_UNBLOCKED',
   RECONCILIATION_RUN: 'RECONCILIATION_RUN',

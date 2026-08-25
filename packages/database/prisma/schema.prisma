@@ -2096,6 +2096,12 @@ model VoicePresence {
 
   channelId   String
   channelName String?
+  /// Anzeigename, wie ihn Discord im Kanal zeigt.
+  ///
+  /// Denormalisiert wie `channelName`: die WebApp ist ein eigener Prozess und
+  /// sieht die Voice-Zustaende nicht. Ohne den Namen muesste sie fuer jede
+  /// Mitgliederliste Discord fragen - einen Aufruf je Person je Seitenaufbau.
+  displayName String?
   /// Andere Bots zaehlen nicht als Zuhoerer - das entscheidet der Schreiber.
   isBot       Boolean @default(false)
 

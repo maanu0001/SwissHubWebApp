@@ -66,6 +66,17 @@ export const RATE_LIMITS = {
   tournamentResult: { limit: 60, windowMs: 5 * 60 * 1000 },
   /** Turnierverwaltung: Bracket, Matches, Preise, Leitung. */
   tournamentAdmin: { limit: 120, windowMs: 10 * 60 * 1000 },
+  /**
+   * Den eigenen Talk verwalten.
+   *
+   * Grosszuegig: waehrend eines Abends wird schon mal gesperrt, geoeffnet und
+   * jemand hereingelassen. Die eigentliche Bremse beim Umbenennen ist die
+   * Abkuehlzeit im Dienst - sie schuetzt vor dem Discord-Rate-Limit, das
+   * dieses Fenster nicht kennt.
+   */
+  voiceOwn: { limit: 60, windowMs: 5 * 60 * 1000 },
+  /** Hubs, Presets und fremde Talks - Verwaltung, nicht Alltag. */
+  voiceAdmin: { limit: 60, windowMs: 10 * 60 * 1000 },
 } as const satisfies Record<string, RateLimitRule>;
 
 export type RateLimitName = keyof typeof RATE_LIMITS;

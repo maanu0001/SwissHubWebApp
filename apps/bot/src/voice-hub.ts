@@ -56,6 +56,13 @@ async function behandleVerlassen(state: VoiceState): Promise<void> {
     return;
   }
 
+  // Nur eigene Talks. Der Gruppenkanal einer Spielersuche hat seine eigene
+  // Regel, wann er endet - `spielersuche-voice.ts` kuemmert sich darum und
+  // schliesst dabei auch die Suche.
+  if (kanal.source !== 'VOICE_HUB') {
+    return;
+  }
+
   const discordId = state.member?.id ?? state.id;
 
   // Der Besitzer ist gegangen - die Schonfrist beginnt. Ob jemand anderes
@@ -85,6 +92,9 @@ async function behandleBetreten(state: VoiceState): Promise<void> {
   // --- Ist es ein bestehender Talk? ---------------------------------------
   const kanal = await voice.findeOffenenKanal(channelId);
   if (kanal) {
+    if (kanal.source !== 'VOICE_HUB') {
+      return;
+    }
     // Ein geplantes Loeschen ist damit ueberholt.
     await voice.haltePlanungAn(kanal.id);
 

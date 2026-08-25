@@ -41,6 +41,17 @@ export interface ReconcileErgebnis {
 }
 
 /**
+ * Wer entscheidet, wann ein leerer Kanal verschwindet.
+ *
+ * Die Engine fuehrt die Zeile und raeumt verwaiste auf - das ist reine
+ * Buchhaltung und kann nichts kaputtmachen. Wann ein Kanal *endet*, ist
+ * dagegen eine Frage des Moduls: die Spielersuche loescht ihren Gruppenkanal
+ * sofort und schliesst dabei die Suche mit, und das weiss nur sie. Wuerde der
+ * Abgleich hier mitmischen, kaempften zwei Stellen um denselben Kanal.
+ */
+const LOESCHT_LEERE_SELBST: ReadonlySet<string> = new Set(['VOICE_HUB', 'EVENT', 'OTHER']);
+
+/**
  * Wie lange eine Reservierung ohne Kanal stehen darf.
  *
  * Sie entsteht Sekundenbruchteile vor dem Discord-Aufruf. Bleibt sie
@@ -104,7 +115,10 @@ export async function reconcileTemporaryVoices(): Promise<ReconcileErgebnis> {
     const menschen = await menschenImKanal(channelId);
 
     // --- Leer: loeschen oder einplanen ------------------------------------
-    if (menschen === 0) {
+    //
+    // Nur fuer Quellen, deren Lebensende die Engine verwaltet. Fremde Kanaele
+    // werden hier gezaehlt, aber nicht angefasst.
+    if (menschen === 0 && LOESCHT_LEERE_SELBST.has(kanal.source)) {
       if (kanal.deleteScheduledAt && kanal.deleteScheduledAt.getTime() <= Date.now()) {
         await deleteTemporaryVoice(kanal, SYSTEM_ACTOR, 'Talk war leer');
         ergebnis.geloescht += 1;
@@ -121,6 +135,13 @@ export async function reconcileTemporaryVoices(): Promise<ReconcileErgebnis> {
         where: { id: kanal.id, closedAt: null },
         data: { deleteScheduledAt: null },
       });
+    }
+
+    // Ab hier geht es um Besitz. Auch das ist Sache der Quelle: bei einer
+    // Spielersuche ist der Ersteller der Ersteller, und niemand erbt die
+    // Suche, nur weil er laenger im Kanal sitzt.
+    if (!LOESCHT_LEERE_SELBST.has(kanal.source)) {
+      continue;
     }
 
     // --- Besitzer weg und Schonfrist vorbei -------------------------------

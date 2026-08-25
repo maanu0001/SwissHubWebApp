@@ -885,10 +885,10 @@ model SpielersucheGame {
   matches            SpielersucheMatch[]
   rolePing           SpielersucheRolePing?
 
-  @@index([enabled, name])
-
   /// Turniere, die dieses Spiel verwenden.
   tournaments Tournament[]
+
+  @@index([enabled, name])
 }
 
 /// Eine Spielersuche.
@@ -2037,10 +2037,10 @@ model MusicPlaybackHistory {
   requestedByDiscordUserId String?
   requestedByUsername      String?
 
-  playedAt        DateTime @default(now())
+  playedAt      DateTime @default(now())
   /// Tatsaechlich gehoerte Dauer - kann unter `durationSeconds` liegen.
-  playedSeconds   Int      @default(0)
-  skipped         Boolean  @default(false)
+  playedSeconds Int      @default(0)
+  skipped       Boolean  @default(false)
 
   @@index([guildId, playedAt])
   @@index([sessionId])
@@ -2069,7 +2069,7 @@ model MusicCommand {
 
   requestedByDiscordUserId String?
   /// Woher der Befehl kam - "web" oder "discord". Nur fuer die Fehlersuche.
-  origin                   String @default("web")
+  origin                   String  @default("web")
 
   claimedAt  DateTime?
   finishedAt DateTime?
@@ -2220,7 +2220,7 @@ model TicketCategory {
 
   /// Discord-Kategorie, in der die Kanaele entstehen. Fehlt sie, greift die
   /// Vorgabe aus den Moduleinstellungen.
-  discordCategoryId String?
+  discordCategoryId  String?
   /// Ausweichkategorie, wenn die erste voll ist - Discord erlaubt 50 Kanaele.
   overflowCategoryId String?
 
@@ -2232,7 +2232,7 @@ model TicketCategory {
   defaultPriority TicketPriority @default(NORMAL)
 
   /// Vorlage des Kanalnamens. `{number}`, `{username}` werden ersetzt.
-  channelNameTemplate String @default("ticket-{number}-{username}")
+  channelNameTemplate String  @default("ticket-{number}-{username}")
   welcomeMessage      String?
   closeMessage        String?
 
@@ -2288,20 +2288,20 @@ model TicketPanel {
   id      String @id @default(cuid())
   guildId String
 
-  name        String
-  title       String
-  description String
-  bannerUrl   String?
+  name         String
+  title        String
+  description  String
+  bannerUrl    String?
   thumbnailUrl String?
-  footerText  String?
-  color       Int?
+  footerText   String?
+  color        Int?
 
   discordChannelId String
   /// Die gesendete Nachricht. `null`, solange nie veroeffentlicht - oder
   /// wenn sie auf Discord geloescht wurde.
   discordMessageId String?
 
-  buttonLabel String @default("Ticket erstellen")
+  buttonLabel String  @default("Ticket erstellen")
   buttonEmoji String? @default("🎫")
 
   active Boolean @default(true)
@@ -2441,11 +2441,11 @@ model TicketMessage {
   /// Die Discord-Nachricht, sofern es eine gibt. Interne Notizen haben keine.
   discordMessageId String?
 
-  authorDiscordId String?
-  authorUsername  String?
+  authorDiscordId  String?
+  authorUsername   String?
   authorAvatarHash String?
   /// Hat Support geschrieben? Grundlage der Antwortzeiten und der Sortierung.
-  fromStaff       Boolean @default(false)
+  fromStaff        Boolean @default(false)
 
   content String @db.Text
 
@@ -2469,11 +2469,11 @@ model TicketAttachment {
 
   fileName    String
   contentType String?
-  sizeBytes   Int      @default(0)
+  sizeBytes   Int     @default(0)
   /// Discord-CDN-Adresse oder der Name im eigenen Speicher.
-  url         String   @db.Text
+  url         String  @db.Text
   /// Im eigenen Speicher abgelegt? Discord-Adressen laufen ab.
-  stored      Boolean  @default(false)
+  stored      Boolean @default(false)
 
   createdAt DateTime @default(now())
 
@@ -2518,7 +2518,7 @@ model TicketEvent {
   ticketId String
   ticket   Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
 
-  kind   TicketEventKind
+  kind           TicketEventKind
   actorDiscordId String?
   actorUsername  String?
   actorSource    TicketActorSource @default(SYSTEM)
@@ -2541,9 +2541,9 @@ model TicketTranscript {
 
   /// Dateiname im Speicher - nicht der Pfad. Der Zugriff laeuft immer ueber
   /// eine autorisierte Route, nie ueber eine offene Adresse.
-  fileName    String
-  sizeBytes   Int    @default(0)
-  messageCount Int   @default(0)
+  fileName     String
+  sizeBytes    Int    @default(0)
+  messageCount Int    @default(0)
 
   createdAt DateTime @default(now())
 
@@ -2610,9 +2610,9 @@ model TicketTemplate {
 /// ueber alle Tickets liefert zwei gleichzeitigen Erstellungen dieselbe
 /// Nummer. Ein `UPDATE ... RETURNING` auf diese Zeile nicht.
 model TicketCounter {
-  guildId String @id
+  guildId    String @id
   /// Zuletzt vergebene Nummer.
-  lastNumber Int @default(0)
+  lastNumber Int    @default(0)
 
   updatedAt DateTime @updatedAt
 }
@@ -2842,7 +2842,7 @@ model Tournament {
   gameId   String?
   game     SpielersucheGame? @relation(fields: [gameId], references: [id], onDelete: SetNull)
 
-  description String? @db.Text
+  description  String? @db.Text
   /// Regelwerk als Markdown. Die Web-Fassung ist die verbindliche.
   rules        String? @db.Text
   /// Wird erhoeht, wenn sich die Regeln wesentlich aendern. Teilnehmer, die
@@ -2850,16 +2850,16 @@ model Tournament {
   rulesVersion Int     @default(1)
   rulesUrl     String?
 
-  bannerUrl String?
-  logoUrl   String?
+  bannerUrl   String?
+  logoUrl     String?
   /// Akzentfarbe als Ganzzahl wie von Discord erwartet; sonst SwissHub-Rot.
   accentColor Int?
 
-  status TournamentStatus @default(DRAFT)
-  mode   TournamentMode   @default(TEAM)
-  access TournamentAccessMode @default(OPEN)
-  format TournamentFormat @default(SINGLE_ELIMINATION)
-  seeding TournamentSeeding @default(RANDOM)
+  status  TournamentStatus     @default(DRAFT)
+  mode    TournamentMode       @default(TEAM)
+  access  TournamentAccessMode @default(OPEN)
+  format  TournamentFormat     @default(SINGLE_ELIMINATION)
+  seeding TournamentSeeding    @default(RANDOM)
 
   /// Teamgroesse. Bei SOLO ohne Bedeutung.
   minTeamSize    Int @default(1)
@@ -2880,22 +2880,22 @@ model Tournament {
   estimatedEndAt       DateTime?
 
   /// Check-in ueberhaupt verlangen?
-  checkinRequired Boolean @default(true)
+  checkinRequired         Boolean @default(true)
   /// Nicht Eingecheckte selbsttaetig entfernen, oder von Hand pruefen?
   autoRemoveMissedCheckin Boolean @default(false)
 
   // --- Format-Feinheiten -------------------------------------------------
   /// Anzahl Gruppen bei GROUPS_THEN_ELIMINATION.
-  groupCount        Int @default(0)
+  groupCount      Int      @default(0)
   /// Wie viele je Gruppe weiterkommen.
-  advancePerGroup   Int @default(2)
+  advancePerGroup Int      @default(2)
   /// Runden bei SWISS. 0 = aus der Teilnehmerzahl ableiten.
-  swissRounds       Int @default(0)
-  pointsPerWin      Int @default(3)
-  pointsPerDraw     Int @default(1)
-  pointsPerLoss     Int @default(0)
+  swissRounds     Int      @default(0)
+  pointsPerWin    Int      @default(3)
+  pointsPerDraw   Int      @default(1)
+  pointsPerLoss   Int      @default(0)
   /// Reihenfolge der Tiebreaker als Liste von Kennungen.
-  tiebreakers       String[] @default([])
+  tiebreakers     String[] @default([])
 
   /// Standard-Format der Matches; einzelne Runden duerfen abweichen.
   defaultBestOf Int      @default(1)
@@ -2903,20 +2903,20 @@ model Tournament {
   serverRegion  String?
 
   // --- Discord -----------------------------------------------------------
-  announcementChannelId String?
-  matchCategoryId       String?
-  staffCategoryId       String?
-  streamChannelId       String?
+  announcementChannelId      String?
+  matchCategoryId            String?
+  staffCategoryId            String?
+  streamChannelId            String?
   /// Rollen, die bei Ankuendigungen erwaehnt werden duerfen.
-  pingRoleIds           String[] @default([])
+  pingRoleIds                String[] @default([])
   /// Temporaere Rolle fuer aktive Teilnehmer.
-  participantRoleId     String?
+  participantRoleId          String?
   /// Rolle fuer den Sieger.
-  winnerRoleId          String?
+  winnerRoleId               String?
   /// Match-Kanaele: sofort, nach Stunden, oder am Turnierende (0).
-  matchChannelRetentionHours Int @default(0)
+  matchChannelRetentionHours Int      @default(0)
   /// Match-Kanaele ueberhaupt anlegen?
-  createMatchChannels        Boolean @default(true)
+  createMatchChannels        Boolean  @default(true)
 
   // --- Livestream --------------------------------------------------------
   twitchUrl  String?
@@ -2931,32 +2931,32 @@ model Tournament {
   /// Nur mit laufendem Premium-Abo.
   requiresPremium Boolean @default(false)
 
-  publishedAt DateTime?
-  startedAt   DateTime?
-  pausedAt    DateTime?
-  completedAt DateTime?
-  cancelledAt DateTime?
+  publishedAt  DateTime?
+  startedAt    DateTime?
+  pausedAt     DateTime?
+  completedAt  DateTime?
+  cancelledAt  DateTime?
   cancelReason String?
-  archivedAt  DateTime?
+  archivedAt   DateTime?
 
   createdByDiscordId String
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 
-  staff          TournamentStaff[]
-  stages         TournamentStage[]
-  groups         TournamentGroup[]
-  registrations  TournamentRegistration[]
-  teams          TournamentTeam[]
-  invites        TournamentTeamInvite[]
-  matches        TournamentMatch[]
-  prizes         TournamentPrize[]
-  announcements  TournamentAnnouncement[]
-  resources      TournamentResource[]
-  customFields   TournamentCustomField[]
-  events         TournamentEvent[]
-  disputes       TournamentDispute[]
-  participants   TournamentParticipant[]
+  staff         TournamentStaff[]
+  stages        TournamentStage[]
+  groups        TournamentGroup[]
+  registrations TournamentRegistration[]
+  teams         TournamentTeam[]
+  invites       TournamentTeamInvite[]
+  matches       TournamentMatch[]
+  prizes        TournamentPrize[]
+  announcements TournamentAnnouncement[]
+  resources     TournamentResource[]
+  customFields  TournamentCustomField[]
+  events        TournamentEvent[]
+  disputes      TournamentDispute[]
+  participants  TournamentParticipant[]
 
   @@unique([guildId, slug])
   @@index([guildId, status, startsAt])
@@ -2992,12 +2992,12 @@ model TournamentStage {
   tournamentId String
   tournament   Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
 
-  kind      TournamentStageKind
-  name      String
+  kind       TournamentStageKind
+  name       String
   /// Reihenfolge der Abschnitte.
-  sortOrder Int @default(0)
+  sortOrder  Int                 @default(0)
   /// Wie viele Runden dieser Abschnitt hat.
-  roundCount Int @default(0)
+  roundCount Int                 @default(0)
 
   startedAt   DateTime?
   completedAt DateTime?
@@ -3012,14 +3012,14 @@ model TournamentStage {
 }
 
 model TournamentGroup {
-  id           String     @id @default(cuid())
+  id           String          @id @default(cuid())
   tournamentId String
-  tournament   Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  tournament   Tournament      @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
   stageId      String
   stage        TournamentStage @relation(fields: [stageId], references: [id], onDelete: Cascade)
 
   name      String
-  sortOrder Int @default(0)
+  sortOrder Int    @default(0)
 
   createdAt DateTime @default(now())
 
@@ -3061,7 +3061,7 @@ model TournamentParticipant {
   username  String?
 
   /// Bei TEAM gesetzt.
-  teamId String? @unique
+  teamId String?         @unique
   team   TournamentTeam? @relation(fields: [teamId], references: [id], onDelete: Cascade)
 
   /// Setzplatz im Bracket. `null`, solange nicht gesetzt.
@@ -3076,10 +3076,10 @@ model TournamentParticipant {
 
   registration TournamentRegistration?
   groupMembers TournamentGroupMember[]
-  matchesAsA   TournamentMatch[] @relation("MatchParticipantA")
-  matchesAsB   TournamentMatch[] @relation("MatchParticipantB")
-  matchesWon   TournamentMatch[] @relation("MatchWinner")
-  matchesLost  TournamentMatch[] @relation("MatchLoser")
+  matchesAsA   TournamentMatch[]       @relation("MatchParticipantA")
+  matchesAsB   TournamentMatch[]       @relation("MatchParticipantB")
+  matchesWon   TournamentMatch[]       @relation("MatchWinner")
+  matchesLost  TournamentMatch[]       @relation("MatchLoser")
 
   @@unique([tournamentId, discordId])
   @@index([tournamentId, seed])
@@ -3096,15 +3096,15 @@ model TournamentRegistration {
   username  String
 
   /// Bei SOLO gesetzt; bei TEAM steht die Anmeldung am Team.
-  participantId String? @unique
+  participantId String?                @unique
   participant   TournamentParticipant? @relation(fields: [participantId], references: [id], onDelete: SetNull)
 
   /// Eindeutig, weil ein Team genau eine Anmeldung hat. Mehrere NULL-Werte
   /// bleiben erlaubt - Einzelanmeldungen tragen hier nichts.
-  teamId String? @unique
+  teamId String?         @unique
   team   TournamentTeam? @relation(fields: [teamId], references: [id], onDelete: Cascade)
 
-  status TournamentRegistrationStatus @default(PENDING)
+  status           TournamentRegistrationStatus @default(PENDING)
   /// Position in der Warteliste; `null`, wenn nicht auf der Warteliste.
   waitlistPosition Int?
 
@@ -3135,8 +3135,8 @@ model TournamentTeam {
   tournamentId String
   tournament   Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
 
-  name String
-  tag  String?
+  name    String
+  tag     String?
   logoUrl String?
 
   captainDiscordId String
@@ -3169,7 +3169,7 @@ model TournamentTeamMember {
   username  String
   role      TournamentTeamMemberRole @default(PLAYER)
 
-  joinedAt DateTime @default(now())
+  joinedAt  DateTime  @default(now())
   /// Entfernt, aber im Verlauf erhalten.
   removedAt DateTime?
 
@@ -3178,9 +3178,9 @@ model TournamentTeamMember {
 }
 
 model TournamentTeamInvite {
-  id           String     @id @default(cuid())
+  id           String         @id @default(cuid())
   tournamentId String
-  tournament   Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  tournament   Tournament     @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
   teamId       String
   team         TournamentTeam @relation(fields: [teamId], references: [id], onDelete: Cascade)
 
@@ -3201,11 +3201,11 @@ model TournamentTeamInvite {
 }
 
 model TournamentMatch {
-  id           String     @id @default(cuid())
+  id           String           @id @default(cuid())
   tournamentId String
-  tournament   Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  tournament   Tournament       @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
   stageId      String
-  stage        TournamentStage @relation(fields: [stageId], references: [id], onDelete: Cascade)
+  stage        TournamentStage  @relation(fields: [stageId], references: [id], onDelete: Cascade)
   groupId      String?
   group        TournamentGroup? @relation(fields: [groupId], references: [id], onDelete: SetNull)
 
@@ -3230,8 +3230,8 @@ model TournamentMatch {
   loserToMatchId  String?
   loserToSlot     String?
 
-  status   TournamentMatchStatus @default(PENDING)
-  bestOf   Int                   @default(1)
+  status TournamentMatchStatus @default(PENDING)
+  bestOf Int                   @default(1)
 
   scheduledAt DateTime?
   startedAt   DateTime?
@@ -3290,8 +3290,8 @@ model TournamentMatchGame {
   index Int
   map   String?
 
-  scoreA Int @default(0)
-  scoreB Int @default(0)
+  scoreA     Int     @default(0)
+  scoreB     Int     @default(0)
   /// A, B oder null bei unentschieden.
   winnerSlot String?
 
@@ -3318,7 +3318,7 @@ model TournamentResultSubmission {
   scoreB Int
   reason TournamentResultReason @default(PLAYED)
   /// Map-Ergebnisse als Liste von {index, map, scoreA, scoreB}.
-  games  Json @default("[]")
+  games  Json                   @default("[]")
 
   comment      String?
   evidenceUrl  String?
@@ -3338,9 +3338,9 @@ model TournamentResultSubmission {
 }
 
 model TournamentDispute {
-  id           String     @id @default(cuid())
+  id           String          @id @default(cuid())
   tournamentId String
-  tournament   Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  tournament   Tournament      @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
   matchId      String
   match        TournamentMatch @relation(fields: [matchId], references: [id], onDelete: Cascade)
 
@@ -3355,7 +3355,7 @@ model TournamentDispute {
 
   resolvedByDiscordId String?
   resolvedAt          DateTime?
-  resolution          String? @db.Text
+  resolution          String?   @db.Text
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -3386,13 +3386,13 @@ model TournamentPrize {
   tournament   Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
 
   /// 1 = Sieger, 2 = Zweiter, ...
-  placement   Int
-  title       String
-  description String?
+  placement      Int
+  title          String
+  description    String?
   /// Freitext statt Betrag: der Preis kann Geld, Hardware oder eine Rolle sein.
-  value       String?
-  sponsorName String?
-  sponsorUrl  String?
+  value          String?
+  sponsorName    String?
+  sponsorUrl     String?
   sponsorLogoUrl String?
 
   status TournamentPrizeStatus @default(PENDING)
@@ -3422,8 +3422,8 @@ model TournamentAnnouncement {
   /// Kennung der Art, z.B. REGISTRATION_OPEN oder ROUND_START:2.
   kind String
 
-  channelId        String?
-  discordMessageId String?
+  channelId              String?
+  discordMessageId       String?
   /// Verweis auf den Eintrag im Kommunikationsverlauf.
   communicationMessageId String?
 
@@ -3450,8 +3450,8 @@ model TournamentResource {
   parentId  String?
   label     String?
 
-  createdAt DateTime  @default(now())
-  removedAt DateTime?
+  createdAt    DateTime  @default(now())
+  removedAt    DateTime?
   /// Auf Discord nicht mehr auffindbar. Vom Abgleich gesetzt.
   missingSince DateTime?
 
@@ -3469,11 +3469,11 @@ model TournamentCustomField {
   label       String
   description String?
   placeholder String?
-  required    Boolean @default(false)
+  required    Boolean                   @default(false)
   /// Auswahlmoeglichkeiten bei SELECT.
-  options     String[] @default([])
+  options     String[]                  @default([])
   maxLength   Int?
-  sortOrder   Int @default(0)
+  sortOrder   Int                       @default(0)
 
   createdAt DateTime @default(now())
 
@@ -3506,7 +3506,7 @@ model TournamentEvent {
   actorDiscordId String?
   actorUsername  String?
   /// WEBAPP, DISCORD oder SYSTEM.
-  actorSource    String @default("SYSTEM")
+  actorSource    String  @default("SYSTEM")
 
   detail Json @default("{}")
 
@@ -3545,4 +3545,298 @@ model TournamentBlockEntry {
   liftedAt           DateTime?
 
   @@index([guildId, discordId, liftedAt])
+}
+
+// ---------------------------------------------------------------------------
+// Voice Hub
+// ---------------------------------------------------------------------------
+//
+// Ein temporaerer Sprachkanal lebt an zwei Orten: als Discord-Kanal und als
+// Zeile hier. Der Discord-Kanal ist verletzlich - jemand loescht ihn von Hand,
+// der Bot startet neu, Discord ist kurz weg. Deshalb ist die Zeile die
+// Wahrheit, und der Abgleich bringt Discord wieder auf ihren Stand.
+//
+// Die Zeile wird nicht geloescht, wenn der Kanal verschwindet, sondern mit
+// `closedAt` geschlossen. Das kostet wenig und liefert die Statistik ohne
+// zweite Tabelle - und ohne Statistik liesse sich nie beantworten, ob das
+// Modul ueberhaupt benutzt wird.
+
+/// Welches Modul den Kanal erzeugt hat.
+///
+/// Die Engine gehoert keinem Modul allein. Ohne diese Angabe wuesste der
+/// Abgleich nicht, wessen Kanal er da vor sich hat - und wer ihn aufraeumen
+/// darf.
+enum TemporaryVoiceSource {
+  VOICE_HUB
+  PLAYER_SEARCH
+  TOURNAMENT
+  EVENT
+  OTHER
+}
+
+/// Persoenliche Ausnahme in einem temporaeren Kanal.
+enum VoiceAccessKind {
+  ALLOW
+  DENY
+}
+
+enum VoiceHubEventKind {
+  VOICE_CREATED
+  VOICE_DELETED
+  VOICE_RENAMED
+  VOICE_LIMIT_CHANGED
+  VOICE_LOCKED
+  VOICE_UNLOCKED
+  VOICE_HIDDEN
+  VOICE_SHOWN
+  MEMBER_ALLOWED
+  MEMBER_DENIED
+  MEMBER_KICKED
+  OWNER_TRANSFERRED
+  OWNER_AUTO_TRANSFERRED
+}
+
+/// Vorlage fuer neue Talks.
+///
+/// Ein Hub verweist auf genau ein Preset. Mehrere Hubs koennen dasselbe
+/// verwenden - «Duo» und «Duo (Premium)» unterscheiden sich sonst nur darin,
+/// wer sie betreten darf.
+model VoicePreset {
+  id      String @id @default(cuid())
+  guildId String
+
+  name         String
+  /// Vorlage des Kanalnamens, z.B. `🔊 {username}'s Talk`.
+  nameTemplate String @default("🔊 {username}'s Talk")
+
+  /// Teilnehmerlimit neuer Talks; 0 = unbegrenzt (Discord-Semantik).
+  userLimit    Int  @default(0)
+  /// Hoechstwert, den der Besitzer selbst setzen darf.
+  maxUserLimit Int  @default(99)
+  /// Bitrate in bit/s; `null` uebernimmt die Voreinstellung des Servers.
+  bitrate      Int?
+
+  lockedDefault Boolean @default(false)
+  hiddenDefault Boolean @default(false)
+
+  /// Kategorie, in der Talks dieses Presets entstehen.
+  /// `null` = die Kategorie des Hubs.
+  targetCategoryId String?
+
+  /// Nur diese Rollen duerfen Talks aus diesem Preset erzeugen. Leer = alle.
+  allowedRoleIds String[] @default([])
+  /// Diese Rollen duerfen es nicht - gewinnt gegen `allowedRoleIds`.
+  blockedRoleIds String[] @default([])
+
+  /// Wie lange ein leerer Talk bestehen bleibt, bevor er geloescht wird.
+  ///
+  /// Nicht null: eine kurze Verbindungsstoerung soll den Talk nicht zerstoeren,
+  /// waehrend die Gruppe noch redet.
+  deleteGraceSeconds Int @default(30)
+
+  /// Mindestabstand zwischen zwei Umbenennungen.
+  ///
+  /// Discord begrenzt Kanalumbenennungen sehr eng (zwei je zehn Minuten).
+  /// Ohne eigene Bremse liefe die Anwendung in ein Discord-Rate-Limit, das
+  /// alle anderen Kanalaenderungen mitblockiert.
+  renameCooldownSeconds Int @default(300)
+
+  /// Darf der Besitzer im eigenen Talk stummschalten und verschieben?
+  ownerModeration Boolean @default(true)
+
+  sortOrder Int @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  hubs     VoiceHub[]
+  channels TemporaryVoiceChannel[]
+
+  @@unique([guildId, name])
+  @@index([guildId, sortOrder])
+}
+
+/// Ein permanenter Sprachkanal, dessen Betreten einen Talk erzeugt.
+model VoiceHub {
+  id      String @id @default(cuid())
+  guildId String
+
+  name             String
+  /// Der Discord-Kanal, den man betritt. Je Kanal genau ein Hub.
+  discordChannelId String @unique
+
+  /// Kategorie, in der die Talks entstehen.
+  targetCategoryId   String
+  /// Ausweichkategorie, wenn die erste voll ist (Discord: 50 Kanaele).
+  overflowCategoryId String?
+
+  presetId String
+  preset   VoicePreset @relation(fields: [presetId], references: [id])
+
+  allowedRoleIds String[] @default([])
+  blockedRoleIds String[] @default([])
+
+  enabled   Boolean @default(true)
+  sortOrder Int     @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  channels TemporaryVoiceChannel[]
+
+  @@unique([guildId, name])
+  @@index([guildId, enabled])
+}
+
+/// Ein temporaerer Sprachkanal.
+///
+/// Eine Zeile ohne `discordChannelId` ist eine Reservierung: sie entsteht,
+/// bevor Discord gefragt wird, und haelt den Platz. Ohne sie erzeugten zwei
+/// schnell aufeinanderfolgende Beitritte zwei Kanaele - Discord schickt das
+/// Ereignis durchaus mehrfach.
+model TemporaryVoiceChannel {
+  id      String @id @default(cuid())
+  guildId String
+
+  /// Erst gesetzt, wenn Discord den Kanal angelegt hat.
+  discordChannelId String? @unique
+
+  hubId String?
+  hub   VoiceHub? @relation(fields: [hubId], references: [id], onDelete: SetNull)
+
+  presetId String?
+  preset   VoicePreset? @relation(fields: [presetId], references: [id], onDelete: SetNull)
+
+  source      TemporaryVoiceSource @default(VOICE_HUB)
+  /// Fremdschluessel des erzeugenden Moduls, z.B. die Kennung einer
+  /// Spielersuche. Bewusst nur ein Text: die Engine kennt die Tabellen der
+  /// Module nicht und soll es auch nicht.
+  externalRef String?
+
+  ownerDiscordId String
+  ownerUsername  String
+  /// Gesetzt, seit der Besitzer den Kanal verlassen hat - Grundlage der
+  /// Schonfrist, bevor jemand anderes uebernimmt.
+  ownerLeftAt    DateTime?
+
+  name      String
+  userLimit Int     @default(0)
+  bitrate   Int?
+  locked    Boolean @default(false)
+  hidden    Boolean @default(false)
+  /// Frei gesetztes Spiel/Thema. Nur Metadatum, keine Discord-Aktivitaet.
+  gameName  String?
+
+  /// Nachricht mit dem Bedienfeld im Textchat des Sprachkanals.
+  controlMessageId String?
+
+  /// Letzte Umbenennung - Grundlage der Abkuehlzeit.
+  lastRenamedAt DateTime?
+
+  /// Faellig zum Loeschen, weil der Kanal leer ist.
+  ///
+  /// Bewusst ein Zeitpunkt in der Datenbank und kein `setTimeout`: ein
+  /// Zeitgeber im Arbeitsspeicher ueberlebt keinen Neustart, und ein leerer
+  /// Kanal bliebe fuer immer stehen.
+  deleteScheduledAt DateTime?
+
+  /// Groesste gleichzeitige Teilnehmerzahl - fuer die Statistik.
+  peakMembers Int @default(1)
+
+  createdAt    DateTime  @default(now())
+  lastActiveAt DateTime  @default(now())
+  /// Gesetzt, sobald der Kanal weg ist. Die Zeile bleibt fuer die Statistik.
+  closedAt     DateTime?
+
+  access TemporaryVoiceAccess[]
+
+  @@index([guildId, closedAt])
+  @@index([guildId, ownerDiscordId, closedAt])
+  @@index([deleteScheduledAt])
+  @@index([hubId])
+  @@index([source, closedAt])
+  @@index([guildId, createdAt])
+}
+
+/// Persoenliche Ausnahme fuer einen einzelnen Talk.
+model TemporaryVoiceAccess {
+  id        String                @id @default(cuid())
+  channelId String
+  channel   TemporaryVoiceChannel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+
+  discordId String
+  username  String?
+  kind      VoiceAccessKind
+
+  createdAt DateTime @default(now())
+
+  @@unique([channelId, discordId])
+  @@index([channelId, kind])
+}
+
+/// Was jemand fuer seine eigenen Talks bevorzugt.
+///
+/// Ausdruecklich freiwillig: ohne `applyPreferences` wird nichts uebernommen.
+/// Eine Anwendung, die sich merkt, wie jemand seinen Kanal nennt, soll das
+/// tun, weil er es will - nicht, weil es geht.
+model VoiceUserPreference {
+  id      String @id @default(cuid())
+  guildId String
+
+  discordId String
+
+  preferredName    String?
+  preferredLimit   Int?
+  preferredBitrate Int?
+
+  /// Werden die Vorgaben beim naechsten Talk angewendet?
+  applyPreferences Boolean @default(false)
+  /// Duerfen die Vertrauenspersonen jeden neuen Talk betreten?
+  autoAllowTrusted Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([guildId, discordId])
+}
+
+/// Wem jemand dauerhaft Zutritt zu seinen Talks gibt.
+model VoiceTrustedMember {
+  id      String @id @default(cuid())
+  guildId String
+
+  ownerDiscordId String
+  discordId      String
+  username       String?
+
+  createdAt DateTime @default(now())
+
+  @@unique([guildId, ownerDiscordId, discordId])
+  @@index([guildId, ownerDiscordId])
+}
+
+/// Was mit einem Talk geschehen ist.
+///
+/// Bewusst nicht jedes Betreten und Verlassen: das waere eine Bewegungsakte
+/// jedes Mitglieds und niemand braeuchte sie. Festgehalten wird, was den Talk
+/// selbst veraendert.
+model VoiceHubEvent {
+  id      String @id @default(cuid())
+  guildId String
+
+  /// Kann fehlen: der Kanal ist vielleicht schon weg.
+  channelId String?
+  hubId     String?
+
+  kind VoiceHubEventKind
+
+  actorDiscordId  String?
+  targetDiscordId String?
+  detail          Json    @default("{}")
+
+  createdAt DateTime @default(now())
+
+  @@index([guildId, createdAt])
+  @@index([channelId, createdAt])
+  @@index([guildId, kind, createdAt])
 }

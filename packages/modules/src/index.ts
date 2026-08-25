@@ -9,6 +9,7 @@ import './tickets/config';
 import './spielersuche/config';
 import './level/config';
 import './tournaments/config';
+import './voice-hub/config';
 import { registerGuildResolver } from './guild/config';
 
 // Ab hier löst jeder Discord-Aufruf die Guild aus der Datenbank auf.
@@ -34,6 +35,9 @@ export * as tickets from './tickets';
 export * as spielersuche from './spielersuche';
 export * as level from './level';
 export * as tournaments from './tournaments';
+// Die gemeinsame Engine fuer temporaere Sprachkanaele - modulunabhaengig.
+export * as voice from './voice';
+export * as voiceHub from './voice-hub';
 export * from './bot-status';
 export * from './members/service';
 export * from './members/avatars';

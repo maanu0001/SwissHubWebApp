@@ -145,6 +145,25 @@ export function createRestGateway(): DiscordGateway {
         throw error;
       }
     },
+
+    async moveToVoice(discordId, channelId, reason) {
+      // Discord antwortet mit 400, wenn das Mitglied in keinem Sprachkanal
+      // sitzt - dann gibt es nichts zu verschieben. Beim Join-to-Create ist
+      // genau das der Fall, wenn jemand den Hub sofort wieder verlaesst.
+      try {
+        await discordRequest(`${await guildRoute()}/members/${discordId}`, {
+          method: 'PATCH',
+          body: { channel_id: channelId },
+          auditLogReason: reason,
+        });
+        return true;
+      } catch (error) {
+        if (error instanceof DiscordApiError && error.status === 400) {
+          return false;
+        }
+        throw error;
+      }
+    },
   };
 
   const roles: DiscordGateway['roles'] = {
@@ -363,6 +382,12 @@ export function createRestGateway(): DiscordGateway {
       position: parsed.position ?? 0,
       nsfw: parsed.nsfw ?? false,
       overwrites: parsed.permission_overwrites ?? [],
+      ...(parsed.user_limit !== null && parsed.user_limit !== undefined
+        ? { userLimit: parsed.user_limit }
+        : {}),
+      ...(parsed.bitrate !== null && parsed.bitrate !== undefined
+        ? { bitrate: parsed.bitrate }
+        : {}),
     };
   };
 
@@ -401,6 +426,7 @@ export function createRestGateway(): DiscordGateway {
           type: CHANNEL_TYPES.voice,
           parent_id: input.parentId,
           user_limit: input.userLimit ?? 0,
+          ...(input.bitrate ? { bitrate: input.bitrate } : {}),
           permission_overwrites: alsUeberschreibungen(input.overwrites),
         },
         auditLogReason: input.reason,
@@ -450,6 +476,32 @@ export function createRestGateway(): DiscordGateway {
       await discordRequest(`/channels/${channelId}`, {
         method: 'PATCH',
         body: { topic: topic ?? '' },
+        auditLogReason: reason,
+      });
+      cache.delete('channels');
+    },
+
+    async updateVoice(channelId, patch, reason) {
+      const body: Record<string, unknown> = {};
+      if (patch.name !== undefined) {
+        body.name = patch.name;
+      }
+      if (patch.userLimit !== undefined) {
+        body.user_limit = patch.userLimit;
+      }
+      if (patch.bitrate !== undefined) {
+        body.bitrate = patch.bitrate;
+      }
+      if (patch.parentId !== undefined) {
+        body.parent_id = patch.parentId;
+      }
+      if (Object.keys(body).length === 0) {
+        // Nichts zu tun. Ein leerer PATCH kostet trotzdem ein Rate-Limit-Fenster.
+        return;
+      }
+      await discordRequest(`/channels/${channelId}`, {
+        method: 'PATCH',
+        body,
         auditLogReason: reason,
       });
       cache.delete('channels');

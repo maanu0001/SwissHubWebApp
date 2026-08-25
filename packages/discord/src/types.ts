@@ -45,6 +45,8 @@ export const discordChannelSchema = z.object({
   parent_id: z.string().nullish(),
   position: z.number().nullish(),
   nsfw: z.boolean().nullish(),
+  user_limit: z.number().nullish(),
+  bitrate: z.number().nullish(),
   // Discord liefert die Rechte-Ausnahmen beim Abruf der Kanalliste mit.
   // Sie zu verwerfen zwang jede Berechtigungsprüfung zu einer eigenen
   // Anfrage je Kanal.
@@ -126,6 +128,16 @@ export interface GuildChannel {
    * Berechtigungen für viele Kanäle auf einmal gebraucht werden.
    */
   overwrites: ChannelOverwriteEntry[];
+  /**
+   * Teilnehmerlimit eines Sprachkanals; `0` bedeutet unbegrenzt.
+   *
+   * Nur bei Sprachkanaelen gesetzt. Der Abgleich braucht den Wert: ohne ihn
+   * liesse sich nicht erkennen, dass jemand das Limit auf Discord von Hand
+   * geaendert hat.
+   */
+  userLimit?: number;
+  /** Bitrate eines Sprachkanals in bit/s. */
+  bitrate?: number;
 }
 
 export interface BotGuild {

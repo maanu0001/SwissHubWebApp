@@ -25,6 +25,15 @@ export interface DiscordGateway {
      * die Aufrufer behandeln das bewusst als nicht kritisch.
      */
     disconnectFromVoice(discordId: string, reason?: string): Promise<boolean>;
+    /**
+     * Verschiebt ein Mitglied in einen Sprachkanal.
+     *
+     * Liefert `false`, wenn das Mitglied gar nicht in einem Sprachkanal war -
+     * Discord kann niemanden verschieben, der nirgends sitzt. Genau das ist
+     * beim Join-to-Create der Normalfall, wenn jemand den Hub sofort wieder
+     * verlaesst; deshalb ist es kein Fehler, sondern eine Antwort.
+     */
+    moveToVoice(discordId: string, channelId: string, reason?: string): Promise<boolean>;
   };
   roles: {
     list(options?: { force?: boolean }): Promise<GuildRole[]>;
@@ -87,6 +96,14 @@ export interface DiscordGateway {
     rename(channelId: string, name: string, reason?: string): Promise<void>;
     /** Setzt das Kanalthema; `null` entfernt es. */
     setTopic(channelId: string, topic: string | null, reason?: string): Promise<void>;
+    /**
+     * Aendert Eigenschaften eines Sprachkanals.
+     *
+     * Bewusst ein Aufruf fuer mehrere Felder: Discord zaehlt jede Aenderung
+     * eines Kanals auf dasselbe, sehr enge Rate-Limit. Name und Limit in
+     * einem Zug zu setzen kostet einen Request statt zwei.
+     */
+    updateVoice(channelId: string, patch: VoiceChannelPatch, reason?: string): Promise<void>;
     /** Löscht einen Kanal. */
     remove(channelId: string, reason?: string): Promise<void>;
     /** Einzelner Channel; `null`, wenn es ihn nicht mehr gibt. */
@@ -215,8 +232,25 @@ export interface CreateVoiceChannelInput {
   parentId: string;
   /** Teilnehmerlimit; `null` = unbegrenzt. */
   userLimit?: number | null;
+  /** Bitrate in bit/s; `null` uebernimmt die Voreinstellung des Servers. */
+  bitrate?: number | null;
   overwrites?: ChannelOverwrite[];
   reason?: string;
+}
+
+/**
+ * Aenderbare Eigenschaften eines Sprachkanals.
+ *
+ * Ein nicht gesetztes Feld bleibt unberuehrt - `undefined` heisst «nicht
+ * anfassen», nicht «zuruecksetzen».
+ */
+export interface VoiceChannelPatch {
+  name?: string;
+  /** `0` bedeutet unbegrenzt - so zaehlt es Discord. */
+  userLimit?: number;
+  bitrate?: number;
+  /** Kategorie; fuer den Wechsel in eine Ausweichkategorie. */
+  parentId?: string;
 }
 
 /**

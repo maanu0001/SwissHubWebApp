@@ -203,6 +203,24 @@ export function createMockGateway(): DiscordGateway {
     async setTopic(channelId, topic) {
       log.debug('Mock: Kanalthema gesetzt', { channelId, gesetzt: topic !== null });
     },
+    async updateVoice(channelId, patch) {
+      const channel = eigeneKanaele.get(channelId);
+      if (channel) {
+        if (patch.name !== undefined) {
+          channel.name = patch.name;
+        }
+        if (patch.userLimit !== undefined) {
+          channel.userLimit = patch.userLimit;
+        }
+        if (patch.bitrate !== undefined) {
+          channel.bitrate = patch.bitrate;
+        }
+        if (patch.parentId !== undefined) {
+          channel.parentId = patch.parentId;
+        }
+      }
+      log.debug('Mock: Sprachkanal geändert', { channelId, ...patch });
+    },
     async remove(channelId) {
       eigeneKanaele.delete(channelId);
       log.info('Mock: Kanal gelöscht', { channelId });
@@ -256,6 +274,10 @@ export function createMockGateway(): DiscordGateway {
       async disconnectFromVoice(discordId) {
         // Im Mock ist niemand in einem Sprachkanal - der Aufruf ist folgenlos.
         return state.has(discordId) ? false : false;
+      },
+      async moveToVoice(discordId, channelId) {
+        log.debug('Mock: Mitglied in Sprachkanal verschoben', { discordId, channelId });
+        return true;
       },
     },
     roles: {

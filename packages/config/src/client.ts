@@ -24,8 +24,15 @@ export const SWISSHUB_LOGO_SIZES = {
 export const branding = {
   /** Product name shown in the sidebar, page titles and emails. */
   name: 'SwissHub',
-  /** Sub title / product descriptor. */
-  productName: 'Bot Control Center',
+  /**
+   * Name der WebApp selbst - erscheint in Seitenleiste, Seitentiteln und
+   * Metadaten, immer zusammen mit `name` ("SwissHub System").
+   *
+   * Bewusst schlicht "System": die Anwendung verwaltet laengst nicht mehr nur
+   * den Bot, sondern Mitglieder, Tickets, Turniere, Premium und Sprachkanaele.
+   * Ein Name, der nur einen Teil davon nennt, benennt das Falsche.
+   */
+  productName: 'System',
   /** Short description used for metadata. */
   description: 'Administrations- und Moderationsoberfläche für den SwissHub Discord-Server.',
   /**
@@ -55,12 +62,18 @@ export const branding = {
     cta: 'Mehr erfahren',
     href: null as string | null,
   },
-  /** Banner unterhalb des Dashboards. */
+  /**
+   * Banner unterhalb des Dashboards.
+   *
+   * Ohne eigenes Bild: es zeigt das Logo aus `logo.mark` bzw. das im
+   * Dashboard hochgeladene. Hier stand frueher eine Roboterzeichnung - die
+   * stand fuer den Bot, nicht fuer die Anwendung, und eine zweite Grafik
+   * neben dem Logo waere ohnehin ein zweiter Absender gewesen.
+   */
   banner: {
     enabled: true,
-    title: 'SwissHub Bot Control Center',
-    subtitle: 'Deine zentrale Verwaltung für SwissHub Bots',
-    image: '/branding/banner.svg',
+    title: 'System',
+    subtitle: 'Deine zentrale Verwaltung für den SwissHub Discord-Server',
   },
   /** Locale + timezone used for all user facing date rendering. */
   locale: 'de-CH',

@@ -277,7 +277,19 @@ export default async function DashboardPage(): Promise<React.JSX.Element> {
                       description={entry.definition.tagline ?? entry.definition.description}
                       icon={entry.definition.icon}
                       enabled={entry.enabled && moduleIds.has(entry.definition.id)}
-                      href={entry.enabled ? (entry.definition.navigation[0]?.href ?? null) : null}
+                      // Eingeschaltet: direkt ins Modul. Abgeschaltet: auf
+                      // seine Seite unter «Module», wo es sich einschalten
+                      // laesst - sonst waere die Kachel eine Sackgasse und das
+                      // Modul waere zwar sichtbar, aber nicht erreichbar. Wer
+                      // Module nicht verwalten darf, bekommt weiterhin keinen
+                      // Verweis: die Seite stuende ihm ohnehin nicht offen.
+                      href={
+                        entry.enabled
+                          ? (entry.definition.navigation[0]?.href ?? null)
+                          : canManageModules
+                            ? `/modules/${entry.definition.id}`
+                            : null
+                      }
                     />
                   ))}
                 </div>

@@ -1,9 +1,11 @@
-# SwissHub Bot WebApp
+# SwissHub System
 
-Zentrale Administrations- und Moderationsoberfläche für den SwissHub Discord-Server.
-Die Anwendung besteht aus einer Next.js WebApp, einem discord.js Bot und einer PostgreSQL-Datenbank
+Zentrale Administrations- und Moderationsoberfläche für den SwissHub Discord-Server - in der
+Anwendung selbst schlicht **System**.
+Sie besteht aus einer Next.js WebApp, einem discord.js Bot und einer PostgreSQL-Datenbank
 in einem TypeScript-Monorepo. Umgesetzt sind die Module **Jail**, **Kommunikation**,
-**Spielersuche** und **Level-System**; die Architektur ist darauf ausgelegt, weitere Module ohne
+**Spielersuche**, **Level-System**, **Tickets**, **Turniere**, **Musik**, **Premium** und
+**Voice Hub**; die Architektur ist darauf ausgelegt, weitere Module ohne
 Umbau zu ergänzen (siehe [docs/MODULES.md](docs/MODULES.md)).
 
 ```

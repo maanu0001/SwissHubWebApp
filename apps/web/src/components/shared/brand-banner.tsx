@@ -3,8 +3,11 @@ import { branding } from '@swisshub/config/client';
 /**
  * Markenbanner am Fuss des Dashboards.
  *
- * Rein visuelles Element: Logo, Claim und - falls vorhanden - die Grafik unter
- * `public/branding/banner.svg`. Austausch ohne Codeänderung möglich.
+ * Rein visuelles Element: Name, Claim und das Logo der Anwendung. Das Logo ist
+ * dasselbe zentrale Asset wie in Seitenleiste und Kopfzeile - ein im Dashboard
+ * hochgeladenes hat Vorrang, sonst greift die mitgelieferte Datei. Bewusst nur
+ * ein Bild: hier stand frueher zusaetzlich eine Roboterzeichnung, die den Bot
+ * meinte und nicht die Anwendung.
  */
 export function BrandBanner({
   footnote,
@@ -25,31 +28,26 @@ export function BrandBanner({
         aria-hidden="true"
       />
       <div className="relative flex items-center justify-between gap-6 px-6 py-6 sm:px-8">
-        <div className="flex min-w-0 items-center gap-5">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={logoUrl ?? branding.logo.mark}
-            alt=""
-            width={56}
-            height={56}
-            className="hidden size-14 shrink-0 sm:block"
-          />
-          <div className="min-w-0">
-            <p className="truncate text-xl font-semibold tracking-tight sm:text-2xl">
-              {branding.banner.title}
-            </p>
-            <p className="truncate text-sm text-muted-foreground">{branding.banner.subtitle}</p>
-            {footnote ? <p className="mt-1 truncate text-xs text-muted-foreground/80">{footnote}</p> : null}
-          </div>
+        <div className="min-w-0">
+          <p className="truncate text-xl font-semibold tracking-tight sm:text-2xl">
+            {branding.banner.title}
+          </p>
+          <p className="truncate text-sm text-muted-foreground">{branding.banner.subtitle}</p>
+          {footnote ? <p className="mt-1 truncate text-xs text-muted-foreground/80">{footnote}</p> : null}
         </div>
 
+        {/*
+          Quadratisch angelegt und mit `object-contain` gehalten: das Logo ist
+          512x512, und eine feste Hoehe allein wuerde es bei einem spaeteren
+          Austausch gegen ein breiteres Bild verzerren.
+        */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          src={branding.banner.image}
+          src={logoUrl ?? branding.logo.mark}
           alt=""
-          width={140}
-          height={100}
-          className="hidden h-24 w-auto shrink-0 opacity-90 md:block"
+          width={512}
+          height={512}
+          className="size-14 shrink-0 object-contain opacity-90 sm:size-20"
         />
       </div>
     </section>

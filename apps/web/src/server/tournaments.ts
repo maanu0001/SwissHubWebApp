@@ -138,7 +138,11 @@ export function tournamentSections(context: AuthContext): TournamentSection[] {
   if (can(context, p.blockManage)) {
     sections.push({ href: '/turniere/sperren', label: 'Sperren' });
   }
-  sections.push({ href: '/modules/tournaments', label: 'Einstellungen' });
+  // Dasselbe wie beim Voice Hub: der Reiter stand bedingungslos, und damit
+  // sah ihn auch, wer nur an Turnieren teilnehmen darf.
+  if (can(context, p.admin) || can(context, 'modules.manage')) {
+    sections.push({ href: '/modules/tournaments', label: 'Einstellungen' });
+  }
 
   return sections;
 }

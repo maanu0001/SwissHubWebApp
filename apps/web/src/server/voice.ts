@@ -45,7 +45,12 @@ export function voiceSections(context: AuthContext): VoiceSection[] {
   if (can(context, p.statsView)) {
     sections.push({ href: '/voice/statistiken', label: 'Statistiken' });
   }
-  sections.push({ href: '/modules/voiceHub', label: 'Einstellungen' });
+  // Die Moduleinstellungen sind Verwaltung. Sie standen hier bedingungslos -
+  // damit sah jedes Mitglied, das seinen eigenen Talk verwalten darf, auch den
+  // Reiter zur Konfiguration des ganzen Moduls.
+  if (can(context, p.settingsManage) || can(context, 'modules.manage')) {
+    sections.push({ href: '/modules/voiceHub', label: 'Einstellungen' });
+  }
 
   return sections;
 }

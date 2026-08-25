@@ -154,9 +154,18 @@ export default async function MemberDetailPage({
         </p>
       ) : null}
 
+      {/*
+        `min-w-0` an beiden Rasterkindern ist hier kein Feinschliff, sondern
+        die Ursache: Rasterelemente haben von sich aus `min-width: auto` und
+        schrumpfen deshalb nicht unter die Eigenbreite ihres Inhalts. Die
+        Reiterleiste rechts ist in der Summe rund 870 Pixel breit - sie
+        scrollt zwar in sich, gab diese Breite aber nach oben weiter und zog
+        die ganze Seite auf 891 Pixel, unabhaengig vom Bildschirm. Genau das
+        war das seitliche Schieben auf dem Telefon.
+      */}
       <div className="grid gap-6 lg:grid-cols-3">
         {/* --- Kopf ------------------------------------------------------- */}
-        <Card>
+        <Card className="min-w-0">
           <CardHeader>
             <CardTitle>Profil</CardTitle>
             <CardDescription>
@@ -232,7 +241,7 @@ export default async function MemberDetailPage({
         </Card>
 
         {/* --- Reiter ----------------------------------------------------- */}
-        <div className="space-y-4 lg:col-span-2">
+        <div className="min-w-0 space-y-4 lg:col-span-2">
           <nav
             aria-label="Bereiche"
             className="-mx-1 flex gap-1 overflow-x-auto scrollbar-slim px-1 pb-1"

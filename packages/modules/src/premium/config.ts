@@ -14,6 +14,16 @@ export const PREMIUM_MODULE_ID = 'premium';
  * ueber Discord-Rollen im Dashboard bestimmt.
  */
 export const PREMIUM_PERMISSIONS = {
+  /**
+   * Das eigene Abonnement ansehen.
+   *
+   * `view` klingt danach, ist es aber nicht: es oeffnet die Verwaltungssicht
+   * auf *alle* Abonnements. Fuer «mein eigenes Abo» gab es bisher keinen
+   * Schluessel, und dadurch war die einzige Moeglichkeit, einem gewoehnlichen
+   * Mitglied den Weg zu seinem Abo zu geben, ihm zugleich die Verwaltung zu
+   * zeigen. Genau ein Schluessel loest das - mehr braucht es hier nicht.
+   */
+  self: 'premium.self',
   view: 'premium.view',
   manage: 'premium.manage',
   productsManage: 'premium.products.manage',
@@ -230,10 +240,18 @@ export const premiumModule: ModuleDefinition = registerModule({
   },
   permissions: [
     {
-      key: PREMIUM_PERMISSIONS.view,
-      label: 'Premium ansehen',
-      description: 'Übersicht, Abonnements und Stübli einsehen.',
+      key: PREMIUM_PERMISSIONS.self,
+      label: 'Eigenes Abo ansehen',
+      description: 'Den eigenen Premium-Status, die Laufzeit und das eigene Stübli einsehen.',
       module: PREMIUM_MODULE_ID,
+    },
+    {
+      key: PREMIUM_PERMISSIONS.view,
+      label: 'Premium verwalten - Übersicht',
+      description:
+        'Die Verwaltungssicht auf alle Abonnements, die Übersicht und die Stübli-Verwaltung. Nicht für gewöhnliche Mitglieder.',
+      module: PREMIUM_MODULE_ID,
+      critical: true,
     },
     {
       key: PREMIUM_PERMISSIONS.manage,
@@ -294,6 +312,17 @@ export const premiumModule: ModuleDefinition = registerModule({
       icon: 'Crown',
       group: 'modules',
       order: 60,
+    },
+    {
+      // Der Weg zum eigenen Abo - neben «Mein Profil» und nicht im
+      // Modulbereich, denn es ist Selbstbedienung und keine Verwaltung.
+      href: '/premium/me',
+      label: 'Mein Abo',
+      description: 'Eigener Premium-Status und eigenes Stübli',
+      permission: PREMIUM_PERMISSIONS.self,
+      icon: 'Crown',
+      group: 'overview',
+      order: 30,
     },
   ],
 });

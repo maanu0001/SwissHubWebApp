@@ -1,7 +1,12 @@
 {
   "extends": "./tsconfig.base.json",
   "compilerOptions": {
-    "types": ["node"]
+    "types": ["node"],
+    // Damit Tests die Server-Helfer der WebApp unter demselben Kuerzel
+    // ansprechen wie die WebApp selbst. Vitest kennt dieselbe Zuordnung.
+    "paths": {
+      "@/*": ["./apps/web/src/*"]
+    }
   },
   "include": [
     "packages/**/*.ts",

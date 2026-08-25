@@ -75,8 +75,10 @@ export const PERMISSION_PRESETS: PermissionPreset[] = [
       'tournaments.view',
       'tournaments.participate',
 
-      // Premium: die Shop-Seite und das eigene Abo.
-      'premium.view',
+      // Premium: ausschliesslich das eigene Abo. `premium.view` waere hier
+      // falsch - trotz des Namens oeffnet es die Verwaltungssicht auf alle
+      // Abonnements, auf die Uebersicht und auf die Stuebli-Verwaltung.
+      'premium.self',
 
       // Voice Hub: einen eigenen Talk oeffnen und ihn verwalten.
       'voiceHub.view',

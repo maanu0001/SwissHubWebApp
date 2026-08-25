@@ -12,11 +12,20 @@ export interface DashboardData {
   memberCount: number | null;
   onlineCount: number | null;
   discordReachable: boolean;
-  jailStats: Awaited<ReturnType<typeof jail.getJailStats>>;
+  /**
+   * Jail-Kennzahlen - nur fuer Berechtigte.
+   *
+   * `undefined` heisst hier nicht «keine Jails», sondern «diese Person darf
+   * es nicht wissen». Deshalb ein fehlender Wert und keine Null: eine Null
+   * waere eine Auskunft ueber den Moderationsstand des Servers, und die geht
+   * ein gewoehnliches Mitglied nichts an.
+   */
+  jailStats?: Awaited<ReturnType<typeof jail.getJailStats>>;
   /** Die nächsten auslaufenden aktiven Jails. */
   activeJails: JailEntry[];
-  actionsToday: number;
-  actionsYesterday: number;
+  /** Moderationsaktionen heute - nur fuer Berechtigte, siehe oben. */
+  actionsToday?: number;
+  actionsYesterday?: number;
   /** Prozentuale Veränderung gegenüber gestern (gerundet). */
   actionsTrend: number | null;
   /** Letzte Aktionen inklusive Avatar-Hash des Ausführenden. */
@@ -26,6 +35,8 @@ export interface DashboardData {
 export interface DashboardScope {
   canViewJails: boolean;
   canViewAudit: boolean;
+  /** Darf die Moderationskennzahlen des Servers sehen. */
+  canViewModeration: boolean;
 }
 
 /**
@@ -40,14 +51,21 @@ export async function loadDashboardData(scope: DashboardScope): Promise<Dashboar
   startOfToday.setHours(0, 0, 0, 0);
   const startOfYesterday = new Date(startOfToday.getTime() - 24 * 60 * 60 * 1000);
 
+  // Was der Betrachter nicht sehen darf, wird auch nicht abgefragt. Es
+  // hinterher wegzulassen waere dieselbe Abfrage und dieselbe Zeile in einem
+  // Fehlerprotokoll - nur mit dem Anschein von Zurueckhaltung.
   const [bot, jailStats, actionsToday, actionsYesterday, activeJails, recentActivity, guild] =
     await Promise.all([
       readBotStatus(),
-      jail.getJailStats(),
-      prisma.moderationAction.count({ where: { createdAt: { gte: startOfToday } } }),
-      prisma.moderationAction.count({
-        where: { createdAt: { gte: startOfYesterday, lt: startOfToday } },
-      }),
+      scope.canViewJails ? jail.getJailStats() : Promise.resolve(undefined),
+      scope.canViewModeration
+        ? prisma.moderationAction.count({ where: { createdAt: { gte: startOfToday } } })
+        : Promise.resolve(undefined),
+      scope.canViewModeration
+        ? prisma.moderationAction.count({
+            where: { createdAt: { gte: startOfYesterday, lt: startOfToday } },
+          })
+        : Promise.resolve(undefined),
       scope.canViewJails
         ? prisma.jailEntry.findMany({
             where: { releasedAt: null, status: { in: ['COMPLETED', 'PARTIAL'] } },
@@ -76,7 +94,9 @@ export async function loadDashboardData(scope: DashboardScope): Promise<Dashboar
     actionsToday,
     actionsYesterday,
     actionsTrend:
-      actionsYesterday > 0 ? Math.round(((actionsToday - actionsYesterday) / actionsYesterday) * 100) : null,
+      actionsToday !== undefined && actionsYesterday !== undefined && actionsYesterday > 0
+        ? Math.round(((actionsToday - actionsYesterday) / actionsYesterday) * 100)
+        : null,
     // Avatare gesammelt nachschlagen - ein Query statt einer Anfrage pro Zeile.
     recentActivity: recentActivity.map((entry) => ({
       ...entry,

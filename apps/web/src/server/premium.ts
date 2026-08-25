@@ -2,7 +2,7 @@ import 'server-only';
 import { can } from '@swisshub/auth';
 import { premium } from '@swisshub/modules';
 import type { AuthContext } from '@swisshub/auth';
-import type { PremiumSection } from '@/modules/premium/components/section-nav';
+import type { PremiumSection } from '@/modules/premium/sections';
 
 /**
  * Unterseiten des Premium-Moduls.

@@ -3,7 +3,9 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { CreditCard, Crown, LayoutGrid, Mic, Package, Settings, Users } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import type { PremiumSection, PremiumSectionIcon } from '@/modules/premium/sections';
 
 /**
  * Bereichsnavigation des Premium-Moduls.
@@ -12,13 +14,7 @@ import { cn } from '@/lib/utils';
  * Unterseiten werden hier erreicht. Angezeigt wird nur, wofür die Berechtigung
  * vorliegt - jede Seite prüft zusätzlich serverseitig.
  */
-export interface PremiumSection {
-  href: string;
-  label: string;
-  icon: keyof typeof ICONS;
-}
-
-const ICONS = {
+const ICONS: Record<PremiumSectionIcon, LucideIcon> = {
   overview: LayoutGrid,
   subscriptions: Users,
   products: Package,

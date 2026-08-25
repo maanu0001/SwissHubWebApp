@@ -1,6 +1,19 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { Activity, Blocks, Lock, ScrollText, Search, Settings, TrendingUp, Users } from 'lucide-react';
+import {
+  Activity,
+  Blocks,
+  Gamepad2,
+  Lock,
+  Music,
+  ScrollText,
+  Search,
+  Settings,
+  Ticket,
+  TrendingUp,
+  Users,
+  Zap,
+} from 'lucide-react';
 import { branding } from '@swisshub/config/client';
 import { can } from '@swisshub/auth';
 import {
@@ -41,9 +54,17 @@ export default async function DashboardPage(): Promise<React.JSX.Element> {
   const canViewMembers = can(context, 'members.view');
   const canManageModules = can(context, 'modules.manage');
   const canViewSettings = can(context, 'settings.view');
+  const canViewModeration = can(context, 'moderation.view');
+  // Die drei Wege eines gewoehnlichen Mitglieds. Jeweils genau die
+  // Berechtigung, die auch die Zielseite verlangt - und nur, solange das
+  // Modul ueberhaupt eingeschaltet ist. Genau so filtert auch die
+  // Seitenleiste; eine Schnellaktion in ein abgeschaltetes Modul waere ein
+  // Weg, der ins Leere fuehrt.
+  const darfNutzen = (permission: string, moduleId: string): boolean =>
+    can(context, permission) && moduleIds.has(moduleId);
 
   const [data, moduleStatus, moduleIds, jailSettings, health, logoUrl] = await Promise.all([
-    loadDashboardData({ canViewJails, canViewAudit }),
+    loadDashboardData({ canViewJails, canViewAudit, canViewModeration }),
     listModuleStatus(),
     enabledModuleIds(),
     getModuleSettings<jail.JailSettings>(jail.JAIL_MODULE_ID),
@@ -52,6 +73,21 @@ export default async function DashboardPage(): Promise<React.JSX.Element> {
   ]);
 
   const csrfToken = csrfTokenFor(context);
+
+  const canCreateTicket = darfNutzen('tickets.create', 'tickets');
+  const canCreateSpielersuche = darfNutzen('spielersuche.create', 'spielersuche');
+  const canUseMusic = darfNutzen('music.view', 'music');
+
+  // Bleibt nichts uebrig, verschwindet die ganze Karte. Eine Ueberschrift
+  // «Schnellaktionen» ueber einer leeren Flaeche ist schlechter als keine.
+  const hatSchnellaktionen =
+    canCreateTicket ||
+    canCreateSpielersuche ||
+    canUseMusic ||
+    canCreateJail ||
+    canViewMembers ||
+    canViewAudit ||
+    canViewSettings;
 
   // Verfügbare Module zuerst, geplante als Ausblick dahinter.
   const visibleModules = moduleStatus
@@ -72,7 +108,10 @@ export default async function DashboardPage(): Promise<React.JSX.Element> {
         <section aria-label="Einrichtung" className="rounded-xl border border-warning/40 bg-warning/5 p-5">
           <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
             <h2 className="text-sm font-semibold">Einrichtung noch nicht abgeschlossen</h2>
-            <Link href="/setup" className="inline-flex min-h-6 items-center text-sm text-primary hover:underline">
+            <Link
+              href="/setup"
+              className="inline-flex min-h-6 items-center text-sm text-primary hover:underline"
+            >
               Zum Einrichtungsassistenten
             </Link>
           </div>
@@ -80,7 +119,17 @@ export default async function DashboardPage(): Promise<React.JSX.Element> {
         </section>
       ) : null}
 
-      <section aria-label="Kennzahlen" className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      {/*
+        Die Kennzahlen entstehen aus einer Liste und nicht als vier feste
+        Karten. Faellt eine weg, weil der Betrachter sie nicht sehen darf,
+        rueckt der Rest nach - `auto-fit` laesst kein Loch und keine
+        angebrochene Reihe stehen. Vier feste Spalten haetten bei zwei Karten
+        zwei leere Plaetze gezeigt.
+      */}
+      <section
+        aria-label="Kennzahlen"
+        className="grid gap-4 [grid-template-columns:repeat(auto-fit,minmax(min(100%,15rem),1fr))]"
+      >
         <StatCard
           label="Mitglieder"
           value={data.memberCount !== null ? numberFormat.format(data.memberCount) : '-'}
@@ -101,17 +150,19 @@ export default async function DashboardPage(): Promise<React.JSX.Element> {
           icon={<Users />}
         />
 
-        <StatCard
-          label="Aktive Jails"
-          value={data.jailStats.active}
-          hint={
-            data.jailStats.endingSoon > 0
-              ? `${data.jailStats.endingSoon} enden in der nächsten Stunde`
-              : 'Keine bevorstehenden Freilassungen'
-          }
-          icon={<Lock />}
-          tone={data.jailStats.active > 0 ? 'warning' : 'default'}
-        />
+        {data.jailStats ? (
+          <StatCard
+            label="Aktive Jails"
+            value={data.jailStats.active}
+            hint={
+              data.jailStats.endingSoon > 0
+                ? `${data.jailStats.endingSoon} enden in der nächsten Stunde`
+                : 'Keine bevorstehenden Freilassungen'
+            }
+            icon={<Lock />}
+            tone={data.jailStats.active > 0 ? 'warning' : 'default'}
+          />
+        ) : null}
 
         <StatCard
           label="Bot Status"
@@ -129,24 +180,30 @@ export default async function DashboardPage(): Promise<React.JSX.Element> {
           icon={<Activity />}
         />
 
-        <StatCard
-          label="Aktionen heute"
-          value={data.actionsToday}
-          hint={
-            data.actionsTrend !== null ? (
-              <>
-                <StatDelta value={data.actionsTrend} suffix="%" /> zum Vortag
-              </>
-            ) : (
-              `${plural(data.jailStats.createdToday, 'Jail', 'Jails')} · ${plural(
-                data.jailStats.releasedToday,
-                'Freilassung',
-                'Freilassungen',
-              )}`
-            )
-          }
-          icon={<TrendingUp />}
-        />
+        {data.actionsToday !== undefined ? (
+          <StatCard
+            label="Aktionen heute"
+            value={data.actionsToday}
+            hint={
+              data.actionsTrend !== null ? (
+                <>
+                  <StatDelta value={data.actionsTrend} suffix="%" /> zum Vortag
+                </>
+              ) : data.jailStats ? (
+                // Ohne Vergleichswert der Vortag - aber nur, wenn diese
+                // Person die Jail-Zahlen ohnehin sehen darf.
+                `${plural(data.jailStats.createdToday, 'Jail', 'Jails')} · ${plural(
+                  data.jailStats.releasedToday,
+                  'Freilassung',
+                  'Freilassungen',
+                )}`
+              ) : (
+                'Kein Vergleichswert'
+              )
+            }
+            icon={<TrendingUp />}
+          />
+        ) : null}
       </section>
 
       <div className="grid gap-6 xl:grid-cols-3">
@@ -342,47 +399,84 @@ export default async function DashboardPage(): Promise<React.JSX.Element> {
             </Panel>
           ) : null}
 
-          <Panel title="Schnellaktionen" icon={<Lock />} bodyClassName="space-y-2 p-5">
-            {canCreateJail ? (
-              <QuickAction title="Mitglied jailen" description="Neuen Jail erstellen" icon={<Lock />}>
-                <CreateJailDialog
-                  csrfToken={csrfToken}
-                  durationPresets={jail.JAIL_DURATION_PRESETS}
-                  maxDurationSeconds={jailSettings.maxDurationSeconds}
-                  announceByDefault={!jailSettings.silentByDefault}
-                  variant="quick-action"
-                  triggerLabel="Mitglied jailen"
+          {/*
+            Die Schnellaktionen entstehen aus dem, was dieser Betrachter
+            tatsaechlich darf. Fuer ein gewoehnliches Mitglied sind das die
+            drei Community-Wege; fuer die Verwaltung kommen ihre eigenen
+            dazu. Jede fuehrt auf eine Seite, die dieselbe Berechtigung
+            verlangt - eine Schaltflaeche, die danach mit «keine
+            Berechtigung» antwortet, gibt es hier nicht.
+          */}
+          {hatSchnellaktionen ? (
+            <Panel title="Schnellaktionen" icon={<Zap />} bodyClassName="space-y-2 p-5">
+              {canCreateTicket ? (
+                <QuickAction
+                  title="Ticket erstellen"
+                  description="Anliegen an das Support-Team"
+                  icon={<Ticket />}
+                  href="/tickets/neu"
                 />
-              </QuickAction>
-            ) : null}
+              ) : null}
 
-            {canViewMembers ? (
-              <QuickAction
-                title="Mitglied suchen"
-                description="Nach Mitgliedern suchen"
-                icon={<Search />}
-                href="/members"
-              />
-            ) : null}
+              {canCreateSpielersuche ? (
+                <QuickAction
+                  title="Spielersuche starten"
+                  description="Mitspieler finden"
+                  icon={<Gamepad2 />}
+                  href="/spielersuche/neu"
+                />
+              ) : null}
 
-            {canViewAudit ? (
-              <QuickAction
-                title="Audit Log"
-                description="Logs und Aktivitäten"
-                icon={<ScrollText />}
-                href="/audit"
-              />
-            ) : null}
+              {canUseMusic ? (
+                <QuickAction
+                  title="Musik starten"
+                  description="Player und Warteschlange öffnen"
+                  icon={<Music />}
+                  href="/musik"
+                />
+              ) : null}
 
-            {canViewSettings ? (
-              <QuickAction
-                title="Einstellungen"
-                description="Bot und System konfigurieren"
-                icon={<Settings />}
-                href="/settings"
-              />
-            ) : null}
-          </Panel>
+              {canCreateJail ? (
+                <QuickAction title="Mitglied jailen" description="Neuen Jail erstellen" icon={<Lock />}>
+                  <CreateJailDialog
+                    csrfToken={csrfToken}
+                    durationPresets={jail.JAIL_DURATION_PRESETS}
+                    maxDurationSeconds={jailSettings.maxDurationSeconds}
+                    announceByDefault={!jailSettings.silentByDefault}
+                    variant="quick-action"
+                    triggerLabel="Mitglied jailen"
+                  />
+                </QuickAction>
+              ) : null}
+
+              {canViewMembers ? (
+                <QuickAction
+                  title="Mitglied suchen"
+                  description="Nach Mitgliedern suchen"
+                  icon={<Search />}
+                  href="/members"
+                />
+              ) : null}
+
+              {canViewAudit ? (
+                <QuickAction
+                  title="Audit Log"
+                  description="Logs und Aktivitäten"
+                  icon={<ScrollText />}
+                  href="/audit"
+                />
+              ) : null}
+
+              {canViewSettings ? (
+                <QuickAction
+                  title="Einstellungen"
+                  description="Bot und System konfigurieren"
+                  icon={<Settings />}
+                  href="/settings"
+                />
+              ) : null}
+            </Panel>
+          ) : null}
         </div>
       </div>
 

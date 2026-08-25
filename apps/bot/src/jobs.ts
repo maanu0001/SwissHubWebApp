@@ -6,6 +6,8 @@ import { jail, level, spielersuche, syncDiscord, writeHeartbeat,
   premium,
   tickets,
   tournaments,
+  voice,
+  voiceHub,
 } from '@swisshub/modules';
 
 const log = createLogger('bot:jobs');
@@ -163,6 +165,36 @@ export function createJobRunner(
             log.warn('Selbsttätige Ziehung nicht möglich', { raffleId: raffle.id, error });
           }
         }
+      },
+    },
+    {
+      name: 'voice-hub-reconcile',
+      // Temporäre Talks: fällige leere löschen, verwaiste übergeben, Zeilen
+      // ohne Discord-Kanal schliessen.
+      //
+      // Bewusst häufig: die Schonfrist eines leeren Talks liegt bei
+      // Voreinstellung bei dreissig Sekunden, und ein Lauf alle fünf Minuten
+      // liesse ihn viereinhalb Minuten zu lange stehen. Der Lauf selbst ist
+      // billig - er liest eine Handvoll Zeilen.
+      intervalMs: 20 * 1000,
+      async run() {
+        await voice.reconcileTemporaryVoices();
+      },
+    },
+    {
+      name: 'voice-hub-retention',
+      // Geschlossene Talks und ihren Verlauf nach der eingestellten Frist
+      // entfernen. Die Statistik braucht sie eine Weile, aber nicht ewig.
+      intervalMs: 6 * 60 * 60 * 1000,
+      async run() {
+        const { getModuleSettings, isModuleEnabled } = await import('@swisshub/modules');
+        if (!(await isModuleEnabled(voiceHub.VOICE_HUB_MODULE_ID))) {
+          return;
+        }
+        const settings = await getModuleSettings<voiceHub.VoiceHubSettings>(
+          voiceHub.VOICE_HUB_MODULE_ID,
+        );
+        await voice.raeumeAlteTalks(settings.historyRetentionDays);
       },
     },
     {

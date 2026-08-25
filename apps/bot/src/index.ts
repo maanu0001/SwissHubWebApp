@@ -30,6 +30,8 @@ import { registerLevelGameButtons } from './level-games';
 import { registerTicketInteractions } from './ticket-interactions';
 import { registerTicketMessageSync } from './ticket-messages';
 import { registerTournamentInteractions } from './tournament-interactions';
+import { recoverVoiceHub, registerVoiceHub } from './voice-hub';
+import { registerVoiceInteractions } from './voice-interactions';
 import {
   recoverVoiceMembers,
   registerLevelMessageXp,
@@ -132,6 +134,9 @@ async function main(): Promise<void> {
   registerTicketMessageSync(client, messageContent);
   // Check-in, Bereitmeldung, Resultat und der Ruf nach der Turnierleitung.
   registerTournamentInteractions(client);
+  // Join-to-Create und das Bedienfeld im Talk.
+  registerVoiceHub(client);
+  registerVoiceInteractions(client);
 
   /**
    * Aktive Guild-ID. Sie kann sich zur Laufzeit ändern (Einrichtungsassistent),
@@ -184,6 +189,13 @@ async function main(): Promise<void> {
       // Voice-Sessions, die ein Neustart offen gelassen hat, sauber schliessen.
       await recoverVoiceSessions(readyClient, guildId).catch((error: unknown) =>
         log.warn('Voice-Sessions konnten nicht bereinigt werden', { error }),
+      );
+
+      // Temporäre Talks: leere aufräumen, verwaiste übergeben, fehlende
+      // Bedienfelder ergänzen. Der Bot war weg und hat in der Zeit keine
+      // Ereignisse gesehen.
+      await recoverVoiceHub(guildId).catch((error: unknown) =>
+        log.warn('Voice Hub konnte nach dem Start nicht abgeglichen werden', { error }),
       );
 
       // Beim Start einmal synchronisieren, damit Rollen- und Channel-Auswahl

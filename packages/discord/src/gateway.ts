@@ -34,6 +34,36 @@ export interface DiscordGateway {
      * verlaesst; deshalb ist es kein Fehler, sondern eine Antwort.
      */
     moveToVoice(discordId: string, channelId: string, reason?: string): Promise<boolean>;
+    /**
+     * Discord-eigener Timeout ("Communication Disabled").
+     *
+     * `until = null` hebt ihn auf. Discord begrenzt ihn auf 28 Tage - laenger
+     * geht nicht, und das ist keine Einstellung, sondern die API.
+     */
+    timeout(discordId: string, until: Date | null, reason?: string): Promise<void>;
+    /** Entfernt ein Mitglied vom Server. Es kann sofort wiederkommen. */
+    kick(discordId: string, reason?: string): Promise<void>;
+  };
+  /**
+   * Server-Banns.
+   *
+   * Getrennt von `members`, weil ein Bann ohne Mitgliedschaft funktioniert:
+   * man kann jemanden bannen, der gar nicht auf dem Server ist, und
+   * entbannen, der es laengst nicht mehr ist.
+   */
+  bans: {
+    /**
+     * @param deleteMessageSeconds Wie weit zurueck Nachrichten geloescht
+     *   werden. Discord erlaubt hoechstens 7 Tage (604800).
+     */
+    add(discordId: string, options?: { reason?: string; deleteMessageSeconds?: number }): Promise<void>;
+    remove(discordId: string, reason?: string): Promise<void>;
+    /** Der Bann eines Mitglieds - `null`, wenn keiner besteht. */
+    get(discordId: string): Promise<{ discordId: string; reason: string | null } | null>;
+    list(options?: {
+      limit?: number;
+      after?: string;
+    }): Promise<Array<{ discordId: string; username: string; reason: string | null }>>;
   };
   roles: {
     list(options?: { force?: boolean }): Promise<GuildRole[]>;

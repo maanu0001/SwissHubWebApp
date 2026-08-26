@@ -13,6 +13,9 @@ import { DiscordAvatar } from '@/components/shared/discord-avatar';
 import { RoleBadge } from '@/components/shared/role-badge';
 import { EmptyState } from '@/components/shared/states';
 import { CreateJailDialog } from '@/modules/jail/components/create-jail-dialog';
+import { ModerationDialog } from '@/modules/moderation/components/moderation-dialog';
+import { ActionTypeBadge } from '@/modules/moderation/components/action-type-badge';
+import { StatusBadge } from '@/components/shared/status-badge';
 import { ReleaseJailButton } from '@/modules/jail/components/release-jail-button';
 import { NotesPanel } from '@/modules/members/components/notes-panel';
 import { RoleManager } from '@/modules/members/components/role-manager';
@@ -21,6 +24,7 @@ import { CustomCardPanel } from '@/modules/level/components/custom-card-panel';
 import { RemoveCustomCardButton } from '@/modules/level/components/remove-custom-card-button';
 import { csrfTokenFor, requireMember } from '@/server/auth';
 import { memberViewer } from '@/server/members';
+import { moderationAbilities } from '@/server/moderation';
 import { cn } from '@/lib/utils';
 
 export const metadata: Metadata = { title: 'Mitglied' };
@@ -81,9 +85,7 @@ export default async function MemberDetailPage({
   const fehler = new Set(profil.fehler.map((eintrag) => eintrag.section));
   const gewaehlt = (await searchParams).tab ?? 'uebersicht';
 
-  const reiter = REITER.filter(
-    (eintrag) => !('section' in eintrag) || sichtbar.has(eintrag.section),
-  );
+  const reiter = REITER.filter((eintrag) => !('section' in eintrag) || sichtbar.has(eintrag.section));
   const aktiv = reiter.some((eintrag) => eintrag.id === gewaehlt) ? gewaehlt : 'uebersicht';
 
   const csrfToken = csrfTokenFor(context);
@@ -93,6 +95,9 @@ export default async function MemberDetailPage({
   ]);
   const canJail = capabilities.canJail && jailEnabled;
   const selbst = basic.discordId === context.user.discordId;
+  // Am eigenen Profil gibt es nichts zu moderieren - der Dienst lehnt es ohnehin
+  // ab, und eine Schaltflaeche, die immer scheitert, ist keine Schaltflaeche.
+  const massnahmen = selbst ? null : moderationAbilities(context);
   const darfEigeneKarte = can(context, level.LEVEL_PERMISSIONS.cardCustom);
 
   // Die Rollenliste braucht Discord und ist nur fuer die Verwaltung da.
@@ -102,9 +107,7 @@ export default async function MemberDetailPage({
         .catch(() => [])
     : [];
 
-  const nichtVerfuegbar = (
-    <p className="text-sm text-muted-foreground">Daten momentan nicht verfügbar.</p>
-  );
+  const nichtVerfuegbar = <p className="text-sm text-muted-foreground">Daten momentan nicht verfügbar.</p>;
 
   return (
     <>
@@ -124,6 +127,20 @@ export default async function MemberDetailPage({
                 csrfToken={csrfToken}
                 jailId={basic.activeJail.id}
                 memberLabel={basic.displayName}
+              />
+            ) : null}
+            {massnahmen?.any ? (
+              <ModerationDialog
+                csrfToken={csrfToken}
+                abilities={massnahmen}
+                presetMember={{
+                  discordId: basic.discordId,
+                  username: basic.username,
+                  displayName: basic.displayName,
+                  avatarHash: basic.avatarHash,
+                  jailed: Boolean(basic.activeJail),
+                }}
+                variant="outline"
               />
             ) : null}
             {!basic.activeJail && canJail ? (
@@ -246,10 +263,7 @@ export default async function MemberDetailPage({
 
         {/* --- Reiter ----------------------------------------------------- */}
         <div className="min-w-0 space-y-4 lg:col-span-2">
-          <nav
-            aria-label="Bereiche"
-            className="-mx-1 flex gap-1 overflow-x-auto scrollbar-slim px-1 pb-1"
-          >
+          <nav aria-label="Bereiche" className="-mx-1 flex gap-1 overflow-x-auto scrollbar-slim px-1 pb-1">
             {reiter.map((eintrag) => (
               <Link
                 key={eintrag.id}
@@ -394,11 +408,7 @@ export default async function MemberDetailPage({
  * Eine Kachel «0 Jails» waere bereits eine Auskunft aus der Moderationsakte -
  * auch eine Null sagt etwas.
  */
-function Uebersicht({
-  profil,
-}: {
-  profil: members.MemberCenterProfile;
-}): React.JSX.Element {
+function Uebersicht({ profil }: { profil: members.MemberCenterProfile }): React.JSX.Element {
   const kacheln: Array<{ label: string; wert: string }> = [];
 
   if (profil.level) {
@@ -443,13 +453,7 @@ function Uebersicht({
 }
 
 /** Die eigene Karte eines anderen Mitglieds - ansehen und entfernen. */
-function FremdeKarte({
-  discordId,
-  csrfToken,
-}: {
-  discordId: string;
-  csrfToken: string;
-}): React.JSX.Element {
+function FremdeKarte({ discordId, csrfToken }: { discordId: string; csrfToken: string }): React.JSX.Element {
   return (
     <div className="space-y-3 rounded-xl border border-border p-4">
       <p className="text-sm font-semibold">Eigene Level-Card dieses Mitglieds</p>
@@ -509,8 +513,8 @@ function Aktivitaet({ activity }: { activity?: members.MemberActivity }): React.
       </div>
 
       <p className="text-xs text-muted-foreground">
-        Nachrichten und Voice-Zeit führt das Level-System als Gesamtzahlen - für sie gibt es keine
-        Zeiträume, und dafür eine Erfassung einzuführen wäre neue Überwachung für eine Anzeige.
+        Nachrichten und Voice-Zeit führt das Level-System als Gesamtzahlen - für sie gibt es keine Zeiträume,
+        und dafür eine Erfassung einzuführen wäre neue Überwachung für eine Anzeige.
       </p>
     </div>
   );
@@ -518,9 +522,7 @@ function Aktivitaet({ activity }: { activity?: members.MemberActivity }): React.
 
 function LevelAnsicht({ level }: { level?: members.MemberLevelView }): React.JSX.Element {
   if (!level) {
-    return (
-      <EmptyState className="border-0" title="Kein Level" description="Noch keine XP gesammelt." />
-    );
+    return <EmptyState className="border-0" title="Kein Level" description="Noch keine XP gesammelt." />;
   }
   return (
     <div className="space-y-4">
@@ -557,11 +559,7 @@ function LevelAnsicht({ level }: { level?: members.MemberLevelView }): React.JSX
   );
 }
 
-function Spielersuche({
-  daten,
-}: {
-  daten?: members.MemberSpielersucheView;
-}): React.JSX.Element {
+function Spielersuche({ daten }: { daten?: members.MemberSpielersucheView }): React.JSX.Element {
   if (!daten) {
     return <EmptyState className="border-0" title="Keine Spielersuchen" description="Nichts erfasst." />;
   }
@@ -689,9 +687,7 @@ function Tickets({ zeilen }: { zeilen: members.MemberTicketRow[] }): React.JSX.E
 
 function PremiumAnsicht({ daten }: { daten: members.MemberPremiumView | null }): React.JSX.Element {
   if (!daten) {
-    return (
-      <EmptyState className="border-0" title="Kein Premium" description="Kein Abonnement vorhanden." />
-    );
+    return <EmptyState className="border-0" title="Kein Premium" description="Kein Abonnement vorhanden." />;
   }
   return (
     <dl className="space-y-2 text-sm">
@@ -720,7 +716,11 @@ function PremiumAnsicht({ daten }: { daten: members.MemberPremiumView | null }):
 }
 
 function Moderation({ daten }: { daten?: members.MemberModerationView }): React.JSX.Element {
-  if (!daten || (daten.jailHistory.length === 0 && daten.moderationHistory.length === 0)) {
+  // Jail-Vorgaenge stehen bereits im Jail-Verlauf - sie hier ein zweites Mal
+  // aufzuzaehlen liesse die Akte doppelt so schwer aussehen, wie sie ist.
+  const massnahmen = (daten?.moderationHistory ?? []).filter((eintrag) => !eintrag.type.startsWith('JAIL_'));
+
+  if (!daten || (daten.jailHistory.length === 0 && massnahmen.length === 0)) {
     return (
       <EmptyState
         className="border-0"
@@ -758,17 +758,27 @@ function Moderation({ daten }: { daten?: members.MemberModerationView }): React.
         )}
       </div>
 
-      {daten.moderationHistory.length > 0 ? (
+      {massnahmen.length > 0 ? (
         <div>
-          <h3 className="mb-2 text-sm font-semibold">Massnahmen</h3>
+          <h3 className="mb-2 text-sm font-semibold">Massnahmen ({massnahmen.length})</h3>
           <ol className="divide-y divide-border">
-            {daten.moderationHistory.map((eintrag) => (
-              <li key={eintrag.id} className="py-2 text-sm">
-                <span className="font-medium">{eintrag.type}</span>
-                <span className="text-muted-foreground">
-                  {' '}
-                  · {formatDateTime(eintrag.createdAt)} · {eintrag.actorUsername}
-                </span>
+            {massnahmen.map((eintrag) => (
+              <li key={eintrag.id} className="py-2.5 text-sm">
+                <div className="flex flex-wrap items-center gap-2">
+                  <ActionTypeBadge type={eintrag.type} />
+                  {eintrag.status === 'COMPLETED' ? null : <StatusBadge status={eintrag.status} />}
+                  <span className="text-xs text-muted-foreground">
+                    {formatDateTime(eintrag.createdAt)} · {eintrag.actorUsername}
+                  </span>
+                </div>
+                {eintrag.reason ? (
+                  <p className="mt-0.5 break-words text-muted-foreground">{eintrag.reason}</p>
+                ) : null}
+                {eintrag.expiresAt ? (
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    Bis {formatDateTime(eintrag.expiresAt)}
+                  </p>
+                ) : null}
               </li>
             ))}
           </ol>

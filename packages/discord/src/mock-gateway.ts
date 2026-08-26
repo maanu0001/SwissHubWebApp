@@ -116,6 +116,8 @@ const MOCK_BOT_PERMISSIONS =
 
 export function createMockGateway(): DiscordGateway {
   const state = new Map(MOCK_MEMBERS.map((member) => [member.discordId, { ...member }]));
+  /** Banns im Mock. Wie bei Discord unabhaengig von der Mitgliedschaft. */
+  const banns = new Map<string, { discordId: string; username: string; reason: string | null }>();
   const sentMessages = new Map<string, { channelId: string }>();
   let messageCounter = 0;
   // Vom Mock erstellte Sprachkanäle - damit `voice.get` nach dem Anlegen
@@ -230,7 +232,6 @@ export function createMockGateway(): DiscordGateway {
     },
   };
 
-
   // `voice` bleibt der bisherige Zugang und zeigt auf dieselben Funktionen.
   // Bewusst ein stabiles Objekt und kein Getter: ein Getter lieferte bei
   // jedem Zugriff ein neues Objekt, und ein Test, der hier einen Spion setzt,
@@ -243,7 +244,6 @@ export function createMockGateway(): DiscordGateway {
     remove: managedChannels.remove,
     get: managedChannels.get,
   };
-
 
   return {
     members: {
@@ -278,6 +278,41 @@ export function createMockGateway(): DiscordGateway {
       async moveToVoice(discordId, channelId) {
         log.debug('Mock: Mitglied in Sprachkanal verschoben', { discordId, channelId });
         return true;
+      },
+      async timeout(discordId, until) {
+        const member = state.get(discordId);
+        if (member) {
+          member.timedOutUntil = until;
+        }
+        log.debug('Mock: Timeout gesetzt', { discordId, until: until?.toISOString() ?? null });
+      },
+      async kick(discordId) {
+        state.delete(discordId);
+        log.debug('Mock: Mitglied entfernt', { discordId });
+      },
+    },
+    bans: {
+      async add(discordId, options = {}) {
+        const member = state.get(discordId);
+        banns.set(discordId, {
+          discordId,
+          username: member?.username ?? 'Unbekannt',
+          reason: options.reason ?? null,
+        });
+        // Ein Bann entfernt das Mitglied auch vom Server.
+        state.delete(discordId);
+        log.debug('Mock: Mitglied gebannt', { discordId });
+      },
+      async remove(discordId) {
+        banns.delete(discordId);
+        log.debug('Mock: Bann aufgehoben', { discordId });
+      },
+      async get(discordId) {
+        const eintrag = banns.get(discordId);
+        return eintrag ? { discordId, reason: eintrag.reason } : null;
+      },
+      async list(options = {}) {
+        return [...banns.values()].slice(0, options.limit ?? 100);
       },
     },
     roles: {

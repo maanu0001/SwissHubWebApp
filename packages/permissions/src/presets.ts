@@ -151,12 +151,20 @@ export const PERMISSION_PRESETS: PermissionPreset[] = [
   {
     id: 'moderator',
     label: 'Moderator',
-    description: 'Darf Mitglieder jailen und wieder freigeben, aber nichts konfigurieren.',
+    description:
+      'Timeout, Kick und Jail sowie die Moderationsakte. Bannen bleibt dem Senior Moderator vorbehalten.',
     permissions: [
       'dashboard.view',
       'members.view',
       'moderation.view',
       'moderation.execute',
+      // Die taeglichen Massnahmen. Bann und Entbannung fehlen bewusst: sie
+      // sind die schwersten Eingriffe und liegen beim Senior Moderator.
+      'moderation.timeout',
+      'moderation.timeout.remove',
+      'moderation.kick',
+      'moderation.history.view',
+      'moderation.notes.create',
       'jail.view',
       'jail.create',
       'jail.release',
@@ -174,12 +182,21 @@ export const PERMISSION_PRESETS: PermissionPreset[] = [
   {
     id: 'senior-moderator',
     label: 'Senior Moderator',
-    description: 'Moderation inklusive Audit Log und Verlängerung laufender Massnahmen.',
+    description:
+      'Alle Massnahmen inklusive Bann und Entbannung, dazu Audit Log und Verlängerung laufender Massnahmen.',
     permissions: [
       'dashboard.view',
       'members.view',
       'moderation.view',
       'moderation.execute',
+      'moderation.timeout',
+      'moderation.timeout.remove',
+      'moderation.kick',
+      // Was den Moderator vom Senior Moderator unterscheidet: der Bann.
+      'moderation.ban',
+      'moderation.unban',
+      'moderation.history.view',
+      'moderation.notes.create',
       'audit.view',
       'settings.view',
       'jail.view',

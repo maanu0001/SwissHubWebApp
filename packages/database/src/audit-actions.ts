@@ -155,6 +155,13 @@ export const AUDIT_ACTIONS = {
   //
   // Nur Eingriffe, nicht das Lesen: ein Protokoll jedes geoeffneten Profils
   // waere eine Bewegungsakte ueber die Mitarbeiter und keine Sicherheitsspur.
+  // --- Moderation Center ---------------------------------------------------
+  MODERATION_BAN: 'MODERATION_BAN',
+  MODERATION_UNBAN: 'MODERATION_UNBAN',
+  MODERATION_KICK: 'MODERATION_KICK',
+  MODERATION_TIMEOUT: 'MODERATION_TIMEOUT',
+  MODERATION_TIMEOUT_REMOVE: 'MODERATION_TIMEOUT_REMOVE',
+  MODERATION_NOTE: 'MODERATION_NOTE',
   LEVEL_CUSTOM_CARD_CHANGED: 'LEVEL_CUSTOM_CARD_CHANGED',
   MEMBER_ROLE_GRANTED: 'MEMBER_ROLE_GRANTED',
   MEMBER_ROLE_REVOKED: 'MEMBER_ROLE_REVOKED',

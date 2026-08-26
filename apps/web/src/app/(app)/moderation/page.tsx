@@ -1,146 +1,228 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { z } from 'zod';
-import { prisma } from '@swisshub/database';
-import { formatDateTime, paginate, sanitizeText, toSkipTake } from '@swisshub/shared';
-import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
-import { buttonVariants } from '@/components/ui/button';
-import { DataTable } from '@/components/shared/data-table';
-import { Pagination } from '@/components/shared/pagination';
+import { AlarmClock, Gavel, Lock, ShieldAlert, ShieldBan } from 'lucide-react';
+import { redirect } from 'next/navigation';
+import { can } from '@swisshub/auth';
+import { jail, moderation } from '@swisshub/modules';
+import { formatDateTime, formatDayTime } from '@swisshub/shared';
+import { StatCard } from '@/components/shared/stat-card';
+import { Panel } from '@/components/shared/panel';
+import { EmptyState } from '@/components/shared/states';
 import { StatusBadge } from '@/components/shared/status-badge';
-import { requirePagePermission } from '@/server/auth';
-import { cn } from '@/lib/utils';
-import type { ModerationAction, Prisma } from '@swisshub/database';
+import { csrfTokenFor, requirePagePermission } from '@/server/auth';
+import { moderationAbilities, moderationOverviewScope, moderationSections } from '@/server/moderation';
+import { ModerationSectionNav } from '@/modules/moderation/components/section-nav';
+import { ModerationDialog } from '@/modules/moderation/components/moderation-dialog';
+import { ActionTypeBadge } from '@/modules/moderation/components/action-type-badge';
 
 export const metadata: Metadata = { title: 'Moderation' };
 export const dynamic = 'force-dynamic';
 
-const querySchema = z.object({
-  search: z
-    .string()
-    .max(100)
-    .optional()
-    .transform((value) => (value ? sanitizeText(value, 100) : undefined)),
-  page: z.coerce.number().int().min(1).max(1000).default(1),
-});
+/**
+ * Die Uebersicht des Moderation Center.
+ *
+ * Jede Karte und jedes Panel haengt an seiner Berechtigung: wer die
+ * Jail-Zahlen nicht sehen darf, bekommt keine Karte mit einer Null, sondern
+ * gar keine Karte. Eine Null waere eine Auskunft.
+ */
+export default async function ModerationPage(): Promise<React.JSX.Element> {
+  const p = moderation.MODERATION_PERMISSIONS;
+  // Wer bannen darf, aber die Historie nicht sehen: der landet in der
+  // Bannliste statt auf einer 403-Seite. Der Seitenleisten-Eintrag führt für
+  // beide Berechtigungen hierher.
+  const context = await requirePagePermission([p.view, p.ban, p.unban]);
+  if (!can(context, p.view)) {
+    redirect('/moderation/banns');
+  }
 
-const TYPE_LABEL: Record<string, string> = {
-  JAIL_CREATE: 'Jail erstellt',
-  JAIL_RELEASE: 'Jail beendet',
-  JAIL_EXTEND: 'Jail angepasst',
-};
+  const scope = moderationOverviewScope(context);
+  const abilities = moderationAbilities(context);
+  const darfHistorie = can(context, p.historyView);
 
-export default async function ModerationPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ search?: string; page?: string }>;
-}): Promise<React.JSX.Element> {
-  await requirePagePermission('moderation.view');
-  const query = querySchema.parse(await searchParams);
-
-  const where: Prisma.ModerationActionWhereInput = query.search
-    ? {
-        OR: [
-          { targetUsername: { contains: query.search, mode: 'insensitive' } },
-          { actorUsername: { contains: query.search, mode: 'insensitive' } },
-          { targetDiscordId: query.search },
-        ],
-      }
-    : {};
-
-  const pagination = { page: query.page, pageSize: 25 };
-  const { skip, take } = toSkipTake(pagination);
-  const [items, total] = await Promise.all([
-    prisma.moderationAction.findMany({ where, orderBy: { createdAt: 'desc' }, skip, take }),
-    prisma.moderationAction.count({ where }),
+  const [kennzahlen, letzte, timeouts, auffaellig, moderatoren] = await Promise.all([
+    moderation.moderationOverview(scope),
+    moderation.recentActions(12),
+    moderation.aktiveTimeouts(10),
+    darfHistorie ? moderation.haeufigModeriert(30, 5) : Promise.resolve([]),
+    darfHistorie ? moderation.moderatorAktivitaet(30, 5) : Promise.resolve([]),
   ]);
-  const result = paginate(items, total, pagination);
 
-  const buildHref = (page: number): string => {
-    const search = new URLSearchParams();
-    if (query.search) {
-      search.set('search', query.search);
-    }
-    if (page > 1) {
-      search.set('page', String(page));
-    }
-    const queryString = search.toString();
-    return queryString ? `/moderation?${queryString}` : '/moderation';
-  };
+  const csrfToken = csrfTokenFor(context);
 
   return (
     <>
-      <form role="search" className="flex items-center gap-2">
-        <Input
-          name="search"
-          defaultValue={query.search ?? ''}
-          placeholder="Benutzer oder Moderator suchen"
-          aria-label="Moderationsaktionen durchsuchen"
-          className="sm:w-80"
-        />
-        <button type="submit" className={cn(buttonVariants({ variant: 'outline' }))}>
-          Suchen
-        </button>
-      </form>
+      <ModerationSectionNav sections={moderationSections(context)} />
 
-      <DataTable
-        columns={[
-          {
-            key: 'time',
-            header: 'Zeitpunkt',
-            render: (row: ModerationAction) => (
-              <span className="whitespace-nowrap text-muted-foreground">{formatDateTime(row.createdAt)}</span>
-            ),
-          },
-          {
-            key: 'type',
-            header: 'Aktion',
-            render: (row: ModerationAction) => (
-              <span className="flex items-center gap-2">
-                {TYPE_LABEL[row.type] ?? row.type}
-                <Badge variant="outline">{row.module}</Badge>
-              </span>
-            ),
-          },
-          {
-            key: 'target',
-            header: 'Betroffen',
-            render: (row: ModerationAction) => (
-              <Link href={`/members/${row.targetDiscordId}`} className="hover:underline">
-                {row.targetUsername}
-              </Link>
-            ),
-          },
-          { key: 'actor', header: 'Moderator', render: (row: ModerationAction) => row.actorUsername },
-          {
-            key: 'reason',
-            header: 'Grund',
-            className: 'max-w-xs',
-            render: (row: ModerationAction) => (
-              <span className="line-clamp-2 break-words text-muted-foreground">{row.reason ?? '-'}</span>
-            ),
-          },
-          {
-            key: 'status',
-            header: 'Status',
-            render: (row: ModerationAction) => <StatusBadge status={row.status} />,
-          },
-        ]}
-        rows={result.items}
-        getRowKey={(row) => row.id}
-        emptyTitle="Keine Moderationsaktionen"
-        emptyDescription="Sobald Aktionen ausgeführt werden, erscheinen sie hier."
-        caption="Moderationshistorie"
-      />
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="text-sm text-muted-foreground">
+          Massnahmen des Servers - Jail, Bann, Kick und Timeout in einer Akte.
+        </p>
+        {abilities.any ? <ModerationDialog csrfToken={csrfToken} abilities={abilities} /> : null}
+      </div>
 
-      {result.totalPages > 1 ? (
-        <Pagination
-          page={result.page}
-          totalPages={result.totalPages}
-          total={result.total}
-          buildHref={buildHref}
-        />
+      <div className="grid gap-4 [grid-template-columns:repeat(auto-fit,minmax(min(100%,15rem),1fr))]">
+        {kennzahlen.heute === undefined ? null : (
+          <StatCard
+            label="Aktionen heute"
+            value={kennzahlen.heute}
+            icon={<Gavel aria-hidden="true" />}
+            hint={kennzahlen.siebenTage === undefined ? undefined : `${kennzahlen.siebenTage} in 7 Tagen`}
+          />
+        )}
+        {kennzahlen.aktiveTimeouts === undefined ? null : (
+          <StatCard
+            label="Laufende Timeouts"
+            value={kennzahlen.aktiveTimeouts}
+            tone={kennzahlen.aktiveTimeouts > 0 ? 'warning' : 'default'}
+            icon={<AlarmClock aria-hidden="true" />}
+            hint="Über dieses System gesetzt"
+          />
+        )}
+        {kennzahlen.aktiveJails === undefined ? null : (
+          <StatCard
+            label="Aktive Jails"
+            value={kennzahlen.aktiveJails}
+            tone={kennzahlen.aktiveJails > 0 ? 'warning' : 'default'}
+            icon={<Lock aria-hidden="true" />}
+          />
+        )}
+        {kennzahlen.banns === undefined ? null : (
+          <StatCard
+            label="Banns"
+            value={kennzahlen.banns ?? '—'}
+            tone={kennzahlen.banns ? 'destructive' : 'default'}
+            icon={<ShieldBan aria-hidden="true" />}
+            hint={kennzahlen.banns === null ? 'Discord hat nicht geantwortet' : 'Laut Discord'}
+          />
+        )}
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Panel
+          title="Letzte Massnahmen"
+          icon={<ShieldAlert aria-hidden="true" />}
+          action={{ label: 'Verlauf', href: '/moderation/verlauf' }}
+          className="lg:col-span-2"
+          bodyClassName="p-0"
+        >
+          {letzte.length === 0 ? (
+            <EmptyState
+              title="Noch keine Massnahmen"
+              description="Sobald jemand moderiert, erscheint es hier."
+            />
+          ) : (
+            <ul className="divide-y divide-border/60">
+              {letzte.map((eintrag) => (
+                <li key={eintrag.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-5 py-3">
+                  <ActionTypeBadge type={eintrag.type} />
+                  <Link
+                    href={`/members/${eintrag.targetDiscordId}`}
+                    className="min-w-0 truncate font-medium hover:underline"
+                  >
+                    {eintrag.targetUsername}
+                  </Link>
+                  <span className="min-w-0 flex-1 truncate text-sm text-muted-foreground">
+                    {eintrag.reason ?? '—'}
+                  </span>
+                  {eintrag.status === 'COMPLETED' ? null : <StatusBadge status={eintrag.status} />}
+                  <span className="whitespace-nowrap text-xs text-muted-foreground">
+                    {formatDayTime(eintrag.createdAt)} · {eintrag.actorUsername}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Panel>
+
+        {kennzahlen.aktiveTimeouts === undefined ? null : (
+          <Panel title="Laufende Timeouts" icon={<AlarmClock aria-hidden="true" />} bodyClassName="p-0">
+            {timeouts.length === 0 ? (
+              <EmptyState
+                title="Kein laufender Timeout"
+                description="Hier stehen nur Timeouts, die über dieses System gesetzt wurden."
+              />
+            ) : (
+              <ul className="divide-y divide-border/60">
+                {timeouts.map((eintrag) => (
+                  <li key={eintrag.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-5 py-3">
+                    <Link
+                      href={`/members/${eintrag.targetDiscordId}`}
+                      className="min-w-0 flex-1 truncate font-medium hover:underline"
+                    >
+                      {eintrag.targetUsername}
+                    </Link>
+                    <span className="whitespace-nowrap text-xs text-muted-foreground">
+                      bis {eintrag.expiresAt ? formatDateTime(eintrag.expiresAt) : 'unbekannt'}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Panel>
+        )}
+
+        {darfHistorie ? (
+          <Panel title="Häufig moderiert" description="Letzte 30 Tage" bodyClassName="p-0">
+            {auffaellig.length === 0 ? (
+              <EmptyState title="Nichts Auffälliges" description="In den letzten 30 Tagen keine Häufungen." />
+            ) : (
+              <ul className="divide-y divide-border/60">
+                {auffaellig.map((eintrag) => (
+                  <li
+                    key={eintrag.targetDiscordId}
+                    className="flex items-center justify-between gap-3 px-5 py-3"
+                  >
+                    <Link
+                      href={`/members/${eintrag.targetDiscordId}`}
+                      className="min-w-0 truncate hover:underline"
+                    >
+                      {eintrag.targetUsername}
+                    </Link>
+                    <span className="shrink-0 tabular-nums text-sm text-muted-foreground">
+                      {eintrag.anzahl}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Panel>
+        ) : null}
+
+        {darfHistorie ? (
+          <Panel title="Moderatoren" description="Letzte 30 Tage" bodyClassName="p-0">
+            {moderatoren.length === 0 ? (
+              <EmptyState
+                title="Keine Aktivität"
+                description="In den letzten 30 Tagen wurde nicht moderiert."
+              />
+            ) : (
+              <ul className="divide-y divide-border/60">
+                {moderatoren.map((eintrag) => (
+                  <li
+                    key={eintrag.actorDiscordId}
+                    className="flex items-center justify-between gap-3 px-5 py-3"
+                  >
+                    <span className="min-w-0 truncate">{eintrag.actorUsername}</span>
+                    <span className="shrink-0 tabular-nums text-sm text-muted-foreground">
+                      {eintrag.anzahl}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Panel>
+        ) : null}
+      </div>
+
+      {/* Der Verweis ins Jail-Modul, statt einer zweiten Jail-Ansicht hier. */}
+      {can(context, jail.JAIL_PERMISSIONS.view) ? (
+        <p className="text-sm text-muted-foreground">
+          Jails werden im{' '}
+          <Link href="/jail" className="text-primary-bright hover:underline">
+            Jail-Modul
+          </Link>{' '}
+          verwaltet - sie erscheinen hier im gemeinsamen Verlauf.
+        </p>
       ) : null}
     </>
   );

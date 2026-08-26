@@ -1,4 +1,5 @@
 import { CORE_PERMISSIONS, MEMBER_CENTER_PERMISSIONS } from '@swisshub/permissions';
+import { MODERATION_CENTER_PERMISSIONS } from './moderation/permissions';
 import { registerModule } from './registry';
 
 /**
@@ -76,15 +77,22 @@ registerModule({
   permissionPrefix: 'moderation',
   core: true,
   defaultEnabled: true,
-  permissions: CORE_PERMISSIONS.filter(
-    (entry) => entry.module === 'core' && entry.key.startsWith('moderation.'),
-  ),
+  // Die beiden bestehenden Kernrechte plus die Massnahmen des Moderation
+  // Center. Jail bringt seine eigenen mit - hier steht kein zweiter Schluessel
+  // fuer dieselbe Handlung.
+  permissions: [
+    ...CORE_PERMISSIONS.filter((entry) => entry.module === 'core' && entry.key.startsWith('moderation.')),
+    ...MODERATION_CENTER_PERMISSIONS,
+  ],
   navigation: [
     {
       href: '/moderation',
       label: 'Moderation',
-      description: 'Alle Moderationsaktionen des Servers',
+      description: 'Massnahmen des Servers: Jail, Bann, Kick und Timeout',
       permission: 'moderation.view',
+      // Wer nur bannen darf, braucht ebenfalls einen Weg dorthin - die Seite
+      // leitet ihn dann in die Bannliste.
+      altPermissions: ['moderation.ban', 'moderation.unban'],
       icon: 'ShieldAlert',
       group: 'moderation',
       order: 40,

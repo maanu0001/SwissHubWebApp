@@ -23,12 +23,7 @@ import {
   discordMessageSchema,
   type RawDiscordMember,
 } from './types';
-import type {
-  ChannelOverwrite,
-  DiscordGateway,
-  DiscordMessagePayload,
-  SentMessage,
-} from './gateway';
+import type { ChannelOverwrite, DiscordGateway, DiscordMessagePayload, SentMessage } from './gateway';
 
 const log = createLogger('discord:gateway');
 
@@ -163,6 +158,70 @@ export function createRestGateway(): DiscordGateway {
         }
         throw error;
       }
+    },
+
+    async timeout(discordId, until, reason) {
+      await discordRequest(`${await guildRoute()}/members/${discordId}`, {
+        method: 'PATCH',
+        // `null` hebt den Timeout auf - so verlangt es Discord.
+        body: { communication_disabled_until: until ? until.toISOString() : null },
+        auditLogReason: reason,
+      });
+    },
+
+    async kick(discordId, reason) {
+      await discordRequest(`${await guildRoute()}/members/${discordId}`, {
+        method: 'DELETE',
+        auditLogReason: reason,
+      });
+    },
+  };
+
+  const bans: DiscordGateway['bans'] = {
+    async add(discordId, options = {}) {
+      await discordRequest(`${await guildRoute()}/bans/${discordId}`, {
+        method: 'PUT',
+        body: options.deleteMessageSeconds ? { delete_message_seconds: options.deleteMessageSeconds } : {},
+        auditLogReason: options.reason,
+      });
+    },
+
+    async remove(discordId, reason) {
+      await discordRequest(`${await guildRoute()}/bans/${discordId}`, {
+        method: 'DELETE',
+        auditLogReason: reason,
+      });
+    },
+
+    async get(discordId) {
+      // Discord antwortet mit 404, wenn kein Bann besteht. Das ist eine
+      // Antwort und kein Fehler - «nicht gebannt» ist ein gueltiger Zustand.
+      try {
+        const raw = await discordRequest<{ user?: { id?: string }; reason?: string | null }>(
+          `${await guildRoute()}/bans/${discordId}`,
+        );
+        return { discordId: raw.user?.id ?? discordId, reason: raw.reason ?? null };
+      } catch (error) {
+        if (error instanceof DiscordApiError && error.status === 404) {
+          return null;
+        }
+        throw error;
+      }
+    },
+
+    async list(options = {}) {
+      const suche = new URLSearchParams({ limit: String(Math.min(options.limit ?? 100, 1000)) });
+      if (options.after) {
+        suche.set('after', options.after);
+      }
+      const raw = await discordRequest<unknown[]>(`${await guildRoute()}/bans?${suche.toString()}`);
+      return (Array.isArray(raw) ? raw : []).flatMap((eintrag) => {
+        const zeile = eintrag as { user?: { id?: string; username?: string }; reason?: string | null };
+        const id = zeile.user?.id;
+        return id
+          ? [{ discordId: id, username: zeile.user?.username ?? 'Unbekannt', reason: zeile.reason ?? null }]
+          : [];
+      });
     },
   };
 
@@ -385,9 +444,7 @@ export function createRestGateway(): DiscordGateway {
       ...(parsed.user_limit !== null && parsed.user_limit !== undefined
         ? { userLimit: parsed.user_limit }
         : {}),
-      ...(parsed.bitrate !== null && parsed.bitrate !== undefined
-        ? { bitrate: parsed.bitrate }
-        : {}),
+      ...(parsed.bitrate !== null && parsed.bitrate !== undefined ? { bitrate: parsed.bitrate } : {}),
     };
   };
 
@@ -536,7 +593,6 @@ export function createRestGateway(): DiscordGateway {
     get: managedChannels.get,
   };
 
-
   const guild: DiscordGateway['guild'] = {
     async get(): Promise<GuildSummary> {
       return cached('guild', false, async () => {
@@ -619,7 +675,7 @@ export function createRestGateway(): DiscordGateway {
     },
   };
 
-  return { members, roles, channels, managedChannels, voice, guild, bot, isMock: false };
+  return { members, bans, roles, channels, managedChannels, voice, guild, bot, isMock: false };
 }
 
 function parseMembers(raw: unknown): GuildMember[] {

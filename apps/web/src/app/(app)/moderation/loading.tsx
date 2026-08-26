@@ -1,12 +1,15 @@
 import { Skeleton } from '@/components/ui/skeleton';
-import { TableSkeleton } from '@/components/shared/states';
 
-/** Ladezustand während die Serverdaten geholt werden. */
+/** Ladezustand der Moderationsübersicht. */
 export default function Loading(): React.JSX.Element {
   return (
     <div className="space-y-6">
-      <Skeleton className="h-10 w-full max-w-md" />
-      <TableSkeleton rows={6} columns={5} />
+      <div className="grid gap-4 [grid-template-columns:repeat(auto-fit,minmax(min(100%,15rem),1fr))]">
+        {Array.from({ length: 4 }, (_unused, index) => (
+          <Skeleton key={index} className="h-28 w-full" />
+        ))}
+      </div>
+      <Skeleton className="h-72 w-full" />
     </div>
   );
 }

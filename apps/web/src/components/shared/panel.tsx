@@ -31,7 +31,11 @@ export function Panel({
   children,
 }: PanelProps): React.JSX.Element {
   return (
-    <section className={cn('flex flex-col rounded-xl border border-border bg-card', className)}>
+    // `min-w-0`: als Kind eines Grids oder Flex-Containers waere die
+    // Mindestbreite sonst der Inhalt, und das Panel drueckte auf schmalen
+    // Geraeten ueber den Bildschirmrand hinaus. Die Kopfzeile kuerzt bereits,
+    // der Rumpf darf es damit auch.
+    <section className={cn('flex min-w-0 flex-col rounded-xl border border-border bg-card', className)}>
       <header className="flex items-center justify-between gap-3 border-b border-border/70 px-5 py-4">
         <div className="flex min-w-0 items-center gap-3">
           {icon ? <span className="icon-chip size-9 shrink-0 [&_svg]:size-4">{icon}</span> : null}

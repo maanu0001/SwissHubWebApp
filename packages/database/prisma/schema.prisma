@@ -191,6 +191,14 @@ enum ModerationActionType {
   JAIL_CREATE
   JAIL_RELEASE
   JAIL_EXTEND
+  /// Discord-eigene Massnahmen, ausgeloest ueber das Moderation Center.
+  BAN
+  UNBAN
+  KICK
+  TIMEOUT
+  TIMEOUT_REMOVE
+  /// Interne Notiz zu einem Mitglied - keine Massnahme, aber Teil der Akte.
+  NOTE
 }
 
 enum SecuritySeverity {
@@ -749,12 +757,20 @@ model ModerationAction {
   reason          String?
   status          ActionStatus         @default(COMPLETED)
   referenceId     String?
+  /// Geplantes Ende einer befristeten Massnahme (heute: Discord-Timeout).
+  ///
+  /// Eigene Spalte statt eines Werts im Metadaten-JSON, weil danach gefiltert
+  /// wird: «welche Timeouts laufen gerade» ist eine Abfrage, keine Auswertung
+  /// im Anwendungscode. NULL bei allem, was kein geplantes Ende hat.
+  expiresAt       DateTime?
   metadata        Json                 @default("{}")
   createdAt       DateTime             @default(now())
 
   @@index([targetDiscordId, createdAt])
   @@index([actorDiscordId, createdAt])
   @@index([createdAt])
+  /// Fuer die Abfrage der laufenden Massnahmen.
+  @@index([type, expiresAt])
 }
 
 /// Manipulationsgeschütztes Audit Log (Hash-Chain).

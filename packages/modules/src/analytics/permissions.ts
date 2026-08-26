@@ -16,6 +16,7 @@ import type { PermissionDefinition } from '@swisshub/permissions';
  */
 export const ANALYTICS_PERMISSIONS = {
   view: 'analytics.view',
+  statisticsView: 'analytics.statistics.view',
   contentView: 'analytics.content.view',
   mediaDownload: 'analytics.media.download',
   export: 'analytics.export',
@@ -36,6 +37,11 @@ const eintrag = (
 });
 
 export const ANALYTICS_PERMISSION_DEFINITIONS: PermissionDefinition[] = [
+  eintrag(
+    ANALYTICS_PERMISSIONS.statisticsView,
+    'Statistik ansehen',
+    'Kennzahlen, Verläufe und Ranglisten des Servers einsehen. Zeigt keine Nachrichteninhalte.',
+  ),
   eintrag(
     ANALYTICS_PERMISSIONS.view,
     'Zeitleiste ansehen',

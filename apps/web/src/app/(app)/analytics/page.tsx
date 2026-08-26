@@ -8,8 +8,9 @@ import { StatCard } from '@/components/shared/stat-card';
 import { EmptyState } from '@/components/shared/states';
 import { buttonVariants } from '@/components/ui/button';
 import { requirePagePermission } from '@/server/auth';
-import { analyticsAbilities, analyticsGuildId } from '@/server/analytics';
+import { analyticsAbilities, analyticsGuildId, analyticsSections } from '@/server/analytics';
 import { AnalyticsFilters } from '@/modules/analytics/components/filters';
+import { AnalyticsSectionNav } from '@/modules/analytics/components/section-nav';
 import { EventRow } from '@/modules/analytics/components/event-row';
 import { CATEGORIES, CATEGORY_LABEL } from '@/modules/analytics/labels';
 import { cn } from '@/lib/utils';
@@ -77,18 +78,23 @@ export default async function AnalyticsPage({
   const query = querySchema.parse(await searchParams);
   const abilities = analyticsAbilities(context);
 
+  const sections = analyticsSections(context);
+
   const aktiv = await isModuleEnabled(analytics.ANALYTICS_MODULE_ID);
   if (!aktiv) {
     return (
-      <EmptyState
-        title="Analytics ist nicht aktiviert"
-        description="Solange das Modul aus ist, wird nichts aufgezeichnet. Es lässt sich unter Module einschalten."
-        action={
-          <Link href="/modules" className={cn(buttonVariants({ variant: 'outline' }))}>
-            Zu den Modulen
-          </Link>
-        }
-      />
+      <>
+        <AnalyticsSectionNav sections={sections} />
+        <EmptyState
+          title="Analytics ist nicht aktiviert"
+          description="Solange das Modul aus ist, wird nichts aufgezeichnet. Es lässt sich unter Module einschalten."
+          action={
+            <Link href="/modules" className={cn(buttonVariants({ variant: 'outline' }))}>
+              Zu den Modulen
+            </Link>
+          }
+        />
+      </>
     );
   }
 
@@ -142,6 +148,8 @@ export default async function AnalyticsPage({
 
   return (
     <>
+      <AnalyticsSectionNav sections={sections} />
+
       <div className="grid gap-4 [grid-template-columns:repeat(auto-fit,minmax(min(100%,15rem),1fr))]">
         <StatCard
           label="Ereignisse heute"

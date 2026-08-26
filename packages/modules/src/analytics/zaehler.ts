@@ -29,6 +29,10 @@ interface Grunddaten {
   guildId: string;
   discordId: string;
   isBot?: boolean;
+  /** Name und Avatar, damit die Rangliste lesbar bleibt. */
+  username?: string | null;
+  displayName?: string | null;
+  avatarHash?: string | null;
 }
 
 /** Prueft Modul, Einstellungen und Bot-Filter in einem Schritt. */
@@ -163,7 +167,7 @@ export async function zaehleNachricht(input: NachrichtInput): Promise<void> {
         },
       }),
       merkeTrackingBeginn(input.guildId, 'messages', input.at),
-      beruehreAktivitaet(input.guildId, input.discordId, input.at, input.isBot ?? false),
+      beruehreAktivitaet(input.guildId, input.discordId, input.at, input.isBot ?? false, input),
     ]);
   } catch (error) {
     log.warn('Nachricht konnte nicht gezählt werden', { error });
@@ -221,7 +225,7 @@ export async function starteSprachAbschnitt(input: SprachBeitrittInput): Promise
     }
 
     await merkeTrackingBeginn(input.guildId, 'voice', input.at);
-    await beruehreAktivitaet(input.guildId, input.discordId, input.at, input.isBot ?? false);
+    await beruehreAktivitaet(input.guildId, input.discordId, input.at, input.isBot ?? false, input);
     return sessionId;
   } catch (error) {
     log.warn('Sprachabschnitt konnte nicht begonnen werden', { error });
@@ -496,18 +500,33 @@ export async function zaehleAustritt(
   }
 }
 
+export interface Identitaet {
+  username?: string | null;
+  displayName?: string | null;
+  avatarHash?: string | null;
+}
+
 /** Haelt die erste und letzte Aeusserung einer Person fest. */
 async function beruehreAktivitaet(
   guildId: string,
   discordId: string,
   at: Date,
   isBot: boolean,
+  identitaet: Identitaet = {},
 ): Promise<void> {
+  // `undefined` statt `null`, wo nichts bekannt ist: ein fehlender Name soll
+  // den vorhandenen nicht ueberschreiben.
+  const namen = {
+    ...(identitaet.username ? { username: identitaet.username } : {}),
+    ...(identitaet.displayName ? { displayName: identitaet.displayName } : {}),
+    ...(identitaet.avatarHash !== undefined ? { avatarHash: identitaet.avatarHash } : {}),
+  };
+
   await prisma.analyticsMemberProfile
     .upsert({
       where: { guildId_discordId: { guildId, discordId } },
-      create: { guildId, discordId, firstActivityAt: at, lastActivityAt: at, isBot },
-      update: { lastActivityAt: at },
+      create: { guildId, discordId, firstActivityAt: at, lastActivityAt: at, isBot, ...namen },
+      update: { lastActivityAt: at, ...namen },
     })
     .catch(() => undefined);
 

@@ -294,6 +294,9 @@ function wochenSchluessel(datum: Date): string {
 
 export interface RanglisteEintrag {
   discordId: string;
+  username: string | null;
+  displayName: string | null;
+  avatarHash: string | null;
   nachrichten: number;
   sprachSekunden: number;
   sprachSitzungen: number;
@@ -329,13 +332,25 @@ export async function topMitglieder(
     take: Math.min(limit, 50),
   });
 
-  const gesamt = await summen(guildId, zeitraum.von, zeitraum.bis);
+  const [gesamt, profile] = await Promise.all([
+    summen(guildId, zeitraum.von, zeitraum.bis),
+    // Namen in einer Abfrage statt einer je Zeile.
+    prisma.analyticsMemberProfile.findMany({
+      where: { guildId, discordId: { in: zeilen.map((zeile) => zeile.discordId) } },
+      select: { discordId: true, username: true, displayName: true, avatarHash: true },
+    }),
+  ]);
+  const nachId = new Map(profile.map((eintrag) => [eintrag.discordId, eintrag]));
   const nenner = nach === 'messages' ? gesamt.messages : gesamt.voiceSeconds;
 
   return zeilen.map((zeile) => {
     const wert = nach === 'messages' ? (zeile._sum.messages ?? 0) : (zeile._sum.voiceSeconds ?? 0);
+    const person = nachId.get(zeile.discordId);
     return {
       discordId: zeile.discordId,
+      username: person?.username ?? null,
+      displayName: person?.displayName ?? null,
+      avatarHash: person?.avatarHash ?? null,
       nachrichten: zeile._sum.messages ?? 0,
       sprachSekunden: zeile._sum.voiceSeconds ?? 0,
       sprachSitzungen: zeile._sum.voiceSessions ?? 0,
@@ -581,25 +596,43 @@ export async function neueMitglieder(scope: StatistikScope): Promise<NeuMitglied
     Math.max(0, (eintrag.firstActivityAt as Date).getTime() - (eintrag.joinedAt as Date).getTime()),
   );
 
+  /**
+   * Bindung als echte Kohorte.
+   *
+   * Die Frage lautet: «Von denen, die vor N Tagen beigetreten sind - wie
+   * viele waren N Tage spaeter noch da?» Entscheidend ist das **jeweils
+   * eigene** N-Tage-Datum jedes Mitglieds, nicht der heutige Stichtag. Wer
+   * nur zaehlt, wer heute noch da ist, misst fuer die 7- und die 90-Tage-
+   * Marke fast dieselbe Gruppe und bekommt drei Zahlen, die alle dasselbe
+   * sagen.
+   *
+   * In die Kohorte kommt nur, wer die Marke ueberhaupt erreichen konnte -
+   * wer gestern beigetreten ist, hat noch keine 30-Tage-Bindung.
+   */
   const bindung = await Promise.all(
     [7, 30, 90].map(async (tage) => {
-      const bis = new Date(Date.now() - tage * 86_400_000);
-      // Nur Kohorten, die auch alt genug sind - wer gestern beigetreten ist,
-      // kann noch keine 30-Tage-Bindung haben.
-      const [gesamt, geblieben] = await Promise.all([
-        prisma.analyticsMemberProfile.count({
-          where: { guildId, isBot: false, joinedAt: { lte: bis, not: null } },
-        }),
-        prisma.analyticsMemberProfile.count({
-          where: { guildId, isBot: false, joinedAt: { lte: bis, not: null }, leftAt: null },
-        }),
-      ]);
+      const spaetestensBeigetreten = new Date(Date.now() - tage * 86_400_000);
+      const kohorteZeilen = await prisma.analyticsMemberProfile.findMany({
+        where: {
+          guildId,
+          isBot: false,
+          joinedAt: { lte: spaetestensBeigetreten, not: null },
+        },
+        select: { joinedAt: true, leftAt: true },
+      });
+
+      const geblieben = kohorteZeilen.filter((eintrag) => {
+        const marke = (eintrag.joinedAt as Date).getTime() + tage * 86_400_000;
+        // Noch da, oder erst nach der Marke gegangen.
+        return !eintrag.leftAt || eintrag.leftAt.getTime() > marke;
+      }).length;
+
       return {
         tage,
-        kohorte: gesamt,
+        kohorte: kohorteZeilen.length,
         geblieben,
         // Unter zwanzig Personen sagt eine Quote mehr ueber den Zufall aus.
-        quote: gesamt >= 20 ? Math.round((geblieben / gesamt) * 1000) / 10 : null,
+        quote: kohorteZeilen.length >= 20 ? Math.round((geblieben / kohorteZeilen.length) * 1000) / 10 : null,
       };
     }),
   );

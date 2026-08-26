@@ -283,6 +283,40 @@ export function createJobRunner(
     },
     {
       /**
+       * Aggregate aus vorhandenen Ereignissen nachziehen.
+       *
+       * Laeuft **nicht** beim Start: bei vielen Ereignissen wuerde der Bot
+       * sonst minutenlang nicht auf Discord reagieren. Stattdessen ein
+       * gewoehnlicher Job, der stapelweise arbeitet und aufhoert, sobald er
+       * aufgeholt hat. Zweimal laufen lassen ergibt dieselben Zahlen, nicht
+       * die doppelten.
+       */
+      name: 'analytics-backfill',
+      intervalMs: 5 * 60 * 1000,
+      runOnStart: false,
+      async run() {
+        const guildId = await tryResolveGuildId();
+        if (!guildId) {
+          return;
+        }
+        const stand = await analytics.trackingStand(guildId);
+        // Schon aufgeholt: nichts zu tun. Der Job kostet dann eine Abfrage.
+        if (stand?.backfilledUntil && stand.backfilledUntil >= new Date(Date.now() - 60_000)) {
+          return;
+        }
+        const ergebnis = await analytics.backfill(guildId, { maxStapel: 20 });
+        if (ergebnis.ereignisse > 0 || ergebnis.sprachAbschnitte > 0) {
+          log.info('Analytics-Aggregate nachgezogen', {
+            ereignisse: ergebnis.ereignisse,
+            beitritte: ergebnis.beitritte,
+            austritte: ergebnis.austritte,
+            sprachAbschnitte: ergebnis.sprachAbschnitte,
+          });
+        }
+      },
+    },
+    {
+      /**
        * Mitgliederzahl des Tages festhalten.
        *
        * Der Mitgliederverlauf entsteht aus diesen Momentaufnahmen. Aus Bei-

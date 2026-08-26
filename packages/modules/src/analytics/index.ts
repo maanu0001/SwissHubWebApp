@@ -7,6 +7,7 @@ export * from './events';
 export * from './actor';
 export * from './queries';
 export * as statistik from './statistik';
+export * from './backfill';
 export * from './media';
 export * from './dedup';
 export * from './export';

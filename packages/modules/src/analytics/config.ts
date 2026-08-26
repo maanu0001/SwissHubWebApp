@@ -277,6 +277,8 @@ export const analyticsModule: ModuleDefinition = registerModule({
       label: 'Analytics',
       description: 'Verlauf der Server-Ereignisse',
       permission: ANALYTICS_PERMISSIONS.view,
+      // Wer nur die Statistik sehen darf, braucht ebenfalls einen Weg hierher.
+      altPermissions: [ANALYTICS_PERMISSIONS.statisticsView],
       icon: 'Activity',
       group: 'moderation',
       order: 50,

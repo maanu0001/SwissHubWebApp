@@ -428,3 +428,76 @@ describeWithDatabase('Analytics-Statistik', () => {
     expect(werte?.neuAktiv).toBe(1);
   });
 });
+
+describeWithDatabase('Analytics-Statistik: Bindung als Kohorte', () => {
+  beforeAll(() => {
+    pushSchema();
+  });
+
+  beforeEach(async () => {
+    await prisma.$executeRawUnsafe(
+      'TRUNCATE "AnalyticsDaily","AnalyticsUserDaily","AnalyticsMemberProfile","AnalyticsTracking","ModuleState" RESTART IDENTITY CASCADE',
+    );
+  });
+
+  it('misst die Bindung an der eigenen Marke jedes Mitglieds, nicht am heutigen Stichtag', async () => {
+    await konfiguriere();
+    const jetzt = Date.now();
+
+    // 25 Personen vor 60 Tagen beigetreten. Zehn davon gingen schon nach
+    // drei Tagen - sie haben die 7-Tage-Marke nicht erreicht.
+    for (let i = 0; i < 25; i += 1) {
+      const id = `30000000000000${String(100 + i)}`;
+      const beitritt = new Date(jetzt - 60 * 86_400_000);
+      await analytics.zaehleBeitritt(GUILD, id, beitritt);
+      if (i < 10) {
+        await analytics.zaehleAustritt(GUILD, id, new Date(beitritt.getTime() + 3 * 86_400_000));
+      }
+    }
+
+    const neu = await analytics.statistik.neueMitglieder({ guildId: GUILD, zeitraum: ZEITRAUM() });
+    const nachSieben = neu.bindung.find((eintrag) => eintrag.tage === 7);
+
+    // 15 von 25 waren nach sieben Tagen noch da.
+    expect(nachSieben?.kohorte).toBe(25);
+    expect(nachSieben?.geblieben).toBe(15);
+    expect(nachSieben?.quote).toBe(60);
+  });
+
+  it('zählt jemanden mit, der erst nach der Marke gegangen ist', async () => {
+    await konfiguriere();
+    const jetzt = Date.now();
+
+    // Alle 20 sind inzwischen weg - aber erst nach 30 Tagen. Für die
+    // 7-Tage-Bindung zählen sie trotzdem als geblieben.
+    for (let i = 0; i < 20; i += 1) {
+      const id = `30000000000000${String(200 + i)}`;
+      const beitritt = new Date(jetzt - 90 * 86_400_000);
+      await analytics.zaehleBeitritt(GUILD, id, beitritt);
+      await analytics.zaehleAustritt(GUILD, id, new Date(beitritt.getTime() + 30 * 86_400_000));
+    }
+
+    const neu = await analytics.statistik.neueMitglieder({ guildId: GUILD, zeitraum: ZEITRAUM() });
+
+    expect(neu.bindung.find((e) => e.tage === 7)?.quote).toBe(100);
+    // Nach 30 Tagen waren sie weg - genau auf der Marke zählt als gegangen.
+    expect(neu.bindung.find((e) => e.tage === 30)?.quote).toBe(0);
+  });
+
+  it('nimmt niemanden in die Kohorte auf, der die Marke noch nicht erreichen konnte', async () => {
+    await konfiguriere();
+    // Gestern beigetreten: keine 30-Tage-Bindung möglich.
+    for (let i = 0; i < 30; i += 1) {
+      await analytics.zaehleBeitritt(
+        GUILD,
+        `30000000000000${String(300 + i)}`,
+        new Date(Date.now() - 86_400_000),
+      );
+    }
+
+    const neu = await analytics.statistik.neueMitglieder({ guildId: GUILD, zeitraum: ZEITRAUM() });
+
+    expect(neu.bindung.find((e) => e.tage === 30)?.kohorte).toBe(0);
+    expect(neu.bindung.find((e) => e.tage === 30)?.quote).toBeNull();
+  });
+});

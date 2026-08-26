@@ -203,6 +203,113 @@ Angabe, ob die Obergrenze von 5000 Zeilen erreicht wurde.
 
 ---
 
+## 2b. Statistik
+
+Die Zeitleiste beantwortet «was ist geschehen». Die Statistik beantwortet «wie
+entwickelt sich der Server» – dieselben Daten, eine andere Frage.
+
+### Der Befund, der alles bestimmt
+
+Das Ereignisprotokoll konnte diese Frage nicht beantworten. Es zeichnet auf,
+wenn eine Nachricht **bearbeitet oder gelöscht** wird – eine *geschriebene*
+Nachricht war nie ein Ereignis. Sprachzeit gab es als Betreten, Verlassen und
+Verschieben, aber nirgends als Dauer.
+
+Beides lässt sich nicht nachträglich errechnen. Die Ingestion zählt deshalb
+selbst, und zwar **ohne den Text zu lesen**: für eine Nachrichtenzahl braucht
+es ihn nicht, und das Zählen hängt dadurch auch nicht am
+Message-Content-Intent.
+
+### Sprachzeit als Abschnitte
+
+| Ereignis     | Abschnitt      | Sitzung        |
+| ------------ | -------------- | -------------- |
+| Betreten     | beginnt        | beginnt        |
+| Verschieben  | endet, beginnt | **läuft weiter** |
+| Verlassen    | endet          | endet          |
+
+Wer den Kanal wechselt, bleibt im Gespräch. `sessionId` klammert die
+Abschnitte einer durchgehenden Anwesenheit: die Kanalstatistik summiert
+Abschnitte, die Sitzungszahl gruppiert nach Sitzung. Ein Wechsel ergibt
+dadurch zwei Kanäle mit je der Hälfte der Zeit – und trotzdem *eine* Sitzung.
+
+Zeit im AFK-Kanal ist Anwesenheit, keine Aktivität: der Abschnitt bleibt als
+Beleg stehen, seine Sekunden fliessen nicht in die Zahlen.
+
+Nach einem Absturz stehen Abschnitte offen, und wir wissen nicht, wann die
+Leute gegangen sind. Was wir wissen, ist der **letzte Herzschlag des Bots** –
+bis dorthin wird geschlossen. Bis *jetzt* zu zählen machte aus drei Tagen
+Ausfall drei Tage Sprachzeit.
+
+### Aggregate
+
+| Tabelle                 | Körnung            | Wofür                                  |
+| ----------------------- | ------------------ | -------------------------------------- |
+| `AnalyticsHourly`        | Server × Stunde    | Tagesverlauf, Heatmap                  |
+| `AnalyticsDaily`         | Server × Tag       | Kennzahlen, Mitgliederverlauf          |
+| `AnalyticsUserDaily`     | Person × Tag       | Ranglisten, **eindeutige** Aktive      |
+| `AnalyticsChannelDaily`  | Kanal × Tag        | Top-Kanäle, Wachstum je Kanal          |
+| `AnalyticsVoiceSegment`  | Abschnitt          | Sitzungen, laufende Anwesenheit        |
+| `AnalyticsMemberProfile` | Person             | Aktivierung, Bindung, erste Äusserung  |
+| `AnalyticsTracking`      | Server             | seit wann gezählt wird                 |
+
+Die Zeile je Person und Tag ist die wichtigste: eindeutige aktive Mitglieder
+über einen Monat sind **nicht** die Summe der Tageswerte. Wer an zwanzig Tagen
+schreibt, ist eine Person und nicht zwanzig. Überall steht deshalb `distinct`
+statt `sum` – auch beim Zusammenfassen zu Wochen.
+
+### Europe/Zurich
+
+Stunden decken sich mit UTC (Zürich liegt auf vollen Stunden). Tage nicht: ein
+Zürcher Tag beginnt um 22:00 oder 23:00 UTC, und am Umstellungstag ist er 23
+oder 25 Stunden lang. Kalendertage werden deshalb als reines Datum geführt und
+die Verschiebung wird *berechnet* statt angenommen.
+
+Eine Sitzung von 23:30 bis 01:30 landet zu 30 Minuten im einen und zu 90
+Minuten im nächsten Tag.
+
+### Keine Zahl, die mehr verspricht, als sie weiss
+
+- Von 0 auf 5 ist kein Wachstum von unendlich Prozent, sondern «vorher gab es
+  nichts».
+- 1 auf 3 ist kein «+200 %» – unter fünf als Grundlage erscheint die Richtung,
+  aber keine Prozentzahl.
+- Unter zehn Austritten sagt ein Beitrittsverhältnis mehr über den Zufall aus.
+- Unter zwanzig Personen gilt dasselbe für eine Bindungsquote.
+
+### Bindung als echte Kohorte
+
+Die Frage lautet: «Von denen, die vor N Tagen beigetreten sind – wie viele
+waren N Tage später noch da?» Entscheidend ist die **jeweils eigene**
+N-Tage-Marke jedes Mitglieds, nicht der heutige Stichtag. Wer nur zählt, wer
+heute noch da ist, misst für die 7- und die 90-Tage-Marke fast dieselbe Gruppe
+und bekommt drei Zahlen, die alle dasselbe sagen.
+
+### Diagramme
+
+Ohne Chart-Bibliothek. Das Projekt hat keine, und eine einzuführen wäre für
+diese Seite der falsche Handel: Recharts und Verwandte bringen 100–200 kB in
+jedes Bundle, das sie anfasst. Was die Seite braucht – Linie, Balken, Raster –
+ist SVG, und SVG rendert der Server mit.
+
+Der Mitgliederverlauf bekommt eine Achse **um die Werte** statt ab null: eine
+Mitgliederzahl zwischen 5'800 und 6'000 ergäbe auf einer Achse ab null eine
+schnurgerade Linie am oberen Rand, aus der niemand ablesen kann, ob die
+Gemeinschaft wächst.
+
+### Backfill
+
+Aus dem vorhandenen Ereignisprotokoll lassen sich Beitritte, Austritte und
+Sprachzeit nachziehen. **Nachrichten nicht** – sie waren nie ein Ereignis. Der
+Lauf ist wiederholbar (er räumt seinen Bereich vorher aus), fortsetzbar
+(`backfilledUntil`) und läuft als gewöhnlicher Job in Stapeln, nicht beim
+Start: bei vielen Ereignissen reagierte der Bot sonst minutenlang nicht auf
+Discord.
+
+Ein Abschnitt ohne Ende im Protokoll wird **verworfen**, nicht geschätzt.
+
+---
+
 ## 3. Was das Modul absichtlich nicht tut
 
 - **Es rät keinen Verursacher.** Siehe oben.
@@ -235,10 +342,15 @@ packages/modules/src/analytics/
   dedup.ts         Verknüpfung mit einer Massnahme des Dashboards
   queries.ts       Zeitleiste (Cursor), Kennzahlen
   media.ts         Archiv, geschützter Zugriff, Aufbewahrung
-  export.ts        CSV
+  export.ts        CSV der Zeitleiste
+  zeit.ts          Europe/Zurich, Tages- und Stundenverteilung
+  zeitraum.ts      Zeitraumauflösung und Vergleich
+  zaehler.ts       Fortschreiben der Aggregate
+  statistik.ts     Kennzahlen, Verläufe, Ranglisten, Heatmap
+  backfill.ts      Nachziehen aus vorhandenen Ereignissen
 
 apps/bot/src/analytics-events.ts   die Aufzeichnung selbst
 apps/web/src/app/(app)/moderation/ Übersicht, Verlauf, Banns
-apps/web/src/app/(app)/analytics/  Zeitleiste
+apps/web/src/app/(app)/analytics/  Zeitleiste und Statistik
 apps/web/src/app/api/analytics/    Export und Medienausgabe
 ```

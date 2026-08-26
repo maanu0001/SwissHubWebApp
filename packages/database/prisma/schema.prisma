@@ -4291,6 +4291,16 @@ model AnalyticsMemberProfile {
   guildId   String
   discordId String
 
+  /// Name und Avatar zum Zeitpunkt der letzten Aeusserung.
+  ///
+  /// Mitgefuehrt wie ueberall sonst im System: eine Rangliste, die nur
+  /// Discord-Kennungen zeigt, ist unlesbar - und fuer jede Zeile Discord zu
+  /// fragen waeren zehn Aufrufe je Seitenaufbau. Wer den Server verlaesst,
+  /// ist bei Discord ohnehin nicht mehr abfragbar.
+  username    String?
+  displayName String?
+  avatarHash  String?
+
   /// Beitritt, wie ihn das Ereignisprotokoll gesehen hat. NULL bei allen, die
   /// schon vor Beginn der Aufzeichnung da waren - für sie gibt es keine
   /// Bindungsquote, und eine erfundene wäre schlimmer als keine.

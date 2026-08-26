@@ -4109,3 +4109,203 @@ model DiscordEventMedia {
   @@index([expiresAt, deletedAt])
   @@index([sha256])
 }
+
+// ---------------------------------------------------------------------------
+// Analytics: Statistik
+// ---------------------------------------------------------------------------
+//
+// Die Zeitleiste beantwortet «was ist geschehen». Die Statistik beantwortet
+// «wie entwickelt sich der Server» - und das ist eine andere Frage an
+// dieselben Daten. Sie über die Ereignistabelle zu rechnen hiesse, bei jedem
+// Seitenaufruf Millionen Zeilen zu lesen; deshalb entstehen die Zahlen beim
+// Aufzeichnen und werden hier fortgeschrieben.
+//
+// Alle Tagesangaben sind Kalendertage in Europe/Zurich. Gespeichert als
+// reines Datum, damit der Sommerzeitwechsel keinen 23- oder 25-Stunden-Tag
+// in eine falsche Schublade legt.
+
+/// Text- oder Sprachkanal. Beides zählt anders: Nachrichten bzw. Sekunden.
+enum AnalyticsChannelKind {
+  TEXT
+  VOICE
+}
+
+/// Seit wann gezählt wird.
+///
+/// Das Wichtigste an der ganzen Statistik. Ohne diesen Zeitpunkt sähe eine
+/// Null aus wie «es ist nichts passiert», obwohl sie «wir haben damals noch
+/// nicht gezählt» heisst. Die Oberfläche schreibt ihn deshalb überall dazu.
+///
+/// Die drei Zeitpunkte sind absichtlich getrennt: das Ereignisprotokoll gab
+/// es vor der Statistik, und Nachrichten wurden von Anfang an nicht gezählt.
+/// Ein gemeinsamer Beginn wäre für zwei der drei Zahlen gelogen.
+model AnalyticsTracking {
+  guildId String @id
+
+  /// Beginn des Ereignisprotokolls.
+  startedAt       DateTime  @default(now())
+  /// Ab wann Nachrichten gezählt werden.
+  messagesSince   DateTime?
+  /// Ab wann Sprachzeit gemessen wird.
+  voiceSince      DateTime?
+  /// Bis wohin der einmalige Backfill aus dem Ereignisprotokoll gelaufen ist.
+  backfilledUntil DateTime?
+
+  updatedAt DateTime @updatedAt
+}
+
+/// Ein Abschnitt Anwesenheit in genau einem Sprachkanal.
+///
+/// Bewusst Abschnitte statt einer Sitzung pro Kanal: wer den Kanal wechselt,
+/// bleibt auf dem Server im Gespräch - die Sitzung läuft weiter, nur der
+/// Kanal ändert sich. `sessionId` klammert die Abschnitte einer
+/// durchgehenden Anwesenheit; die Kanalstatistik summiert die Abschnitte,
+/// die Sitzungsstatistik gruppiert nach `sessionId`.
+///
+/// `leftAt = null` heisst: die Person sitzt gerade drin. Solche Abschnitte
+/// zählen in laufenden Kennzahlen mit, gehen aber erst beim Verlassen in die
+/// Tages- und Stundenwerte ein - sonst wüchse ein abgeschlossener Tag noch
+/// nachträglich.
+model AnalyticsVoiceSegment {
+  id        String @id @default(cuid())
+  guildId   String
+  sessionId String
+
+  discordId String
+  /// Mitgeführt, damit ein späterer Wechsel der Einstellung die Vergangenheit
+  /// nicht umschreibt.
+  isBot     Boolean @default(false)
+
+  channelId   String
+  channelName String?
+  /// Übergeordnete Kategorie - fasst die vielen temporären Talks zusammen.
+  parentId    String?
+  /// Zeit im AFK-Kanal ist Anwesenheit, aber keine Aktivität.
+  isAfk       Boolean @default(false)
+
+  joinedAt DateTime
+  leftAt   DateTime?
+  /// Erst beim Verlassen gesetzt. NULL heisst «läuft noch», nicht «null Sekunden».
+  seconds  Int?
+
+  @@index([guildId, discordId, joinedAt])
+  @@index([guildId, channelId, joinedAt])
+  @@index([guildId, joinedAt])
+  @@index([guildId, leftAt])
+  @@index([sessionId])
+}
+
+/// Stundenwerte des Servers - für Tagesverläufe und die Heatmap.
+model AnalyticsHourly {
+  guildId   String
+  /// Beginn der Stunde in UTC. Zürich liegt auf vollen Stunden zu UTC,
+  /// deshalb decken sich die Stundengrenzen.
+  hourStart DateTime
+
+  messages      Int @default(0)
+  voiceSeconds  Int @default(0)
+  voiceSessions Int @default(0)
+  joins         Int @default(0)
+  leaves        Int @default(0)
+
+  updatedAt DateTime @updatedAt
+
+  @@id([guildId, hourStart])
+  @@index([guildId, hourStart])
+}
+
+/// Tageswerte des Servers.
+model AnalyticsDaily {
+  guildId String
+  /// Kalendertag in Europe/Zurich.
+  day     DateTime @db.Date
+
+  messages      Int @default(0)
+  voiceSeconds  Int @default(0)
+  voiceSessions Int @default(0)
+  joins         Int @default(0)
+  leaves        Int @default(0)
+
+  /// Mitgliederzahl am Ende des Tages.
+  ///
+  /// Eine Momentaufnahme, keine Summe - Mitgliederzahlen addieren sich nicht.
+  /// NULL an Tagen, an denen keine Aufnahme gelang.
+  memberCount Int?
+
+  updatedAt DateTime @updatedAt
+
+  @@id([guildId, day])
+  @@index([guildId, day])
+}
+
+/// Tageswerte je Mitglied.
+///
+/// Grundlage der Ranglisten und - wichtiger - der eindeutigen aktiven
+/// Mitglieder: die Zahl für einen Monat ist nicht die Summe der Tageswerte,
+/// sondern die Anzahl verschiedener Personen darin. Genau dafür liegt hier
+/// eine Zeile je Person und Tag statt einer Zahl je Tag.
+model AnalyticsUserDaily {
+  guildId   String
+  discordId String
+  day       DateTime @db.Date
+
+  messages      Int @default(0)
+  voiceSeconds  Int @default(0)
+  voiceSessions Int @default(0)
+
+  updatedAt DateTime @updatedAt
+
+  @@id([guildId, discordId, day])
+  @@index([guildId, day])
+  @@index([guildId, discordId, day])
+}
+
+/// Tageswerte je Kanal.
+model AnalyticsChannelDaily {
+  guildId   String
+  channelId String
+  day       DateTime @db.Date
+
+  kind        AnalyticsChannelKind
+  /// Name zum Zeitpunkt der Zählung - ein gelöschter Kanal bliebe sonst namenlos.
+  channelName String?
+  /// Kategorie, um die vielen temporären Talks zusammenzufassen.
+  parentId    String?
+
+  messages     Int @default(0)
+  voiceSeconds Int @default(0)
+
+  updatedAt DateTime @updatedAt
+
+  @@id([guildId, channelId, day])
+  @@index([guildId, day])
+  @@index([guildId, kind, day])
+}
+
+/// Was wir über den Weg eines Mitglieds durch den Server wissen.
+///
+/// Beantwortet drei Fragen, die sich aus Tageswerten nicht beantworten
+/// lassen: Wie viele der Neuen werden aktiv? Wie lange dauert es bis zur
+/// ersten Äusserung? Wer von den vor 30 Tagen Beigetretenen ist noch da?
+model AnalyticsMemberProfile {
+  guildId   String
+  discordId String
+
+  /// Beitritt, wie ihn das Ereignisprotokoll gesehen hat. NULL bei allen, die
+  /// schon vor Beginn der Aufzeichnung da waren - für sie gibt es keine
+  /// Bindungsquote, und eine erfundene wäre schlimmer als keine.
+  joinedAt        DateTime?
+  leftAt          DateTime?
+  /// Erste Nachricht oder erste Sprachsitzung nach dem Beitritt.
+  firstActivityAt DateTime?
+  lastActivityAt  DateTime?
+
+  isBot Boolean @default(false)
+
+  updatedAt DateTime @updatedAt
+
+  @@id([guildId, discordId])
+  @@index([guildId, joinedAt])
+  @@index([guildId, leftAt])
+  @@index([guildId, firstActivityAt])
+}

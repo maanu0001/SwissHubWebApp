@@ -283,6 +283,27 @@ export function createJobRunner(
     },
     {
       /**
+       * Mitgliederzahl des Tages festhalten.
+       *
+       * Der Mitgliederverlauf entsteht aus diesen Momentaufnahmen. Aus Bei-
+       * und Austritten allein liesse er sich nur rekonstruieren, wenn man den
+       * Anfangsstand kennte - und den kennt niemand fuer die Zeit vor Beginn
+       * der Aufzeichnung.
+       */
+      name: 'analytics-member-count',
+      intervalMs: 60 * 60 * 1000,
+      runOnStart: false,
+      async run() {
+        const guildId = await tryResolveGuildId();
+        const anzahl = getStatus().memberCount;
+        if (!guildId || anzahl === null) {
+          return;
+        }
+        await analytics.haltMitgliederzahlFest(guildId, anzahl);
+      },
+    },
+    {
+      /**
        * Aufbewahrungsfristen des Ereignisprotokolls durchsetzen.
        *
        * Läuft auch, wenn das Modul inzwischen ausgeschaltet wurde: sonst bliebe

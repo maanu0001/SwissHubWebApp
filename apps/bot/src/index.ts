@@ -12,6 +12,7 @@ import { disconnectDatabase } from '@swisshub/database';
 import { invalidateIdentity } from '@swisshub/auth';
 import { ensureBootstrapRoles } from '@swisshub/permissions';
 import {
+  analytics,
   getGuildConfig,
   importGuildFromEnvironment,
   jail,
@@ -29,7 +30,7 @@ import { registerVoicePresence } from './voice-presence';
 import { registerLevelGameButtons } from './level-games';
 import { registerTicketInteractions } from './ticket-interactions';
 import { registerTicketMessageSync } from './ticket-messages';
-import { registerAnalyticsEvents } from './analytics-events';
+import { registerAnalyticsEvents, anwesendeImVoice } from './analytics-events';
 import { registerTournamentInteractions } from './tournament-interactions';
 import { recoverVoiceHub, registerVoiceHub } from './voice-hub';
 import { registerVoiceInteractions } from './voice-interactions';
@@ -200,6 +201,22 @@ async function main(): Promise<void> {
         log.warn('Voice-Sessions konnten nicht bereinigt werden', { error }),
       );
 
+      // Dasselbe fuer die Sprachabschnitte der Statistik. Wer noch im Kanal
+      // sitzt, behaelt seinen offenen Abschnitt; alle anderen werden bis zum
+      // letzten Herzschlag des Bots geschlossen - weiter reicht unser Wissen
+      // nicht.
+      await analytics
+        .schliesseVerwaisteAbschnitte(guildId, anwesendeImVoice(readyClient, guildId))
+        .catch((error: unknown) =>
+          log.warn('Verwaiste Sprachabschnitte konnten nicht geschlossen werden', { error }),
+        );
+
+      // Mitgliederzahl des Tages festhalten - der Mitgliederverlauf entsteht
+      // aus diesen Momentaufnahmen und nicht aus Bei- und Austritten allein.
+      if (status.memberCount !== null) {
+        await analytics.haltMitgliederzahlFest(guildId, status.memberCount).catch(() => undefined);
+      }
+
       // Temporäre Talks: leere aufräumen, verwaiste übergeben, fehlende
       // Bedienfelder ergänzen. Der Bot war weg und hat in der Zeit keine
       // Ereignisse gesehen.
@@ -369,6 +386,17 @@ async function main(): Promise<void> {
       clearTimeout(syncTimer);
     }
     await jobs.stop();
+
+    // Laufende Sprachabschnitte jetzt schliessen, solange wir das Ende noch
+    // kennen. Nach einem sauberen Herunterfahren muss sie niemand spaeter
+    // schaetzen.
+    if (guildId) {
+      await analytics.schliesseVerwaisteAbschnitte(guildId).catch((error: unknown) => {
+        log.warn('Sprachabschnitte konnten beim Herunterfahren nicht geschlossen werden', { error });
+        return 0;
+      });
+    }
+
     await writeHeartbeat({
       online: false,
       botUserId: status.botUserId,

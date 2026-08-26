@@ -44,10 +44,27 @@ export function registerAnalyticsEvents(
    * bekannt ist. Discord liefert ihn dann naemlich nicht mit.
    */
   client.on(Events.MessageCreate, (nachricht) => {
-    if (!nachricht.guildId || !guildIdAktiv(nachricht.guildId) || !inhalteVerfuegbar) {
+    if (!nachricht.guildId || !guildIdAktiv(nachricht.guildId)) {
       return;
     }
-    if (nachricht.author.bot) {
+
+    // Zaehlen zuerst - und ohne den Text. Fuer eine Nachrichtenzahl braucht es
+    // den Inhalt nicht, und was nicht gelesen wird, kann auch nicht auslaufen.
+    // Deshalb haengt das Zaehlen auch nicht am Message-Content-Intent: die
+    // Statistik funktioniert, selbst wenn die Zeitleiste keine Texte kennt.
+    sicher('Nachrichtenzählung', () =>
+      analytics.zaehleNachricht({
+        guildId: nachricht.guildId as string,
+        discordId: nachricht.author.id,
+        isBot: nachricht.author.bot,
+        channelId: nachricht.channelId,
+        channelName: kanalName(nachricht),
+        parentId: 'parentId' in nachricht.channel ? (nachricht.channel.parentId ?? null) : null,
+        at: nachricht.createdAt,
+      }),
+    );
+
+    if (!inhalteVerfuegbar || nachricht.author.bot) {
       return;
     }
     sicher('Nachricht', () =>
@@ -254,6 +271,10 @@ export function registerAnalyticsEvents(
       occurredAt: new Date(),
     };
 
+    const jetzt = gemeinsam.occurredAt;
+    const istAfk = (kanalId: string | null): boolean =>
+      Boolean(kanalId && neu.guild?.afkChannelId === kanalId);
+
     sicher('Sprachkanal', async () => {
       if (vorher && nachher) {
         await analytics.recordEvent({
@@ -262,6 +283,22 @@ export function registerAnalyticsEvents(
           channelId: nachher,
           channelName: neu.channel?.name ?? null,
           metadata: { von: vorher, vonName: alt.channel?.name ?? null },
+        });
+        // Ein Kanalwechsel beendet die Sitzung nicht: wer den Raum wechselt,
+        // ist weiterhin im Gespraech. Der Abschnitt endet, die Sitzung laeuft
+        // unter derselben Kennung weiter - so bekommt die Kanalstatistik ihre
+        // Zeit richtig aufgeteilt und die Sitzungszahl bleibt eine Sitzung.
+        const { sessionId } = await analytics.beendeSprachAbschnitt(guildId, person?.id ?? '', jetzt);
+        await analytics.starteSprachAbschnitt({
+          guildId,
+          discordId: person?.id ?? '',
+          isBot: person?.user.bot ?? false,
+          channelId: nachher,
+          channelName: neu.channel?.name ?? null,
+          parentId: neu.channel?.parentId ?? null,
+          isAfk: istAfk(nachher),
+          at: jetzt,
+          sessionId: sessionId ?? undefined,
         });
         return;
       }
@@ -272,6 +309,16 @@ export function registerAnalyticsEvents(
           channelId: nachher,
           channelName: neu.channel?.name ?? null,
         });
+        await analytics.starteSprachAbschnitt({
+          guildId,
+          discordId: person?.id ?? '',
+          isBot: person?.user.bot ?? false,
+          channelId: nachher,
+          channelName: neu.channel?.name ?? null,
+          parentId: neu.channel?.parentId ?? null,
+          isAfk: istAfk(nachher),
+          at: jetzt,
+        });
         return;
       }
       await analytics.recordEvent({
@@ -280,6 +327,7 @@ export function registerAnalyticsEvents(
         channelId: vorher,
         channelName: alt.channel?.name ?? null,
       });
+      await analytics.beendeSprachAbschnitt(guildId, person?.id ?? '', jetzt);
     });
   });
 
@@ -289,17 +337,19 @@ export function registerAnalyticsEvents(
     if (!guildIdAktiv(member.guild.id)) {
       return;
     }
-    sicher('Beitritt', () =>
-      analytics.recordEvent({
+    const beigetreten = new Date();
+    sicher('Beitritt', async () => {
+      await analytics.recordEvent({
         guildId: member.guild.id,
         category: 'MEMBER',
         type: analytics.EVENT_TYPES.MEMBER_JOIN,
         subjectDiscordId: member.id,
         subjectUsername: member.user.username,
         metadata: { kontoErstellt: member.user.createdAt.toISOString() },
-        occurredAt: new Date(),
-      }),
-    );
+        occurredAt: beigetreten,
+      });
+      await analytics.zaehleBeitritt(member.guild.id, member.id, beigetreten, member.user.bot);
+    });
   });
 
   client.on(Events.GuildMemberRemove, (member) => {
@@ -334,6 +384,7 @@ export function registerAnalyticsEvents(
         },
         occurredAt: jetzt,
       });
+      await analytics.zaehleAustritt(member.guild.id, member.id, jetzt, member.user.bot);
     });
   });
 
@@ -628,4 +679,31 @@ async function archiviereAnhaenge(
       log.debug('Anhang konnte nicht geholt werden', { error });
     }
   }
+}
+
+/**
+ * Wer gerade in einem Sprachkanal sitzt.
+ *
+ * Beim Start gebraucht: ein offener Abschnitt einer Person, die noch im Kanal
+ * steht, ist kein verwaister Abschnitt, sondern eine laufende Anwesenheit -
+ * die Person hat den Kanal nie verlassen, nur der Bot war weg.
+ */
+export function anwesendeImVoice(client: Client, guildId: string): Set<string> {
+  const anwesend = new Set<string>();
+  const guild = client.guilds.cache.get(guildId);
+  if (!guild) {
+    return anwesend;
+  }
+  for (const kanal of guild.channels.cache.values()) {
+    if (!('members' in kanal) || kanal.type === ChannelType.GuildText) {
+      continue;
+    }
+    const mitglieder = kanal.members;
+    if (mitglieder && typeof mitglieder === 'object' && 'values' in mitglieder) {
+      for (const mitglied of (mitglieder as Map<string, { id: string }>).values()) {
+        anwesend.add(mitglied.id);
+      }
+    }
+  }
+  return anwesend;
 }

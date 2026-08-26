@@ -10,6 +10,8 @@ import { EmptyState } from '@/components/shared/states';
 import { ImportConfirmStep, ImportUploadStep } from '@/modules/jail/components/import-wizard';
 import { csrfTokenFor, requirePagePermission } from '@/server/auth';
 import type { JailImportRow, JailImportRowAction } from '@swisshub/database';
+import { JailSectionNav } from '@/modules/jail/components/section-nav';
+import { jailSections } from '@/server/jail';
 
 export const metadata: Metadata = { title: 'Jail-Import' };
 export const dynamic = 'force-dynamic';
@@ -66,6 +68,7 @@ export default async function JailImportPage({
 
   return (
     <>
+      <JailSectionNav sections={jailSections(context)} />
       {current === null || current.status === 'CANCELLED' ? (
         <ImportUploadStep csrfToken={csrfToken} maxBytes={jail.MAX_LEGACY_DB_BYTES} />
       ) : (

@@ -19,6 +19,74 @@ export interface PermissionPreset {
   critical?: boolean;
 }
 
+/**
+ * Was ein gewöhnliches Mitglied täglich braucht.
+ *
+ * Eigene Konstante, weil «Premium» und «Prestige» genau das plus ein paar
+ * Zusätze sind. Drei Listen nebeneinander wären drei Listen, die auseinander
+ * laufen, sobald jemand einer davon etwas hinzufügt.
+ *
+ * Eine Vorlage ersetzt die Berechtigungen einer Rolle vollständig - deshalb
+ * steht hier alles Alltägliche und nicht nur ein Ausschnitt. Eine Vorlage mit
+ * einem Ausschnitt nähme der Rolle beim Anwenden alles Übrige weg, und das
+ * fiele erst auf, wenn jemand etwas nicht mehr kann, das er gestern noch
+ * konnte.
+ */
+const MITGLIED_BASIS: string[] = [
+  'dashboard.view',
+
+  // Member Center - ausschliesslich die eigenen Daten.
+  'members.view.basic.own',
+  'members.view.roles.own',
+  'members.view.activity.own',
+  'members.view.level.own',
+  'members.view.spielersuche.own',
+  'members.view.tournaments.own',
+  'members.view.tickets.own',
+  'members.view.premium.own',
+
+  // Spielersuche: eine eroeffnen, einer beitreten, die eigene schliessen.
+  'spielersuche.view',
+  'spielersuche.create',
+  'spielersuche.join',
+  'spielersuche.closeOwn',
+  'spielersuche.stats.viewOwn',
+
+  // Tickets: ein eigenes eroeffnen und die eigenen lesen. Ausdruecklich
+  // nicht `tickets.view` - das ist die Support-Sicht auf fremde.
+  'tickets.create',
+  'tickets.viewOwn',
+
+  // Level: den eigenen Stand, die Rangliste, die Spiele mitspielen.
+  'level.view',
+  'level.leaderboard.view',
+  'level.games.view',
+  'level.games.play.basic',
+  'level.raffle.view',
+  'level.raffle.participate',
+
+  // Turniere: ansehen und teilnehmen.
+  'tournaments.view',
+  'tournaments.participate',
+
+  // Premium: ausschliesslich das eigene Abo. `premium.view` waere hier
+  // falsch - trotz des Namens oeffnet es die Verwaltungssicht auf alle
+  // Abonnements, auf die Uebersicht und auf die Stuebli-Verwaltung.
+  'premium.self',
+
+  // Voice Hub: einen eigenen Talk oeffnen und ihn verwalten.
+  'voiceHub.view',
+  'voiceHub.use',
+  'voiceHub.manageOwn',
+  'voiceHub.manageUsers',
+  'voiceHub.transferOwnership',
+
+  // Musik steht bewusst nicht hier: sie ist auf diesem Server eine
+  // Premium-Sache. Wer sie allen geben will, nimmt die Vorlage «Premium»
+  // als Vorbild oder hakt die Musikrechte von Hand an - beides geht im
+  // Dashboard, ohne dass jemand Code anfassen muss.
+];
+
 export const PERMISSION_PRESETS: PermissionPreset[] = [
   {
     id: 'viewer',
@@ -31,64 +99,21 @@ export const PERMISSION_PRESETS: PermissionPreset[] = [
     id: 'mitglied',
     label: 'Mitglied',
     description:
-      'Die gewöhnliche Mitgliederrolle: eigenes Profil, eigenes Level, eigene Tickets, Spielersuche, Turniere, Talks und Musik. Sieht ausschliesslich die eigenen Daten - keine fremden Profile, keine Moderation, keine internen Notizen, keine Verwaltung.',
+      'Die gewöhnliche Mitgliederrolle: eigenes Profil, eigenes Level, eigene Tickets, Spielersuche, Turniere und eigene Talks. Sieht ausschliesslich die eigenen Daten - keine fremden Profile, keine Moderation, keine internen Notizen, keine Verwaltung. Musik und eigene Levelkarte stehen in den Vorlagen «Premium» und «Prestige».',
+    permissions: [...MITGLIED_BASIS],
+    // Null heisst hier: keine Moderationsstufe. Ein gewoehnliches Mitglied
+    // steht in der Rollenhierarchie der Anwendung ganz unten.
+    moderationLevel: 0,
+  },
+  {
+    id: 'premium',
+    label: 'Premium',
+    description:
+      'Alles wie ein gewöhnliches Mitglied, dazu Musik und eine eigene Levelkarte. Keine Verwaltung - die Vorlage ist für zahlende Mitglieder, nicht für das Team.',
     permissions: [
-      // Eine Vorlage ersetzt die Berechtigungen einer Rolle vollstaendig.
-      // Deshalb steht hier alles, was ein gewoehnliches Mitglied taeglich
-      // braucht - nicht nur der Member-Center-Teil. Eine Vorlage, die nur
-      // einen Ausschnitt enthaelt, nimmt der Rolle beim Anwenden alles
-      // uebrige weg, und das faellt erst auf, wenn jemand etwas nicht mehr
-      // kann, das er gestern noch konnte.
-      'dashboard.view',
-
-      // Member Center - ausschliesslich die eigenen Daten.
-      'members.view.basic.own',
-      'members.view.roles.own',
-      'members.view.activity.own',
-      'members.view.level.own',
-      'members.view.spielersuche.own',
-      'members.view.tournaments.own',
-      'members.view.tickets.own',
-      'members.view.premium.own',
-
-      // Spielersuche: eine eroeffnen, einer beitreten, die eigene schliessen.
-      'spielersuche.view',
-      'spielersuche.create',
-      'spielersuche.join',
-      'spielersuche.closeOwn',
-      'spielersuche.stats.viewOwn',
-
-      // Tickets: ein eigenes eroeffnen und die eigenen lesen. Ausdruecklich
-      // nicht `tickets.view` - das ist die Support-Sicht auf fremde.
-      'tickets.create',
-      'tickets.viewOwn',
-
-      // Level: den eigenen Stand, die Rangliste, die Spiele mitspielen.
-      'level.view',
-      'level.leaderboard.view',
-      'level.games.view',
-      'level.games.play.basic',
-      'level.raffle.view',
-      'level.raffle.participate',
-
-      // Turniere: ansehen und teilnehmen.
-      'tournaments.view',
-      'tournaments.participate',
-
-      // Premium: ausschliesslich das eigene Abo. `premium.view` waere hier
-      // falsch - trotz des Namens oeffnet es die Verwaltungssicht auf alle
-      // Abonnements, auf die Uebersicht und auf die Stuebli-Verwaltung.
-      'premium.self',
-
-      // Voice Hub: einen eigenen Talk oeffnen und ihn verwalten.
-      'voiceHub.view',
-      'voiceHub.use',
-      'voiceHub.manageOwn',
-      'voiceHub.manageUsers',
-      'voiceHub.transferOwnership',
-
-      // Musik: die eigene Session. Ohne `sessions.manageAll`, ohne Worker
-      // und ohne Einstellungen - das ist Verwaltung.
+      ...MITGLIED_BASIS,
+      // Musik: die eigene Session. Ohne `sessions.manageAll`, ohne Worker und
+      // ohne Einstellungen - das wäre Verwaltung.
       'music.view',
       'music.play',
       'music.queue.manage',
@@ -98,9 +123,29 @@ export const PERMISSION_PRESETS: PermissionPreset[] = [
       'music.volume',
       'music.session.start',
       'music.session.stop',
+      // Die eigene Levelkarte.
+      'level.card.custom',
     ],
-    // Null heisst hier: keine Moderationsstufe. Ein gewoehnliches Mitglied
-    // steht in der Rollenhierarchie der Anwendung ganz unten.
+    moderationLevel: 0,
+  },
+  {
+    id: 'prestige',
+    label: 'Prestige',
+    description:
+      'Wie Premium. Eigene Vorlage, damit sich die beiden Stufen später unabhängig voneinander ändern lassen, ohne dass jemand die eine mit der anderen verwechselt.',
+    permissions: [
+      ...MITGLIED_BASIS,
+      'music.view',
+      'music.play',
+      'music.queue.manage',
+      'music.skip',
+      'music.pause',
+      'music.loop',
+      'music.volume',
+      'music.session.start',
+      'music.session.stop',
+      'level.card.custom',
+    ],
     moderationLevel: 0,
   },
   {

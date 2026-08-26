@@ -28,6 +28,15 @@ export const LEVEL_PERMISSIONS = {
   /** Ersetzt `LEVEL10_ROLE_ID`: TicTacToe und 4 Gewinnt. */
   gamesPlayAdvanced: 'level.games.play.advanced',
   gamesManage: 'level.games.manage',
+  /**
+   * Eine eigene Levelkarte hochladen.
+   *
+   * Bewusst eine Berechtigung und keine Abfrage auf eine Premium- oder
+   * Prestige-Rolle: welche Rollen das duerfen, entscheidet die
+   * Rollenverwaltung im Dashboard. Ein Servername im Code waere auf dem
+   * naechsten Server falsch.
+   */
+  cardCustom: 'level.card.custom',
   rolesView: 'level.roles.view',
   rolesManage: 'level.roles.manage',
   rulesManage: 'level.rules.manage',
@@ -757,6 +766,13 @@ registerModule({
       critical: true,
     },
     {
+      key: LEVEL_PERMISSIONS.cardCustom,
+      label: 'Eigene Levelkarte hochladen',
+      description:
+        'Ein eigenes Bild als persönliche Levelkarte hinterlegen. Gilt nur für die eigene Karte - die Vorlagen des Servers bleiben unberührt.',
+      module: LEVEL_MODULE_ID,
+    },
+    {
       key: LEVEL_PERMISSIONS.rolesView,
       label: 'Meilenstein-Rollen ansehen',
       description: 'Zuordnung von Leveln zu Rollen einsehen.',
@@ -902,7 +918,11 @@ registerModule({
       permission: LEVEL_PERMISSIONS.raffleView,
       icon: 'Ticket',
       group: 'overview',
-      order: 20,
+      order: 21,
+      // Nur solange es etwas zu gewinnen gibt. Ein Eintrag, der das ganze
+      // Jahr «keine aktive Verlosung» sagt, ist eine Zeile, die niemand mehr
+      // liest. Im Level-System bleibt das Gluecksrad dauerhaft erreichbar.
+      visibleWhen: 'activeRaffle',
     },
   ],
 });

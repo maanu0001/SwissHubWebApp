@@ -105,6 +105,13 @@ export interface LevelCardRequest {
   xp: number;
   rank: number;
   settings: level.LevelSettings;
+  /**
+   * Wessen Karte gezeichnet wird.
+   *
+   * Nur noetig, um eine persoenliche Karte zu finden. Fehlt die Angabe, gilt
+   * der Hintergrund des Servers - so verhielt sich die Karte bisher.
+   */
+  discordId?: string;
 }
 
 /** Erzeugt die Levelkarte als PNG-Puffer. */
@@ -113,14 +120,20 @@ export async function renderLevelCard(request: LevelCardRequest): Promise<Buffer
   const prestige = level.levelFromXp(request.xp, settings.maxLevelTotalXp) >= level.MAX_LEVEL;
   const banner = level.resolveCardBanner(settings, prestige);
 
+  // Reihenfolge: die persoenliche Karte, dann die hochgeladene Datei des
+  // Servers, dann die Adresse. Die persoenliche gilt nur fuer ihren Besitzer -
+  // die Vorlagen des Servers bleiben unberuehrt.
+  const eigene = request.discordId ? await level.readCustomCard(request.discordId) : null;
+
   const [avatarSrc, bannerSrc] = await Promise.all([
     request.avatarUrl ? fetchAsDataUri(request.avatarUrl) : Promise.resolve(null),
-    // Die hochgeladene Datei hat Vorrang vor der Adresse.
-    banner.path
-      ? uploadedBannerAsDataUri(prestige ? 'prestige' : 'normal', settings)
-      : banner.url
-        ? fetchAsDataUri(banner.url)
-        : Promise.resolve(null),
+    eigene
+      ? Promise.resolve(`data:${eigene.contentType};base64,${eigene.data.toString('base64')}`)
+      : banner.path
+        ? uploadedBannerAsDataUri(prestige ? 'prestige' : 'normal', settings)
+        : banner.url
+          ? fetchAsDataUri(banner.url)
+          : Promise.resolve(null),
   ]);
 
   const svg = level.renderLevelCardSvg({

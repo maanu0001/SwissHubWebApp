@@ -163,7 +163,7 @@ export async function seedPresets(): Promise<void> {
   const vorlagen: Array<PresetInput & { name: string }> = [
     {
       name: 'Standard Talk',
-      nameTemplate: "🔊 {username}'s Talk",
+      nameTemplate: '🔊 {username} Stübli',
       userLimit: 0,
       maxUserLimit: 99,
       bitrate: null,
@@ -179,7 +179,7 @@ export async function seedPresets(): Promise<void> {
     },
     {
       name: 'Duo',
-      nameTemplate: "👥 {username}'s Duo",
+      nameTemplate: '👥 {username} Duo-Stübli',
       userLimit: 2,
       maxUserLimit: 4,
       bitrate: null,
@@ -195,7 +195,7 @@ export async function seedPresets(): Promise<void> {
     },
     {
       name: 'Privat',
-      nameTemplate: "🔒 {username}'s Talk",
+      nameTemplate: '🔒 {username} Stübli',
       userLimit: 0,
       maxUserLimit: 99,
       bitrate: null,

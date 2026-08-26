@@ -116,16 +116,25 @@ export interface PagePermissionOptions {
 }
 
 /** Seitenschutz: leitet ohne passende Berechtigung auf die 403-Seite. */
+/**
+ * Erzwingt eine Berechtigung fuer eine Seite.
+ *
+ * Mehrere Angaben wirken als «eine davon genuegt». Das ist kein
+ * Aufweichen, sondern die Abbildung von Bereichen mit mehreren Zugaengen:
+ * die Vote-Jail-Seite gehoert dem, der Abstimmungen einsehen darf - und
+ * ebenso dem, der eine starten darf, ohne deswegen die Strafakte zu lesen.
+ */
 export async function requirePagePermission(
-  permission: string,
+  permission: string | string[],
   options: PagePermissionOptions = {},
 ): Promise<AuthContext> {
   const context = await requireMember();
-  if (!can(context, permission)) {
+  const erlaubte = Array.isArray(permission) ? permission : [permission];
+  if (!erlaubte.some((eintrag) => can(context, eintrag))) {
     if (options.allowDuringSetup && (await hasSetupAccess())) {
       return context;
     }
-    redirect(`/403?permission=${encodeURIComponent(permission)}`);
+    redirect(`/403?permission=${encodeURIComponent(erlaubte[0] ?? '')}`);
   }
   return context;
 }

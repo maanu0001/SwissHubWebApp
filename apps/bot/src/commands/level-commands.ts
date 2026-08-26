@@ -511,6 +511,8 @@ async function handleLevel(interaction: ChatInputCommandInteraction, context: Ct
       xp,
       rank: rank || 1,
       settings: context.settings,
+      // Damit eine persoenliche Karte gefunden wird, falls hinterlegt.
+      discordId: target.id,
     });
     await interaction.editReply({ files: [{ attachment: png, name: 'level.png' }] });
   } catch (error) {

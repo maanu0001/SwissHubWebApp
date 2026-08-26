@@ -19,3 +19,4 @@ export * from './schemas';
 export * from './notifications';
 export * from './card-banner';
 export * as raffle from './raffle';
+export * from './custom-card';

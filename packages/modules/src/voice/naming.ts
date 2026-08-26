@@ -47,7 +47,7 @@ export function baueKanalName(vorlage: string, werte: NamensWerte): string {
     .replace(/\{number\}/gu, werte.number ? String(werte.number) : '');
 
   const gekuerzt = gebaut.replace(/\s+/gu, ' ').trim().slice(0, 100);
-  return gekuerzt || `${username}'s Talk`.slice(0, 100);
+  return gekuerzt || `${username} Stübli`.slice(0, 100);
 }
 
 /**

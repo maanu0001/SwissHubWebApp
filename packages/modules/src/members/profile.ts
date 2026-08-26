@@ -67,6 +67,8 @@ export interface MemberLevelView {
   level: number;
   xp: number;
   rang: number | null;
+  /** Hat diese Person eine eigene Levelkarte hinterlegt? */
+  eigeneKarte: boolean;
   /** Fortschritt im aktuellen Level, 0 bis 1. */
   fortschritt: number;
   naechstesLevelXp: number;
@@ -208,6 +210,7 @@ async function ladeLevel(discordId: string): Promise<MemberLevelView | null> {
     level: fortschritt.level,
     xp: profil.xp,
     rang,
+    eigeneKarte: profil.customCardPath !== null,
     fortschritt: fortschritt.progress,
     naechstesLevelXp: fortschritt.nextLevelXp,
     fehlendeXp: fortschritt.remainingXp,

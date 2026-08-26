@@ -31,6 +31,16 @@ export interface ModuleNavigationItem {
   description?: string;
   /** Sichtbar, wenn der Benutzer diese Permission besitzt. */
   permission: string;
+  /**
+   * Weitere Berechtigungen, die den Eintrag ebenfalls sichtbar machen.
+   *
+   * Gebraucht, wo ein Bereich mehrere Zugaenge hat: den Jail-Bereich sieht,
+   * wer Jails einsehen darf - und ebenso, wer eine Community-Abstimmung
+   * starten darf, ohne deswegen die Strafakte lesen zu koennen. Ohne diese
+   * Moeglichkeit braeuchte es fuer den zweiten Zugang einen eigenen
+   * Seitenleisten-Eintrag, und genau den soll es nicht geben.
+   */
+  altPermissions?: string[];
   /** Lucide Icon Name (siehe `nav-icon.tsx`). */
   icon: string;
   /**
@@ -54,6 +64,15 @@ export interface ModuleNavigationItem {
    * `activeJails` wird serverseitig befüllt.
    */
   counter?: 'activeJails';
+  /**
+   * Bedingung, die zusaetzlich zur Berechtigung erfuellt sein muss.
+   *
+   * Die Registry selbst fragt keine Datenbank - sie wird an vielen Stellen
+   * geladen, auch dort, wo keine Verbindung steht. Die Auswertung geschieht
+   * deshalb im Layout, das die Daten ohnehin holt; hier steht nur, worauf es
+   * ankommt. Dasselbe Vorgehen wie bei `counter`.
+   */
+  visibleWhen?: 'activeRaffle';
 }
 
 export interface ModuleDefinition {
@@ -131,7 +150,11 @@ export function buildNavigation(
   return listModuleDefinitions()
     .filter((definition) => definition.core || enabledModuleIds.has(definition.id))
     .flatMap((definition) => definition.navigation.map((item) => ({ ...item, moduleId: definition.id })))
-    .filter((item) => owned.has(item.permission))
+    .filter(
+      (item) =>
+        owned.has(item.permission) ||
+        (item.altPermissions ?? []).some((permission) => owned.has(permission)),
+    )
     .sort((a, b) => a.order - b.order);
 }
 

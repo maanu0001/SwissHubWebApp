@@ -8,6 +8,7 @@ import {
   getGuildConfig,
   groupNavigation,
   jail,
+  level,
   premium as premiumModule,
   readBotStatus,
 } from '@swisshub/modules';
@@ -46,6 +47,17 @@ export default async function AppLayout({
   ]);
 
   /**
+   * Laeuft gerade eine Verlosung?
+   *
+   * Entscheidet, ob «XP-Gluecksrad» neben «Mein Profil» steht. Faellt die
+   * Abfrage aus, bleibt der Eintrag weg - lieber ein fehlender Eintrag als
+   * einer, der ins Leere fuehrt.
+   */
+  const laufendeVerlosung = moduleIds.has(level.LEVEL_MODULE_ID)
+    ? await level.raffle.hatLaufendeVerlosung().catch(() => false)
+    : false;
+
+  /**
    * Zustand für die Hinweiskarte in der Seitenleiste.
    *
    * Ist Premium eingeschaltet, führt die Karte auf `/premium`; wer bereits
@@ -77,7 +89,10 @@ export default async function AppLayout({
     ? [...new Set([...context.permissionKeys, 'settings.view', 'permissions.manage', 'modules.manage'])]
     : context.permissionKeys;
 
-  const navigation = buildNavigation(navigationKeys, moduleIds);
+  const navigation = buildNavigation(navigationKeys, moduleIds).filter(
+    // Bedingte Eintraege - siehe `visibleWhen` in der Registry.
+    (item) => item.visibleWhen !== 'activeRaffle' || laufendeVerlosung,
+  );
   const groups = groupNavigation(navigation).map((group) => ({
     id: group.id,
     label: group.label,

@@ -18,6 +18,8 @@ import { RemainingTime } from '@/modules/jail/components/remaining-time';
 import { csrfTokenFor, requirePagePermission } from '@/server/auth';
 import { cn } from '@/lib/utils';
 import type { JailEntry } from '@swisshub/database';
+import { JailSectionNav } from '@/modules/jail/components/section-nav';
+import { jailSections } from '@/server/jail';
 
 export const metadata: Metadata = { title: 'Jail' };
 export const dynamic = 'force-dynamic';
@@ -194,6 +196,7 @@ export default async function JailPage({ searchParams }: JailPageProps): Promise
 
   return (
     <>
+      <JailSectionNav sections={jailSections(context)} />
       {!enabled ? (
         <EmptyState
           title="Modul deaktiviert"

@@ -1147,6 +1147,15 @@ model LevelProfile {
   xp               Int       @default(0)
   messages         Int       @default(0)
   voiceMinutes     Int       @default(0)
+  /// Dateiname einer selbst hochgeladenen Levelkarte.
+  ///
+  /// Nur der Name, nicht der Pfad: die Datei liegt im Upload-Verzeichnis
+  /// ausserhalb des statisch bedienten Bereichs, und ausgeliefert wird sie
+  /// ueber eine Route, die die Berechtigung prueft. Ein Pfad in der
+  /// Datenbank waere eine Einladung, ihn zu manipulieren.
+  ///
+  /// Leer bedeutet: es gilt der Hintergrund aus den Moduleinstellungen.
+  customCardPath   String?
   /// Setzt die Nachlassfrist zurueck (Nachricht oder Voice).
   lastActivityAt   DateTime?
   /// Bis hierhin wurde Inaktivitaets-Abzug bereits verrechnet.
@@ -3612,8 +3621,8 @@ model VoicePreset {
   guildId String
 
   name         String
-  /// Vorlage des Kanalnamens, z.B. `🔊 {username}'s Talk`.
-  nameTemplate String @default("🔊 {username}'s Talk")
+  /// Vorlage des Kanalnamens, z.B. `🔊 {username} Stübli`.
+  nameTemplate String @default("🔊 {username} Stübli")
 
   /// Teilnehmerlimit neuer Talks; 0 = unbegrenzt (Discord-Semantik).
   userLimit    Int  @default(0)

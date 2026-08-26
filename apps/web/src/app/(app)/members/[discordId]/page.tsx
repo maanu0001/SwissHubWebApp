@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { ArrowLeft, Bot, Lock, ShieldAlert, UserX } from 'lucide-react';
 import { can } from '@swisshub/auth';
-import { getModuleSettings, isModuleEnabled, jail, members } from '@swisshub/modules';
+import { getModuleSettings, isModuleEnabled, jail, level, members } from '@swisshub/modules';
 import { formatDate, formatDateTime, snowflakeSchema } from '@swisshub/shared';
 import { Badge } from '@/components/ui/badge';
 import { buttonVariants } from '@/components/ui/button';
@@ -17,6 +17,8 @@ import { ReleaseJailButton } from '@/modules/jail/components/release-jail-button
 import { NotesPanel } from '@/modules/members/components/notes-panel';
 import { RoleManager } from '@/modules/members/components/role-manager';
 import { XpPanel } from '@/modules/members/components/xp-panel';
+import { CustomCardPanel } from '@/modules/level/components/custom-card-panel';
+import { RemoveCustomCardButton } from '@/modules/level/components/remove-custom-card-button';
 import { csrfTokenFor, requireMember } from '@/server/auth';
 import { memberViewer } from '@/server/members';
 import { cn } from '@/lib/utils';
@@ -90,6 +92,8 @@ export default async function MemberDetailPage({
     isModuleEnabled(jail.JAIL_MODULE_ID),
   ]);
   const canJail = capabilities.canJail && jailEnabled;
+  const selbst = basic.discordId === context.user.discordId;
+  const darfEigeneKarte = can(context, level.LEVEL_PERMISSIONS.cardCustom);
 
   // Die Rollenliste braucht Discord und ist nur fuer die Verwaltung da.
   const rollenAngebot = capabilities.canManageRoles
@@ -279,6 +283,24 @@ export default async function MemberDetailPage({
                 ) : (
                   <>
                     <LevelAnsicht level={profil.level} />
+                    {/*
+                      Die eigene Karte nur im eigenen Profil und nur mit der
+                      Berechtigung. Wer fremde Profile verwaltet, sieht die
+                      Karte weiter unten und kann sie entfernen - hochladen
+                      darf sie ausschliesslich die Person selbst.
+                    */}
+                    {selbst && darfEigeneKarte ? (
+                      <CustomCardPanel
+                        csrfToken={csrfToken}
+                        discordId={basic.discordId}
+                        vorhanden={profil.level?.eigeneKarte ?? false}
+                        empfohlen={level.CUSTOM_CARD_SIZE}
+                        maxBytes={level.MAX_CUSTOM_CARD_BYTES}
+                      />
+                    ) : null}
+                    {!selbst && profil.level?.eigeneKarte && capabilities.canManageXp ? (
+                      <FremdeKarte discordId={basic.discordId} csrfToken={csrfToken} />
+                    ) : null}
                     {capabilities.canManageXp ? (
                       <XpPanel discordId={basic.discordId} csrfToken={csrfToken} />
                     ) : null}
@@ -417,6 +439,30 @@ function Uebersicht({
         </div>
       ))}
     </dl>
+  );
+}
+
+/** Die eigene Karte eines anderen Mitglieds - ansehen und entfernen. */
+function FremdeKarte({
+  discordId,
+  csrfToken,
+}: {
+  discordId: string;
+  csrfToken: string;
+}): React.JSX.Element {
+  return (
+    <div className="space-y-3 rounded-xl border border-border p-4">
+      <p className="text-sm font-semibold">Eigene Level-Card dieses Mitglieds</p>
+      <div className="overflow-hidden rounded-lg border border-border">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={`/api/level/custom-card/${discordId}`}
+          alt="Level-Card des Mitglieds"
+          className="block aspect-[4/1] w-full object-cover"
+        />
+      </div>
+      <RemoveCustomCardButton discordId={discordId} csrfToken={csrfToken} />
+    </div>
   );
 }
 

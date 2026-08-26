@@ -90,6 +90,10 @@ describe('Permission Presets', () => {
       'modules.manage',
       'level.members.manage',
       'premium.subscriptions.manage',
+      // Musik und eigene Levelkarte gehoeren auf diesem Server zu Premium.
+      'music.view',
+      'music.session.start',
+      'level.card.custom',
       'tickets.view',
       'tickets.support.view',
       'spielersuche.closeAny',
@@ -121,6 +125,27 @@ describe('Permission Presets', () => {
    * loeschte damit einer Rolle saemtliche Berechtigungen, ohne eine neue zu
    * vergeben. Das muss knallen statt still durchzugehen.
    */
+  it('gibt Premium und Prestige alles, was das Mitglied hat - und Musik dazu', () => {
+    const mitglied = resolvePreset(getPermissionPreset('mitglied')!);
+
+    for (const id of ['premium', 'prestige']) {
+      const erweitert = resolvePreset(getPermissionPreset(id)!);
+      // Nichts vom Alltaeglichen darf fehlen: eine Vorlage ersetzt die
+      // Berechtigungen einer Rolle vollstaendig.
+      for (const permission of mitglied) {
+        expect(erweitert, `${id}: ${permission} fehlt`).toContain(permission);
+      }
+      expect(erweitert).toContain('music.view');
+      expect(erweitert).toContain('music.session.start');
+      expect(erweitert).toContain('level.card.custom');
+      // Aber weiterhin nichts Verwaltendes.
+      expect(erweitert).not.toContain('music.sessions.manageAll');
+      expect(erweitert).not.toContain('music.settings.manage');
+      expect(erweitert).not.toContain('level.members.manage');
+      expect(erweitert).not.toContain(ADMIN_FULL);
+    }
+  });
+
   it('scheitert laut, wenn sich eine Vorlage gegen nichts auflösen lässt', () => {
     expect(() =>
       resolvePreset({

@@ -605,33 +605,22 @@ export const jailModule: ModuleDefinition = registerModule({
     },
   ],
   navigation: [
+    // Ein Eintrag fuer das ganze Modul. Vote Jails und der Import standen
+    // frueher als eigene Eintraege daneben - drei Zeilen fuer einen Bereich,
+    // und die beiden hinteren nur fuer wenige sichtbar. Sie sind jetzt
+    // Bereiche innerhalb des Jail-Moduls.
     {
       href: '/jail',
       label: 'Jail',
-      description: 'Aktive und vergangene Jail-Strafen des SwissHub Discord-Servers',
+      description: 'Jail-Strafen, Community-Abstimmungen und Import',
       permission: JAIL_PERMISSIONS.view,
+      // Wer abstimmen lassen darf, kommt ebenfalls hinein - er sieht dort
+      // die Abstimmungen, nicht die Strafakte.
+      altPermissions: [JAIL_PERMISSIONS.voteStart, JAIL_PERMISSIONS.import],
       icon: 'Lock',
       group: 'moderation',
       order: 30,
       counter: 'activeJails',
-    },
-    {
-      href: '/jail/votes',
-      label: 'Vote Jails',
-      description: 'Laufende und abgeschlossene Community-Abstimmungen',
-      permission: JAIL_PERMISSIONS.view,
-      icon: 'Gavel',
-      group: 'moderation',
-      order: 31,
-    },
-    {
-      href: '/jail/import',
-      label: 'Jail-Import',
-      description: 'Daten des früheren Jail-Bots übernehmen',
-      permission: JAIL_PERMISSIONS.import,
-      icon: 'Database',
-      group: 'moderation',
-      order: 32,
     },
   ],
 });

@@ -286,3 +286,22 @@ export async function getPastRaffles(limit = 10): Promise<RaffleSummary[]> {
   const { rows } = await listRaffles({ statuses: ['COMPLETED', 'CANCELLED'], limit });
   return rows;
 }
+
+/**
+ * Laeuft gerade eine Verlosung?
+ *
+ * «Laufend» heisst: Mitglieder koennen etwas damit anfangen - die Teilnahme
+ * ist offen, sie steht unmittelbar bevor, oder die Ziehung ist im Gang.
+ * Entwuerfe und abgeschlossene Verlosungen zaehlen nicht; ein Entwurf ist
+ * noch nichts, und eine abgeschlossene ist Geschichte.
+ *
+ * Gedacht fuer die Navigation: der Eintrag «XP-Gluecksrad» erscheint neben
+ * «Mein Profil» nur, solange es dort etwas zu tun gibt. Im Level-System
+ * bleibt das Gluecksrad dauerhaft erreichbar - dort wird es verwaltet.
+ */
+export async function hatLaufendeVerlosung(): Promise<boolean> {
+  const anzahl = await prisma.xpRaffle.count({
+    where: { status: { in: ['SCHEDULED', 'ENTRY_OPEN', 'ENTRY_CLOSED', 'DRAWING', 'WINNER_PENDING'] } },
+  });
+  return anzahl > 0;
+}

@@ -13,7 +13,15 @@ import type { PremiumSection } from '@/modules/premium/sections';
  */
 export function premiumSections(context: AuthContext): PremiumSection[] {
   const p = premium.PREMIUM_PERMISSIONS;
-  const sections: PremiumSection[] = [{ href: '/premium/me', label: 'Mein Abo', icon: 'me' }];
+  const sections: PremiumSection[] = [
+    { href: '/premium/me', label: 'Mein Abo', icon: 'me' },
+    // Die Angebote sind der Weg zum Abo und gehoeren damit zur
+    // Mitgliedersicht. Die Seite gibt es bereits - sie ist der oeffentliche
+    // Shop mit dem bestehenden Kaufablauf. Eine zweite Angebotsseite im
+    // geschuetzten Bereich waere dieselbe Liste ein zweites Mal, und beim
+    // naechsten neuen Angebot pflegte jemand nur eine davon.
+    { href: '/premium', label: 'Angebote', icon: 'products' },
+  ];
 
   if (can(context, p.view)) {
     sections.push(

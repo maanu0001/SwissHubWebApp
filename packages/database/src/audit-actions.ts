@@ -155,6 +155,7 @@ export const AUDIT_ACTIONS = {
   //
   // Nur Eingriffe, nicht das Lesen: ein Protokoll jedes geoeffneten Profils
   // waere eine Bewegungsakte ueber die Mitarbeiter und keine Sicherheitsspur.
+  LEVEL_CUSTOM_CARD_CHANGED: 'LEVEL_CUSTOM_CARD_CHANGED',
   MEMBER_ROLE_GRANTED: 'MEMBER_ROLE_GRANTED',
   MEMBER_ROLE_REVOKED: 'MEMBER_ROLE_REVOKED',
   MEMBER_NOTE_CREATED: 'MEMBER_NOTE_CREATED',

@@ -109,7 +109,7 @@ export async function createTemporaryVoice(
   input: CreateTemporaryVoiceInput,
 ): Promise<TemporaryVoiceChannel> {
   const namePruefung = pruefeName(input.name);
-  const name = namePruefung.ok ? namePruefung.name : `${input.ownerUsername}'s Talk`.slice(0, 100);
+  const name = namePruefung.ok ? namePruefung.name : `${input.ownerUsername} Stübli`.slice(0, 100);
 
   // --- Reservierung ------------------------------------------------------
   let reservierung: TemporaryVoiceChannel;

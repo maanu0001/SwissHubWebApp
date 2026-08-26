@@ -59,12 +59,15 @@ describe('Sichtbarkeit für ein gewöhnliches Mitglied', () => {
     expect(sichtbar).toContain('Übersicht');
   });
 
-  it('zeigt bei Premium nur das eigene Abo', () => {
+  it('zeigt bei Premium nur das eigene Abo und die Angebote', () => {
     const sichtbar = labels(premiumSections(MITGLIED));
-    expect(sichtbar).toEqual(['Mein Abo']);
+    // Die Endnutzersicht: das eigene Abo und der Weg zu einem neuen.
+    expect(sichtbar).toEqual(['Mein Abo', 'Angebote']);
+    // Nichts Verwaltendes.
     expect(sichtbar).not.toContain('Übersicht');
     expect(sichtbar).not.toContain('Abonnements');
     expect(sichtbar).not.toContain('Stübli');
+    expect(sichtbar).not.toContain('Einstellungen');
   });
 });
 
@@ -99,7 +102,7 @@ describe('Sichtbarkeit hängt an der Berechtigung, nicht an der Rolle', () => {
   });
 
   it('öffnet die Premium-Verwaltung erst mit premium.view', () => {
-    expect(labels(premiumSections(betrachter(['premium.self'])))).toEqual(['Mein Abo']);
+    expect(labels(premiumSections(betrachter(['premium.self'])))).toEqual(['Mein Abo', 'Angebote']);
     expect(labels(premiumSections(betrachter(['premium.view'])))).toContain('Abonnements');
   });
 });

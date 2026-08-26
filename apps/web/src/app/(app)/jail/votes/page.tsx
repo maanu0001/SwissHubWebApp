@@ -12,6 +12,8 @@ import { EmptyState } from '@/components/shared/states';
 import { PageToolbar } from '@/components/shared/page-header';
 import { StartVoteJailDialog } from '@/modules/jail/components/start-vote-jail-dialog';
 import { csrfTokenFor, requirePagePermission } from '@/server/auth';
+import { JailSectionNav } from '@/modules/jail/components/section-nav';
+import { jailSections } from '@/server/jail';
 
 export const metadata: Metadata = { title: 'Vote Jails' };
 export const dynamic = 'force-dynamic';
@@ -31,7 +33,13 @@ const STATUS: Record<string, { label: string; variant: 'success' | 'warning' | '
  * der Datenbank - auch wenn Discord gerade nicht erreichbar ist.
  */
 export default async function VoteJailsPage(): Promise<React.JSX.Element> {
-  const context = await requirePagePermission(jail.JAIL_PERMISSIONS.view);
+  // Zwei Zugaenge: die Abstimmungen einsehen - oder eine starten duerfen.
+  // Bisher stand hier nur `view`, und damit sah jemand mit dem Recht «Vote
+  // Jail starten» den Bereich nie, den er bedienen darf.
+  const context = await requirePagePermission([
+    jail.JAIL_PERMISSIONS.view,
+    jail.JAIL_PERMISSIONS.voteStart,
+  ]);
   const csrfToken = csrfTokenFor(context);
 
   const [enabled, config, active, past, channels] = await Promise.all([
@@ -134,6 +142,7 @@ export default async function VoteJailsPage(): Promise<React.JSX.Element> {
 
   return (
     <>
+      <JailSectionNav sections={jailSections(context)} />
       <PageToolbar>
         <p className="text-sm text-muted-foreground">
           {config.enabled

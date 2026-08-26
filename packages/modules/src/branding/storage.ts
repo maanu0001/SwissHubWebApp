@@ -148,7 +148,7 @@ export interface StoredUpload {
  * geprüft. Dadurch lässt sich ein Logo nicht als Levelkarten-Hintergrund
  * ausliefern und umgekehrt.
  */
-export const UPLOAD_KINDS = ['logo', 'levelcard'] as const;
+export const UPLOAD_KINDS = ['logo', 'levelcard', 'usercard'] as const;
 export type UploadKind = (typeof UPLOAD_KINDS)[number];
 
 /**
@@ -280,7 +280,12 @@ export async function deleteUpload(fileName: string): Promise<void> {
 
 /** Erlaubt ausschliesslich die selbst erzeugten Namen. */
 function assertSafeFileName(fileName: string): LogoFormat {
-  const match = /^(logo|levelcard)-[0-9a-f]{32}\.(png|jpg|webp)$/u.exec(fileName);
+  // Der Namensraum steht in `UPLOAD_KINDS`; die Pruefung leitet sich davon
+  // ab, damit ein neuer Namensraum nicht an zwei Stellen nachgetragen werden
+  // muss - und die zweite dann vergessen wird.
+  const match = new RegExp(`^(${UPLOAD_KINDS.join('|')})-[0-9a-f]{32}\\.(png|jpg|webp)$`, 'u').exec(
+    fileName,
+  );
   if (!match) {
     throw new AppError('VALIDATION_FAILED', { userMessage: 'Ungültiger Dateiname.' });
   }

@@ -2,7 +2,14 @@ import { jobConfig } from '@swisshub/config';
 import { createLogger } from '@swisshub/logger';
 import { purgeExpiredIdempotencyKeys } from '@swisshub/database';
 import { purgeExpiredSessions } from '@swisshub/auth';
-import { jail, level, spielersuche, syncDiscord, writeHeartbeat,
+import { tryResolveGuildId } from '@swisshub/discord';
+import {
+  analytics,
+  jail,
+  level,
+  spielersuche,
+  syncDiscord,
+  writeHeartbeat,
   premium,
   tickets,
   tournaments,
@@ -191,9 +198,7 @@ export function createJobRunner(
         if (!(await isModuleEnabled(voiceHub.VOICE_HUB_MODULE_ID))) {
           return;
         }
-        const settings = await getModuleSettings<voiceHub.VoiceHubSettings>(
-          voiceHub.VOICE_HUB_MODULE_ID,
-        );
+        const settings = await getModuleSettings<voiceHub.VoiceHubSettings>(voiceHub.VOICE_HUB_MODULE_ID);
         await voice.raeumeAlteTalks(settings.historyRetentionDays);
       },
     },
@@ -273,6 +278,32 @@ export function createJobRunner(
         ]);
         if (sessions > 0 || keys > 0 || cooldowns > 0) {
           log.info('Aufräumen abgeschlossen', { sessions, idempotencyKeys: keys, voteCooldowns: cooldowns });
+        }
+      },
+    },
+    {
+      /**
+       * Aufbewahrungsfristen des Ereignisprotokolls durchsetzen.
+       *
+       * Läuft auch, wenn das Modul inzwischen ausgeschaltet wurde: sonst bliebe
+       * liegen, was bei eingeschaltetem Modul entstanden ist, und die
+       * zugesagte Frist wäre keine. Ohne verbundenen Server gibt es nichts
+       * aufzuräumen.
+       */
+      name: 'analytics-retention',
+      intervalMs: 6 * 60 * 60 * 1000,
+      async run() {
+        const guildId = await tryResolveGuildId();
+        if (!guildId) {
+          return;
+        }
+        const ergebnis = await analytics.enforceRetention(guildId);
+        if (ergebnis.ereignisse > 0 || ergebnis.medien > 0) {
+          log.info('Analytics-Aufbewahrung durchgesetzt', {
+            ereignisse: ergebnis.ereignisse,
+            medien: ergebnis.medien,
+            bytes: ergebnis.bytes,
+          });
         }
       },
     },

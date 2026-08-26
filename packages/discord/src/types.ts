@@ -230,3 +230,50 @@ export const channelOverwritesSchema = z.object({
     )
     .optional(),
 });
+
+/**
+ * Ein Eintrag aus Discords Audit Log.
+ *
+ * Bewusst schmal: nur, was fuer die Zuordnung eines Verursachers gebraucht
+ * wird. `createdAt` stammt aus der Snowflake - Discord liefert keinen eigenen
+ * Zeitstempel mit.
+ */
+export interface AuditLogEntry {
+  id: string;
+  /** Discords numerischer Ereignistyp. */
+  actionType: number;
+  /** Wer gehandelt hat. `null`, wenn Discord es selbst nicht angibt. */
+  userId: string | null;
+  username: string | null;
+  /** Wen oder was es betraf - je nach Typ eine Nachricht, ein Mitglied, eine Rolle. */
+  targetId: string | null;
+  reason: string | null;
+  /**
+   * Wie viele gleichartige Vorgaenge dieser Eintrag zusammenfasst.
+   *
+   * Discord zaehlt bei wiederholtem Loeschen im selben Kanal denselben
+   * Eintrag hoch, statt einen neuen anzulegen. Deshalb bedeutet ein alter
+   * Eintrag nicht, dass gerade nichts geschehen ist.
+   */
+  count: number | null;
+  /** Kanal, in dem es geschah - nur bei einigen Typen gesetzt. */
+  channelId: string | null;
+  createdAt: Date;
+}
+
+/** Discords numerische Audit-Log-Typen, soweit hier gebraucht. */
+export const AUDIT_LOG_ACTIONS = {
+  MEMBER_KICK: 20,
+  MEMBER_BAN_ADD: 22,
+  MEMBER_BAN_REMOVE: 23,
+  MEMBER_UPDATE: 24,
+  MEMBER_ROLE_UPDATE: 25,
+  CHANNEL_CREATE: 10,
+  CHANNEL_UPDATE: 11,
+  CHANNEL_DELETE: 12,
+  ROLE_CREATE: 30,
+  ROLE_UPDATE: 31,
+  ROLE_DELETE: 32,
+  MESSAGE_DELETE: 72,
+  MESSAGE_BULK_DELETE: 73,
+} as const;

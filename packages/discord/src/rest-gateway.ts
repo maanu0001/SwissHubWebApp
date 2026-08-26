@@ -22,6 +22,7 @@ import {
   channelOverwritesSchema,
   discordMessageSchema,
   type RawDiscordMember,
+  type AuditLogEntry,
 } from './types';
 import type { ChannelOverwrite, DiscordGateway, DiscordMessagePayload, SentMessage } from './gateway';
 
@@ -633,6 +634,63 @@ export function createRestGateway(): DiscordGateway {
           iconHash: result.data.icon ?? null,
           memberCount: result.data.approximate_member_count ?? null,
         }));
+    },
+
+    /**
+     * Audit-Log-Eintraege, neueste zuerst.
+     *
+     * Wird von der Analytics-Ingestion gebraucht, um einem Gateway-Ereignis
+     * einen Verursacher zuzuordnen. Faellt der Abruf aus - fehlende
+     * Berechtigung `VIEW_AUDIT_LOG`, Discord-Stoerung - bleibt der Verursacher
+     * unbekannt; das ist der richtige Ausgang, kein Fehler.
+     */
+    async auditLog(options): Promise<AuditLogEntry[]> {
+      const suche = new URLSearchParams({ limit: String(Math.min(options.limit ?? 10, 100)) });
+      if (options.actionType !== undefined) {
+        suche.set('action_type', String(options.actionType));
+      }
+      if (options.userId) {
+        suche.set('user_id', options.userId);
+      }
+
+      const raw = await discordRequest<{
+        audit_log_entries?: unknown[];
+        users?: Array<{ id?: string; username?: string }>;
+      }>(`${await guildRoute()}/audit-logs?${suche.toString()}`);
+
+      const namen = new Map(
+        (raw.users ?? []).flatMap((benutzer) =>
+          benutzer.id ? [[benutzer.id, benutzer.username ?? null] as const] : [],
+        ),
+      );
+
+      return (raw.audit_log_entries ?? []).flatMap((eintrag) => {
+        const zeile = eintrag as {
+          id?: string;
+          action_type?: number;
+          user_id?: string | null;
+          target_id?: string | null;
+          reason?: string | null;
+          options?: { count?: string; channel_id?: string };
+        };
+        if (!zeile.id || typeof zeile.action_type !== 'number') {
+          return [];
+        }
+        const zahl = Number(zeile.options?.count);
+        return [
+          {
+            id: zeile.id,
+            actionType: zeile.action_type,
+            userId: zeile.user_id ?? null,
+            username: zeile.user_id ? (namen.get(zeile.user_id) ?? null) : null,
+            targetId: zeile.target_id ?? null,
+            reason: zeile.reason ?? null,
+            count: Number.isFinite(zahl) ? zahl : null,
+            channelId: zeile.options?.channel_id ?? null,
+            createdAt: snowflakeToDate(zeile.id) ?? new Date(0),
+          },
+        ];
+      });
     },
   };
 

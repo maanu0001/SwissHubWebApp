@@ -1,4 +1,5 @@
 import {
+  Activity,
   Bell,
   Blocks,
   Bot,
@@ -40,6 +41,7 @@ import {
  * beliebigen Komponenten einschleusen.
  */
 const ICONS: Record<string, LucideIcon> = {
+  Activity,
   Bell,
   Blocks,
   Bot,

@@ -3941,3 +3941,171 @@ model MemberNote {
   @@index([authorDiscordId])
   @@index([createdAt])
 }
+
+// ---------------------------------------------------------------------------
+// Analytics: das Ereignisprotokoll des Discord-Servers
+// ---------------------------------------------------------------------------
+
+/// Grobe Einordnung eines Ereignisses. Die Oberflaeche filtert danach; der
+/// feine Typ steht als String daneben, damit eine neue Ereignisart keinen
+/// Enum-Umbau erzwingt.
+enum DiscordEventCategory {
+  MESSAGE
+  VOICE
+  MEMBER
+  ROLE
+  CHANNEL
+  SERVER
+}
+
+/// Wie schwer ein Ereignis wiegt. Entscheidet ueber Farbe und Vorauswahl in
+/// der Zeitleiste, nicht ueber die Aufbewahrung.
+enum DiscordEventSeverity {
+  INFO
+  NOTICE
+  WARNING
+  CRITICAL
+}
+
+/// Woher die Zuordnung des Verursachers stammt.
+///
+/// Der wichtigste Wert ist `UNKNOWN`: Discord nennt bei einer geloeschten
+/// Nachricht nicht, wer sie geloescht hat. Wer das aus dem Audit Log errät,
+/// schreibt eine Vermutung in ein Protokoll - und ein Protokoll, das raet,
+/// ist schlimmer als keines.
+enum DiscordActorSource {
+  /// Das Gateway-Ereignis nennt den Verursacher selbst.
+  GATEWAY
+  /// Aus Discords Audit Log korreliert - Ziel und Zeitpunkt passten eindeutig.
+  AUDIT_LOG
+  /// Aus einer Aktion dieser Anwendung - wir waren es selbst.
+  WEBAPP
+  /// Nicht zuzuordnen. Keine Vermutung.
+  UNKNOWN
+}
+
+model DiscordEvent {
+  id       String               @id @default(cuid())
+  /// Strikte Trennung nach Server. Jede Abfrage filtert danach.
+  guildId  String
+  category DiscordEventCategory
+  /// Feiner Typ, z.B. `MESSAGE_DELETE`, `VOICE_MOVE`, `MEMBER_ROLE_ADD`.
+  type     String
+  severity DiscordEventSeverity @default(INFO)
+
+  /// Wer es ausgeloest hat - NULL, wenn nicht sicher zuzuordnen.
+  actorDiscordId String?
+  actorUsername  String?
+  actorSource    DiscordActorSource @default(UNKNOWN)
+
+  /// Wen es betrifft. Bei einer Nachricht ihr Verfasser, bei einem Kick der
+  /// Gekickte. Oft, aber nicht immer, verschieden vom Verursacher.
+  subjectDiscordId String?
+  subjectUsername  String?
+
+  channelId   String?
+  /// Kanalname zum Zeitpunkt des Ereignisses - ein umbenannter oder
+  /// geloeschter Kanal macht das Protokoll sonst unlesbar.
+  channelName String?
+  messageId   String?
+
+  /// Inhalt vor und nach der Aenderung.
+  ///
+  /// Beide nullbar: bei einer geloeschten Nachricht gibt es kein «nachher»,
+  /// und ohne Message-Content-Intent gibt es gar keinen Inhalt. Leerer Text
+  /// und «wir wissen es nicht» sind verschiedene Dinge.
+  contentBefore String?
+  contentAfter  String?
+
+  /// Verweis auf eine Massnahme, die diese Anwendung selbst ausgeloest hat.
+  ///
+  /// Ohne ihn erschiene ein Bann aus dem Dashboard zweimal: einmal als
+  /// Moderationsvorgang und einmal als Discord-Ereignis. Die Zeitleiste
+  /// erkennt daran, dass es dasselbe Geschehen ist.
+  moderationActionId String?
+
+  /// Sammel-Loeschung: alle Zeilen eines Vorgangs teilen sich diese Kennung.
+  bulkId String?
+
+  metadata   Json     @default("{}")
+  /// Zeitpunkt bei Discord. `createdAt` ist der Zeitpunkt der Aufnahme - bei
+  /// einem Rueckstand nach einem Neustart liegen die beiden auseinander.
+  occurredAt DateTime
+  createdAt  DateTime @default(now())
+
+  medien DiscordEventMedia[]
+
+  @@index([guildId, occurredAt])
+  @@index([guildId, category, occurredAt])
+  @@index([guildId, type, occurredAt])
+  @@index([guildId, actorDiscordId, occurredAt])
+  @@index([guildId, subjectDiscordId, occurredAt])
+  @@index([guildId, channelId, occurredAt])
+  @@index([guildId, messageId])
+  @@index([bulkId])
+  @@index([moderationActionId])
+}
+
+/// Der letzte bekannte Stand einer Nachricht.
+///
+/// Discord liefert beim Loeschen und oft auch beim Bearbeiten nur die
+/// Kennung, nicht den alten Text. Ohne diesen Stand stuende im Protokoll
+/// «Nachricht geloescht» ohne zu sagen, welche - eine Zeile, die nichts
+/// beantwortet.
+model DiscordMessageSnapshot {
+  messageId String @id
+  guildId   String
+  channelId String
+
+  authorDiscordId String
+  authorUsername  String
+
+  content          String
+  attachmentCount  Int     @default(0)
+  /// Antwort auf welche Nachricht - macht einen Verlauf lesbar.
+  replyToMessageId String?
+
+  /// Zeitpunkt bei Discord.
+  postedAt  DateTime
+  updatedAt DateTime @updatedAt
+
+  @@index([guildId, postedAt])
+  @@index([guildId, channelId, postedAt])
+  @@index([guildId, authorDiscordId, postedAt])
+}
+
+/// Eine archivierte Datei zu einem Ereignis.
+///
+/// Die Datei liegt ausserhalb des oeffentlichen Verzeichnisses und ist nur
+/// ueber eine berechtigungsgepruefte Route erreichbar. `storageKey` wird
+/// serverseitig erzeugt - der Name von Discord waere erratbar und koennte
+/// alles Moegliche enthalten.
+model DiscordEventMedia {
+  id      String       @id @default(cuid())
+  eventId String
+  event   DiscordEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  guildId String
+
+  /// Serverseitig erzeugter Dateiname im geschuetzten Verzeichnis.
+  storageKey  String @unique
+  /// Anzeigename fuer den Download - nur Anzeige, nie ein Pfad.
+  displayName String
+  mimeType    String
+  byteSize    Int
+  /// Inhaltsadresse: erkennt dieselbe Datei in mehreren Ereignissen.
+  sha256      String
+
+  /// Wann die Datei geloescht wird. Es gibt keine unbegrenzte Aufbewahrung.
+  expiresAt DateTime
+  /// Gesetzt, sobald die Datei tatsaechlich vom Datentraeger verschwunden ist.
+  /// Der Eintrag bleibt: «es gab hier eine Datei» ist eine Auskunft, die
+  /// erhalten bleiben soll.
+  deletedAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@index([guildId, createdAt])
+  @@index([expiresAt, deletedAt])
+  @@index([sha256])
+}

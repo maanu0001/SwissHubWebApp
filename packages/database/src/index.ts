@@ -10,7 +10,13 @@ export { Prisma } from '@prisma/client';
 export type {
   ActionStatus,
   ConfigRevision,
+  DiscordActorSource,
   DiscordChannelCache,
+  DiscordEvent,
+  DiscordEventCategory,
+  DiscordEventMedia,
+  DiscordEventSeverity,
+  DiscordMessageSnapshot,
   DiscordRoleCache,
   GuildConfig,
   SyncRun,

@@ -330,6 +330,7 @@ docs/
   COMMUNICATION.md         Neuigkeiten, Events, Umfragen, /post, Erwähnungen
   VOICE_HUB.md             Join-to-Create, Bedienfeld, Besitz, Abgleich
   MEMBER_CENTER.md         Mitgliederakte: Aggregation, Berechtigungen, Geltungsbereiche
+  MODERATION_ANALYTICS.md  Moderation Center und Ereignisprotokoll: Rangfolge, Verursacher, Aufbewahrung
 
 tests/                     Unit- und Integrationstests (Vitest)
 ```
@@ -373,7 +374,7 @@ Alle Marken-Elemente liegen zentral in `packages/config/src/client.ts` (`brandin
 Das mitgelieferte SwissHub-Logo liegt als
 `apps/web/public/branding/swisshub-logo.png` im Projekt. Es ist das
 Standardlogo (`DEFAULT_SWISSHUB_LOGO`) und wird überall dort verwendet, wo im
-Dashboard unter *Branding* kein eigenes Logo hochgeladen wurde - der Fallback
+Dashboard unter _Branding_ kein eigenes Logo hochgeladen wurde - der Fallback
 steht ausschliesslich in `brandingLogoUrl()`, damit ihn keine Seite selbst
 wählen muss. Ein Austausch der Datei genügt zum Rebranding; Codeänderungen sind
 dafür nicht nötig. Ist bei `promo.href` nichts gesetzt, verlinkt die Karte auf
@@ -391,13 +392,13 @@ Bereich mit Seitenleiste.
 
 ### Premium aktivieren
 
-1. **Modul einschalten**: *Module → Premium*. Es ist bewusst standardmässig
+1. **Modul einschalten**: _Module → Premium_. Es ist bewusst standardmässig
    aus, weil es Discord-Rechte braucht und Geld bewegt.
-2. **Discord zuordnen**: *Module → Premium → Einstellungen*. Rollen und
+2. **Discord zuordnen**: _Module → Premium → Einstellungen_. Rollen und
    Kategorie werden als Auswahlliste aus den echten Discord-Daten angeboten -
    IDs muss niemand abtippen.
-3. **Zahlungsanbieter einrichten**: siehe *TWINT/Payment Provider* unten.
-4. **Preis-IDs eintragen**: *Premium → Angebote*. Ohne die Preis-ID des
+3. **Zahlungsanbieter einrichten**: siehe _TWINT/Payment Provider_ unten.
+4. **Preis-IDs eintragen**: _Premium → Angebote_. Ohne die Preis-ID des
    Anbieters lässt sich für ein Angebot kein Checkout starten.
 
 ### Produkte
@@ -405,11 +406,11 @@ Bereich mit Seitenleiste.
 Drei Angebote werden beim ersten Start angelegt und liegen danach in der
 Datenbank - Preise und Texte lassen sich ohne Deployment ändern.
 
-| Angebot         | Preis         | Ansprüche                                            |
-| --------------- | ------------- | ---------------------------------------------------- |
-| Premium         | CHF 5.– / Mt. | `PREMIUM_ROLE`                                        |
-| Premium-Stübli  | CHF 8.– / Mt. | `PREMIUM_STUEBLI_ROLE`, `PRIVATE_VOICE`               |
-| Premium-Bundle  | CHF 10.– / Mt.| `PREMIUM_ROLE`, `PREMIUM_STUEBLI_ROLE`, `PRIVATE_VOICE` |
+| Angebot        | Preis          | Ansprüche                                               |
+| -------------- | -------------- | ------------------------------------------------------- |
+| Premium        | CHF 5.– / Mt.  | `PREMIUM_ROLE`                                          |
+| Premium-Stübli | CHF 8.– / Mt.  | `PREMIUM_STUEBLI_ROLE`, `PRIVATE_VOICE`                 |
+| Premium-Bundle | CHF 10.– / Mt. | `PREMIUM_ROLE`, `PREMIUM_STUEBLI_ROLE`, `PRIVATE_VOICE` |
 
 Beträge stehen als ganze Zahl in Rappen (CHF 5.00 = `500`). Gleitkomma kommt
 bei Geld nirgends vor.
@@ -455,10 +456,10 @@ beim Anbieter auf.
 Was SwissHub dafür braucht:
 
 1. Ein **Stripe-Konto** für die Schweiz (Währung CHF).
-2. TWINT unter *Settings → Payment methods* aktivieren. Stripe schaltet TWINT
+2. TWINT unter _Settings → Payment methods_ aktivieren. Stripe schaltet TWINT
    nach einer Prüfung frei; das ist kein Selbstbedienungsschalter.
 3. Je Angebot ein **wiederkehrender Preis** (monatlich, CHF). Dessen ID
-   (`price_...`) kommt in *Premium → Angebote*.
+   (`price_...`) kommt in _Premium → Angebote_.
 4. Einen **Webhook** auf `https://system.swisshub.gg/api/premium/webhook` mit
    den Ereignissen `checkout.session.completed`,
    `customer.subscription.updated`, `customer.subscription.deleted`,
@@ -533,7 +534,7 @@ fehlschlagenden Zahlungen unbegrenzt weiternutzen.
 
 ### Adminverwaltung
 
-*Premium* in der Seitenleiste, darunter Übersicht, Abonnements, Angebote,
+_Premium_ in der Seitenleiste, darunter Übersicht, Abonnements, Angebote,
 Zahlungen, Stübli und Einstellungen. Berechtigungen (`premium.view`,
 `premium.manage`, `premium.products.manage`, `premium.payments.view`,
 `premium.subscriptions.manage`, `premium.discord.sync`,
@@ -542,14 +543,14 @@ Discord-Rollen vergeben.
 
 ### Troubleshooting
 
-| Beobachtung                                   | Ursache und Abhilfe                                                                                     |
-| --------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
-| Checkout bricht mit „keine Preis-ID" ab       | In *Premium → Angebote* die `price_...` des Anbieters eintragen                                          |
-| Zahlung bestätigt, aber keine Rolle           | *Premium → Abonnements*, Spalte Discord. Bei „Fehler" die Meldung lesen - meist steht die Rolle über der Bot-Rolle |
-| Stübli fehlt                                  | *Premium → Stübli → Abgleichen*. Der Abgleich legt an, was fehlt                                          |
-| Stübli doppelt                                | Kann nicht entstehen - der eindeutige Schlüssel verhindert es. Ein von Hand angelegter Kanal gehört nicht dazu |
-| Start bricht mit `PAYMENT_PROVIDER=mock` ab   | So gewollt. In Production einen echten Anbieter konfigurieren                                            |
-| Webhook antwortet 400                         | Signatur stimmt nicht: falsches `PAYMENT_WEBHOOK_SECRET` oder ein Proxy verändert den Rohkörper           |
+| Beobachtung                                 | Ursache und Abhilfe                                                                                                |
+| ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| Checkout bricht mit „keine Preis-ID" ab     | In _Premium → Angebote_ die `price_...` des Anbieters eintragen                                                    |
+| Zahlung bestätigt, aber keine Rolle         | _Premium → Abonnements_, Spalte Discord. Bei „Fehler" die Meldung lesen - meist steht die Rolle über der Bot-Rolle |
+| Stübli fehlt                                | _Premium → Stübli → Abgleichen_. Der Abgleich legt an, was fehlt                                                   |
+| Stübli doppelt                              | Kann nicht entstehen - der eindeutige Schlüssel verhindert es. Ein von Hand angelegter Kanal gehört nicht dazu     |
+| Start bricht mit `PAYMENT_PROVIDER=mock` ab | So gewollt. In Production einen echten Anbieter konfigurieren                                                      |
+| Webhook antwortet 400                       | Signatur stimmt nicht: falsches `PAYMENT_WEBHOOK_SECRET` oder ein Proxy verändert den Rohkörper                    |
 
 ## Erste Schritte in der WebApp
 
@@ -613,9 +614,9 @@ Discord-Rollen vergeben.
 | Logo-Upload schlägt fehl                                       | `npm run doctor` prüft im Abschnitt _Uploads_, ob das Verzeichnis beschreibbar ist. Hinter nginx zusätzlich `client_max_body_size` (mindestens 8m) kontrollieren.                                                |
 | `/spielersuche` findet keine Spiele                            | Unter _Spielersuche -> Spiele_ ist kein aktives Spiel hinterlegt.                                                                                                                                                |
 | Spielersuche erstellt keinen Sprachkanal                       | Voice-Kategorie fehlt (_Spielersuche -> Einstellungen_) oder dem Bot fehlt dort `Kanäle verwalten`.                                                                                                              |
-| Betreten des Hub-Channels erzeugt keinen Talk                  | Modul aus, Wartungsmodus an, oder der Rolle fehlt `voiceHub.use`. _Module -> Voice Hub_ nennt im Gesundheitsbereich, was fehlt.                                                                                   |
+| Betreten des Hub-Channels erzeugt keinen Talk                  | Modul aus, Wartungsmodus an, oder der Rolle fehlt `voiceHub.use`. _Module -> Voice Hub_ nennt im Gesundheitsbereich, was fehlt.                                                                                  |
 | Talk entsteht, aber niemand landet darin                       | Dem Bot fehlt `Mitglieder verschieben` in der Zielkategorie.                                                                                                                                                     |
-| Im Talk fehlt das Bedienfeld                                   | Dem Bot fehlt `Nachrichten senden` oder `Links einbetten` im Kanal. Der Talk bleibt bedienbar - im Dashboard unter _Voice Hub -> Talks_, oder über **Mehr -> Bedienfeld erneuern**.                               |
+| Im Talk fehlt das Bedienfeld                                   | Dem Bot fehlt `Nachrichten senden` oder `Links einbetten` im Kanal. Der Talk bleibt bedienbar - im Dashboard unter _Voice Hub -> Talks_, oder über **Mehr -> Bedienfeld erneuern**.                              |
 | Spielrolle wird nicht gepingt                                  | Sperrfrist je Spiel (Standard 5 Minuten). Die Suche entsteht trotzdem; die Rückmeldung nennt die verbleibende Zeit.                                                                                              |
 | Slash Commands erscheinen nicht auf Discord                    | Der Bot muss mit dem Scope `applications.commands` eingeladen sein; die Befehle werden beim Start pro Server registriert (Bot-Log prüfen).                                                                       |
 | `/jail` meldet "kei Berächtigung"                              | Die Berechtigungen sind dieselben wie im Dashboard: _Server -> Berechtigungen_, Rolle mit `jail.create` bzw. `jail.release` versehen.                                                                            |
@@ -634,3 +635,4 @@ Discord-Rollen vergeben.
 - [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) - Produktivbetrieb auf einem eigenen Server
 - [docs/XP_RAFFLE.md](docs/XP_RAFFLE.md) - XP-Verlosungen: Einsatzmodelle, Fairness, Ziehung, Rückzahlungen
 - [docs/COMMUNICATION.md](docs/COMMUNICATION.md) - Kommunikation: Events, `/post`, Erwähnungen, Fehlerbehandlung
+- [docs/MODERATION_ANALYTICS.md](docs/MODERATION_ANALYTICS.md) - Moderation Center und Analytics: Rangfolge, Verursacher, Aufbewahrung

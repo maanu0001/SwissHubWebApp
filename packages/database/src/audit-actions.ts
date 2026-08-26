@@ -162,6 +162,12 @@ export const AUDIT_ACTIONS = {
   MODERATION_TIMEOUT: 'MODERATION_TIMEOUT',
   MODERATION_TIMEOUT_REMOVE: 'MODERATION_TIMEOUT_REMOVE',
   MODERATION_NOTE: 'MODERATION_NOTE',
+  // --- Analytics -----------------------------------------------------------
+  // Nur die Zugriffe, die Daten aus dem System heraustragen. Das Lesen der
+  // Zeitleiste selbst wird nicht protokolliert - ein Protokoll jeder
+  // geoeffneten Seite waere eine Bewegungsakte ueber die Mitarbeiter.
+  ANALYTICS_MEDIA_DOWNLOAD: 'ANALYTICS_MEDIA_DOWNLOAD',
+  ANALYTICS_EXPORT: 'ANALYTICS_EXPORT',
   LEVEL_CUSTOM_CARD_CHANGED: 'LEVEL_CUSTOM_CARD_CHANGED',
   MEMBER_ROLE_GRANTED: 'MEMBER_ROLE_GRANTED',
   MEMBER_ROLE_REVOKED: 'MEMBER_ROLE_REVOKED',

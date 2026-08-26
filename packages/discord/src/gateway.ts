@@ -1,4 +1,12 @@
-import type { BotGuild, BotIdentity, GuildChannel, GuildMember, GuildRole, GuildSummary } from './types';
+import type {
+  AuditLogEntry,
+  BotGuild,
+  BotIdentity,
+  GuildChannel,
+  GuildMember,
+  GuildRole,
+  GuildSummary,
+} from './types';
 
 /**
  * Zentrale Discord-Abstraktion.
@@ -164,6 +172,19 @@ export interface DiscordGateway {
     memberCount(): Promise<number | null>;
     /** Guilds, in denen der Bot Mitglied ist (automatische Server-Erkennung). */
     listBotGuilds(): Promise<BotGuild[]>;
+    /**
+     * Discords eigenes Audit Log.
+     *
+     * Gebraucht, um bei einem Gateway-Ereignis herauszufinden, wer es
+     * ausgeloest hat: das Ereignis selbst nennt es oft nicht. Discord
+     * verdichtet allerdings mehrere gleichartige Vorgaenge zu einem Eintrag,
+     * und der Zeitstempel steckt nur in der Snowflake - eine Zuordnung ist
+     * deshalb nie sicher, sondern hoechstens plausibel. Der Aufrufer
+     * entscheidet, ab wann sie ihm genuegt.
+     *
+     * @param actionType Discords numerischer Typ (z.B. 72 = Nachricht geloescht).
+     */
+    auditLog(options: { actionType?: number; userId?: string; limit?: number }): Promise<AuditLogEntry[]>;
   };
   bot: {
     identity(): Promise<BotIdentity>;

@@ -29,6 +29,7 @@ import { registerVoicePresence } from './voice-presence';
 import { registerLevelGameButtons } from './level-games';
 import { registerTicketInteractions } from './ticket-interactions';
 import { registerTicketMessageSync } from './ticket-messages';
+import { registerAnalyticsEvents } from './analytics-events';
 import { registerTournamentInteractions } from './tournament-interactions';
 import { recoverVoiceHub, registerVoiceHub } from './voice-hub';
 import { registerVoiceInteractions } from './voice-interactions';
@@ -97,6 +98,9 @@ async function main(): Promise<void> {
       // Spielersuche-Kanäle. Ohne dieses Intent liefert Discord die
       // Ereignisse nicht - die Handler liefen bisher ins Leere.
       GatewayIntentBits.GuildVoiceStates,
+      // Bann und Entbannung als Ereignis - ohne dieses Intent liefert Discord
+      // sie nicht, und im Verlauf fehlte genau das, was am schwersten wiegt.
+      GatewayIntentBits.GuildModeration,
     ],
   });
 
@@ -151,6 +155,11 @@ async function main(): Promise<void> {
   };
 
   const isActiveGuild = (candidate: string): boolean => guildId === null || candidate === guildId;
+
+  // Das Ereignisprotokoll. Erst hier, weil es `isActiveGuild` braucht; ob
+  // tatsaechlich aufgezeichnet wird, entscheidet das Modul selbst - hier
+  // werden nur die Zuhoerer angemeldet.
+  registerAnalyticsEvents(client, isActiveGuild, messageContent);
 
   client.once(Events.ClientReady, async (readyClient) => {
     status.online = true;

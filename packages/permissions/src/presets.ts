@@ -199,6 +199,10 @@ export const PERMISSION_PRESETS: PermissionPreset[] = [
       'moderation.notes.create',
       'audit.view',
       'settings.view',
+      // Der Verlauf der Server-Ereignisse - ohne Nachrichteninhalte. Wer
+      // gelöschte Texte lesen darf, bekommt `analytics.content.view` einzeln
+      // zugewiesen; das ist keine Vorlagenentscheidung.
+      'analytics.view',
       'jail.view',
       'jail.create',
       'jail.release',

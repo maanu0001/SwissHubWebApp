@@ -434,6 +434,12 @@ export function createMockGateway(): DiscordGateway {
           { id: '000000000000000000', name: 'SwissHub (Mock)', iconHash: null, memberCount: state.size },
         ];
       },
+      async auditLog() {
+        // Der Mock kennt kein Audit Log. Eine leere Liste ist die richtige
+        // Antwort: sie fuehrt dazu, dass kein Verursacher zugeordnet wird -
+        // genau das soll geschehen, wenn nichts belegbar ist.
+        return [];
+      },
     },
     bot: {
       async identity() {

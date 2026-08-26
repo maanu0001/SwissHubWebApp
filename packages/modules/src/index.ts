@@ -10,6 +10,8 @@ import './spielersuche/config';
 import './level/config';
 import './tournaments/config';
 import './voice-hub/config';
+// Analytics registriert sich beim Import - wie jedes andere Modul auch.
+import './analytics/config';
 import { registerGuildResolver } from './guild/config';
 
 // Ab hier löst jeder Discord-Aufruf die Guild aus der Datenbank auf.
@@ -45,3 +47,4 @@ export * from './members/avatars';
 // Aufrufer von `searchMembers` und `getMemberProfile` unveraendert laufen.
 export * as members from './members';
 export * as moderation from './moderation';
+export * as analytics from './analytics';

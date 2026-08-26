@@ -13,6 +13,11 @@ export const RATE_LIMITS = {
   memberSearch: { limit: 40, windowMs: 60 * 1000 },
   memberCenter: { limit: 60, windowMs: 5 * 60 * 1000 },
   moderationWrite: { limit: 30, windowMs: 5 * 60 * 1000 },
+  // Der Abruf einer Archivdatei ist einzeln billig, in Serie aber ein
+  // Abzug des ganzen Archivs.
+  analyticsDownload: { limit: 60, windowMs: 5 * 60 * 1000 },
+  // Ein Export zieht bis zu 5000 Zeilen - selten und teuer.
+  analyticsExport: { limit: 5, windowMs: 10 * 60 * 1000 },
   jailCreate: { limit: 10, windowMs: 5 * 60 * 1000 },
   jailRelease: { limit: 20, windowMs: 5 * 60 * 1000 },
   settingsWrite: { limit: 30, windowMs: 5 * 60 * 1000 },

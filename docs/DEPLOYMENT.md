@@ -385,23 +385,76 @@ Tokens, Cookies oder Secrets.
 
 ### Updates einspielen
 
+Auf dem Server ist dafür **kein Befehl** nötig. Ein Push auf den Branch
+`production` startet `.github/workflows/deploy.yml`, und der Workflow erledigt
+beides - Prüfung und Ausrollen:
+
+```bash
+git checkout production
+git merge --ff-only claude/swisshub-bot-webapp-rmljzl
+git push origin production
+```
+
+Der Workflow läuft in zwei Schritten, der zweite nur nach dem ersten
+(`needs: validate`):
+
+| Job        | Inhalt                                                          |
+| ---------- | --------------------------------------------------------------- |
+| `validate` | `npm ci`, `db:generate`, Lint, Typecheck, **alle** Tests, Build |
+| `deploy`   | Baut die Abbilder auf dem Server, startet neu und prüft nach    |
+
+Die Tests laufen gegen ein echtes PostgreSQL 16 als Service-Container. Ohne
+`SWISSHUB_TEST_DATABASE_URL` überspringen sich die datenbankgestützten Tests
+selbst - sie wären grün, ohne je gelaufen zu sein. Deshalb setzt der Job diese
+Variable; die übrigen Werte im Job sind Wegwerfwerte, `DEV_MOCK_DISCORD=true`
+hält das Gateway bei der Attrappe.
+
+Nach `docker compose build` und `up -d` prüft der Deploy-Job für `web`, `bot`
+und `music-runtime` einzeln, ob der laufende Container wirklich die ID des
+frisch gebauten Abbilds trägt, und ersetzt gezielt nur die Abweichler
+(`up -d --force-recreate --no-deps <dienst>`). Damit das überhaupt prüfbar ist,
+tragen die Dienste in `docker-compose.prod.yml` feste `image:`-Namen
+(`swisshub-web:latest` usw.) statt von Compose abgeleiteter. Genau hier lag die
+Ursache dafür, dass der Bot nach einem Deployment weiter auf dem alten Abbild
+lief.
+
+Anschliessend verifiziert der Job:
+
+- der `migrate`-Container ist mit Exit-Code `0` beendet,
+- `web`, `bot` und `music-runtime` sind `running` **und** `healthy`
+  (bis zu 300 Sekunden Wartezeit, danach Fehler samt Logauszug),
+- `https://system.swisshub.gg` antwortet mit einem Erfolgsstatus.
+
+Scheitert einer dieser Punkte, bricht das Skript mit `exit 1` ab und der
+GitHub-Actions-Run ist rot. Ein fehlerhafter Stand wird nicht als erfolgreich
+gemeldet.
+
+Der Bot hat keine Schnittstelle, die man anfragen könnte - «Prozess läuft»
+wäre auch dann wahr, wenn die Verbindung zu Discord abgerissen ist. Er schreibt
+deshalb in jedem Herzschlag-Durchgang (alle 20 Sekunden) nach
+`/tmp/swisshub-bot-alive`; der Healthcheck prüft, ob diese Datei jünger als
+zwei Minuten ist. Über `SWISSHUB_BOT_LIVENESS_FILE` lässt sich der Pfad ändern.
+
+Migrationen laufen automatisch über den `migrate`-Dienst; `web`, `bot` und
+`music-runtime` starten erst nach dessen erfolgreichem Ende
+(`service_completed_successfully`). Bot und WebApp fahren bei einem Neustart
+kontrolliert herunter; laufende Jails bleiben in der Datenbank und werden
+danach normal weiterverarbeitet.
+
+Ein Deployment von Hand bleibt möglich, ist aber der Ausnahmefall (etwa wenn
+GitHub nicht erreichbar ist):
+
 ```bash
 cd /opt/swisshub
 sudo -u swisshub git pull
-
-# Variante A
 sudo docker compose -f docker-compose.prod.yml up -d --build
-
-# Variante B
-sudo -u swisshub npm ci
-sudo -u swisshub npm run db:deploy
-sudo -u swisshub npm run build
-sudo systemctl restart swisshub-web swisshub-bot
 ```
 
-Migrationen laufen bei Variante A automatisch über den `migrate`-Dienst.
-Bot und WebApp fahren bei einem Neustart kontrolliert herunter; laufende Jails
-bleiben in der Datenbank und werden danach normal weiterverarbeitet.
+#### Benötigte Repository-Secrets
+
+`DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_SSH_KEY`, `DEPLOY_PORT`. Der Workflow
+gibt sie niemals aus; `script_stop: true` bricht beim ersten Fehler ab, und
+`concurrency: swisshub-production` verhindert zwei gleichzeitige Deployments.
 
 ### Backups
 

@@ -1,3 +1,4 @@
+import { writeFile } from 'node:fs/promises';
 import { jobConfig } from '@swisshub/config';
 import { createLogger } from '@swisshub/logger';
 import { purgeExpiredIdempotencyKeys } from '@swisshub/database';
@@ -18,6 +19,32 @@ import {
 } from '@swisshub/modules';
 
 const log = createLogger('bot:jobs');
+
+/**
+ * Datei, an deren Alter Docker erkennt, ob der Bot noch arbeitet.
+ *
+ * Der Bot hat keine Schnittstelle, die man anfragen koennte - er redet mit
+ * Discord und mit der Datenbank, sonst mit niemandem. Ein Gesundheitscheck
+ * braucht aber etwas, das von aussen pruefbar ist.
+ *
+ * Nicht «laeuft der Prozess»: das waere er auch dann noch, wenn die
+ * Verbindung zu Discord abgerissen und jeder Job stehengeblieben ist. Die
+ * Datei entsteht im selben Durchgang wie der Herzschlag in der Datenbank -
+ * ist sie frisch, dreht sich die Job-Schleife wirklich noch.
+ *
+ * `/tmp` und nicht das Upload-Verzeichnis: dort liegt der Bot nur lesend.
+ */
+export const LEBENSZEICHEN_DATEI = process.env.SWISSHUB_BOT_LIVENESS_FILE ?? '/tmp/swisshub-bot-alive';
+
+async function beruehreLebenszeichen(): Promise<void> {
+  try {
+    await writeFile(LEBENSZEICHEN_DATEI, new Date().toISOString(), 'utf8');
+  } catch (error) {
+    // Kein Grund, den Durchgang scheitern zu lassen - der Herzschlag in der
+    // Datenbank ist die eigentliche Auskunft.
+    log.debug('Lebenszeichen konnte nicht geschrieben werden', { error });
+  }
+}
 
 export interface JobRunner {
   start(): void;
@@ -71,6 +98,7 @@ export function createJobRunner(
           botUsername: status.botUsername,
           version: process.env.npm_package_version ?? '1.0.0',
         });
+        await beruehreLebenszeichen();
       },
     },
     {

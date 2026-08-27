@@ -14,6 +14,45 @@ jobs:
     name: Validate
     runs-on: ubuntu-latest
 
+    # Die datenbankgestützten Tests laufen gegen ein echtes PostgreSQL. Ohne
+    # `SWISSHUB_TEST_DATABASE_URL` überspringen sie sich selbst - dann wären
+    # rund hundert Prüfungen grün, ohne je gelaufen zu sein.
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: swisshub
+          POSTGRES_PASSWORD: swisshub
+          POSTGRES_DB: swisshub
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U swisshub"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      # Wegwerfwerte allein für Typecheck, Tests und Build. Sie erreichen
+      # weder Discord noch einen Zahlungsanbieter: `DEV_MOCK_DISCORD` schaltet
+      # das Gateway auf die Attrappe, und `NODE_ENV` bleibt `test`.
+      NODE_ENV: test
+      DATABASE_URL: postgresql://swisshub:swisshub@localhost:5432/swisshub
+      SHADOW_DATABASE_URL: postgresql://swisshub:swisshub@localhost:5432/swisshub_shadow
+      SWISSHUB_TEST_DATABASE_URL: postgresql://swisshub:swisshub@localhost:5432/swisshub
+      AUTH_SECRET: ci-nur-fuer-die-pipeline-mindestens-32-zeichen-lang
+      SESSION_SECRET: ci-nur-fuer-die-pipeline-mindestens-32-zeichen-lang
+      DISCORD_BOT_TOKEN: MTAwMDAwMDAwMDAwMDAwMDAw.Gci000.ci-attrappe-kein-echter-token
+      DISCORD_CLIENT_ID: '100000000000000000'
+      DISCORD_CLIENT_SECRET: ci-attrappe-kein-echtes-secret
+      DISCORD_GUILD_ID: '100000000000000002'
+      NEXT_PUBLIC_APP_URL: http://localhost:3000
+      DEV_MOCK_DISCORD: 'true'
+      PAYMENT_PROVIDER: mock
+      PAYMENT_API_KEY: ci-attrappe
+      PAYMENT_WEBHOOK_SECRET: ci-attrappe
+      MUSIC_RUNTIME_KEY: ci-attrappe
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -27,14 +66,25 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Typecheck
-        run: npm run typecheck --if-present
+      - name: Generate Prisma client
+        run: npm run db:generate
 
       - name: Lint
-        run: npm run lint --if-present
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Tests
+        run: npm test
+
+      - name: Production build
+        run: npm run build
 
   deploy:
     name: Deploy Production
+    # Ohne `needs` liefe das Deployment parallel zur Prüfung. Erst wenn Lint,
+    # Typecheck, Tests und Build durch sind, darf etwas auf den Server.
     needs: validate
     runs-on: ubuntu-latest
 
@@ -47,36 +97,119 @@ jobs:
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           port: ${{ secrets.DEPLOY_PORT }}
           script_stop: true
+          command_timeout: 30m
           script: |
-            set -e
+            set -euo pipefail
 
             cd /opt/swisshub
+            COMPOSE="docker compose -f docker-compose.prod.yml"
 
             echo "=== SwissHub Production Deployment ==="
 
-            echo "1. Lade neuesten Production-Stand..."
+            echo "1. Lade neuesten Production-Stand ..."
             git fetch origin production
             git checkout production
             git reset --hard origin/production
+            echo "   Stand: $(git rev-parse --short HEAD) $(git log -1 --pretty=%s)"
 
-            echo "2. Baue Docker Images..."
-            docker compose -f docker-compose.prod.yml build
+            echo "2. Baue Docker Images ..."
+            $COMPOSE build
 
-            echo "3. Starte Migration und Services..."
-            docker compose -f docker-compose.prod.yml up -d
+            echo "3. Starte Migration und Services ..."
+            $COMPOSE up -d --remove-orphans
 
-            echo "4. Warte auf Services..."
-            sleep 20
+            # ---------------------------------------------------------------
+            # 4. Laeuft jeder Dienst wirklich auf dem frisch gebauten Abbild?
+            #
+            # Compose entscheidet selbst, ob ein Container ersetzt werden muss,
+            # und lag damit schon daneben: der Bot lief nach einem Deployment
+            # weiter auf dem alten Abbild. Statt blind alles neu zu starten -
+            # das kostet bei jedem Deployment unnoetig Ausfallzeit - wird hier
+            # verglichen und nur ersetzt, was tatsaechlich abweicht.
+            # ---------------------------------------------------------------
+            echo "4. Pruefe, ob die Container auf den neuen Abbildern laufen ..."
+            for dienst in web bot music-runtime; do
+              soll=$(docker image inspect --format '{{.Id}}' "swisshub-${dienst}:latest")
+              behaelter=$($COMPOSE ps -q "$dienst" || true)
+              ist=""
+              if [ -n "$behaelter" ]; then
+                ist=$(docker inspect --format '{{.Image}}' "$behaelter")
+              fi
 
-            echo "5. Prüfe Container..."
-            docker compose -f docker-compose.prod.yml ps
+              if [ "$soll" != "$ist" ]; then
+                echo "   $dienst laeuft nicht auf dem neuen Abbild - wird ersetzt."
+                $COMPOSE up -d --force-recreate --no-deps "$dienst"
+              else
+                echo "   $dienst ist aktuell."
+              fi
+            done
 
-            echo "6. Prüfe WebApp..."
-            curl --fail \
-              --silent \
-              --show-error \
-              --max-time 30 \
-              https://system.swisshub.gg \
-              > /dev/null
+            echo "5. Pruefe die Migration ..."
+            migrate_container=$($COMPOSE ps -aq migrate | head -n1)
+            if [ -z "$migrate_container" ]; then
+              echo "FEHLER: Es gibt keinen Migrations-Container."
+              exit 1
+            fi
+            migrate_code=$(docker inspect --format '{{.State.ExitCode}}' "$migrate_container")
+            if [ "$migrate_code" != "0" ]; then
+              echo "FEHLER: Die Migration ist mit Code $migrate_code gescheitert."
+              docker logs --tail 100 "$migrate_container"
+              exit 1
+            fi
+            echo "   Migration sauber durchgelaufen."
+
+            # ---------------------------------------------------------------
+            # 6. Warten, bis die Dienste gesund sind.
+            #
+            # Nicht `sleep 20` und hoffen: der Bot meldet sich wegen Anmeldung
+            # und Slash-Command-Registrierung erst nach gut einer Minute, und
+            # ein fester Schlaf waere entweder zu kurz oder verschenkte Zeit.
+            # ---------------------------------------------------------------
+            echo "6. Warte auf gesunde Container ..."
+            warte_auf_gesund() {
+              dienst="$1"
+              grenze=$(( $(date +%s) + 300 ))
+              while true; do
+                behaelter=$($COMPOSE ps -q "$dienst" || true)
+                if [ -z "$behaelter" ]; then
+                  echo "FEHLER: $dienst laeuft nicht."
+                  exit 1
+                fi
+
+                zustand=$(docker inspect --format '{{.State.Status}}' "$behaelter")
+                gesundheit=$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' "$behaelter")
+
+                if [ "$zustand" != "running" ]; then
+                  echo "FEHLER: $dienst ist $zustand."
+                  docker logs --tail 100 "$behaelter"
+                  exit 1
+                fi
+                if [ "$gesundheit" = "healthy" ]; then
+                  echo "   $dienst: healthy"
+                  return 0
+                fi
+                if [ "$gesundheit" = "none" ]; then
+                  echo "   $dienst: laeuft (ohne Gesundheitscheck)"
+                  return 0
+                fi
+                if [ "$(date +%s)" -ge "$grenze" ]; then
+                  echo "FEHLER: $dienst wurde nicht gesund (zuletzt: $gesundheit)."
+                  docker logs --tail 100 "$behaelter"
+                  exit 1
+                fi
+                sleep 5
+              done
+            }
+
+            warte_auf_gesund web
+            warte_auf_gesund bot
+            warte_auf_gesund music-runtime
+
+            echo "7. Uebersicht:"
+            $COMPOSE ps
+
+            echo "8. Pruefe die WebApp von aussen ..."
+            curl --fail --silent --show-error --max-time 30 https://system.swisshub.gg > /dev/null
+            echo "   system.swisshub.gg antwortet."
 
             echo "=== DEPLOYMENT ERFOLGREICH ==="

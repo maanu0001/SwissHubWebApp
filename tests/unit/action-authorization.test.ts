@@ -24,6 +24,10 @@ const EXPLICIT_CHECKS = [
   'assertConfigurationAccess',
   'assertSetupAccess',
   'assertPermission',
+  // Kalender: die Zustaendigkeit fuer genau diesen Termin. `calendar.edit`
+  // deckt alle Termine ab, `calendar.manageOwn` nur die eigenen - das laesst
+  // sich nicht als eine feste Permission ausdruecken.
+  'requireEventZugriff',
 ];
 
 interface Action {
@@ -55,7 +59,11 @@ describe('Server Actions', () => {
   it.each(actions.map((a) => [`${a.file.split('/').at(-2)}/${a.name}`, a] as const))(
     '%s prüft die Berechtigung',
     (_label, action) => {
-      const declared = /\bpermission:\s*\S/.test(action.body);
+      // `permission: undefined` erfuellt zwar die Schreibweise, deklariert
+      // aber nichts - es waere ein Waechter, der bei der einen Form
+      // wegsieht, auf die es ankommt.
+      const declared =
+        /\bpermission:\s*\S/.test(action.body) && !/\bpermission:\s*undefined/.test(action.body);
       const explicit = EXPLICIT_CHECKS.some((check) => action.body.includes(check));
       // Dritte zulässige Form: Selbstbedienung. Die Aktion wirkt dann
       // ausschliesslich auf die Daten des Aufrufers und braucht keine

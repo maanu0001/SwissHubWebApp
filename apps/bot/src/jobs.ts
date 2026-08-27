@@ -6,6 +6,7 @@ import { purgeExpiredSessions } from '@swisshub/auth';
 import { tryResolveGuildId } from '@swisshub/discord';
 import {
   analytics,
+  calendar,
   jail,
   level,
   spielersuche,
@@ -200,6 +201,49 @@ export function createJobRunner(
             log.warn('Selbsttätige Ziehung nicht möglich', { raffleId: raffle.id, error });
           }
         }
+      },
+    },
+    {
+      name: 'calendar-schedule',
+      // Zeitsteuerung des Community-Kalenders: Events auf «läuft» und
+      // «beendet» fortschreiben, wenn ihre Zeiten erreicht sind.
+      //
+      // Der Zustand steht in der Datenbank, nicht in Zeitgebern - ein
+      // Neustart verliert deshalb keine Frist, und nach einem Ausfall über
+      // Nacht wird nachgeholt, was fällig geworden ist.
+      intervalMs: 60 * 1000,
+      async run() {
+        const { isModuleEnabled } = await import('@swisshub/modules');
+        if (!(await isModuleEnabled(calendar.CALENDAR_MODULE_ID))) {
+          return;
+        }
+        const ergebnis = await calendar.runCalendarTick();
+        if (ergebnis.gestartet.length > 0 || ergebnis.beendet.length > 0) {
+          log.info('Kalender fortgeschrieben', {
+            gestartet: ergebnis.gestartet.length,
+            beendet: ergebnis.beendet.length,
+          });
+        }
+      },
+    },
+    {
+      name: 'calendar-reminders',
+      // Fällige Erinnerungen verschicken.
+      //
+      // Häufiger als die Zeitsteuerung: eine Erinnerung «15 Minuten vorher»
+      // soll auf die Minute genau kommen, nicht irgendwann danach. Der Lauf
+      // selbst ist billig - ohne fällige Zeile liest er nichts.
+      //
+      // Doppelte Nachrichten verhindert der Lauf selbst: er belegt jede
+      // Erinnerung unter einer Bedingung, die nur einmal zutrifft. Auch bei
+      // mehreren Bot-Instanzen sendet damit genau eine.
+      intervalMs: 30 * 1000,
+      async run() {
+        const { isModuleEnabled } = await import('@swisshub/modules');
+        if (!(await isModuleEnabled(calendar.CALENDAR_MODULE_ID))) {
+          return;
+        }
+        await calendar.runReminderTick();
       },
     },
     {

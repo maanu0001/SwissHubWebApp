@@ -4319,3 +4319,310 @@ model AnalyticsMemberProfile {
   @@index([guildId, leftAt])
   @@index([guildId, firstActivityAt])
 }
+
+// ---------------------------------------------------------------------------
+// Community-Kalender
+//
+// Ein Termin ist eine Zeile in `CalendarEvent`; alles andere haengt daran.
+// Bewusst kein zweites Ankuendigungs- oder Anmeldesystem: der Kalender folgt
+// den Mustern, die Turniere und Verlosungen schon verwenden - Ankuendigung
+// mit gemerkter `discordMessageId` zum spaeteren Fortschreiben, Anmeldung
+// unter Zeilensperre, Zeitsteuerung als wiederholter Lauf gegen die Datenbank
+// statt als Zeitgeber im Arbeitsspeicher.
+//
+// Zeiten stehen als UTC in der Datenbank. Die Anzeigezone (Vorgabe
+// Europe/Zurich) haengt am Termin, damit ein Sommerzeitwechsel zwischen
+// Anlage und Durchfuehrung die Ortszeit nicht verschiebt.
+// ---------------------------------------------------------------------------
+
+enum CalendarEventStatus {
+  /// Nur fuer Berechtigte sichtbar.
+  DRAFT
+  /// Veroeffentlicht und noch nicht begonnen.
+  SCHEDULED
+  /// Laeuft gerade.
+  ONGOING
+  /// Vorbei.
+  COMPLETED
+  /// Abgesagt. Der Termin bleibt stehen - geloescht wird er nicht.
+  CANCELLED
+}
+
+enum CalendarLocationKind {
+  DISCORD
+  ONLINE
+  OFFLINE
+  HYBRID
+}
+
+enum CalendarRegistrationStatus {
+  CONFIRMED
+  WAITLIST
+  CANCELLED
+}
+
+/// Wofuer eine Ankuendigung oder Benachrichtigung stand.
+///
+/// Zusammen mit der Termin-Kennung eindeutig - genau das verhindert, dass ein
+/// wiederholter Lauf zweimal postet.
+enum CalendarNoticeKind {
+  ANNOUNCEMENT
+  REMINDER
+  UPDATE
+  CANCELLED
+}
+
+model CalendarCategory {
+  id      String @id @default(cuid())
+  guildId String
+
+  /// Teil der Adresse und stabiler Bezug in Filtern.
+  slug        String
+  name        String
+  description String?
+  /// Farbe als Hex (#RRGGBB) - dieselbe Schreibweise wie im Levelmodul.
+  color       String  @default("#83060A")
+  /// Lucide-Symbolname, wie in der Navigation.
+  icon        String?
+  active      Boolean @default(true)
+  /// Anzeigereihenfolge in Auswahllisten.
+  position    Int     @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  events CalendarEvent[]
+
+  @@unique([guildId, slug])
+  @@index([guildId, active, position])
+}
+
+model CalendarEvent {
+  id      String @id @default(cuid())
+  guildId String
+
+  /// Teil der Adresse: /kalender/<slug>. Je Server eindeutig.
+  slug             String
+  title            String
+  /// Volltext als Markdown - dieselbe Darstellung wie im Turniermodul.
+  description      String  @db.Text
+  /// Eine Zeile fuer Kachel und Discord-Embed.
+  shortDescription String?
+
+  categoryId String?
+  category   CalendarCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+
+  status CalendarEventStatus @default(DRAFT)
+
+  // --- Zeit --------------------------------------------------------------
+  /// Beginn in UTC.
+  startAt  DateTime
+  /// Ende in UTC. Ohne Ende gilt der Termin als punktuell; die Anzeige und
+  /// der ICS-Export setzen dann eine Vorgabedauer ein.
+  endAt    DateTime?
+  /// Anzeigezone. Ohne sie waere eine Zeit ueber die Zeitumstellung hinweg
+  /// nicht eindeutig zurueckzurechnen.
+  timezone String   @default("Europe/Zurich")
+  allDay   Boolean  @default(false)
+
+  // --- Ort ---------------------------------------------------------------
+  locationKind      CalendarLocationKind @default(DISCORD)
+  /// Textkanal des Geschehens (nicht der Ankuendigungskanal).
+  locationChannelId String?
+  locationVoiceId   String?
+  /// Adresse fuer ONLINE, Einladungslink fuer DISCORD.
+  locationUrl       String?
+  /// Name des Veranstaltungsorts bei OFFLINE.
+  locationName      String?
+  locationAddress   String?
+
+  // --- Medien ------------------------------------------------------------
+  bannerUrl String?
+  iconUrl   String?
+
+  // --- Verantwortliche ---------------------------------------------------
+  /// Wer den Termin angelegt hat. Bleibt stehen, auch wenn die Person
+  /// spaeter ihre Berechtigung verliert - sonst waere der Verlauf luecken-
+  /// haft. Ob sie noch handeln darf, entscheidet die Rechtepruefung, nicht
+  /// dieses Feld.
+  createdByDiscordId String
+  /// Organisatoren als Discord-Kennungen. Sie duerfen den Termin verwalten,
+  /// sofern ihre Rolle es zulaesst.
+  organizerDiscordIds String[]
+  /// Frei benannter Ansprechpartner, wenn es keine Discord-Person ist.
+  contactNote         String?
+
+  // --- Anmeldung ---------------------------------------------------------
+  registrationEnabled Boolean   @default(false)
+  /// 0 = keine Obergrenze.
+  capacity            Int       @default(0)
+  registrationClosesAt DateTime?
+  waitlistEnabled     Boolean   @default(true)
+  /// Duerfen Angemeldete selbst zuruecktreten?
+  allowSelfCancel     Boolean   @default(true)
+  cancelDeadlineAt    DateTime?
+  /// Teilnehmerliste fuer alle Mitglieder sichtbar, oder nur fuer die
+  /// Verwaltung?
+  participantsPublic  Boolean   @default(true)
+
+  // --- Discord -----------------------------------------------------------
+  announceOnDiscord   Boolean @default(false)
+  announcementChannelId String?
+  /// Rolle, die bei Ankuendigung und Erinnerung erwaehnt wird. Erlaubt ist
+  /// nur, was in den Moduleinstellungen freigegeben wurde - ein freies
+  /// Textfeld waere ein Ping-Knopf fuer den ganzen Server.
+  mentionRoleId       String?
+  discordMessageId    String?
+  /// Gesetzt, wenn die Ankuendigung nicht mehr auffindbar ist.
+  discordMessageMissing Boolean @default(false)
+
+  // --- Lebenslauf --------------------------------------------------------
+  publishedAt DateTime?
+  startedAt   DateTime?
+  completedAt DateTime?
+  cancelledAt DateTime?
+  cancelReason String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  registrations CalendarRegistration[]
+  reminders     CalendarReminder[]
+  notices       CalendarNotice[]
+  questions     CalendarQuestion[]
+
+  @@unique([guildId, slug])
+  @@index([guildId, status, startAt])
+  @@index([guildId, startAt])
+  @@index([guildId, endAt])
+  @@index([guildId, categoryId, startAt])
+  @@index([status, startAt])
+}
+
+/// Zusatzfrage zu einem Termin, z.B. Ingame-Name oder Wunschrolle.
+model CalendarQuestion {
+  id      String        @id @default(cuid())
+  eventId String
+  event   CalendarEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  label    String
+  /// Kurzer Hinweis unter dem Feld.
+  hint     String?
+  required Boolean @default(false)
+  /// Freitext oder Auswahl. Mehr Feldarten braucht es hier nicht.
+  choices  String[]
+  position Int     @default(0)
+
+  answers CalendarAnswer[]
+
+  @@index([eventId, position])
+}
+
+model CalendarRegistration {
+  id      String        @id @default(cuid())
+  eventId String
+  event   CalendarEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  discordId String
+  /// Namensstand zum Zeitpunkt der Anmeldung - fuer die Nachvollziehbarkeit,
+  /// wenn jemand den Server spaeter verlaesst.
+  username    String?
+  displayName String?
+
+  status CalendarRegistrationStatus @default(CONFIRMED)
+  /// Platz auf der Warteliste, ab 1. NULL bei bestaetigt und abgemeldet.
+  waitlistPosition Int?
+
+  registeredAt DateTime  @default(now())
+  cancelledAt  DateTime?
+  /// Gesetzt, wenn die Person von der Warteliste nachgerueckt ist.
+  promotedAt   DateTime?
+  /// Gesetzt, sobald ueber das Nachruecken benachrichtigt wurde. Verhindert,
+  /// dass ein wiederholter Lauf zweimal schreibt.
+  promotionNotifiedAt DateTime?
+
+  answers CalendarAnswer[]
+
+  /// Eine Anmeldung je Person und Termin - auf Datenbankebene, nicht nur im
+  /// Anwendungscode. Zwei gleichzeitige Anfragen kommen damit nicht beide
+  /// durch.
+  @@unique([eventId, discordId])
+  @@index([eventId, status, registeredAt])
+  @@index([eventId, status, waitlistPosition])
+  @@index([discordId, registeredAt])
+}
+
+model CalendarAnswer {
+  id             String               @id @default(cuid())
+  registrationId String
+  registration   CalendarRegistration @relation(fields: [registrationId], references: [id], onDelete: Cascade)
+  questionId     String
+  question       CalendarQuestion     @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  value String @db.Text
+
+  @@unique([registrationId, questionId])
+  @@index([questionId])
+}
+
+/// Eine geplante Erinnerung.
+///
+/// Der faellige Zeitpunkt steht als Zeile in der Datenbank, nicht als
+/// `setTimeout`: ein Neustart wuerde jeden so gemerkten Termin verlieren.
+/// `sentAt` zusammen mit der Eindeutigkeit je Termin und Vorlauf sorgt
+/// dafuer, dass auch mehrere Bot-Instanzen dieselbe Erinnerung nur einmal
+/// verschicken.
+model CalendarReminder {
+  id      String        @id @default(cuid())
+  eventId String
+  event   CalendarEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  /// Vorlauf in Minuten vor Beginn.
+  minutesBefore Int
+  /// Errechneter Faelligkeitszeitpunkt. Wird beim Verschieben des Termins
+  /// neu gesetzt - deshalb ein eigenes Feld und keine Berechnung im Filter.
+  dueAt         DateTime
+
+  /// Zielkanal. Ohne eigenen Kanal geht die Erinnerung in den
+  /// Ankuendigungskanal des Termins.
+  channelId     String?
+  /// Rollen-Erwaehnung, denselben Regeln unterworfen wie die Ankuendigung.
+  mentionRoleId String?
+  /// Statt einer Rolle die angemeldeten Teilnehmer erwaehnen.
+  mentionRegistrants Boolean @default(false)
+
+  sentAt           DateTime?
+  discordMessageId String?
+  /// Fehlversuche. Discord kann kurz ausfallen; der naechste Lauf holt es
+  /// nach, bis die Geduld aufgebraucht ist.
+  attempts         Int       @default(0)
+  lastError        String?
+
+  createdAt DateTime @default(now())
+
+  /// Ein Vorlauf je Termin - zweimal «1 Stunde vorher» gibt es nicht.
+  @@unique([eventId, minutesBefore])
+  /// Der Arbeitslauf sucht genau danach: faellig und noch nicht gesendet.
+  @@index([sentAt, dueAt])
+  @@index([eventId])
+}
+
+/// Was zu einem Termin bereits auf Discord verschickt wurde.
+///
+/// Dieselbe Rolle wie `TournamentAnnouncement`: die Eindeutigkeit je Termin
+/// und Art ist der Grund, weshalb ein wiederholter Lauf nichts doppelt.
+model CalendarNotice {
+  id      String        @id @default(cuid())
+  eventId String
+  event   CalendarEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  kind CalendarNoticeKind
+
+  channelId        String?
+  discordMessageId String?
+  sentByDiscordId  String?
+  sentAt           DateTime @default(now())
+
+  @@unique([eventId, kind])
+  @@index([eventId, sentAt])
+}

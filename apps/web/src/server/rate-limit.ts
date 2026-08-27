@@ -84,6 +84,15 @@ export const RATE_LIMITS = {
   voiceOwn: { limit: 60, windowMs: 5 * 60 * 1000 },
   /** Hubs, Presets und fremde Talks - Verwaltung, nicht Alltag. */
   voiceAdmin: { limit: 60, windowMs: 10 * 60 * 1000 },
+  /**
+   * An- und Abmelden zu einem Event.
+   *
+   * Knapp: eine Person meldet sich je Event einmal an. Gegen den Doppelklick
+   * wirkt ohnehin schon der eindeutige Schluessel.
+   */
+  calendarParticipate: { limit: 20, windowMs: 10 * 60 * 1000 },
+  /** Events anlegen, bearbeiten, ankuendigen - Verwaltung, nicht Alltag. */
+  calendarAdmin: { limit: 80, windowMs: 10 * 60 * 1000 },
 } as const satisfies Record<string, RateLimitRule>;
 
 export type RateLimitName = keyof typeof RATE_LIMITS;

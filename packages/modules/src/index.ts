@@ -12,6 +12,7 @@ import './tournaments/config';
 import './voice-hub/config';
 // Analytics registriert sich beim Import - wie jedes andere Modul auch.
 import './analytics/config';
+import './calendar/config';
 import { registerGuildResolver } from './guild/config';
 
 // Ab hier löst jeder Discord-Aufruf die Guild aus der Datenbank auf.
@@ -48,3 +49,4 @@ export * from './members/avatars';
 export * as members from './members';
 export * as moderation from './moderation';
 export * as analytics from './analytics';
+export * as calendar from './calendar';

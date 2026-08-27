@@ -3,6 +3,7 @@ import Link from 'next/link';
 import {
   Activity,
   Blocks,
+  CalendarDays,
   Gamepad2,
   Lock,
   Music,
@@ -18,6 +19,7 @@ import { branding } from '@swisshub/config/client';
 import { can } from '@swisshub/auth';
 import {
   branding as brandingModule,
+  calendar,
   enabledModuleIds,
   getModuleSettings,
   getSystemHealth,
@@ -33,6 +35,7 @@ import { ModuleCard } from '@/components/shared/module-card';
 import { BrandBanner } from '@/components/shared/brand-banner';
 import { DiscordAvatar } from '@/components/shared/discord-avatar';
 import { EmptyState } from '@/components/shared/states';
+import { Badge } from '@/components/ui/badge';
 import { JailRowActions } from '@/modules/jail/components/jail-row-actions';
 import { CreateJailDialog } from '@/modules/jail/components/create-jail-dialog';
 import { SetupProgress } from '@/modules/configuration/components/setup-progress';
@@ -71,6 +74,21 @@ export default async function DashboardPage(): Promise<React.JSX.Element> {
     canViewSettings ? getSystemHealth() : Promise.resolve(null),
     brandingModule.currentLogoUrl(),
   ]);
+
+  /**
+   * Die naechsten Termine aus dem Community-Kalender.
+   *
+   * Nur, wenn das Modul eingeschaltet ist **und** der Betrachter den Kalender
+   * sehen darf - was er nicht sehen darf, wird auch nicht geladen. Faellt die
+   * Abfrage aus, bleibt die Karte weg; das Dashboard soll deswegen nicht
+   * scheitern.
+   */
+  const kommendeEvents =
+    darfNutzen(calendar.CALENDAR_PERMISSIONS.view, calendar.CALENDAR_MODULE_ID)
+      ? await calendar
+          .listUpcoming(3, { viewerDiscordId: context.user.discordId })
+          .catch(() => [])
+      : [];
 
   const csrfToken = csrfTokenFor(context);
 
@@ -205,6 +223,64 @@ export default async function DashboardPage(): Promise<React.JSX.Element> {
           />
         ) : null}
       </section>
+
+      {kommendeEvents.length > 0 ? (
+        <Panel
+          title="Nächste Events"
+          icon={<CalendarDays />}
+          action={{ label: 'Zum Kalender', href: '/kalender' }}
+        >
+          <ul className="space-y-2">
+            {kommendeEvents.map((event) => (
+              <li key={event.id}>
+                <Link
+                  href={`/kalender/${event.slug}`}
+                  className="flex flex-wrap items-center gap-3 rounded-lg border border-border/60 p-3 transition-colors hover:border-primary/40"
+                >
+                  <span
+                    aria-hidden="true"
+                    className="w-1 self-stretch rounded-full"
+                    style={{ backgroundColor: event.category?.color ?? 'var(--color-primary)' }}
+                  />
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate font-medium">{event.title}</span>
+                    <span className="block text-xs text-muted-foreground">
+                      {new Intl.DateTimeFormat('de-CH', {
+                        timeZone: event.timezone,
+                        weekday: 'long',
+                        day: '2-digit',
+                        month: 'short',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      }).format(event.startAt)}
+                    </span>
+                  </span>
+                  {event.registrationEnabled ? (
+                    <span className="text-xs tabular-nums text-muted-foreground">
+                      {event.capacity > 0
+                        ? `${event.confirmed} / ${event.capacity}`
+                        : `${event.confirmed}`}{' '}
+                      Teilnehmer
+                    </span>
+                  ) : null}
+                  {event.meine ? (
+                    <Badge
+                      variant="outline"
+                      className={
+                        event.meine === 'CONFIRMED'
+                          ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-500'
+                          : 'border-amber-500/40 bg-amber-500/10 text-amber-500'
+                      }
+                    >
+                      {event.meine === 'CONFIRMED' ? 'Angemeldet' : 'Warteliste'}
+                    </Badge>
+                  ) : null}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </Panel>
+      ) : null}
 
       <div className="grid gap-6 xl:grid-cols-3">
         <div className="min-w-0 space-y-6 xl:col-span-2">

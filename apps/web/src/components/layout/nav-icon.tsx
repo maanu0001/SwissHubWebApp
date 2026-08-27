@@ -1,4 +1,5 @@
 import {
+  CalendarDays,
   Activity,
   Bell,
   Blocks,
@@ -41,6 +42,7 @@ import {
  * beliebigen Komponenten einschleusen.
  */
 const ICONS: Record<string, LucideIcon> = {
+  CalendarDays,
   Activity,
   Bell,
   Blocks,

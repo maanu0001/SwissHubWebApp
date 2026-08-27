@@ -4,6 +4,7 @@ export * from './errors';
 export * from './result';
 export * from './snowflake';
 export * from './time';
+export * from './zeitzone';
 export * from './pagination';
 export * from './text';
 export * from './format';

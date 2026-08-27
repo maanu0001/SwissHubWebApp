@@ -222,6 +222,7 @@ async function FeaturedRaffle({
         canParticipate={canParticipate}
         animationSeed={draw?.animationSeed ?? null}
         revealOnOpen={revealOnOpen}
+        viewerDiscordId={discordId}
         segments={segmente}
         winner={
           winner && draw

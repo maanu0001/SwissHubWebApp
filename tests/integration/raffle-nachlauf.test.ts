@@ -17,7 +17,15 @@ const { level } = await import('@swisshub/modules');
 const STUNDE = 60 * 60 * 1000;
 
 async function verlosung(
-  status: 'DRAFT' | 'ENTRY_OPEN' | 'WINNER_PENDING' | 'COMPLETED' | 'CANCELLED',
+  status:
+    | 'DRAFT'
+    | 'SCHEDULED'
+    | 'ENTRY_OPEN'
+    | 'ENTRY_CLOSED'
+    | 'DRAWING'
+    | 'WINNER_PENDING'
+    | 'COMPLETED'
+    | 'CANCELLED',
   completedAt: Date | null = null,
 ): Promise<string> {
   const zeile = await prisma.xpRaffle.create({
@@ -90,6 +98,57 @@ describeWithDatabase('XP-Glücksrad: Nachlauffenster', () => {
     const laufend = await verlosung('ENTRY_OPEN');
 
     expect((await level.raffle.getFeaturedRaffle())?.id).toBe(laufend);
+  });
+
+  it('zeigt den Eintrag bei geschlossener, aber noch nicht gezogener Teilnahme', async () => {
+    // Der Zustand zwischen Teilnahmeschluss und Ziehung - dort ist die
+    // Verlosung besonders interessant, und genau dort wäre ein fehlender
+    // Eintrag am ärgerlichsten.
+    await verlosung('ENTRY_CLOSED');
+    expect(await level.raffle.hatLaufendeVerlosung()).toBe(true);
+  });
+
+  it('zeigt den Eintrag während der laufenden Ziehung', async () => {
+    await verlosung('DRAWING');
+    expect(await level.raffle.hatLaufendeVerlosung()).toBe(true);
+  });
+
+  it('zeigt den Eintrag bei einer geplanten Verlosung', async () => {
+    await verlosung('SCHEDULED');
+    expect(await level.raffle.hatLaufendeVerlosung()).toBe(true);
+  });
+
+  it('lässt eine alte abgeschlossene neben einer laufenden ausser Betracht', async () => {
+    // Mehrere Verlosungen nebeneinander: die laufende entscheidet, die alte
+    // hält den Eintrag weder künstlich sichtbar noch verdeckt sie ihn.
+    await verlosung('COMPLETED', new Date(Date.now() - 40 * STUNDE));
+    await verlosung('ENTRY_OPEN');
+
+    expect(await level.raffle.hatLaufendeVerlosung()).toBe(true);
+    expect((await level.raffle.getFeaturedRaffle())?.status).toBe('ENTRY_OPEN');
+  });
+
+  it('lässt mehrere alte abgeschlossene den Eintrag nicht sichtbar halten', async () => {
+    for (const alter of [13, 24, 72, 240]) {
+      await verlosung('COMPLETED', new Date(Date.now() - alter * STUNDE));
+    }
+    expect(await level.raffle.hatLaufendeVerlosung()).toBe(false);
+  });
+
+  it('zeigt den Eintrag wieder, sobald nach einer alten eine neue startet', async () => {
+    await verlosung('COMPLETED', new Date(Date.now() - 40 * STUNDE));
+    expect(await level.raffle.hatLaufendeVerlosung()).toBe(false);
+
+    const neue = await verlosung('ENTRY_OPEN');
+    expect(await level.raffle.hatLaufendeVerlosung()).toBe(true);
+    expect((await level.raffle.getFeaturedRaffle())?.id).toBe(neue);
+  });
+
+  it('hebt von zwei frisch abgeschlossenen die jüngere hervor', async () => {
+    await verlosung('COMPLETED', new Date(Date.now() - 6 * STUNDE));
+    const juengere = await verlosung('COMPLETED', new Date(Date.now() - STUNDE));
+
+    expect((await level.raffle.getFeaturedRaffle())?.id).toBe(juengere);
   });
 
   it('nennt zwölf Stunden als Nachlauf', async () => {

@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { PartyPopper, RotateCcw, SkipForward, Ticket } from 'lucide-react';
@@ -52,6 +52,7 @@ export function RaffleStage({
   canParticipate,
   entryModelLabel,
   revealOnOpen = false,
+  viewerDiscordId,
 }: {
   csrfToken: string;
   raffleId: string;
@@ -72,17 +73,44 @@ export function RaffleStage({
    * nicht. Ob dieses Fenster noch offen ist, entscheidet der Server.
    */
   revealOnOpen?: boolean;
+  /** Wer zusieht - geht nur in den «schon gesehen»-Vermerk im Browser ein. */
+  viewerDiscordId: string;
 }): React.JSX.Element {
   const router = useRouter();
   const [status, setStatus] = useState<XpRaffleStatus>(initialStatus);
   const [winner, setWinner] = useState<StageWinner | null>(initialWinner);
   const [seed, setSeed] = useState<string | null>(animationSeed);
   const [confirmOpen, setConfirmOpen] = useState(false);
-  const [revealed, setRevealed] = useState(
-    initialStatus === 'CANCELLED' || (initialStatus === 'COMPLETED' && !revealOnOpen),
-  );
+  /**
+   * Steht der Gewinner schon auf der Seite?
+   *
+   * Beginnt bei einer abgebrochenen Verlosung mit `true` - dort gibt es nichts
+   * zu enthuellen. Sonst entscheidet der Effekt weiter unten, und bis dahin
+   * zeigt die Seite das ruhende Rad: weder eine anlaufende Drehung, die gleich
+   * wieder abbricht, noch ein Gewinner, der kurz aufblitzt.
+   */
+  const [revealed, setRevealed] = useState(initialStatus === 'CANCELLED');
   /** Zaehlt jedes «nochmal ansehen» - er stoesst die Drehung erneut an. */
   const [durchgang, setDurchgang] = useState(0);
+  /**
+   * Hat der Stand sich geaendert, waehrend diese Seite offen war?
+   *
+   * Der Fall, der bisher fehlte: wer schon auf der Seite steht, wenn die
+   * Ziehung durchlaeuft, hat kein Nachlauffenster vom Server - das wird beim
+   * Laden bestimmt, und geladen wurde vor der Ziehung. Ohne diese Merkung
+   * sprang das Rad ohne jede Drehung auf den Gewinner: genau die statische
+   * Anzeige, die es nicht sein soll.
+   */
+  const [liveWechsel, setLiveWechsel] = useState(false);
+  /**
+   * Hat dieser Mensch die Ziehung schon gesehen?
+   *
+   * `null`, solange es niemand nachgesehen hat. Die Antwort steht im Browser
+   * - sie ist reine Bequemlichkeit und keine Wahrheit ueber die Verlosung.
+   * Wer das Fenster wechselt, sieht die Drehung eben noch einmal; wer neu
+   * laedt, nicht.
+   */
+  const [schonGesehen, setSchonGesehen] = useState<boolean | null>(null);
 
   // Solange etwas läuft, den Stand regelmässig nachladen. So merken alle, die
   // die Seite offen haben, dass die Ziehung begonnen hat.
@@ -107,6 +135,9 @@ export function RaffleStage({
         }
         if (payload.raffle.status !== status) {
           setStatus(payload.raffle.status);
+          // Vor unseren Augen geschehen: dafuer gibt es die Drehung, ganz
+          // unabhaengig davon, was beim Laden der Seite galt.
+          setLiveWechsel(true);
           // Ein Statuswechsel bringt in der Regel neue Zahlen mit.
           router.refresh();
         }
@@ -126,15 +157,101 @@ export function RaffleStage({
     setWinner(initialWinner);
   }, [initialWinner]);
 
-  // Gedreht wird, solange die Ziehung laeuft - und zusaetzlich beim Nachlauf,
-  // solange der Reveal noch aussteht.
-  const nachlaufDreht = revealOnOpen && status === 'COMPLETED' && !revealed;
-  const spinning = status === 'DRAWING' || status === 'WINNER_PENDING' || nachlaufDreht;
-  const handleSpinEnd = useCallback(() => setRevealed(true), []);
+  /**
+   * Dem Server folgen, wenn er einen neuen Stand liefert.
+   *
+   * `router.refresh()` erneuert die Server-Komponenten, laesst diese hier
+   * aber stehen - sie behaelt ihren Zustand. Ohne diesen Abgleich blieb
+   * `status` auf dem Wert vom Seitenaufbau, waehrend die Seite ringsum
+   * bereits die abgeschlossene Verlosung zeigte. Das Rad sah dann keinen
+   * Grund zu drehen, und der Gewinner erschien ohne jede Animation.
+   *
+   * Ein Wechsel nach dem ersten Aufbau ist zugleich der Beleg, dass er vor
+   * den Augen dieser Person geschah - dafuer gibt es die Drehung.
+   */
+  const vorherigerStatus = useRef(initialStatus);
+  useEffect(() => {
+    if (vorherigerStatus.current === initialStatus) {
+      return;
+    }
+    vorherigerStatus.current = initialStatus;
+    setStatus(initialStatus);
+    setLiveWechsel(true);
+  }, [initialStatus]);
+
+  /**
+   * Schluessel des «schon gesehen»-Vermerks.
+   *
+   * Die Kennung der Person steht mit drin: an einem geteilten Rechner soll
+   * nicht der eine um die Drehung gebracht werden, weil der andere sie
+   * bereits gesehen hat.
+   */
+  const gesehenSchluessel = `swisshub:raffle-seen:${viewerDiscordId}:${raffleId}`;
+
+  useEffect(() => {
+    // Ausserhalb des Nachlauffensters gibt es nichts zu enthuellen: dann steht
+    // das Ergebnis sofort da.
+    if (initialStatus === 'COMPLETED' && !revealOnOpen) {
+      setSchonGesehen(true);
+      setRevealed(true);
+      return;
+    }
+    let gesehen = false;
+    try {
+      gesehen = window.localStorage.getItem(gesehenSchluessel) === '1';
+    } catch {
+      // Privater Modus oder gesperrter Speicher: dann eben jedes Mal.
+      gesehen = false;
+    }
+    setSchonGesehen(gesehen);
+    if (gesehen && initialStatus === 'COMPLETED') {
+      setRevealed(true);
+    }
+  }, [gesehenSchluessel, initialStatus, revealOnOpen]);
+
+  const merkeGesehen = useCallback(() => {
+    try {
+      window.localStorage.setItem(gesehenSchluessel, '1');
+    } catch {
+      // Nicht schlimm - dann laeuft die Drehung beim naechsten Mal erneut.
+    }
+    setSchonGesehen(true);
+  }, [gesehenSchluessel]);
+
+  /**
+   * Wann sich das Rad dreht.
+   *
+   * Waehrend der Ziehung immer. Bei einer bereits abgeschlossenen Verlosung
+   * nur, wenn es etwas zu zeigen gibt: das Nachlauffenster ist offen und
+   * diese Person hat die Drehung noch nicht gesehen - oder der Wechsel
+   * geschah gerade eben vor ihren Augen.
+   *
+   * Solange `schonGesehen` noch `null` ist, wird nicht gedreht. Das sind
+   * wenige Millisekunden, und sie verhindern eine Drehung, die sofort wieder
+   * abbricht.
+   */
+  const darfNachlaufDrehen = (revealOnOpen && schonGesehen === false) || liveWechsel;
+  const spinning =
+    !revealed &&
+    (status === 'DRAWING' || status === 'WINNER_PENDING' || (status === 'COMPLETED' && darfNachlaufDrehen));
+
+  const handleSpinEnd = useCallback(() => {
+    setRevealed(true);
+    merkeGesehen();
+  }, [merkeGesehen]);
 
   /** Ueberspringen: dasselbe Ergebnis, nur sofort. */
-  const ueberspringen = useCallback(() => setRevealed(true), []);
+  const ueberspringen = useCallback(() => {
+    setRevealed(true);
+    merkeGesehen();
+  }, [merkeGesehen]);
 
+  /**
+   * Noch einmal ansehen.
+   *
+   * Der Vermerk bleibt bestehen - wer ausdruecklich darauf klickt, will die
+   * Drehung jetzt sehen und nicht bei jedem kuenftigen Aufruf.
+   */
   const nochmal = useCallback(() => {
     setRevealed(false);
     setDurchgang((wert) => wert + 1);
@@ -160,7 +277,13 @@ export function RaffleStage({
     <div className="space-y-6">
       <RaffleWheel
         segments={segments}
-        winnerEntryId={winner?.entryId ?? null}
+        /*
+         * Solange nicht feststeht, ob diese Person die Drehung schon gesehen
+         * hat, bekommt das Rad keinen Gewinner. Ohne das erledigte es den
+         * Reveal sofort selbst - «nicht drehen» heisst dort «Ergebnis
+         * hinstellen» - und die Drehung kam nie zustande.
+         */
+        winnerEntryId={schonGesehen === null ? null : (winner?.entryId ?? null)}
         animationSeed={seed}
         spinning={spinning}
         runId={durchgang}
@@ -170,9 +293,9 @@ export function RaffleStage({
       {spinning && !revealed ? (
         <div className="flex flex-col items-center gap-2">
           <p className="text-center text-sm font-medium text-primary" role="status">
-            {nachlaufDreht ? '🎡 Die Verlosung wurde gezogen …' : '🎡 Die Ziehung läuft …'}
+            {status === 'COMPLETED' ? '🎡 Die Verlosung wurde gezogen …' : '🎡 Die Ziehung läuft …'}
           </p>
-          {nachlaufDreht ? (
+          {status === 'COMPLETED' ? (
             // Nur beim Nachlauf: waehrend einer echten Ziehung gibt es nichts
             // zu ueberspringen - da wartet die Seite auf den Server.
             <Button variant="ghost" size="sm" onClick={ueberspringen}>
@@ -209,7 +332,7 @@ export function RaffleStage({
               Noch nicht bestätigt – die Verwaltung prüft das Ergebnis.
             </p>
           ) : null}
-          {revealOnOpen && status === 'COMPLETED' ? (
+          {status === 'COMPLETED' && (revealOnOpen || liveWechsel) ? (
             <Button variant="outline" size="sm" className="mt-4" onClick={nochmal}>
               <RotateCcw aria-hidden="true" />
               Animation erneut ansehen

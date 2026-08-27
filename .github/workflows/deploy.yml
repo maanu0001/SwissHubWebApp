@@ -1,0 +1,83 @@
+name: Deploy SwissHub Production
+
+on:
+  push:
+    branches:
+      - production
+
+concurrency:
+  group: swisshub-production
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck --if-present
+
+      - name: Run tests
+        run: npm test --if-present
+
+  deploy:
+    needs: validate
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy to SwissHub server
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          port: ${{ secrets.DEPLOY_PORT }}
+          script_stop: true
+          script: |
+            set -e
+
+            cd /opt/swisshub
+
+            echo "==> Fetch production"
+            git fetch origin production
+
+            echo "==> Reset to production"
+            git checkout production
+            git reset --hard origin/production
+
+            echo "==> Build Docker images"
+            docker compose -f docker-compose.prod.yml build
+
+            echo "==> Start updated services"
+            docker compose -f docker-compose.prod.yml up -d
+
+            echo "==> Waiting for services"
+            sleep 20
+
+            echo "==> Container status"
+            docker compose -f docker-compose.prod.yml ps
+
+            echo "==> Healthcheck"
+            curl --fail \
+              --silent \
+              --show-error \
+              --max-time 30 \
+              https://system.swisshub.gg \
+              > /dev/null
+
+            echo "==> Cleanup old build cache"
+            docker builder prune -f
+
+            echo "==> Deployment successful"

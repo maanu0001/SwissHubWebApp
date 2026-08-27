@@ -235,6 +235,34 @@ export const cancelRaffleAction = defineAction(
   },
 );
 
+/**
+ * Eine vergangene Verlosung endgültig entfernen.
+ *
+ * Eigene Berechtigung statt `raffleCancel`: abbrechen und löschen sind zwei
+ * verschiedene Befugnisse. Ein Abbruch beendet eine Verlosung und zahlt
+ * zurück - das Ergebnis bleibt einsehbar. Löschen nimmt sie aus der Welt.
+ */
+export const deleteRaffleAction = defineAction(
+  {
+    name: 'level.raffle.delete',
+    module: MODULE_ID,
+    permission: PERMISSIONS.raffleDelete,
+    schema: R.deleteRaffleSchema,
+    rateLimit: 'raffleManage',
+    freshness: 'critical',
+  },
+  async ({ ctx, input }) => {
+    await assertModuleEnabled(MODULE_ID);
+    const result = await R.deleteRaffle(
+      { discordId: ctx.user.discordId, username: ctx.user.username },
+      input.raffleId,
+      input.reason,
+    );
+    revalidateRaffle(input.raffleId);
+    return { title: result.title, entries: result.entries };
+  },
+);
+
 export const removeEntryAction = defineAction(
   {
     name: 'level.raffle.entry.remove',

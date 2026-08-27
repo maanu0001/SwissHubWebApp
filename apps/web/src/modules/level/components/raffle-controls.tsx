@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { Ban, CheckCircle2, DoorClosed, DoorOpen, Megaphone, RefreshCw, Send, Sparkles } from 'lucide-react';
+import { Ban, CheckCircle2, DoorClosed, DoorOpen, Megaphone, RefreshCw, Send, Sparkles, Trash2 } from 'lucide-react';
 import type { XpRaffleStatus } from '@swisshub/database';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -14,6 +14,7 @@ import {
   cancelRaffleAction,
   closeEntriesAction,
   confirmWinnerAction,
+  deleteRaffleAction,
   openEntriesAction,
   publishRaffleAction,
   redrawAction,
@@ -56,6 +57,7 @@ export function RaffleControls({
     draw: boolean;
     redraw: boolean;
     cancel: boolean;
+    delete: boolean;
     manage: boolean;
   };
 }): React.JSX.Element {
@@ -64,6 +66,8 @@ export function RaffleControls({
   const [drawOpen, setDrawOpen] = useState(false);
   const [cancelOpen, setCancelOpen] = useState(false);
   const [cancelReason, setCancelReason] = useState('');
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleteReason, setDeleteReason] = useState('');
   const [redrawOpen, setRedrawOpen] = useState(false);
   const [redrawReason, setRedrawReason] = useState('');
   const [excludeWinner, setExcludeWinner] = useState(true);
@@ -294,6 +298,63 @@ export function RaffleControls({
                 onChange={(event) => setCancelReason(event.target.value)}
                 placeholder="Preis nicht mehr verfügbar"
               />
+            </div>
+          </ConfirmationDialog>
+        </>
+      ) : null}
+
+      {(status === 'COMPLETED' || status === 'CANCELLED') && permissions.delete ? (
+        <>
+          <Button variant="outline" disabled={busy} onClick={() => setDeleteOpen(true)}>
+            <Trash2 aria-hidden="true" />
+            Löschen
+          </Button>
+          <ConfirmationDialog
+            open={deleteOpen}
+            onOpenChange={setDeleteOpen}
+            title="Verlosung endgültig löschen?"
+            description={`Teilnahmen und Ziehungen dieser Verlosung werden entfernt und lassen sich nicht wiederherstellen. Bereits verbuchte XP bleiben unverändert – niemand bekommt XP zurück oder verliert welche. Eine Ankündigung auf Discord bleibt bestehen.`}
+            confirmLabel="Endgültig löschen"
+            destructive
+            onConfirm={async () => {
+              if (deleteReason.trim().length < 5) {
+                toast.error('Bitte einen Grund angeben.');
+                throw new Error('Grund fehlt');
+              }
+              setPending('delete');
+              try {
+                const result = await deleteRaffleAction({
+                  csrfToken,
+                  raffleId,
+                  reason: deleteReason,
+                });
+                if (!result.ok) {
+                  toast.error(result.error?.message ?? 'Das hat nicht geklappt.');
+                  throw new Error('Löschen fehlgeschlagen');
+                }
+                toast.success('Verlosung gelöscht.');
+                setDeleteReason('');
+                // Diese Seite gibt es nicht mehr - `router.refresh()` liefe
+                // hier ins 404.
+                router.replace('/level/gluecksrad');
+              } finally {
+                setPending(null);
+              }
+            }}
+          >
+            <div className="space-y-2">
+              <Label htmlFor="deleteReason">Grund (Pflicht)</Label>
+              <Input
+                id="deleteReason"
+                value={deleteReason}
+                maxLength={300}
+                onChange={(event) => setDeleteReason(event.target.value)}
+                placeholder="Aufräumen: Verlosung vom letzten Jahr"
+              />
+              <p className="text-xs text-muted-foreground">
+                Der Grund landet im Audit Log. Nach dem Löschen ist dieser Eintrag die einzige
+                verbliebene Auskunft über die Verlosung.
+              </p>
             </div>
           </ConfirmationDialog>
         </>

@@ -152,3 +152,15 @@ export const removeEntrySchema = z.object({
   entryId: z.string().min(1),
   reason: text(300).refine((value) => value.length >= 5, 'Bitte einen Grund angeben.'),
 });
+
+/**
+ * Eine Verlosung löschen.
+ *
+ * Wie bei Abbruch und Neuziehung Pflichtgrund: der Schritt lässt sich nicht
+ * rückgängig machen, und nach dem Löschen ist der Eintrag im Audit Log die
+ * einzige verbliebene Auskunft darüber, dass es diese Verlosung gab.
+ */
+export const deleteRaffleSchema = z.object({
+  raffleId: z.string().min(1),
+  reason: text(300).refine((value) => value.length >= 5, 'Bitte einen Grund angeben.'),
+});

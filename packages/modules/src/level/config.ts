@@ -63,6 +63,7 @@ export const LEVEL_PERMISSIONS = {
   raffleDraw: 'level.raffle.draw',
   raffleRedraw: 'level.raffle.redraw',
   raffleCancel: 'level.raffle.cancel',
+  raffleDelete: 'level.raffle.delete',
   raffleHistory: 'level.raffle.history',
 } as const;
 
@@ -877,6 +878,14 @@ registerModule({
       key: LEVEL_PERMISSIONS.raffleCancel,
       label: 'Verlosung abbrechen',
       description: 'Eine Verlosung abbrechen und alle Einsätze zurückzahlen.',
+      module: LEVEL_MODULE_ID,
+      critical: true,
+    },
+    {
+      key: LEVEL_PERMISSIONS.raffleDelete,
+      label: 'Verlosung löschen',
+      description:
+        'Eine abgeschlossene oder abgebrochene Verlosung endgültig entfernen. Verbuchte XP bleiben unberührt.',
       module: LEVEL_MODULE_ID,
       critical: true,
     },

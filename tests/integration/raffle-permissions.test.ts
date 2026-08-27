@@ -66,6 +66,39 @@ describe('Berechtigungen', () => {
     expect(hasPermission(subject([]), P.raffleDraw)).toBe(false);
   });
 
+  it('trennt Abbrechen von Löschen', () => {
+    // Zwei verschiedene Befugnisse: ein Abbruch beendet eine Verlosung und
+    // zahlt zurück, das Ergebnis bleibt einsehbar. Löschen nimmt sie aus der
+    // Welt. Wer das eine darf, darf deshalb noch nicht das andere.
+    const abbrecher = resolvePermissions(
+      { discordId: '910000000000009998', roleIds: ['r'], isOwner: false },
+      [
+        { discordRoleId: 'r', permission: P.raffleCancel },
+        { discordRoleId: 'r', permission: P.raffleManage },
+      ],
+    );
+    expect(hasPermission(abbrecher, P.raffleCancel)).toBe(true);
+    expect(hasPermission(abbrecher, P.raffleDelete)).toBe(false);
+  });
+
+  it('gibt keine Voreinstellung ausser der Administrator-Vorlage das Löschen', async () => {
+    // Geprüft wird durch die Engine, nicht gegen die aufgelöste Liste:
+    // `resolvePreset` verwirft alles, was kein bekannter Schlüssel ist -
+    // also auch ein `level.*`. Eine Prüfung auf der Liste bliebe damit grün,
+    // während die Engine das Löschen längst mitvergäbe.
+    const { PERMISSION_PRESETS } = await import('@swisshub/permissions');
+    for (const preset of PERMISSION_PRESETS.filter((eintrag) => eintrag.id !== 'administrator')) {
+      const erteilt = resolvePermissions(
+        { discordId: '910000000000009997', roleIds: ['r'], isOwner: false },
+        preset.permissions.map((permission) => ({ discordRoleId: 'r', permission })),
+      );
+      expect(
+        hasPermission(erteilt, P.raffleDelete),
+        `Die Vorlage «${preset.id}» vergibt ${P.raffleDelete}`,
+      ).toBe(false);
+    }
+  });
+
   it('führt alle Verlosungs-Berechtigungen in der Registry', () => {
     const definition = getModuleDefinition(level.LEVEL_MODULE_ID)!;
     const registered = new Set(definition.permissions.map((entry) => entry.key));
@@ -80,6 +113,7 @@ describe('Berechtigungen', () => {
       P.raffleDraw,
       P.raffleRedraw,
       P.raffleCancel,
+      P.raffleDelete,
       P.raffleHistory,
     ]) {
       expect(registered.has(key)).toBe(true);
@@ -91,6 +125,7 @@ describe('Berechtigungen', () => {
     const byKey = new Map(definition.permissions.map((entry) => [entry.key, entry]));
     expect(byKey.get(P.raffleRedraw)?.critical).toBe(true);
     expect(byKey.get(P.raffleCancel)?.critical).toBe(true);
+    expect(byKey.get(P.raffleDelete)?.critical).toBe(true);
     expect(byKey.get(P.raffleView)?.critical).toBeUndefined();
   });
 });

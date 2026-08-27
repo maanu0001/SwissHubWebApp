@@ -53,6 +53,7 @@ export default async function RaffleDetailPage({
     draw: can(context, P.raffleDraw),
     redraw: can(context, P.raffleRedraw),
     cancel: can(context, P.raffleCancel),
+    delete: can(context, P.raffleDelete),
     manage: can(context, P.raffleManage),
   };
   const canSeeHistory = can(context, P.raffleHistory) || permissions.manage;

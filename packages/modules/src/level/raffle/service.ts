@@ -467,6 +467,136 @@ export function assertEntryOpen(raffle: XpRaffle, now = new Date()): void {
   }
 }
 
+/** Zustände, in denen eine Verlosung endgültig vorbei ist. */
+export const ENDED_STATUSES: readonly XpRaffleStatus[] = ['COMPLETED', 'CANCELLED'];
+
+export function isEnded(status: XpRaffleStatus): boolean {
+  return ENDED_STATUSES.includes(status);
+}
+
+export interface RaffleDeletionSummary {
+  title: string;
+  status: XpRaffleStatus;
+  entries: number;
+  draws: number;
+  refunds: number;
+}
+
+/**
+ * Eine vergangene Verlosung endgültig entfernen.
+ *
+ * Gedacht zum Aufräumen: abgeschlossene und abgebrochene Verlosungen sammeln
+ * sich in der Übersicht an, und irgendwann interessiert die dritte Verlosung
+ * vom letzten Jahr niemanden mehr.
+ *
+ * Drei Dinge, die dieser Schritt bewusst NICHT tut:
+ *
+ *  - **Er rührt keine XP an.** Einsätze, Rückzahlungen und Gewinne stehen als
+ *    eigene Zeilen im XP-Journal (`XpTransaction`) und haben keinen Verweis
+ *    auf die Verlosung. Der Punktestand jedes Mitglieds bleibt exakt, wie er
+ *    ist - hier verschwindet die Verlosung, nicht ihre Wirkung. Etwas anderes
+ *    waere auch nicht vertretbar: eine Loeschung im Nachhinein duerfte
+ *    niemandem XP wegnehmen oder zurueckgeben.
+ *  - **Er ersetzt keinen Abbruch.** Eine laufende Verlosung laesst sich nicht
+ *    loeschen. Wer sie beenden will, bricht sie ab - dabei werden die
+ *    Einsaetze zurueckgezahlt. Loeschen statt Abbrechen hiesse, offene
+ *    Rueckzahlungen spurlos verschwinden zu lassen.
+ *  - **Er raeumt Discord nicht auf.** Eine bereits verschickte Ankuendigung
+ *    bleibt stehen; ihre Kennungen landen im Audit Log, damit sie sich
+ *    nachtraeglich finden laesst.
+ *
+ * Was bleibt, ist der Eintrag im Audit Log. Er ist nach dem Loeschen die
+ * einzige Auskunft darueber, dass es diese Verlosung gab - deshalb traegt er
+ * Titel, Zustand, Teilnehmerzahl, Topf und Gewinner, nicht nur die Kennung.
+ */
+export async function deleteRaffle(
+  actor: RaffleActor,
+  raffleId: string,
+  reason: string,
+): Promise<RaffleDeletionSummary> {
+  const raffle = await requireRaffle(raffleId);
+
+  if (!isEnded(raffle.status)) {
+    throw conflict(
+      'Nur abgeschlossene oder abgebrochene Verlosungen lassen sich löschen. Brich die Verlosung zuerst ab - dabei werden die Einsätze zurückgezahlt.',
+    );
+  }
+
+  // Nach einem sauberen Abbruch ist keine Teilnahme mehr `ACTIVE`: jede wurde
+  // auf `REFUNDED` gesetzt. Bleibt hier etwas uebrig, ist der Abbruch nicht
+  // durchgelaufen und es steht noch eine Rueckzahlung aus. Die Zeile ist dann
+  // der einzige Beleg dafuer, wem wie viel zusteht - sie zu loeschen hiesse,
+  // den Anspruch zu loeschen.
+  //
+  // Bei einer abgeschlossenen Verlosung ist `ACTIVE` dagegen der Normalfall:
+  // die Einsaetze der nicht gezogenen Teilnahmen sind verbraucht, genau
+  // darauf beruht das Spiel.
+  if (raffle.status === 'CANCELLED') {
+    const offen = await prisma.xpRaffleEntry.count({ where: { raffleId, status: 'ACTIVE' } });
+    if (offen > 0) {
+      throw conflict(
+        `Diese Verlosung hat noch ${offen} nicht zurückgezahlte ${offen === 1 ? 'Teilnahme' : 'Teilnahmen'}. Bitte zuerst den Abbruch abschliessen.`,
+      );
+    }
+  }
+
+  const [entries, draws, refunds] = await Promise.all([
+    prisma.xpRaffleEntry.count({ where: { raffleId } }),
+    prisma.xpRaffleDraw.count({ where: { raffleId } }),
+    prisma.xpRaffleRefund.count({ where: { raffleId } }),
+  ]);
+  const gewinner = raffle.confirmedDrawId
+    ? await prisma.xpRaffleDraw.findUnique({
+        where: { id: raffle.confirmedDrawId },
+        select: { winnerDiscordId: true },
+      })
+    : null;
+
+  // Feste Reihenfolge statt Verlass auf die Kaskade: `XpRaffleDraw` zeigt mit
+  // `winnerEntryId` auf eine Teilnahme, und diese Beziehung ist pflichtig -
+  // wuerde die Datenbank die Teilnahmen zuerst entfernen, stuende die
+  // Fremdschluesselpruefung im Weg. Die Reihenfolge hier ist die einzige, in
+  // der keine Beziehung kurzzeitig ins Leere zeigt.
+  await prisma.$transaction(async (tx) => {
+    await tx.xpRaffle.update({ where: { id: raffleId }, data: { confirmedDrawId: null } });
+    await tx.xpRaffleRefund.deleteMany({ where: { raffleId } });
+    await tx.xpRaffleDraw.deleteMany({ where: { raffleId } });
+    await tx.xpRaffleEntry.deleteMany({ where: { raffleId } });
+    await tx.xpRaffle.delete({ where: { id: raffleId } });
+  });
+
+  await safeRecordAudit({
+    action: AUDIT_ACTIONS.XP_RAFFLE_DELETED,
+    module: LEVEL_MODULE_ID,
+    actorDiscordId: actor.discordId,
+    actorUsername: actor.username,
+    targetLabel: raffle.title,
+    success: true,
+    metadata: {
+      raffleId,
+      reason,
+      status: raffle.status,
+      prizeDescription: raffle.prizeDescription,
+      entryCount: entries,
+      potXp: raffle.potXp,
+      drawCount: draws,
+      refundCount: refunds,
+      winnerDiscordId: gewinner?.winnerDiscordId ?? null,
+      completedAt: raffle.completedAt,
+      cancelledAt: raffle.cancelledAt,
+      // Die Ankuendigung bleibt auf Discord stehen - ohne diese Kennungen
+      // waere sie nach dem Loeschen nicht mehr zuzuordnen.
+      discordChannelId: raffle.discordChannelId,
+      discordMessageId: raffle.discordMessageId,
+      winnerMessageId: raffle.winnerMessageId,
+    },
+  });
+
+  logger.info('Verlosung gelöscht', { raffleId, status: raffle.status, entries, draws, refunds });
+
+  return { title: raffle.title, status: raffle.status, entries, draws, refunds };
+}
+
 /** Nur für die Übersicht: wie viel eine Teilnahme aktuell kostet. */
 export function exampleCost(raffle: XpRaffle, xp: number): number {
   return calculateEntryCost(entryCostRules(raffle), xp).entryXp;

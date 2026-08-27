@@ -188,19 +188,20 @@ Nur `ACTIVE` zählt zur Ziehung.
 
 ## 9. Berechtigungen
 
-| Berechtigung               | Für wen                                            |
-| -------------------------- | -------------------------------------------------- |
-| `level.raffle.view`        | alle Mitglieder                                    |
-| `level.raffle.participate` | alle Mitglieder                                    |
-| `level.raffle.create`      | Verwaltung                                         |
-| `level.raffle.edit`        | Verwaltung                                         |
-| `level.raffle.open`        | Verwaltung                                         |
-| `level.raffle.close`       | Verwaltung                                         |
-| `level.raffle.manage`      | Verwaltung (Teilnehmer, Ankündigung)               |
-| `level.raffle.draw`        | Verwaltung                                         |
-| `level.raffle.redraw`      | **getrennt vergeben** – greift in ein Ergebnis ein |
-| `level.raffle.cancel`      | **getrennt vergeben** – zahlt alle Einsätze zurück |
-| `level.raffle.history`     | Einsicht in Ziehungen und Rückzahlungen            |
+| Berechtigung               | Für wen                                                    |
+| -------------------------- | ---------------------------------------------------------- |
+| `level.raffle.view`        | alle Mitglieder                                            |
+| `level.raffle.participate` | alle Mitglieder                                            |
+| `level.raffle.create`      | Verwaltung                                                 |
+| `level.raffle.edit`        | Verwaltung                                                 |
+| `level.raffle.open`        | Verwaltung                                                 |
+| `level.raffle.close`       | Verwaltung                                                 |
+| `level.raffle.manage`      | Verwaltung (Teilnehmer, Ankündigung)                       |
+| `level.raffle.draw`        | Verwaltung                                                 |
+| `level.raffle.redraw`      | **getrennt vergeben** – greift in ein Ergebnis ein         |
+| `level.raffle.cancel`      | **getrennt vergeben** – zahlt alle Einsätze zurück         |
+| `level.raffle.delete`      | **getrennt vergeben** – entfernt eine vergangene Verlosung |
+| `level.raffle.history`     | Einsicht in Ziehungen und Rückzahlungen                    |
 
 Es gibt keine Vorgabe-Berechtigung für Mitglieder: `level.raffle.view` und
 `level.raffle.participate` müssen der Mitglieder-Rolle unter
@@ -228,6 +229,35 @@ Bequemlichkeit und keine Absicherung.
 Die Zeitsteuerung läuft als Hintergrundlauf gegen die Datenbank, nicht über
 Zeitgeber im Arbeitsspeicher. Ein Neustart verliert deshalb keine Frist, und
 nach einem Ausfall über Nacht wird nachgeholt, was fällig geworden ist.
+
+### Vergangene Verlosungen löschen
+
+Abgeschlossene und abgebrochene Verlosungen sammeln sich mit der Zeit in der
+Übersicht an. Wer `level.raffle.delete` hat, findet auf der Detailseite einer
+solchen Verlosung den Knopf **Löschen**. Ein Grund ist Pflicht.
+
+Was dabei geschieht – und was ausdrücklich nicht:
+
+- **XP bleiben unberührt.** Einsätze, Rückzahlungen und Gewinne stehen als
+  eigene Buchungen im XP-Journal und hängen nicht an der Verlosung. Niemand
+  bekommt XP zurück, niemand verliert welche. Eine Löschung im Nachhinein darf
+  keinen Punktestand verändern.
+- **Löschen ersetzt keinen Abbruch.** Eine laufende Verlosung lässt sich nicht
+  löschen; die Oberfläche bietet den Knopf erst gar nicht an, und der Server
+  weist es ab. Wer eine laufende Verlosung beenden will, bricht sie ab – dabei
+  werden die Einsätze zurückgezahlt.
+- **Offene Rückzahlungen blockieren.** Ist ein Abbruch auf halbem Weg
+  steckengeblieben und wartet noch eine Teilnahme auf ihre Rückzahlung, wird
+  das Löschen verweigert. Diese Zeile ist der einzige Beleg dafür, dass jemandem
+  noch XP zustehen.
+- **Discord wird nicht aufgeräumt.** Eine bereits verschickte Ankündigung
+  bleibt stehen. Ihre Kennungen landen im Audit Log, damit sie sich
+  nachträglich finden lässt.
+
+Der Eintrag im Audit Log ist nach dem Löschen die einzige verbliebene Auskunft
+über die Verlosung. Er trägt deshalb Titel, Zustand, Teilnehmerzahl, Topf,
+Gewinner und den angegebenen Grund – nicht nur die Kennung, die sich hinterher
+nicht mehr auflösen liesse.
 
 ---
 

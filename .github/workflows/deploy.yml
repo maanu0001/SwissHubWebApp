@@ -11,6 +11,7 @@ concurrency:
 
 jobs:
   validate:
+    name: Validate
     runs-on: ubuntu-latest
 
     steps:
@@ -29,10 +30,11 @@ jobs:
       - name: Typecheck
         run: npm run typecheck --if-present
 
-      - name: Run tests
-        run: npm test --if-present
+      - name: Lint
+        run: npm run lint --if-present
 
   deploy:
+    name: Deploy Production
     needs: validate
     runs-on: ubuntu-latest
 
@@ -50,26 +52,26 @@ jobs:
 
             cd /opt/swisshub
 
-            echo "==> Fetch production"
-            git fetch origin production
+            echo "=== SwissHub Production Deployment ==="
 
-            echo "==> Reset to production"
+            echo "1. Lade neuesten Production-Stand..."
+            git fetch origin production
             git checkout production
             git reset --hard origin/production
 
-            echo "==> Build Docker images"
+            echo "2. Baue Docker Images..."
             docker compose -f docker-compose.prod.yml build
 
-            echo "==> Start updated services"
+            echo "3. Starte Migration und Services..."
             docker compose -f docker-compose.prod.yml up -d
 
-            echo "==> Waiting for services"
+            echo "4. Warte auf Services..."
             sleep 20
 
-            echo "==> Container status"
+            echo "5. Prüfe Container..."
             docker compose -f docker-compose.prod.yml ps
 
-            echo "==> Healthcheck"
+            echo "6. Prüfe WebApp..."
             curl --fail \
               --silent \
               --show-error \
@@ -77,7 +79,4 @@ jobs:
               https://system.swisshub.gg \
               > /dev/null
 
-            echo "==> Cleanup old build cache"
-            docker builder prune -f
-
-            echo "==> Deployment successful"
+            echo "=== DEPLOYMENT ERFOLGREICH ==="

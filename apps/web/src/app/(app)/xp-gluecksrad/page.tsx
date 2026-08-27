@@ -142,6 +142,41 @@ async function FeaturedRaffle({
 
   const active = participants.filter((entry) => entry.status === 'ACTIVE' || entry.status === 'WINNER');
 
+  /**
+   * Woraus das Rad gebaut wird.
+   *
+   * Sobald gezogen wurde, aus dem Auszug der Ziehung - nicht aus den heutigen
+   * Teilnahmen. Eine spätere Rückzahlung oder Disqualifikation änderte sonst
+   * die Segmente, und das Rad zeigte eine Verteilung, auf der die Ziehung gar
+   * nicht beruhte. Der Auszug ist die historische Grundlage; er trägt Gewicht
+   * und Namen bereits mit sich.
+   */
+  const segmente = draw
+    ? level.raffle.snapshotTickets(draw).map((ticket) => ({
+        entryId: ticket.entryId,
+        discordId: ticket.discordId,
+        label: ticket.displayName ?? ticket.username ?? 'Mitglied',
+        weight: ticket.weight,
+      }))
+    : active.map((entry) => ({
+        entryId: entry.entryId,
+        discordId: entry.discordId,
+        label: entry.displayName ?? entry.username ?? 'Mitglied',
+        weight: entry.weight,
+      }));
+
+  /**
+   * Soll sich das Rad beim Öffnen noch einmal drehen?
+   *
+   * Nur im Nachlauffenster nach der Bestätigung, und die Grenze zieht der
+   * Server: `completedAt` steht in der Datenbank, nicht im Browser. Danach
+   * zeigt die Seite das Ergebnis ohne Drehung.
+   */
+  const revealOnOpen =
+    raffle.status === 'COMPLETED' &&
+    Boolean(raffle.completedAt) &&
+    Date.now() - (raffle.completedAt as Date).getTime() < level.raffle.RAFFLE_NACHLAUF_MS;
+
   return (
     <section className="space-y-6">
       {raffle.bannerUrl ? (
@@ -186,12 +221,8 @@ async function FeaturedRaffle({
         entryModelLabel={describeEntryModel(raffle)}
         canParticipate={canParticipate}
         animationSeed={draw?.animationSeed ?? null}
-        segments={active.map((entry) => ({
-          entryId: entry.entryId,
-          discordId: entry.discordId,
-          label: entry.displayName ?? entry.username ?? 'Mitglied',
-          weight: entry.weight,
-        }))}
+        revealOnOpen={revealOnOpen}
+        segments={segmente}
         winner={
           winner && draw
             ? {

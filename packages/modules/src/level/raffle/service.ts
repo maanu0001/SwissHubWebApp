@@ -110,11 +110,31 @@ export async function requireRaffle(id: string): Promise<XpRaffle> {
 }
 
 /**
+ * Wie lange eine abgeschlossene Verlosung noch als aktuell gilt.
+ *
+ * Zwoelf Stunden nach der Bestaetigung. Solange bleibt der Eintrag in der
+ * Seitenleiste stehen und die Seite zeigt die Ziehung - damit sie auch sehen
+ * kann, wer nicht zufaellig in der richtigen Minute online war.
+ *
+ * Der Zeitpunkt kommt aus `completedAt` in der Datenbank: kein Browser-Timer,
+ * kein `localStorage`, kein `setTimeout` ueber einen halben Tag. Wer die
+ * Seite zwoelf Stunden offen liegen laesst, sieht beim naechsten Aufruf
+ * dasselbe wie jeder andere.
+ */
+export const RAFFLE_NACHLAUF_MS = 12 * 60 * 60 * 1000;
+
+/**
  * Die Verlosung, die auf der öffentlichen Seite oben steht.
  *
  * Bevorzugt wird die am weitesten fortgeschrittene laufende Verlosung; gibt es
  * keine, die zuletzt abgeschlossene - damit der Gewinner noch eine Weile
  * sichtbar bleibt, statt nach der Bestätigung sofort zu verschwinden.
+ *
+ * «Eine Weile» ist derselbe Nachlauf, nach dem auch der Eintrag in der
+ * Seitenleiste verschwindet. Ohne diese Grenze stünde eine Verlosung von
+ * vorletztem Monat noch immer als «aktuell» oben auf der Seite - und wer sie
+ * öffnete, sähe eine Ziehung, die längst vorbei ist, ohne dass etwas darauf
+ * hinwiese. Ältere Verlosungen bleiben über die Historie erreichbar.
  */
 export async function getFeaturedRaffle(): Promise<XpRaffle | null> {
   const live = await prisma.xpRaffle.findFirst({
@@ -125,7 +145,10 @@ export async function getFeaturedRaffle(): Promise<XpRaffle | null> {
     return live;
   }
   return prisma.xpRaffle.findFirst({
-    where: { status: 'COMPLETED' },
+    where: {
+      status: 'COMPLETED',
+      completedAt: { gt: new Date(Date.now() - RAFFLE_NACHLAUF_MS) },
+    },
     orderBy: { completedAt: 'desc' },
   });
 }

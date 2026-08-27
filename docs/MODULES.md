@@ -218,6 +218,47 @@ Details: [CONFIGURATION.md](CONFIGURATION.md).
 | `modules`    | Bot Module              | Feature-Module                             |
 | `system`     | System                  | Audit Log, Module, Einstellungen, Branding |
 
+### Wenn ein Eintrag mehrere Zugänge hat
+
+Ein Modul hat oft mehr als eine Tür. Beim Jail darf jemand die Strafakte lesen –
+oder nur eine Community-Abstimmung starten, ohne die Akte je zu sehen. Dafür gibt
+es zwei Werkzeuge, und sie lösen verschiedene Probleme:
+
+| Feld           | Wirkung                                                        | Wann                                          |
+| -------------- | -------------------------------------------------------------- | --------------------------------------------- |
+| `altPermissions` | Derselbe Eintrag wird auch mit einer anderen Berechtigung sichtbar | Alle dürfen auf **dieselbe** Seite            |
+| `alternatives` | Der Eintrag zeigt **woandershin** und heisst anders            | Die Berechtigungen führen auf **verschiedene** Seiten |
+
+`altPermissions` war der erste Versuch beim Jail – und er war falsch: Wer nur
+abstimmen durfte, sah «Jail», klickte, und bekam eine 403-Seite. Der Eintrag
+zeigte auf etwas, das er nicht öffnen durfte.
+
+```ts
+navigation: [
+  {
+    href: '/jail',
+    label: 'Jail',
+    permission: JAIL_PERMISSIONS.view,
+    alternatives: [
+      {
+        permission: JAIL_PERMISSIONS.voteStart,
+        href: '/jail/votes',
+        label: 'Vote Jail',
+      },
+    ],
+    // ...
+  },
+],
+```
+
+Geprüft wird der Reihe nach und **nur, wenn die Hauptberechtigung fehlt**: Wer
+beides hat, sieht den Hauptbereich und keinen zweiten Eintrag daneben.
+
+Der Auflöser gewährt dabei keine Rechte. Er entscheidet, wohin ein Eintrag
+zeigt; die Seite selbst prüft weiterhin serverseitig – und muss dafür
+`requirePagePermission([a, b])` mit allen Zugängen aufrufen, die dorthin führen
+dürfen.
+
 ### Kein Platz für Ausblicke
 
 In der Navigation erscheint ausschliesslich, was auch funktioniert: ein Eintrag

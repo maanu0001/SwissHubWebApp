@@ -36,21 +36,25 @@ export default async function VoteJailsPage(): Promise<React.JSX.Element> {
   // Zwei Zugaenge: die Abstimmungen einsehen - oder eine starten duerfen.
   // Bisher stand hier nur `view`, und damit sah jemand mit dem Recht «Vote
   // Jail starten» den Bereich nie, den er bedienen darf.
-  const context = await requirePagePermission([
-    jail.JAIL_PERMISSIONS.view,
-    jail.JAIL_PERMISSIONS.voteStart,
-  ]);
+  const context = await requirePagePermission([jail.JAIL_PERMISSIONS.view, jail.JAIL_PERMISSIONS.voteStart]);
   const csrfToken = csrfTokenFor(context);
 
+  // Das Archiv wird nur geholt, wenn es auch gezeigt wird - was nicht geladen
+  // wird, kann auch nicht versehentlich in einer Antwort landen.
+  const darfArchivLaden = can(context, jail.JAIL_PERMISSIONS.view);
   const [enabled, config, active, past, channels] = await Promise.all([
     isModuleEnabled(jail.JAIL_MODULE_ID),
     jail.getVoteJailConfig(),
     jail.listVoteJails({ tab: 'active' }),
-    jail.listVoteJails({ tab: 'past', limit: 50 }),
+    darfArchivLaden ? jail.listVoteJails({ tab: 'past', limit: 50 }) : Promise.resolve([]),
     listCachedChannels().catch(() => []),
   ]);
 
   const canStart = can(context, jail.JAIL_PERMISSIONS.voteStart);
+  // Das Archiv gehoert zur Moderationssicht. Wer nur mitstimmen darf, sieht
+  // die laufenden Abstimmungen und startet neue - die Sammlung aller
+  // beendeten Verfahren ist etwas anderes als die Teilnahme am laufenden.
+  const darfArchiv = darfArchivLaden;
   const channelName = config.channelId
     ? (channels.find((channel) => channel.id === config.channelId)?.name ?? null)
     : null;
@@ -189,19 +193,21 @@ export default async function VoteJailsPage(): Promise<React.JSX.Element> {
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Abgeschlossen</CardTitle>
-          <CardDescription>Die letzten beendeten Abstimmungen.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {past.length === 0 ? (
-            <EmptyState title="Noch nichts abgeschlossen" description="Es gab bisher keine Abstimmung." />
-          ) : (
-            rows(past)
-          )}
-        </CardContent>
-      </Card>
+      {darfArchiv ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>Abgeschlossen</CardTitle>
+            <CardDescription>Die letzten beendeten Abstimmungen.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {past.length === 0 ? (
+              <EmptyState title="Noch nichts abgeschlossen" description="Es gab bisher keine Abstimmung." />
+            ) : (
+              rows(past)
+            )}
+          </CardContent>
+        </Card>
+      ) : null}
     </>
   );
 }

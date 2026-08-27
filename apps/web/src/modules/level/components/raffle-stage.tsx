@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { PartyPopper, Ticket } from 'lucide-react';
+import { PartyPopper, RotateCcw, SkipForward, Ticket } from 'lucide-react';
 import type { XpRaffleStatus } from '@swisshub/database';
 import { Button } from '@/components/ui/button';
 import { DiscordAvatar } from '@/components/shared/discord-avatar';
@@ -51,6 +51,7 @@ export function RaffleStage({
   animationSeed,
   canParticipate,
   entryModelLabel,
+  revealOnOpen = false,
 }: {
   csrfToken: string;
   raffleId: string;
@@ -62,13 +63,26 @@ export function RaffleStage({
   animationSeed: string | null;
   canParticipate: boolean;
   entryModelLabel: string;
+  /**
+   * Die abgeschlossene Ziehung noch einmal drehen lassen.
+   *
+   * Wer die Seite erst nach der Bestaetigung oeffnet, saehe sonst nur das
+   * Ergebnis - und damit ausgerechnet den Teil nicht, der Spass macht. Der
+   * Gewinner steht dabei laengst fest: das Rad zeigt ihn, es waehlt ihn
+   * nicht. Ob dieses Fenster noch offen ist, entscheidet der Server.
+   */
+  revealOnOpen?: boolean;
 }): React.JSX.Element {
   const router = useRouter();
   const [status, setStatus] = useState<XpRaffleStatus>(initialStatus);
   const [winner, setWinner] = useState<StageWinner | null>(initialWinner);
   const [seed, setSeed] = useState<string | null>(animationSeed);
   const [confirmOpen, setConfirmOpen] = useState(false);
-  const [revealed, setRevealed] = useState(initialStatus === 'COMPLETED' || initialStatus === 'CANCELLED');
+  const [revealed, setRevealed] = useState(
+    initialStatus === 'CANCELLED' || (initialStatus === 'COMPLETED' && !revealOnOpen),
+  );
+  /** Zaehlt jedes «nochmal ansehen» - er stoesst die Drehung erneut an. */
+  const [durchgang, setDurchgang] = useState(0);
 
   // Solange etwas läuft, den Stand regelmässig nachladen. So merken alle, die
   // die Seite offen haben, dass die Ziehung begonnen hat.
@@ -112,8 +126,19 @@ export function RaffleStage({
     setWinner(initialWinner);
   }, [initialWinner]);
 
-  const spinning = status === 'DRAWING' || status === 'WINNER_PENDING';
+  // Gedreht wird, solange die Ziehung laeuft - und zusaetzlich beim Nachlauf,
+  // solange der Reveal noch aussteht.
+  const nachlaufDreht = revealOnOpen && status === 'COMPLETED' && !revealed;
+  const spinning = status === 'DRAWING' || status === 'WINNER_PENDING' || nachlaufDreht;
   const handleSpinEnd = useCallback(() => setRevealed(true), []);
+
+  /** Ueberspringen: dasselbe Ergebnis, nur sofort. */
+  const ueberspringen = useCallback(() => setRevealed(true), []);
+
+  const nochmal = useCallback(() => {
+    setRevealed(false);
+    setDurchgang((wert) => wert + 1);
+  }, []);
 
   const teilnehmen = async (): Promise<void> => {
     const result = await enterRaffleAction({ csrfToken, raffleId });
@@ -138,13 +163,24 @@ export function RaffleStage({
         winnerEntryId={winner?.entryId ?? null}
         animationSeed={seed}
         spinning={spinning}
+        runId={durchgang}
         onSpinEnd={handleSpinEnd}
       />
 
-      {status === 'DRAWING' || (spinning && !revealed) ? (
-        <p className="text-center text-sm font-medium text-primary" role="status">
-          🎡 Die Ziehung läuft …
-        </p>
+      {spinning && !revealed ? (
+        <div className="flex flex-col items-center gap-2">
+          <p className="text-center text-sm font-medium text-primary" role="status">
+            {nachlaufDreht ? '🎡 Die Verlosung wurde gezogen …' : '🎡 Die Ziehung läuft …'}
+          </p>
+          {nachlaufDreht ? (
+            // Nur beim Nachlauf: waehrend einer echten Ziehung gibt es nichts
+            // zu ueberspringen - da wartet die Seite auf den Server.
+            <Button variant="ghost" size="sm" onClick={ueberspringen}>
+              <SkipForward aria-hidden="true" />
+              Überspringen
+            </Button>
+          ) : null}
+        </div>
       ) : null}
 
       {winner && revealed ? (
@@ -172,6 +208,12 @@ export function RaffleStage({
             <p className="mt-3 text-xs text-muted-foreground">
               Noch nicht bestätigt – die Verwaltung prüft das Ergebnis.
             </p>
+          ) : null}
+          {revealOnOpen && status === 'COMPLETED' ? (
+            <Button variant="outline" size="sm" className="mt-4" onClick={nochmal}>
+              <RotateCcw aria-hidden="true" />
+              Animation erneut ansehen
+            </Button>
           ) : null}
         </div>
       ) : null}

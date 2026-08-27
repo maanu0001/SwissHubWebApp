@@ -152,6 +152,7 @@ export function RaffleWheel({
   winnerEntryId,
   animationSeed,
   spinning,
+  runId,
   onSpinEnd,
 }: {
   segments: WheelSegment[];
@@ -160,6 +161,14 @@ export function RaffleWheel({
   /** Wert vom Server - sorgt für dieselbe Drehung auf allen Geräten. */
   animationSeed?: string | null;
   spinning: boolean;
+  /**
+   * Zaehler, der eine erneute Drehung ausloest.
+   *
+   * Gebraucht fuer «nochmal ansehen»: Gewinner und Wert des Servers bleiben
+   * gleich, und ohne diesen Zaehler saehe der Effekt keinen Grund, noch
+   * einmal zu laufen. Auf den Gewinner hat er keinen Einfluss.
+   */
+  runId?: number;
   onSpinEnd?: () => void;
 }): React.JSX.Element {
   const display = useMemo(() => buildSegments(segments), [segments]);
@@ -227,7 +236,7 @@ export function RaffleWheel({
     // `onSpinEnd` bewusst nicht in der Liste: eine neue Funktionsreferenz
     // würde die Drehung sonst mitten im Lauf neu starten.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [winnerSegment?.key, animationSeed, spinning, reducedMotion]);
+  }, [winnerSegment?.key, animationSeed, spinning, reducedMotion, runId]);
 
   if (display.length === 0) {
     return (

@@ -41,6 +41,30 @@ export interface ModuleNavigationItem {
    * Seitenleisten-Eintrag, und genau den soll es nicht geben.
    */
   altPermissions?: string[];
+  /**
+   * Ausweich-Eintraege, wenn die Hauptberechtigung fehlt.
+   *
+   * `altPermissions` macht denselben Eintrag fuer mehrere Berechtigungen
+   * sichtbar - richtig, wo alle auf dieselbe Seite duerfen. Beim Jail ist es
+   * anders: wer nur Abstimmungen starten darf, sieht dort «Jail», landet auf
+   * der Uebersicht und bekommt eine 403-Seite. Der Eintrag zeigte auf etwas,
+   * das er nicht oeffnen darf.
+   *
+   * Ein Ausweich-Eintrag fuehrt ihn stattdessen direkt dorthin, wo er
+   * hindarf - unter passender Beschriftung. Geprueft wird der Reihe nach,
+   * und nur, wenn die Hauptberechtigung fehlt: wer beides hat, sieht den
+   * Hauptbereich und keinen zweiten Eintrag daneben.
+   *
+   * Das gewaehrt keine Rechte. Es entscheidet nur, wohin ein Eintrag zeigt;
+   * die Seite selbst prueft weiterhin serverseitig.
+   */
+  alternatives?: Array<{
+    permission: string;
+    href: string;
+    label: string;
+    description?: string;
+    icon?: string;
+  }>;
   /** Lucide Icon Name (siehe `nav-icon.tsx`). */
   icon: string;
   /**
@@ -150,11 +174,31 @@ export function buildNavigation(
   return listModuleDefinitions()
     .filter((definition) => definition.core || enabledModuleIds.has(definition.id))
     .flatMap((definition) => definition.navigation.map((item) => ({ ...item, moduleId: definition.id })))
-    .filter(
-      (item) =>
-        owned.has(item.permission) ||
-        (item.altPermissions ?? []).some((permission) => owned.has(permission)),
-    )
+    .flatMap((item) => {
+      if (owned.has(item.permission)) {
+        return [item];
+      }
+
+      // Hauptberechtigung fehlt: gibt es einen Weg, der zu dem passt, was
+      // diese Person tatsaechlich darf?
+      const ausweich = (item.alternatives ?? []).find((eintrag) => owned.has(eintrag.permission));
+      if (ausweich) {
+        return [
+          {
+            ...item,
+            href: ausweich.href,
+            label: ausweich.label,
+            description: ausweich.description ?? item.description,
+            icon: ausweich.icon ?? item.icon,
+            // Der Titel-Praefix bleibt der des Moduls: die Unterseiten
+            // gehoeren weiterhin dazu.
+            titlePrefix: item.titlePrefix ?? item.href,
+          },
+        ];
+      }
+
+      return (item.altPermissions ?? []).some((permission) => owned.has(permission)) ? [item] : [];
+    })
     .sort((a, b) => a.order - b.order);
 }
 

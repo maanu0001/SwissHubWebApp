@@ -9,11 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { MemberPicker, type PickedMember } from '@/modules/members/components/member-picker';
-import {
-  addTrustedAction,
-  removeTrustedAction,
-  savePreferencesAction,
-} from '@/modules/voice/actions';
+import { addTrustedAction, removeTrustedAction, savePreferencesAction } from '@/modules/voice/actions';
 
 /**
  * Die eigenen Voreinstellungen.
@@ -84,7 +80,9 @@ export function PreferencesPanel({
             maxLength={100}
             value={name}
             onChange={(ereignis) => setName(ereignis.target.value)}
-            placeholder="Manuels Stübli"
+            // Ein Beispiel, keine Voreinstellung: das Feld bleibt leer, und
+            // solange es leer ist, entsteht der Name aus der Vorlage des Hubs.
+            placeholder="Username's Stübli"
           />
         </div>
         <div className="space-y-1.5">
@@ -142,12 +140,7 @@ export function PreferencesPanel({
       {/* --- Vertrauenspersonen ------------------------------------------ */}
       <div className="space-y-3 border-t border-border pt-4">
         <h3 className="text-sm font-medium">Vertrauenspersonen</h3>
-        <MemberPicker
-          csrfToken={csrfToken}
-          value={auswahl}
-          onChange={setAuswahl}
-          label="Person hinzufügen"
-        />
+        <MemberPicker csrfToken={csrfToken} value={auswahl} onChange={setAuswahl} label="Person hinzufügen" />
         <Button
           size="sm"
           variant="outline"
@@ -184,9 +177,7 @@ export function PreferencesPanel({
           <ul className="divide-y divide-border/60 overflow-hidden rounded-xl border border-border">
             {vertraute.map((person) => (
               <li key={person.discordId} className="flex items-center gap-3 px-4 py-2.5 text-sm">
-                <span className="min-w-0 flex-1 truncate">
-                  {person.username ?? person.discordId}
-                </span>
+                <span className="min-w-0 flex-1 truncate">{person.username ?? person.discordId}</span>
                 <Button
                   size="sm"
                   variant="ghost"
@@ -215,8 +206,7 @@ export function PreferencesPanel({
           </ul>
         ) : (
           <p className="text-xs text-muted-foreground">
-            Noch niemand. Vertrauenspersonen kommen in jeden deiner Talks - auch in einen
-            gesperrten.
+            Noch niemand. Vertrauenspersonen kommen in jeden deiner Talks - auch in einen gesperrten.
           </p>
         )}
       </div>

@@ -616,7 +616,24 @@ export const jailModule: ModuleDefinition = registerModule({
       permission: JAIL_PERMISSIONS.view,
       // Wer abstimmen lassen darf, kommt ebenfalls hinein - er sieht dort
       // die Abstimmungen, nicht die Strafakte.
-      altPermissions: [JAIL_PERMISSIONS.voteStart, JAIL_PERMISSIONS.import],
+      // Wer die Uebersicht nicht sehen darf, aber Abstimmungen starten oder
+      // importieren: der bekommt den Eintrag, der zu seinem Recht passt -
+      // statt «Jail» und dahinter eine 403-Seite.
+      alternatives: [
+        {
+          permission: JAIL_PERMISSIONS.voteStart,
+          href: '/jail/votes',
+          label: 'Vote Jail',
+          description: 'Community-Abstimmungen starten und mitstimmen',
+          icon: 'Gavel',
+        },
+        {
+          permission: JAIL_PERMISSIONS.import,
+          href: '/jail/import',
+          label: 'Jail-Import',
+          description: 'Bestand aus dem alten Bot übernehmen',
+        },
+      ],
       icon: 'Lock',
       group: 'moderation',
       order: 30,

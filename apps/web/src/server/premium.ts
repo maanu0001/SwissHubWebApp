@@ -30,7 +30,11 @@ export function premiumSections(context: AuthContext): PremiumSection[] {
     );
   }
   if (can(context, p.productsManage)) {
-    sections.push({ href: '/premium/produkte', label: 'Angebote', icon: 'products' });
+    // «Produkte», nicht «Angebote»: den Eintrag oben gibt es bereits, und er
+    // fuehrt Mitglieder in den Shop. Zwei gleich beschriftete Eintraege
+    // nebeneinander, von denen einer verwaltet und einer verkauft, waeren
+    // eine Falle - man klickt den falschen.
+    sections.push({ href: '/premium/produkte', label: 'Produkte', icon: 'products' });
   }
   if (can(context, p.paymentsView)) {
     sections.push({ href: '/premium/zahlungen', label: 'Zahlungen', icon: 'payments' });

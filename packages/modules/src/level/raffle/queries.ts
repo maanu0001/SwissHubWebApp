@@ -2,7 +2,7 @@ import { prisma } from '@swisshub/database';
 import type { XpRaffle, XpRaffleDraw, XpRaffleEntry, XpRaffleStatus } from '@swisshub/database';
 import { winChance } from './entry-cost';
 import { latestDraw } from './draw';
-import { LIVE_STATUSES } from './service';
+import { LIVE_STATUSES, RAFFLE_NACHLAUF_MS } from './service';
 
 /**
  * Leseabfragen für Verlosungen.
@@ -300,8 +300,22 @@ export async function getPastRaffles(limit = 10): Promise<RaffleSummary[]> {
  * bleibt das Gluecksrad dauerhaft erreichbar - dort wird es verwaltet.
  */
 export async function hatLaufendeVerlosung(): Promise<boolean> {
-  const anzahl = await prisma.xpRaffle.count({
+  const laufend = await prisma.xpRaffle.count({
     where: { status: { in: ['SCHEDULED', 'ENTRY_OPEN', 'ENTRY_CLOSED', 'DRAWING', 'WINNER_PENDING'] } },
   });
-  return anzahl > 0;
+  if (laufend > 0) {
+    return true;
+  }
+
+  // Nachlauf: nach der Bestaetigung bleibt der Eintrag noch eine Weile
+  // stehen, damit die Ziehung auch sehen kann, wer nicht zufaellig in der
+  // richtigen Minute online war. Danach verschwindet er - eine Verlosung von
+  // vorgestern gehoert nicht dauerhaft neben «Mein Profil».
+  const nachlauf = await prisma.xpRaffle.count({
+    where: {
+      status: 'COMPLETED',
+      completedAt: { gt: new Date(Date.now() - RAFFLE_NACHLAUF_MS) },
+    },
+  });
+  return nachlauf > 0;
 }

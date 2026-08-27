@@ -1,7 +1,16 @@
-import { beforeAll, beforeEach, expect, it } from 'vitest';
+import { mkdtemp, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { beforeAll, beforeEach, expect, it, vi } from 'vitest';
 import { describeWithDatabase, pushSchema, useTestSchema } from '../helpers/database';
 
 useTestSchema('test_tickets');
+
+// Ohne eigenes Verzeichnis landen die Transcripts unter dem Vorgabepfad
+// `/var/lib/swisshub/uploads`. Als root ging das durch, auf einem Rechner
+// ohne Schreibrecht dort nicht - eine Pruefung, deren Ausgang vom Benutzer
+// abhaengt, prueft nichts Verlaessliches.
+process.env.SWISSHUB_UPLOAD_DIR = await mkdtemp(join(tmpdir(), 'swisshub-tickets-'));
 
 /**
  * Das Ticketsystem gegen eine echte Datenbank.
@@ -480,6 +489,42 @@ describeWithDatabase('Tickets', () => {
     });
     const geladen = await tickets.loadTranscript(ticket.id, 'USER');
     expect(geladen.html).toContain('Wird geschlossen');
+  });
+
+  it('behaelt den Verlauf, wenn sich die Datei nicht ablegen laesst', async () => {
+    // Der Datensatz ist die Auskunft, die Datei nur die Abkuerzung. Lagen
+    // beide in einem Versuch, liess ein volles oder nur lesbar eingehaengtes
+    // Upload-Verzeichnis das Ticket ohne jeden Transcript zurueck.
+    //
+    // Nachgestellt mit ENOTDIR - ein Verzeichnispfad unterhalb einer Datei
+    // scheitert fuer jeden Benutzer, auch fuer root.
+    const blocker = join(await mkdtemp(join(tmpdir(), 'swisshub-blocker-')), 'datei');
+    await writeFile(blocker, 'keine Datei-Ablage');
+
+    const vorher = process.env.SWISSHUB_UPLOAD_DIR;
+    process.env.SWISSHUB_UPLOAD_DIR = join(blocker, 'uploads');
+    // Das Modul liest den Pfad beim Laden - deshalb frisch importieren.
+    vi.resetModules();
+    const abgeschottet = (await import('@swisshub/modules')).tickets;
+
+    const k = await kategorie('Allgemein');
+    const ticket = await abgeschottet.createTicket({
+      categoryId: k.id, subject: 'Ohne Ablage',
+      creatorDiscordId: '900000000000001605', creatorUsername: 'nina',
+      source: 'WEBAPP', actor: actor('900000000000001605', 'nina'),
+    });
+    await abgeschottet.closeTicket(ticket.id, 'erledigt', ADMIN_ACTOR);
+
+    const abgelegt = await prisma.ticketTranscript.findMany({ where: { ticketId: ticket.id } });
+    expect(abgelegt.map((eintrag) => eintrag.audience).sort()).toEqual(['STAFF', 'USER']);
+
+    // Und ausliefern laesst er sich auch: ohne Datei wird er aus der
+    // Datenbank neu erzeugt.
+    const geladen = await abgeschottet.loadTranscript(ticket.id, 'USER');
+    expect(geladen.html).toContain('Ohne Ablage');
+
+    process.env.SWISSHUB_UPLOAD_DIR = vorher;
+    vi.resetModules();
   });
 
   it('entfernt Transcripts erst nach der eingestellten Frist', async () => {

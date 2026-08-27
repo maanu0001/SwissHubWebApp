@@ -164,18 +164,22 @@ ${zeilen || '<p>Keine Nachrichten.</p>'}
 /**
  * Beide Fassungen erzeugen und ablegen.
  *
- * Laeuft beim Schliessen. Schlaegt das Schreiben fehl, bleibt der Verlauf in
- * der Datenbank - deshalb ist ein Fehler hier kein Grund, das Schliessen
- * scheitern zu lassen.
+ * Laeuft beim Schliessen. Der Datensatz entsteht zuerst, die Datei danach:
+ * die Datei ist der Zwischenspeicher, der Datensatz die Auskunft darueber,
+ * dass es diesen Verlauf gibt. Beides in einem Versuch zusammenzufassen
+ * hiess, das Wichtigere am Unwichtigeren scheitern zu lassen - ein volles
+ * oder nur lesbar eingehaengtes Upload-Verzeichnis liess das Ticket dann
+ * ohne jeden Transcript-Datensatz zurueck, und `loadTranscript` fand nichts
+ * mehr vor, obwohl der Verlauf in der Datenbank vollstaendig dastand.
+ *
+ * Bleibt die Datei aus, faellt das nicht weiter auf: `loadTranscript`
+ * erzeugt den Verlauf dann aus der Datenbank neu.
  */
 export async function ensureTranscripts(ticketId: string): Promise<void> {
   for (const audience of ['USER', 'STAFF'] as const) {
     try {
       const inhalt = await renderTranscript(ticketId, audience);
       const fileName = `transcript-${randomBytes(16).toString('hex')}.html`;
-
-      await mkdir(TRANSCRIPT_DIR, { recursive: true });
-      await writeFile(join(TRANSCRIPT_DIR, fileName), inhalt.html, { mode: 0o640 });
 
       const vorher = await prisma.ticketTranscript.findUnique({
         where: { ticketId_audience: { ticketId, audience } },
@@ -197,6 +201,8 @@ export async function ensureTranscripts(ticketId: string): Promise<void> {
         },
       });
 
+      await schreibeDatei(ticketId, audience, fileName, inhalt.html);
+
       // Die vorherige Fassung erst danach entfernen: bricht der Upsert ab,
       // zeigt der Datensatz noch auf eine Datei, die es gibt.
       if (vorher && vorher.fileName !== fileName) {
@@ -209,6 +215,31 @@ export async function ensureTranscripts(ticketId: string): Promise<void> {
         grund: fehler instanceof Error ? fehler.message : 'unbekannt',
       });
     }
+  }
+}
+
+/**
+ * Den Zwischenspeicher schreiben - und sein Ausbleiben hinnehmen.
+ *
+ * Der Datensatz steht zu diesem Zeitpunkt bereits. Ein Fehler hier kostet
+ * nur die Abkuerzung beim naechsten Abruf, keine Auskunft.
+ */
+async function schreibeDatei(
+  ticketId: string,
+  audience: TicketTranscriptAudience,
+  fileName: string,
+  html: string,
+): Promise<void> {
+  try {
+    await mkdir(TRANSCRIPT_DIR, { recursive: true });
+    await writeFile(join(TRANSCRIPT_DIR, fileName), html, { mode: 0o640 });
+  } catch (fehler) {
+    logger.warn('Transcript-Datei konnte nicht abgelegt werden - der Verlauf bleibt in der Datenbank', {
+      ticketId,
+      audience,
+      verzeichnis: TRANSCRIPT_DIR,
+      grund: fehler instanceof Error ? fehler.message : 'unbekannt',
+    });
   }
 }
 

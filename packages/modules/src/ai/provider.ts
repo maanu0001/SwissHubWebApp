@@ -1,5 +1,5 @@
-import Anthropic from '@anthropic-ai/sdk';
-import OpenAI from 'openai';
+import type Anthropic from '@anthropic-ai/sdk';
+import type OpenAI from 'openai';
 import { createLogger } from '@swisshub/logger';
 import { AI_INTEGRATION_ID, getSecret } from '@swisshub/secrets';
 import { readAiSettings, type AiSettings } from './settings';
@@ -20,6 +20,16 @@ const logger = createLogger('ai:provider');
  * eine Antwort, ein Schema. Ein Modell kann über diesen Weg nichts auslösen -
  * es kann nur antworten, und ob aus der Antwort etwas folgt, entscheidet der
  * Aufrufer.
+ *
+ * ## Warum die SDKs erst bei Bedarf geladen werden
+ *
+ * Beide sind gross und laufen ausschliesslich serverseitig. Sie oben
+ * einzubinden hiesse, dass jede Seite und jeder Job sie mitlaedt - auch die
+ * ueberwaeltigende Mehrheit, die nie ein Modell fragt. Beim Bauen kostet das
+ * so viel Arbeitsspeicher, dass ein knapp bemessener Server ins Auslagern
+ * geraet; zur Laufzeit kostet es Startzeit fuer nichts. Geladen wird deshalb
+ * erst, wenn tatsaechlich ein Zugang gebraucht wird - und wenn die AI aus ist,
+ * nie.
  *
  * ## Fehler
  *
@@ -72,6 +82,16 @@ export interface StrukturAntwort {
  */
 let zwischenspeicher: { kennung: string; anthropic?: Anthropic; openai?: OpenAI } | null = null;
 
+/**
+ * Die Fehlerklassen der SDKs.
+ *
+ * `error instanceof Anthropic.APIError` braucht die Klasse selbst, nicht nur
+ * ihren Typ. Sie wird beim ersten Zugang gemerkt; vorher kann es ohnehin
+ * keinen Anbieterfehler gegeben haben.
+ */
+let anthropicApiError: (new (...args: never[]) => Error) | null = null;
+let openaiApiError: (new (...args: never[]) => Error) | null = null;
+
 function kennungVon(settings: AiSettings, apiKey: string): string {
   // Der Schlüssel geht nur als Länge und letzte vier Zeichen ein - die
   // Kennung landet potenziell in einer Fehlermeldung.
@@ -105,26 +125,38 @@ async function zugang(override?: Partial<AiSettings>): Promise<Zugang | { fehler
   }
 
   if (settings.provider === 'anthropic') {
-    zwischenspeicher.anthropic ??= new Anthropic({
+    if (!zwischenspeicher.anthropic) {
+      const { default: AnthropicSdk } = await import('@anthropic-ai/sdk');
+      anthropicApiError = AnthropicSdk.APIError;
+      zwischenspeicher.anthropic = new AnthropicSdk({
+        apiKey,
+        timeout: settings.timeoutMs,
+        ...(settings.baseUrl ? { baseURL: settings.baseUrl } : {}),
+      });
+    }
+    return { settings, anthropic: zwischenspeicher.anthropic };
+  }
+
+  if (!zwischenspeicher.openai) {
+    const { default: OpenAiSdk } = await import('openai');
+    openaiApiError = OpenAiSdk.APIError;
+    zwischenspeicher.openai = new OpenAiSdk({
       apiKey,
       timeout: settings.timeoutMs,
       ...(settings.baseUrl ? { baseURL: settings.baseUrl } : {}),
     });
-    return { settings, anthropic: zwischenspeicher.anthropic };
   }
-
-  zwischenspeicher.openai ??= new OpenAI({
-    apiKey,
-    timeout: settings.timeoutMs,
-    ...(settings.baseUrl ? { baseURL: settings.baseUrl } : {}),
-  });
   return { settings, openai: zwischenspeicher.openai };
 }
 
 /** Kurz, verständlich, ohne Anbieterdetails - dieser Text erreicht die Oberfläche. */
 function bereinige(error: unknown): string {
-  if (error instanceof Anthropic.APIError || error instanceof OpenAI.APIError) {
-    const status = error.status ?? 0;
+  const vomAnbieter =
+    (anthropicApiError !== null && error instanceof anthropicApiError) ||
+    (openaiApiError !== null && error instanceof openaiApiError);
+
+  if (vomAnbieter) {
+    const status = (error as { status?: number }).status ?? 0;
     if (status === 401) {
       return 'Der API-Schlüssel wurde abgelehnt.';
     }

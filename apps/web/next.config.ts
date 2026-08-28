@@ -39,9 +39,20 @@ const nextConfig: NextConfig = {
     '@swisshub/logger',
     '@swisshub/modules',
     '@swisshub/permissions',
+    '@swisshub/secrets',
     '@swisshub/shared',
   ],
-  serverExternalPackages: ['@prisma/client'],
+  /**
+   * Pakete, die der Bundler nicht anfassen soll.
+   *
+   * Die beiden AI-SDKs sind gross, laufen ausschliesslich serverseitig und
+   * werden auf den allermeisten Seiten nie gebraucht. Sie mitzubuendeln kostet
+   * beim Bauen Zeit und Arbeitsspeicher, ohne dass die ausgelieferte Anwendung
+   * davon etwas haette - auf einem knapp bemessenen Server hat genau das den
+   * Build zum Stillstand gebracht. Als externe Pakete bleiben sie ein
+   * gewoehnliches `require` zur Laufzeit.
+   */
+  serverExternalPackages: ['@prisma/client', 'openai', '@anthropic-ai/sdk'],
   experimental: {
     // Server Actions sind nur für die eigene Origin erlaubt (CSRF).
     serverActions: {

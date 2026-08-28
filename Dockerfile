@@ -51,6 +51,19 @@ RUN npx prisma generate --schema packages/database/prisma/schema.prisma
 # Platzhalter, die niemals im Image landen (nur Build-Argumente).
 ARG NEXT_PUBLIC_APP_URL=http://localhost:3000
 ENV NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL}
+
+# Feste Obergrenze fuer den Heap des Builds.
+#
+# Ohne sie waehlt V8 die Grenze nach dem Arbeitsspeicher der Maschine. Auf
+# einem knapp bemessenen Server heisst das: der Build waechst, bis das System
+# auszulagern beginnt, und laeuft danach zwar weiter, aber um Groessenordnungen
+# langsamer - er scheitert nicht, er steht. Genau so ist ein Deployment einmal
+# ins 30-Minuten-Zeitlimit gelaufen.
+#
+# Mit einer Grenze raeumt V8 rechtzeitig auf, statt zu wachsen. Reicht der
+# Platz wirklich nicht, bricht der Build mit «heap out of memory» ab - eine
+# klare Meldung nach zwei Minuten ist besser als eine halbe Stunde Stillstand.
+ENV NODE_OPTIONS=--max-old-space-size=1536
 RUN npm run build --workspace @swisshub/web
 
 # --- WebApp ------------------------------------------------------------------

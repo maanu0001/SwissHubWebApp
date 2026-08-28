@@ -5077,6 +5077,8 @@ model AutomationRun {
   context        Json
   error          String?
   errorCode      String?
+  /// Wann ueber diesen Lauf gemeldet wurde. Verhindert eine zweite Meldung.
+  notifiedAt     DateTime?
   startedAt      DateTime?
   finishedAt     DateTime?
   durationMs     Int?
@@ -5092,6 +5094,7 @@ model AutomationRun {
   @@index([status, createdAt])
   @@index([correlationId])
   @@index([automationId, status, concurrencyKey])
+  @@index([status, notifiedAt])
 }
 
 model AutomationStepRun {

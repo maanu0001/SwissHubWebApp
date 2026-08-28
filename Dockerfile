@@ -15,12 +15,14 @@ COPY package.json package-lock.json ./
 COPY apps/web/package.json ./apps/web/
 COPY apps/bot/package.json ./apps/bot/
 COPY packages/auth/package.json ./packages/auth/
+COPY packages/automation/package.json ./packages/automation/
 COPY packages/config/package.json ./packages/config/
 COPY packages/database/package.json ./packages/database/
 COPY packages/discord/package.json ./packages/discord/
 COPY packages/logger/package.json ./packages/logger/
 COPY packages/modules/package.json ./packages/modules/
 COPY packages/permissions/package.json ./packages/permissions/
+COPY packages/secrets/package.json ./packages/secrets/
 COPY packages/shared/package.json ./packages/shared/
 
 RUN npm ci --no-audit --no-fund

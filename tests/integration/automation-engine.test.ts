@@ -21,7 +21,9 @@ const automation = await import('@swisshub/automation');
 // Die Ereignisse der Module - `member.joined` und die übrigen - meldet
 // `@swisshub/modules` beim Import an. Ohne diesen Import kennt die Engine
 // kein einziges Ereignis, und jede Veröffentlichung würde abgewiesen.
-const { setModuleEnabled } = await import('@swisshub/modules');
+const { setModuleEnabled, setModuleSettings, automation: automationModul } = await import(
+  '@swisshub/modules'
+);
 
 const GILDE = '900000000000000900';
 const KANAL = '900000000000000901';
@@ -956,6 +958,108 @@ describeWithDatabase('Automation Engine', () => {
 
     const uebrig = await prisma.automationRun.findMany({ select: { status: true } });
     expect(uebrig.map((zeile) => zeile.status).sort()).toEqual(['FAILED', 'WAITING']);
+  });
+
+  // --- Meldungen ----------------------------------------------------------
+
+  /**
+   * Ein gescheiterter Lauf wird gemeldet - genau einmal (§26).
+   *
+   * Die zweite Meldung wäre schlimmer als keine: wer dreimal täglich dieselbe
+   * Nachricht bekommt, liest bald keine mehr.
+   */
+  it('meldet einen gescheiterten Lauf genau einmal', async () => {
+    await setModuleSettings(
+      'automation',
+      { meldeKanalId: KANAL, meldeRolleId: null, freigabeKanalId: null },
+      'test',
+    );
+
+    const eintrag = await legeAutomationAn();
+    await prisma.automationRun.create({
+      data: {
+        automationId: eintrag.id,
+        version: 1,
+        guildId: GILDE,
+        status: 'FAILED',
+        trigger: 'event',
+        correlationId: 'gescheitert',
+        idempotencyKey: 'gescheitert',
+        context: {},
+        error: 'Der Bot darf das nicht.',
+      },
+    });
+
+    const { gateway, gesendet } = attrappe();
+    const erste = await automationModul.meldeOffenes({ gateway });
+    const zweite = await automationModul.meldeOffenes({ gateway });
+
+    expect(erste.fehler).toBe(1);
+    expect(zweite.fehler).toBe(0);
+    expect(gesendet).toHaveLength(1);
+  });
+
+  /**
+   * Alte Fehler lösen keine Flut aus.
+   *
+   * Ohne diese Grenze meldete der erste Durchgang nach der Einführung - oder
+   * nach einer längeren Störung - jeden gescheiterten Lauf der letzten Wochen
+   * auf einmal.
+   */
+  it('meldet keine Fehler ausserhalb des Fensters', async () => {
+    await setModuleSettings(
+      'automation',
+      { meldeKanalId: KANAL, meldeRolleId: null, freigabeKanalId: null },
+      'test',
+    );
+
+    const eintrag = await legeAutomationAn();
+    await prisma.automationRun.create({
+      data: {
+        automationId: eintrag.id,
+        version: 1,
+        guildId: GILDE,
+        status: 'FAILED',
+        trigger: 'event',
+        correlationId: 'uralt',
+        idempotencyKey: 'uralt',
+        context: {},
+        error: 'Vor Wochen gescheitert.',
+        createdAt: new Date(Date.now() - 7 * 24 * 3600_000),
+      },
+    });
+
+    const { gateway, gesendet } = attrappe();
+    expect((await automationModul.meldeOffenes({ gateway })).fehler).toBe(0);
+    expect(gesendet).toHaveLength(0);
+  });
+
+  it('meldet einen Probelauf nicht', async () => {
+    await setModuleSettings(
+      'automation',
+      { meldeKanalId: KANAL, meldeRolleId: null, freigabeKanalId: null },
+      'test',
+    );
+
+    const eintrag = await legeAutomationAn();
+    await prisma.automationRun.create({
+      data: {
+        automationId: eintrag.id,
+        version: 1,
+        guildId: GILDE,
+        status: 'FAILED',
+        trigger: 'manual',
+        correlationId: 'probe',
+        idempotencyKey: 'probe',
+        context: {},
+        dryRun: true,
+        error: 'Nur ein Probelauf.',
+      },
+    });
+
+    const { gateway, gesendet } = attrappe();
+    expect((await automationModul.meldeOffenes({ gateway })).fehler).toBe(0);
+    expect(gesendet).toHaveLength(0);
   });
 
   it('räumt nur verarbeitete Ereignisse', async () => {

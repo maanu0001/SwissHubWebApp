@@ -16,3 +16,4 @@ import './templates';
 
 export * from './config';
 export * from './emit';
+export * from './notify';

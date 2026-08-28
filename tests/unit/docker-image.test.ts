@@ -19,7 +19,7 @@ import { describe, expect, it } from 'vitest';
  * `npm ci --dry-run` hätte das nicht gezeigt: dort stimmten Lockfile und
  * `package.json` ja überein. Die Lücke lag zwischen den Docker-Stufen.
  */
-const { readFileSync } = await import('node:fs');
+const { readFileSync, readdirSync, existsSync } = await import('node:fs');
 const { join } = await import('node:path');
 
 const dockerfile = readFileSync(join(process.cwd(), 'Dockerfile'), 'utf8');
@@ -72,6 +72,32 @@ describe('Docker-Abbild', () => {
       ).toBe(true);
     },
   );
+
+  /**
+   * Jeder Workspace muss in der deps-Stufe stehen.
+   *
+   * `npm ci` legt die Verknuepfungen unter `node_modules/@swisshub/*` an. Fehlt
+   * die `package.json` eines Workspaces zu diesem Zeitpunkt, entsteht seine
+   * Verknuepfung nicht - und das Abbild kennt ein Paket nicht, das beim Bauen
+   * noch da war. Genau so ist `packages/secrets` einmal durchgerutscht: die
+   * Zeile fehlte, und niemand haette es bemerkt, ehe der Bot nicht startet.
+   */
+  it('kopiert die package.json jedes Workspaces in die deps-Stufe', () => {
+    const wurzel = process.cwd();
+    const workspaces = readdirSync(join(wurzel, 'packages'), { withFileTypes: true })
+      .filter((eintrag) => eintrag.isDirectory())
+      .map((eintrag) => `packages/${eintrag.name}`)
+      .filter((pfad) => existsSync(join(wurzel, pfad, 'package.json')));
+
+    expect(workspaces.length).toBeGreaterThan(5);
+
+    for (const workspace of workspaces) {
+      expect(
+        dockerfile.includes(`COPY ${workspace}/package.json`),
+        `Dockerfile kopiert ${workspace}/package.json nicht in die deps-Stufe`,
+      ).toBe(true);
+    }
+  });
 
   it('stellt dem Bot die Pakete zur Verfügung, die er zur Laufzeit braucht', () => {
     for (const pfad of ['/app/node_modules', '/app/packages', '/app/apps/bot']) {

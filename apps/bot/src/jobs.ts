@@ -7,6 +7,7 @@ import { tryResolveGuildId } from '@swisshub/discord';
 import * as automationEngine from '@swisshub/automation';
 import {
   analytics,
+  automation,
   calendar,
   jail,
   level,
@@ -21,7 +22,7 @@ import {
   voiceHub,
   getModuleSettings,
 } from '@swisshub/modules';
-import type { automation } from '@swisshub/modules';
+
 
 const log = createLogger('bot:jobs');
 
@@ -510,6 +511,25 @@ export function createJobRunner(
         const geplant = await automationEngine.planeZeitTrigger();
         if (geplant > 0) {
           log.info('Zeitgesteuerte Automationen eingeplant', { anzahl: geplant });
+        }
+      },
+    },
+    {
+      // Meldungen an das Team (§26, §32).
+      //
+      // Der Fehler-Posteingang im Dashboard ist die vollstaendige Auskunft -
+      // aber er wird nur gesehen, wenn jemand hinsieht. Eine Automation, die
+      // seit drei Tagen scheitert, faellt sonst erst auf, wenn jemand nach ihr
+      // fragt.
+      name: 'automation-meldungen',
+      intervalMs: 60 * 1000,
+      async run() {
+        const ergebnis = await automation.meldeOffenes();
+        if (ergebnis.fehler > 0 || ergebnis.freigaben > 0) {
+          log.info('Automations-Meldungen gesendet', {
+            fehler: ergebnis.fehler,
+            freigaben: ergebnis.freigaben,
+          });
         }
       },
     },

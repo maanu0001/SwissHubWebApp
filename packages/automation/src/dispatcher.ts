@@ -115,12 +115,19 @@ export async function findePassende(
 /**
  * Offene Ereignisse verteilen.
  *
- * Das Ereignis wird **vor** dem Starten beansprucht. Andersherum liefe es bei
- * zwei Instanzen doppelt an; so kommt genau eine durch, und die andere sieht
- * eine bereits gesetzte Marke. Dass ein Absturz zwischen Anspruch und Start
- * ein Ereignis verlieren könnte, fangen die Läufe selbst über ihren
- * Idempotenzschlüssel ab - ein erneut zugestelltes Ereignis erzeugt keinen
- * zweiten Lauf (§14).
+ * Das Ereignis wird **nach** dem Starten beansprucht, und das ist die
+ * wichtigere Reihenfolge von beiden.
+ *
+ * Umgekehrt gedacht: erst beanspruchen, dann starten - dann verliert ein
+ * Absturz zwischen den beiden Schritten das Ereignis endgültig. Die Marke
+ * stünde, die Läufe gäbe es nie, und im Verlauf stünde nichts, das darauf
+ * hinwiese. Eine Willkommensnachricht bliebe schlicht aus.
+ *
+ * So herum kann derselbe Anlass höchstens doppelt *betrachtet* werden - und
+ * genau dagegen ist der Idempotenzschlüssel da: dasselbe Ereignis erzeugt für
+ * dieselbe Automation genau einen Lauf, ob es nun zweimal zugestellt wird oder
+ * zwei Instanzen es gleichzeitig sehen (§14). Doppelte Arbeit statt verlorener
+ * Wirkung - und die doppelte Arbeit bleibt folgenlos.
  */
 export async function verteileEreignisse(
   optionen: { limit?: number; gateway?: DiscordGateway } = {},
@@ -133,15 +140,13 @@ export async function verteileEreignisse(
   let uebersprungen = 0;
 
   for (const ereignis of offene) {
-    const meins = await beanspruche(ereignis.eventId, jetzt);
-    if (!meins) {
-      continue;
-    }
-
     let passende: Automation[];
     try {
       passende = await findePassende(ereignis, gateway, jetzt);
     } catch (error) {
+      // Nicht beansprucht: der nächste Durchgang versucht es erneut. Ein
+      // Ereignis, das wegen eines vorübergehenden Fehlers unverteilt bleibt,
+      // soll nicht als erledigt gelten.
       logger.error('Passende Automationen konnten nicht ermittelt werden', {
         eventId: ereignis.eventId,
         type: ereignis.type,
@@ -185,6 +190,9 @@ export async function verteileEreignisse(
         uebersprungen += 1;
       }
     }
+
+    // Erst jetzt: die Läufe stehen in der Datenbank.
+    await beanspruche(ereignis.eventId, jetzt);
   }
 
   return { ereignisse: offene.length, laeufe, uebersprungen };

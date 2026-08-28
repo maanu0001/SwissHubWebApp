@@ -5,6 +5,7 @@ import { LIMITS, listActions, listConditions, listTriggers } from '@swisshub/aut
 // Die Aktionen der Module - XP, Meldung, AI - melden sich beim Import an.
 // Ohne diese Zeile prüfte die Registrierungsprüfung nur die Kernaktionen.
 import '@swisshub/modules';
+import { listPermissions } from '@swisshub/permissions';
 
 /**
  * Die Grenzen der Automation Engine - als Test, nicht als Absicht.
@@ -170,5 +171,29 @@ describe('Grenzen', () => {
     const xp = listActions().find((aktion) => aktion.id === 'level.xp');
     expect(webhook?.requiredPermission).toBeTruthy();
     expect(xp?.requiredPermission).toBeTruthy();
+  });
+
+  /**
+   * Eine erfundene Berechtigung ist schlimmer als keine.
+   *
+   * `can(ctx, 'ai.manage')` auf einen Schlüssel, den es nicht gibt, ist immer
+   * falsch - ausser für `admin.full`. Die Aktion wäre damit für alle ausser
+   * dem Besitzer unbenutzbar, und niemand fände den Grund: es steht ja eine
+   * Berechtigung da. Genau dieser Tippfehler war einmal drin (`ai.manage`
+   * statt `integrations.ai.manage`).
+   */
+  it('verweist nur auf Berechtigungen, die es gibt', () => {
+    const bekannt = new Set(listPermissions().map((eintrag) => eintrag.key));
+    expect(bekannt.size).toBeGreaterThan(20);
+
+    for (const aktion of listActions()) {
+      if (!aktion.requiredPermission) {
+        continue;
+      }
+      expect(
+        bekannt.has(aktion.requiredPermission),
+        `«${aktion.label}» verlangt «${aktion.requiredPermission}» - diese Berechtigung gibt es nicht`,
+      ).toBe(true);
+    }
   });
 });

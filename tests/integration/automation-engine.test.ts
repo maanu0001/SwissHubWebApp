@@ -177,6 +177,50 @@ describeWithDatabase('Automation Engine', () => {
     expect(lauf?.status).toBe('SUCCESS');
   });
 
+  /**
+   * Ein Ereignis gilt erst als verteilt, wenn die Läufe stehen.
+   *
+   * Andersherum verlöre ein Absturz zwischen Marke und Lauf das Ereignis
+   * endgültig: die Marke stünde, den Lauf gäbe es nie, und im Verlauf stünde
+   * nichts, das darauf hinwiese.
+   */
+  it('beansprucht ein Ereignis erst nach dem Starten', async () => {
+    await legeAutomationAn();
+    const { eventId } = await veroeffentliche();
+
+    const vorher = await prisma.automationEvent.findUniqueOrThrow({ where: { id: eventId } });
+    expect(vorher.processedAt).toBeNull();
+
+    const { gateway } = attrappe();
+    await automation.verteileEreignisse({ gateway });
+
+    const nachher = await prisma.automationEvent.findUniqueOrThrow({ where: { id: eventId } });
+    expect(nachher.processedAt).not.toBeNull();
+    expect(await prisma.automationRun.count()).toBe(1);
+  });
+
+  /**
+   * Zwei Verteiler, ein Lauf.
+   *
+   * Beide dürfen dasselbe Ereignis betrachten - doppelte Arbeit ist der Preis
+   * dafür, dass keines verlorengeht. Wirkung darf sie keine haben: der
+   * Idempotenzschlüssel lässt genau einen Lauf entstehen (§14).
+   */
+  it('erzeugt auch bei zwei gleichzeitigen Verteilern nur einen Lauf', async () => {
+    await legeAutomationAn();
+    await veroeffentliche();
+
+    const ersteInstanz = attrappe();
+    const zweiteInstanz = attrappe();
+    await Promise.all([
+      automation.verteileEreignisse({ gateway: ersteInstanz.gateway }),
+      automation.verteileEreignisse({ gateway: zweiteInstanz.gateway }),
+    ]);
+
+    expect(await prisma.automationRun.count()).toBe(1);
+    expect(ersteInstanz.gesendet.length + zweiteInstanz.gesendet.length).toBe(1);
+  });
+
   it('lässt eine ausgeschaltete Automation liegen', async () => {
     await legeAutomationAn({ enabled: false });
     await veroeffentliche();

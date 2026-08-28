@@ -213,7 +213,7 @@ registerAction({
     'Lässt die AI einen Text einordnen. Die AI entscheidet nichts - das Ergebnis ist ein Wert für die nächsten Schritte.',
   group: 'AI',
   icon: 'sparkles',
-  requiredPermission: 'ai.manage',
+  requiredPermission: 'integrations.ai.manage',
   configSchema: aiConfigSchema,
   fields: [
     {

@@ -133,7 +133,12 @@ async function meldeFreigaben(
   }
 
   const offene = await prisma.automationApproval.findMany({
-    where: { status: 'PENDING', discordMessageId: null },
+    // Der Kanal ist die Marke, nicht die Nachricht: er wird vor dem Senden
+    // gesetzt, die Nachrichtenkennung erst danach. Scheitert das Senden,
+    // bleibt die Marke stehen und die Kennung `null` - kein erfundener Wert
+    // in der Zeile, und kein Versuch im Minutentakt an einem Kanal, in den
+    // der Bot ohnehin nicht schreiben darf.
+    where: { status: 'PENDING', discordChannelId: null },
     orderBy: { requestedAt: 'asc' },
     take: HOECHSTENS,
     include: { run: { include: { automation: { select: { name: true } } } } },
@@ -142,8 +147,8 @@ async function meldeFreigaben(
   let gemeldet = 0;
   for (const freigabe of offene) {
     const zugeteilt = await prisma.automationApproval.updateMany({
-      where: { id: freigabe.id, discordMessageId: null },
-      data: { discordChannelId: settings.freigabeKanalId, discordMessageId: 'wird-gesendet' },
+      where: { id: freigabe.id, discordChannelId: null },
+      data: { discordChannelId: settings.freigabeKanalId },
     });
     if (zugeteilt.count === 0) {
       continue;

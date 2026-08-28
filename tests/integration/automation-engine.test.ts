@@ -18,6 +18,7 @@ useTestSchema('test_automation');
  */
 const { prisma } = await import('@swisshub/database');
 const automation = await import('@swisshub/automation');
+const automationModul2 = automation;
 // Die Ereignisse der Module - `member.joined` und die übrigen - meldet
 // `@swisshub/modules` beim Import an. Ohne diesen Import kennt die Engine
 // kein einziges Ereignis, und jede Veröffentlichung würde abgewiesen.
@@ -1104,6 +1105,61 @@ describeWithDatabase('Automation Engine', () => {
     const { gateway, gesendet } = attrappe();
     expect((await automationModul.meldeOffenes({ gateway })).fehler).toBe(0);
     expect(gesendet).toHaveLength(0);
+  });
+
+  /**
+   * Eine offene Freigabe wird gemeldet - genau einmal (§32).
+   *
+   * Ohne die Meldung wartet ein angehaltener Lauf still im Dashboard, und wer
+   * nicht hinsieht, lässt ihn tagelang stehen.
+   */
+  it('meldet eine offene Freigabe genau einmal', async () => {
+    await setModuleSettings(
+      'automation',
+      { meldeKanalId: null, meldeRolleId: null, freigabeKanalId: KANAL },
+      'test',
+    );
+
+    automationModul2.registerAction({
+      id: 'test.freigabe.meldung',
+      label: 'Braucht eine Freigabe',
+      description: '',
+      group: 'Test',
+      requiresApproval: true,
+      configSchema: z.object({}),
+      fields: [],
+      execute: async () => ({ status: 'SUCCESS' as const }),
+      preview: async () => 'Würde etwas Folgenreiches tun.',
+    });
+
+    await legeAutomationAn({
+      steps: [
+        {
+          art: 'aktion',
+          typ: 'test.freigabe.meldung',
+          config: {},
+          beiFehler: 'ABBRECHEN',
+          retry: { versuche: 1, basisSekunden: 30 },
+        },
+      ] as never,
+    });
+    await veroeffentliche();
+
+    const { gateway, gesendet } = attrappe();
+    await automation.verteileEreignisse({ gateway });
+
+    const erste = await automationModul.meldeOffenes({ gateway });
+    const zweite = await automationModul.meldeOffenes({ gateway });
+
+    expect(erste.freigaben).toBe(1);
+    expect(zweite.freigaben).toBe(0);
+    expect(gesendet).toHaveLength(1);
+
+    // Die Nachrichtenkennung steht an der Freigabe - sie ist die Spur zurück
+    // zur Meldung auf Discord.
+    const freigabe = await prisma.automationApproval.findFirstOrThrow();
+    expect(freigabe.discordChannelId).toBe(KANAL);
+    expect(freigabe.discordMessageId).not.toBeNull();
   });
 
   it('räumt nur verarbeitete Ereignisse', async () => {

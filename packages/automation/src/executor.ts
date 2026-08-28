@@ -273,7 +273,13 @@ export async function starte(eingabe: StartEingabe): Promise<LaufErgebnis> {
     return { runId: lauf.id, status: 'SKIPPED', neu: true, bedingungen };
   }
 
-  const ergebnis = await arbeiteAb(lauf, schritte, context, jetzt);
+  const ergebnis = await arbeiteAb(
+    lauf,
+    schritte,
+    context,
+    jetzt,
+    einstieg(flache(schritte), schritte),
+  );
   return { ...ergebnis, bedingungen };
 }
 
@@ -289,13 +295,21 @@ async function arbeiteAb(
   schritte: StepNode[],
   context: AutomationContext,
   jetzt: Date,
+  /**
+   * Wo begonnen wird.
+   *
+   * Ausdrücklich übergeben und nicht aus `cursor` erraten: die Stellung `0`
+   * ist eine gültige Stellung. Wer sie als «noch nicht begonnen» deutet,
+   * schickt einen fortgesetzten Lauf zurück an den Anfang - und ein Lauf, der
+   * mit einer Wartezeit beginnt, wartet dann für immer.
+   */
+  start: number | null,
 ): Promise<LaufErgebnis> {
   const flach = flache(schritte);
   const nachIndex = new Map(flach.map((eintrag) => [eintrag.index, eintrag]));
   const bericht: Array<{ index: number; label: string; status: string; detail?: string }> = [];
 
-  let zeiger: number | null =
-    lauf.cursor > 0 ? lauf.cursor : einstieg(flach, schritte);
+  let zeiger: number | null = start;
 
   // Harte Obergrenze gegen eine Folge, die sich selbst nicht beendet.
   let besuchte = 0;
@@ -408,7 +422,11 @@ async function arbeiteAb(
     }
 
     // --- Freigabe nötig? (§32) --------------------------------------------
-    if (definition.requiresApproval) {
+    //
+    // Beim zweiten Durchgang - nach dem «Genehmigen» - liegt die Entscheidung
+    // bereits vor. Ohne diese Abfrage hielte der Lauf erneut an und wartete
+    // auf eine Freigabe, die es längst gibt.
+    if (definition.requiresApproval && !(await istFreigegeben(lauf.id, schritt.index))) {
       const beschreibung = definition.preview
         ? await definition.preview(geprueft.data, context).catch(() => label)
         : label;
@@ -642,6 +660,15 @@ function kontextFuerFortsetzung(context: AutomationContext): Record<string, unkn
   };
 }
 
+/** Liegt für diesen Schritt bereits eine Genehmigung vor? */
+async function istFreigegeben(runId: string, stepIndex: number): Promise<boolean> {
+  const freigabe = await prisma.automationApproval.findUnique({
+    where: { runId_stepIndex: { runId, stepIndex } },
+    select: { status: true },
+  });
+  return freigabe?.status === 'APPROVED';
+}
+
 async function legeFreigabeAn(
   lauf: AutomationRun,
   stepIndex: number,
@@ -739,7 +766,15 @@ export async function setzeFort(
     emitted: 0,
   };
 
-  return arbeiteAb({ ...lauf, status: 'RUNNING' }, geprueft.data, context, jetzt);
+  // `cursor` trägt die Stellung, an der der Lauf angehalten hat. `-1` heisst
+  // «hinter dem letzten Schritt» - dann bleibt nur noch der Abschluss.
+  return arbeiteAb(
+    { ...lauf, status: 'RUNNING' },
+    geprueft.data,
+    context,
+    jetzt,
+    lauf.cursor >= 0 ? lauf.cursor : null,
+  );
 }
 
 /** Einen gescheiterten Lauf in den Fehler-Posteingang verschieben. */

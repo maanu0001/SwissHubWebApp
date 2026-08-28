@@ -119,6 +119,32 @@ export const RATE_LIMITS = {
    * dass ein festgehaltener Knopf hundert Anfragen auslöst.
    */
   integrationTest: { limit: 10, windowMs: 5 * 60 * 1000 },
+
+  /**
+   * Automationen bauen und pflegen.
+   *
+   * Grosszuegig: wer eine Automation baut, speichert oft - jeder Schritt,
+   * jede Bedingung. Ein enges Fenster machte das Bauen zur Geduldsprobe,
+   * ohne etwas zu schuetzen: gespeichert wird ein Entwurf, der nichts tut.
+   */
+  automationWrite: { limit: 120, windowMs: 5 * 60 * 1000 },
+
+  /**
+   * Eine Automation ein- oder ausschalten.
+   *
+   * Enger als das Bearbeiten: erst das Einschalten macht aus einem Entwurf
+   * etwas, das von selbst handelt.
+   */
+  automationToggle: { limit: 30, windowMs: 5 * 60 * 1000 },
+
+  /**
+   * Von Hand starten und Probelauf.
+   *
+   * Ein echter Lauf wirkt auf Discord; ein Probelauf kostet zwar nichts,
+   * kann aber die AI befragen. Zwanzig in fuenf Minuten reichen zum Testen
+   * und verhindern, dass ein festgehaltener Knopf hundert Laeufe ausloest.
+   */
+  automationExecute: { limit: 20, windowMs: 5 * 60 * 1000 },
 } as const satisfies Record<string, RateLimitRule>;
 
 export type RateLimitName = keyof typeof RATE_LIMITS;

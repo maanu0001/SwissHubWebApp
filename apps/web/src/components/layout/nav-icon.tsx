@@ -34,6 +34,7 @@ import {
   UserRound,
   UserSearch,
   Volume2,
+  Workflow,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -80,6 +81,7 @@ const ICONS: Record<string, LucideIcon> = {
   UserRound,
   UserSearch,
   Volume2,
+  Workflow,
 };
 
 export function NavIcon({ name, className }: { name: string; className?: string }): React.JSX.Element {

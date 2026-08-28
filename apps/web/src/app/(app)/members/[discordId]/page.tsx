@@ -3,7 +3,14 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { ArrowLeft, Bot, Lock, ShieldAlert, UserX } from 'lucide-react';
 import { can } from '@swisshub/auth';
-import { getModuleSettings, isModuleEnabled, jail, level, members } from '@swisshub/modules';
+import {
+  getModuleSettings,
+  isModuleEnabled,
+  jail,
+  level,
+  members,
+  verification,
+} from '@swisshub/modules';
 import { formatDate, formatDateTime, snowflakeSchema } from '@swisshub/shared';
 import { Badge } from '@/components/ui/badge';
 import { buttonVariants } from '@/components/ui/button';
@@ -84,6 +91,18 @@ export default async function MemberDetailPage({
   const sichtbar = new Set(profil.sichtbar);
   const fehler = new Set(profil.fehler.map((eintrag) => eintrag.section));
   const gewaehlt = (await searchParams).tab ?? 'uebersicht';
+
+  /**
+   * Der Ausgang der Verifikation - nur fuer Staff mit der Berechtigung.
+   *
+   * Bewusst nur Ergebnis und Methode, nie die Nachricht: die faellt unter die
+   * Aufbewahrungsfrist des Verifikationsmoduls und ist hier nicht noetig.
+   */
+  const verifikation =
+    can(context, verification.VERIFICATION_PERMISSIONS.historyView) &&
+    (await isModuleEnabled(verification.VERIFICATION_MODULE_ID))
+      ? await verification.verificationFuerMitglied(parsed.data).catch(() => null)
+      : null;
 
   const reiter = REITER.filter((eintrag) => !('section' in eintrag) || sichtbar.has(eintrag.section));
   const aktiv = reiter.some((eintrag) => eintrag.id === gewaehlt) ? gewaehlt : 'uebersicht';
@@ -284,7 +303,41 @@ export default async function MemberDetailPage({
           <Card>
             <CardContent className="space-y-4 pt-6">
               {aktiv === 'uebersicht' ? (
-                <Uebersicht profil={profil} />
+                <>
+                  <Uebersicht profil={profil} />
+                  {/* Verifikation: nur der Ausgang und die Methode, nie die
+                      Nachricht selbst - die faellt unter die Aufbewahrung des
+                      Verifikationsmoduls und geht das Member Center nichts an. */}
+                  {verifikation ? (
+                    <dl className="mt-4 grid grid-cols-2 gap-4 rounded-xl border border-border p-4 text-sm">
+                      <div>
+                        <dt className="text-muted-foreground">Verifikation</dt>
+                        <dd className="mt-0.5 font-medium">
+                          {verifikation.status === 'VERIFIED'
+                            ? 'Verifiziert'
+                            : verifikation.status === 'REJECTED'
+                              ? 'Abgelehnt'
+                              : verifikation.status === 'EXPIRED'
+                                ? 'Abgelaufen'
+                                : 'Server verlassen'}
+                          {verifikation.decidedAt
+                            ? ` · ${new Intl.DateTimeFormat('de-CH', { dateStyle: 'medium' }).format(verifikation.decidedAt)}`
+                            : ''}
+                        </dd>
+                      </div>
+                      <div>
+                        <dt className="text-muted-foreground">Methode</dt>
+                        <dd className="mt-0.5">
+                          {verifikation.decidedBy === 'AI'
+                            ? 'AI-Prüfung'
+                            : verifikation.decidedBy === 'SYSTEM'
+                              ? 'Zeitsteuerung'
+                              : (verifikation.decidedByUsername ?? 'Moderation')}
+                        </dd>
+                      </div>
+                    </dl>
+                  ) : null}
+                </>
               ) : aktiv === 'aktivitaet' ? (
                 fehler.has('activity') ? (
                   nichtVerfuegbar

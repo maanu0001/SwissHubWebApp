@@ -4626,3 +4626,150 @@ model CalendarNotice {
   @@unique([eventId, kind])
   @@index([eventId, sentAt])
 }
+// ---------------------------------------------------------------------------
+// Verifikation
+//
+// Neue Mitglieder erhalten eine Rolle, die nur den Verifikationskanal sieht,
+// schreiben dort einen Satz auf Schweizerdeutsch und werden anschliessend
+// freigeschaltet - von einem Moderator oder, wenn eingeschaltet und sicher
+// genug, selbsttaetig.
+//
+// Der Kern dieses Modells ist die *eine* Entscheidung je Vorgang. Sie faellt
+// unter einer Bedingung, die nur einmal zutrifft (siehe `decidedAt`), damit
+// weder ein Doppelklick noch ein spaet eintreffendes AI-Ergebnis eine bereits
+// getroffene Entscheidung ueberschreiben kann.
+//
+// Was die AI darf, steht nicht in diesem Modell, sondern im Code: sie setzt
+// ausschliesslich VERIFIED oder gibt an die Moderation ab. Es gibt keine
+// Spalte und keinen Zustand, ueber den eine Sanktion aus der AI heraus
+// entstehen koennte.
+// ---------------------------------------------------------------------------
+
+enum VerificationStatus {
+  /// Beigetreten, hat noch nichts geschrieben.
+  WAITING_FOR_MESSAGE
+  /// Nachricht da, AI prueft gerade.
+  AI_ANALYZING
+  /// Wartet auf einen Menschen.
+  WAITING_FOR_REVIEW
+  VERIFIED
+  /// Abgelehnt und gebannt - ausschliesslich durch einen Menschen.
+  REJECTED
+  /// Hat den Server waehrend des Vorgangs verlassen.
+  LEFT_SERVER
+  /// Frist ohne Nachricht verstrichen.
+  EXPIRED
+  /// Der Vorgang selbst ist gescheitert (Rolle, Rechte, Discord).
+  ERROR
+}
+
+/// Wer entschieden hat.
+enum VerificationDecider {
+  HUMAN
+  AI
+  /// Zeitsteuerung: Ablauf, Serveraustritt.
+  SYSTEM
+}
+
+/// Wie die AI die Nachricht eingeordnet hat.
+enum VerificationAiVerdict {
+  LIKELY_SWISS_GERMAN
+  UNCLEAR
+  /// Ausdruecklich *nicht* «schlecht»: nur «nicht erkennbar». Loest niemals
+  /// eine Sanktion aus, sondern immer eine menschliche Pruefung.
+  NOT_RECOGNISED
+  /// Die AI war nicht erreichbar oder hat Unbrauchbares geliefert.
+  FAILED
+}
+
+model VerificationRequest {
+  id      String @id @default(cuid())
+  guildId String
+
+  discordId   String
+  username    String?
+  displayName String?
+  avatarHash  String?
+
+  status VerificationStatus @default(WAITING_FOR_MESSAGE)
+
+  /// Beitritt und Kontoalter zum Zeitpunkt des Beitritts.
+  ///
+  /// Als Momentaufnahme festgehalten, weil beides spaeter nicht mehr
+  /// rekonstruierbar ist - und weil es der Moderation bei der Einschaetzung
+  /// hilft. Eine Sanktion loest es nie aus: ein junges Konto ist ein Hinweis,
+  /// kein Beweis.
+  joinedAt         DateTime
+  accountCreatedAt DateTime?
+
+  /// Neueste Nachricht - Grundlage der Anzeige und der AI-Pruefung.
+  latestMessage      String?  @db.Text
+  latestMessageId    String?
+  latestMessageAt    DateTime?
+  /// Wie oft die Person geschrieben hat. Ein neuer Vorgang entsteht dadurch
+  /// nicht, und die Moderation wird nicht bei jeder Nachricht erneut geweckt.
+  messageCount       Int      @default(0)
+
+  // --- AI ----------------------------------------------------------------
+  aiVerdict     VerificationAiVerdict?
+  /// 0..1, auf vier Nachkommastellen gerundet.
+  aiConfidence  Float?
+  aiReasonCode  String?
+  aiModel       String?
+  aiCheckedAt   DateTime?
+  aiError       String?
+  /// Wie oft die AI fuer diesen Vorgang befragt wurde - Kostenbremse.
+  aiAttempts    Int                    @default(0)
+
+  // --- Entscheidung ------------------------------------------------------
+  /// Gesetzt, sobald der Vorgang entschieden ist. Zugleich die Bedingung, die
+  /// den Wettlauf zwischen Moderator und AI entscheidet: wer sie als Erster
+  /// von NULL wegsetzt, hat entschieden.
+  decidedAt          DateTime?
+  decidedBy          VerificationDecider?
+  decidedByDiscordId String?
+  decidedByUsername  String?
+  /// Pflicht bei Ablehnung.
+  decisionReason     String?
+
+  /// Ankuendigung im Moderationskanal - wird fortgeschrieben statt neu
+  /// gepostet.
+  modChannelId  String?
+  modMessageId  String?
+
+  /// Interner Vermerk der Moderation. Der Verweis auf die Akte im Member
+  /// Center, damit es keine zweite Notizenwelt gibt.
+  noteId String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  messages VerificationMessage[]
+
+  /// Ein offener Vorgang je Person und Server. Ein frueherer, abgeschlossener
+  /// Vorgang bleibt daneben stehen - deshalb kein `@@unique` auf
+  /// `(guildId, discordId)`, sondern der Teilindex weiter unten.
+  @@index([guildId, status, createdAt])
+  @@index([guildId, discordId, createdAt])
+  @@index([guildId, decidedAt])
+  @@index([status, joinedAt])
+}
+
+/// Die einzelnen Nachrichten eines Vorgangs.
+///
+/// Getrennt gefuehrt, damit die Moderation den Verlauf sieht, ohne dass jede
+/// weitere Nachricht einen neuen Vorgang oder eine neue Benachrichtigung
+/// erzeugt. Faellt unter dieselbe Aufbewahrungsfrist wie der Vorgang.
+model VerificationMessage {
+  id        String              @id @default(cuid())
+  requestId String
+  request   VerificationRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  discordMessageId String
+  content          String   @db.Text
+  createdAt        DateTime @default(now())
+
+  /// Dieselbe Discord-Nachricht wird nicht zweimal erfasst.
+  @@unique([requestId, discordMessageId])
+  @@index([requestId, createdAt])
+}

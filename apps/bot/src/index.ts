@@ -25,6 +25,7 @@ import { registerVoteJailHandler } from './vote-jail';
 import { registerCommandHandler, registerCommands } from './commands/register';
 import { registerSpielersucheButtons } from './spielersuche-buttons';
 import { registerRaffleButtons } from './raffle-buttons';
+import { registerRejectConfirmation, registerVerification } from './verification';
 import { recoverVoiceSessions, registerSpielersucheVoice } from './spielersuche-voice';
 import { registerVoicePresence } from './voice-presence';
 import { registerLevelGameButtons } from './level-games';
@@ -122,6 +123,9 @@ async function main(): Promise<void> {
 
   // Button-Klicks der Vote-Jail-Abstimmungen entgegennehmen.
   registerVoteJailHandler(client);
+  // Verifikation: Beitritt, Nachricht und die beiden Knöpfe der Moderation.
+  registerVerification(client);
+  registerRejectConfirmation(client);
   // Slash Commands (/jail, /jail_free, /vote_jail, ...). Die Befehle sind
   // reine Adapter auf dieselben Services, die auch das Dashboard nutzt.
   registerCommandHandler(client);

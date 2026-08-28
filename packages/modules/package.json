@@ -11,6 +11,7 @@
     "./level": "./src/level/index.ts"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.122.0",
     "@swisshub/config": "*",
     "@swisshub/database": "*",
     "@swisshub/discord": "*",

@@ -16,6 +16,7 @@ import {
   tickets,
   tournaments,
   voice,
+  verification,
   voiceHub,
 } from '@swisshub/modules';
 
@@ -244,6 +245,25 @@ export function createJobRunner(
           return;
         }
         await calendar.runReminderTick();
+      },
+    },
+    {
+      name: 'verification-sweep',
+      // Verifikationen ablaufen lassen und alte Nachrichtentexte entfernen.
+      //
+      // Selten genug: es geht um Stunden-Fristen und um eine
+      // Aufbewahrungsgrenze in Tagen. Ein Lauf alle fünf Minuten reicht
+      // dafür bei weitem.
+      intervalMs: 5 * 60 * 1000,
+      async run() {
+        const { isModuleEnabled } = await import('@swisshub/modules');
+        if (!(await isModuleEnabled(verification.VERIFICATION_MODULE_ID))) {
+          return;
+        }
+        const ergebnis = await verification.runVerificationTick();
+        if (ergebnis.abgelaufen > 0 || ergebnis.bereinigt > 0) {
+          log.info('Verifikationen fortgeschrieben', { ...ergebnis });
+        }
       },
     },
     {

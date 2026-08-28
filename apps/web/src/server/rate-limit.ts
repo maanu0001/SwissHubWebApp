@@ -93,6 +93,14 @@ export const RATE_LIMITS = {
   calendarParticipate: { limit: 20, windowMs: 10 * 60 * 1000 },
   /** Events anlegen, bearbeiten, ankuendigen - Verwaltung, nicht Alltag. */
   calendarAdmin: { limit: 80, windowMs: 10 * 60 * 1000 },
+  /**
+   * Verifikationen entscheiden.
+   *
+   * Grosszuegig: nach einer Spamwelle arbeitet die Moderation eine lange
+   * Warteschlange ab, und ein enges Fenster machte genau dann die Arbeit
+   * unmoeglich, wenn sie noetig ist.
+   */
+  verificationReview: { limit: 120, windowMs: 5 * 60 * 1000 },
 } as const satisfies Record<string, RateLimitRule>;
 
 export type RateLimitName = keyof typeof RATE_LIMITS;

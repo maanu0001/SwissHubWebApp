@@ -10,6 +10,7 @@ import {
   ScrollText,
   Search,
   Settings,
+  ShieldCheck,
   Ticket,
   TrendingUp,
   Users,
@@ -25,6 +26,7 @@ import {
   getSystemHealth,
   jail,
   listModuleStatus,
+  verification,
 } from '@swisshub/modules';
 import { formatDateTime, formatRemaining, plural } from '@swisshub/shared';
 import { StatCard, StatDelta } from '@/components/shared/stat-card';
@@ -90,6 +92,20 @@ export default async function DashboardPage(): Promise<React.JSX.Element> {
           .catch(() => [])
       : [];
 
+  /**
+   * Wie viele Verifikationen auf eine Entscheidung warten.
+   *
+   * Nur fuer Staff, das Vorgaenge auch pruefen darf - ein gewoehnliches
+   * Mitglied sieht die Zahl nicht. Faellt die Abfrage aus, bleibt die
+   * Kennzahl weg statt eine Null zu behaupten.
+   */
+  const offeneVerifikationen = darfNutzen(
+    verification.VERIFICATION_PERMISSIONS.review,
+    verification.VERIFICATION_MODULE_ID,
+  )
+    ? await verification.offeneAnzahl().catch(() => null)
+    : null;
+
   const csrfToken = csrfTokenFor(context);
 
   const canCreateTicket = darfNutzen('tickets.create', 'tickets');
@@ -99,6 +115,7 @@ export default async function DashboardPage(): Promise<React.JSX.Element> {
   // Bleibt nichts uebrig, verschwindet die ganze Karte. Eine Ueberschrift
   // «Schnellaktionen» ueber einer leeren Flaeche ist schlechter als keine.
   const hatSchnellaktionen =
+    offeneVerifikationen !== null ||
     canCreateTicket ||
     canCreateSpielersuche ||
     canUseMusic ||
@@ -179,6 +196,20 @@ export default async function DashboardPage(): Promise<React.JSX.Element> {
             }
             icon={<Lock />}
             tone={data.jailStats.active > 0 ? 'warning' : 'default'}
+          />
+        ) : null}
+
+        {offeneVerifikationen !== null ? (
+          <StatCard
+            label="Verifikationen offen"
+            value={offeneVerifikationen}
+            hint={
+              offeneVerifikationen > 0
+                ? 'Warten auf eine Entscheidung'
+                : 'Nichts zu prüfen'
+            }
+            icon={<ShieldCheck />}
+            tone={offeneVerifikationen > 0 ? 'warning' : 'default'}
           />
         ) : null}
 
@@ -485,6 +516,19 @@ export default async function DashboardPage(): Promise<React.JSX.Element> {
           */}
           {hatSchnellaktionen ? (
             <Panel title="Schnellaktionen" icon={<Zap />} bodyClassName="space-y-2 p-5">
+              {offeneVerifikationen !== null ? (
+                <QuickAction
+                  title="Warteschlange"
+                  description={
+                    offeneVerifikationen > 0
+                      ? `${plural(offeneVerifikationen, 'Verifikation', 'Verifikationen')} offen`
+                      : 'Keine offenen Verifikationen'
+                  }
+                  icon={<ShieldCheck />}
+                  href="/verifikation/warteschlange"
+                />
+              ) : null}
+
               {canCreateTicket ? (
                 <QuickAction
                   title="Ticket erstellen"

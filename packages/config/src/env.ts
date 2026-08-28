@@ -103,6 +103,20 @@ export const serverEnvSchema = z
      * Kategorien und Kanaele werden bewusst NICHT hier konfiguriert, sondern
      * im Dashboard: sie aendern sich im Betrieb und gehoeren in die Datenbank.
      */
+    /**
+     * Schluessel fuer die AI-gestuetzte Verifikation.
+     *
+     * Wie jedes andere Geheimnis ausschliesslich hier und niemals im
+     * Dashboard: der Schluessel gehoert nicht in die Datenbank, und ein
+     * Administrator soll ihn weder sehen noch versehentlich weitergeben
+     * koennen. Im Dashboard laesst sich nur einstellen, *ob* und *wie* die
+     * AI genutzt wird.
+     *
+     * Fehlt er, bleibt die AI-Pruefung aus - der Ablauf funktioniert dann
+     * vollstaendig ueber die Moderation.
+     */
+    ANTHROPIC_API_KEY: z.string().min(1).optional(),
+
     PAYMENT_PROVIDER: z.enum(['mock', 'stripe']).optional(),
     PAYMENT_API_KEY: z.string().min(1).optional(),
     PAYMENT_WEBHOOK_SECRET: z.string().min(1).optional(),

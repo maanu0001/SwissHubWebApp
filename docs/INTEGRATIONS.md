@@ -132,7 +132,7 @@ scheitern.
 | `DISCORD_CLIENT_SECRET`   | Integrationen → Discord                        |
 | `ANTHROPIC_API_KEY`       | Integrationen → AI                             |
 | `OPENAI_API_KEY`          | Integrationen → AI                             |
-| `MUSIC_CONTROLLER_TOKEN`  | Integrationen → Discord-Bots                   |
+| `MUSIC_CONTROLLER_TOKEN`  | entfällt - der Controller ist der Systembot    |
 | `MUSIC_WORKER_TOKENS`     | Integrationen → Discord-Bots                   |
 | `MUSIC_RUNTIME_URL/KEY`   | Integrationen (Musik-Laufzeit)                 |
 | `PAYMENT_API_KEY`, `PAYMENT_WEBHOOK_SECRET`, `PAYMENT_PROVIDER` | Integrationen (Zahlungsanbieter) |
@@ -300,21 +300,65 @@ folgt, entscheidet der Aufrufer.
 
 **System → Integrationen → Discord-Bots**
 
-Der Systembot und die Musik-Bots sind für diese Verwaltung dasselbe: Name,
-Kurzname, Anwendungs-ID, Zustand, letzter erfolgreicher Login. Deshalb eine
-Liste statt fester Felder — «Music Worker 4» soll man hinzufügen können, ohne
-den Code anzufassen.
+Zwei Arten, und der Unterschied liegt beim Token.
 
-Das Token steht nicht in der Bot-Zeile, sondern unter `provider = "bot:<id>"`.
-So lässt sich ein einzelnes austauschen, ohne die übrigen zu berühren.
+### Der Systembot ist zugleich der Musik-Controller
 
-**Jeder Bot braucht eine eigene Discord-Anwendung.** Zwei Bots mit demselben
-Token können nicht gleichzeitig verbunden sein; die Laufzeit weist das ab.
+Er ist die SwissHub-Anwendung selbst. Sein Token steht **nicht** in dieser
+Liste, sondern unter Integrationen → Discord — es ist dasselbe, mit dem sich
+der Bot am Gateway anmeldet. Ein zweites Feld dafür wäre derselbe Wert an zwei
+Stellen, und zwei Stellen laufen auseinander. Seine Zeile hat deshalb kein
+Eingabefeld und keinen Löschknopf; prüfen lässt er sich trotzdem.
 
-Die Voice-Laufzeit (Python) liest die Tokens beim Start aus derselben
-Datenbank und entschlüsselt sie mit demselben Hauptschlüssel — dasselbe Format,
-zwei Sprachen. Findet sie dort nichts, gilt weiterhin
-`MUSIC_CONTROLLER_TOKEN` / `MUSIC_WORKER_TOKENS` aus der Umgebung.
+Als Controller betritt er den Sprachkanal unter dem Namen, den alle ohnehin
+kennen. Für den Musik-Controller braucht es damit **keine zweite
+Discord-Anwendung** mehr.
+
+**Was das technisch bedeutet.** Der Bot hat dann zwei Gateway-Verbindungen:
+die des Node-Prozesses (`apps/bot`) und die der Voice-Laufzeit. Discord lässt
+das zu — jede IDENTIFY erzeugt eine eigene Sitzung, und beide empfangen die
+Ereignisse des Servers. Die Voice-Verbindung gehört eindeutig der Laufzeit,
+weil nur sie Opcode 4 sendet; `apps/bot` betritt selbst nie einen Sprachkanal
+und bindet `@discordjs/voice` nicht ein.
+
+Die übrigen Module sehen den Controller im Sprachkanal als das, was er ist:
+einen Bot. Voice-XP, Voice-Hub, Anwesenheit und Analytics filtern Bots bereits
+— das galt schon, als der Controller eine eigene Anwendung war, und ändert
+sich dadurch nicht.
+
+**Eine Grenze bleibt:** ein Bot ist je Server immer nur in *einem*
+Sprachkanal. Der Controller kann also eine Sitzung gleichzeitig bedienen —
+genau wie zuvor. Wer mehr will, legt Worker an.
+
+### Musik-Worker
+
+Eigene Discord-Anwendungen mit eigenem Token, hier angelegt, geprüft und
+ausgetauscht. «Music Worker 4» soll man hinzufügen können, ohne den Code
+anzufassen — deshalb eine Liste statt fester Felder.
+
+Ein Worker-Token steht nicht in der Bot-Zeile, sondern unter
+`provider = "bot:<id>"`. So lässt sich ein einzelnes austauschen, ohne die
+übrigen zu berühren.
+
+**Jeder Worker braucht eine eigene Anwendung.** Zwei Bots mit demselben Token
+können nicht gleichzeitig in verschiedenen Kanälen spielen.
+
+### Woher die Laufzeit liest
+
+Die Voice-Laufzeit (Python) liest beim Start aus derselben Datenbank und
+entschlüsselt mit demselben Hauptschlüssel — dasselbe Format, zwei Sprachen:
+
+| Rolle      | Adresse des Geheimnisses            |
+| ---------- | ----------------------------------- |
+| Controller | `provider = "discord"`, `key = "botToken"` |
+| Worker     | `provider = "bot:<id>"`, `key = "token"`   |
+
+Findet sie dort nichts, gilt die Umgebung: `DISCORD_BOT_TOKEN` für den
+Controller, `MUSIC_WORKER_TOKENS` für die Worker.
+
+`MUSIC_CONTROLLER_TOKEN` wird nur noch gelesen, wenn `DISCORD_BOT_TOKEN`
+fehlt. Eine Installation, die es noch gesetzt hat, fällt dadurch nicht aus;
+gebraucht wird es nicht mehr und kann entfernt werden.
 
 ---
 

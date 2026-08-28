@@ -100,3 +100,43 @@ def test_akzeptiert_hex(monkeypatch: pytest.MonkeyPatch) -> None:
     geladen = lade_hauptschluessel()
     assert geladen is not None
     assert entschluessele(UMSCHLAG, key=geladen, **ADRESSE) == KLARTEXT
+
+
+# --- Der Controller ist der Systembot --------------------------------------
+#
+# Sein Token liegt unter `provider='discord', key='botToken'` - dieselbe
+# Adresse, an der auch die WebApp es speichert. Waeren sich die beiden Seiten
+# darueber uneinig, faende die Laufzeit den Controller nicht und der
+# Musik-Controller bliebe stumm.
+
+CONTROLLER_UMSCHLAG = (
+    "v1.8c0cc17a.o5fufwZddIRuyDfk.3KvndYN27syPRfGQgLSZvg."
+    "HmAjzXhLW-nzt1a0aF28_cDINq624CEMbfGGPc0WF6g"
+)
+CONTROLLER_KLARTEXT = "kein-echtes-token-systembot-0005"
+CONTROLLER_ADRESSE = dict(
+    scope="GLOBAL", guild_id="", provider="discord", feld="botToken"
+)
+
+
+def test_liest_das_token_des_systembots(key: bytes) -> None:
+    assert (
+        entschluessele(CONTROLLER_UMSCHLAG, key=key, **CONTROLLER_ADRESSE)
+        == CONTROLLER_KLARTEXT
+    )
+
+
+def test_controller_token_gilt_nicht_als_worker_token(key: bytes) -> None:
+    # Die Adressbindung trennt die beiden Rollen sauber: das Token der
+    # Anwendung laesst sich nicht als das eines Workers lesen und umgekehrt.
+    with pytest.raises(SecretError):
+        entschluessele(
+            CONTROLLER_UMSCHLAG,
+            key=key,
+            scope="GLOBAL",
+            guild_id="",
+            provider="bot:irgendeine",
+            feld="token",
+        )
+    with pytest.raises(SecretError):
+        entschluessele(UMSCHLAG, key=key, **CONTROLLER_ADRESSE)

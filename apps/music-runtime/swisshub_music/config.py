@@ -77,7 +77,15 @@ class Settings:
 def lade_settings() -> Settings:
     # Rueckfall aus der Umgebung. Ob er gebraucht wird, entscheidet sich erst
     # nach `lade_bots_aus_datenbank` - deshalb hier keine Pflicht mehr.
-    controller = os.environ.get("MUSIC_CONTROLLER_TOKEN", "").strip()
+    #
+    # Der Controller ist der Systembot, also DISCORD_BOT_TOKEN. Das frueher
+    # dafuer gedachte MUSIC_CONTROLLER_TOKEN wird noch gelesen, aber nur, wenn
+    # das erste fehlt: eine Installation, die es noch gesetzt hat, faellt
+    # dadurch nicht aus, und wer nichts tut, bekommt den Systembot.
+    controller = (
+        os.environ.get("DISCORD_BOT_TOKEN", "").strip()
+        or os.environ.get("MUSIC_CONTROLLER_TOKEN", "").strip()
+    )
 
     # Worker als eine kommagetrennte Liste: die Anzahl ist damit frei und
     # nicht auf fuenf festgeschrieben.
@@ -113,13 +121,24 @@ def lade_settings() -> Settings:
 async def lade_bots_aus_datenbank(settings: Settings) -> Settings:
     """Die Bot-Tokens aus der zentralen Verwaltung uebernehmen.
 
+    **Controller ist der Systembot.** Er benutzt dasselbe Token wie die
+    SwissHub-Anwendung - es steht unter ``discord.botToken`` und nicht als
+    eigener Eintrag. Damit braucht der Musik-Controller keine zweite
+    Discord-Anwendung mehr; er erscheint im Sprachkanal als der Bot, den alle
+    ohnehin kennen.
+
+    Der Bot hat dadurch zwei Gateway-Verbindungen: die des Node-Prozesses und
+    diese hier. Discord laesst das zu, und die Voice-Verbindung gehoert
+    eindeutig dieser Sitzung, weil nur sie Opcode 4 sendet. Der Node-Prozess
+    betritt selbst nie einen Sprachkanal.
+
+    **Worker sind eigene Anwendungen** mit eigenem Token, angelegt im
+    Dashboard.
+
     Rueckwaertskompatibel und ausfallsicher: findet sich nichts, bleibt es bei
     dem, was aus der Umgebung kam. Eine Laufzeit, die wegen einer halb
     abgeschlossenen Umstellung nicht mehr startet, waere die schlechtere
     Antwort auf ein fehlendes Token.
-
-    Es werden ausschliesslich eingeschaltete Bots der Musik-Arten gelesen. Der
-    Systembot steht in derselben Tabelle, gehoert aber nicht in diesen Pool.
     """
     key = lade_hauptschluessel()
     if key is None:
@@ -135,15 +154,25 @@ async def lade_bots_aus_datenbank(settings: Settings) -> Settings:
         return settings
 
     try:
-        zeilen = await verbindung.fetch(
+        # Der Controller: das Token der Anwendung selbst.
+        controller_zeile = await verbindung.fetchrow(
             """
-            SELECT b.id, b.slug, b.kind, s.ciphertext, s.scope, s."guildId"
+            SELECT ciphertext, scope, "guildId"
+              FROM "IntegrationSecret"
+             WHERE provider = 'discord' AND key = 'botToken'
+             LIMIT 1
+            """
+        )
+        # Die Worker: je eine eigene Anwendung mit eigenem Token.
+        worker_zeilen = await verbindung.fetch(
+            """
+            SELECT b.id, b.slug, s.ciphertext, s.scope, s."guildId"
               FROM "IntegrationBot" b
               JOIN "IntegrationSecret" s
                 ON s.provider = 'bot:' || b.id AND s.key = 'token'
              WHERE b.enabled = true
-               AND b.kind IN ('MUSIC_CONTROLLER', 'MUSIC_WORKER')
-             ORDER BY b.kind DESC, b.position ASC, b.label ASC
+               AND b.kind = 'MUSIC_WORKER'
+             ORDER BY b.position ASC, b.label ASC
             """
         )
     except Exception:
@@ -152,27 +181,36 @@ async def lade_bots_aus_datenbank(settings: Settings) -> Settings:
     finally:
         await verbindung.close()
 
-    if not zeilen:
+    if controller_zeile is None and not worker_zeilen:
         return settings
 
-    bots: list[BotToken] = []
-    for zeile in zeilen:
+    def lies(zeile, provider: str, feld: str, name: str) -> str | None:
         try:
-            token = entschluessele(
+            return entschluessele(
                 zeile["ciphertext"],
                 scope=zeile["scope"],
                 guild_id=zeile["guildId"],
-                provider=f"bot:{zeile['id']}",
-                feld="token",
+                provider=provider,
+                feld=feld,
                 key=key,
             )
         except SecretError as fehler:
             # Ohne Token laeuft dieser eine Bot nicht - die uebrigen schon.
             # Der Grund wird genannt, das Token niemals.
-            log.error("Token von %s ist nicht lesbar: %s", zeile["slug"], fehler)
-            continue
-        typ = "CONTROLLER" if zeile["kind"] == "MUSIC_CONTROLLER" else "WORKER"
-        bots.append(BotToken(key=zeile["slug"], typ=typ, token=token))
+            log.error("Token von %s ist nicht lesbar: %s", name, fehler)
+            return None
+
+    bots: list[BotToken] = []
+
+    if controller_zeile is not None:
+        token = lies(controller_zeile, "discord", "botToken", "CONTROLLER")
+        if token:
+            bots.append(BotToken(key="CONTROLLER", typ="CONTROLLER", token=token))
+
+    for zeile in worker_zeilen:
+        token = lies(zeile, f"bot:{zeile['id']}", "token", zeile["slug"])
+        if token:
+            bots.append(BotToken(key=zeile["slug"], typ="WORKER", token=token))
 
     if not bots:
         log.warning("Kein lesbares Token in der Verwaltung - es gilt die Umgebung")

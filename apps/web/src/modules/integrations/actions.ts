@@ -341,7 +341,9 @@ export const createBotAction = defineAction(
     name: 'integrations.createBot',
     permission: P.discord,
     schema: z.object({
-      kind: z.enum(['SYSTEM', 'MUSIC_CONTROLLER', 'MUSIC_WORKER']),
+      // Nur Worker. Der Systembot entsteht beim Start und ist zugleich der
+      // Musik-Controller; ein Controller mit eigener Anwendung entfaellt.
+      kind: z.literal('MUSIC_WORKER'),
       label: z.string().trim().min(1).max(60),
       slug: z
         .string()

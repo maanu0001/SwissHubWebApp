@@ -1,25 +1,33 @@
 import { bumpConfigRevision, prisma } from '@swisshub/database';
 import type { IntegrationBot, IntegrationBotKind, IntegrationHealth } from '@swisshub/database';
 import { conflict, notFound } from '@swisshub/shared';
-import { botProvider, BOT_TOKEN_FIELD } from './catalog';
-import { deleteProvider, getSecret, setSecret } from './store';
+import { botProvider, BOT_TOKEN_FIELD, DISCORD_INTEGRATION_ID } from './catalog';
+import { deleteProvider, getSecret, hasSecret, setSecret } from './store';
 import { validateBotToken, type BotIdentity } from './discord-test';
 
 /**
  * Discord-Bots mit eigenen Zugangsdaten.
  *
- * Der SwissHub-Bot und die Musik-Bots unterscheiden sich für diese Verwaltung
- * nicht: jeder hat einen Namen, eine Anwendungs-ID, ein Token und einen
- * Zustand. Deshalb eine Liste statt fester Felder - «Music Worker 4» soll man
- * hinzufügen können, ohne den Code anzufassen (§36).
+ * Zwei Arten, und der Unterschied liegt beim Token:
  *
- * Das Token steht nie in dieser Tabelle. Es liegt verschlüsselt unter
+ * - **Der Systembot** ist die SwissHub-Anwendung selbst. Sein Token steht
+ *   nicht hier, sondern unter Integrationen → Discord - es ist dasselbe, mit
+ *   dem sich der Bot am Gateway anmeldet. Ein zweites Feld dafür wäre
+ *   derselbe Wert an zwei Stellen, und zwei Stellen laufen auseinander.
+ *   Er dient zugleich als Musik-Controller.
+ * - **Musik-Worker** sind eigene Discord-Anwendungen mit eigenem Token. Sie
+ *   werden hier angelegt, geprüft und ausgetauscht; «Music Worker 4» soll man
+ *   hinzufügen können, ohne den Code anzufassen.
+ *
+ * Ein Worker-Token steht nie in dieser Tabelle. Es liegt verschlüsselt unter
  * `provider = "bot:<id>"`, damit sich ein einzelnes austauschen lässt, ohne
  * die übrigen zu berühren.
  */
 
 export const SYSTEM_BOT_SLUG = 'SYSTEM_BOT';
-export const MUSIC_CONTROLLER_SLUG = 'MUSIC_CONTROLLER';
+
+/** Der Systembot verwaltet sein Token nicht selbst - es ist das der Anwendung. */
+export const istSystemBot = (bot: { kind: IntegrationBotKind }): boolean => bot.kind === 'SYSTEM';
 
 export interface BotZeile {
   id: string;
@@ -58,6 +66,24 @@ function zuZeile(bot: IntegrationBot, hasToken: boolean): BotZeile {
   };
 }
 
+/**
+ * Liegt für diesen Bot ein Token vor?
+ *
+ * Beim Systembot ist das die Frage nach dem Bot-Token der Anwendung; bei
+ * einem Worker die nach seinem eigenen. Beide Male nur «ja» oder «nein» -
+ * der Wert selbst wird hier nicht angefasst.
+ */
+async function hatToken(bot: { id: string; kind: IntegrationBotKind }): Promise<boolean> {
+  if (istSystemBot(bot)) {
+    return hasSecret(DISCORD_INTEGRATION_ID, 'botToken');
+  }
+  const zeile = await prisma.integrationSecret.findFirst({
+    where: { provider: botProvider(bot.id), key: BOT_TOKEN_FIELD },
+    select: { id: true },
+  });
+  return zeile !== null;
+}
+
 export async function listBots(): Promise<BotZeile[]> {
   const bots = await prisma.integrationBot.findMany({
     orderBy: [{ kind: 'asc' }, { position: 'asc' }, { label: 'asc' }],
@@ -67,7 +93,11 @@ export async function listBots(): Promise<BotZeile[]> {
     select: { provider: true },
   });
   const vorhanden = new Set(tokens.map((eintrag) => eintrag.provider));
-  return bots.map((bot) => zuZeile(bot, vorhanden.has(botProvider(bot.id))));
+  const systembotHatToken = await hasSecret(DISCORD_INTEGRATION_ID, 'botToken').catch(() => false);
+
+  return bots.map((bot) =>
+    zuZeile(bot, istSystemBot(bot) ? systembotHatToken : vorhanden.has(botProvider(bot.id))),
+  );
 }
 
 export async function getBot(id: string): Promise<BotZeile | null> {
@@ -75,15 +105,24 @@ export async function getBot(id: string): Promise<BotZeile | null> {
   if (!bot) {
     return null;
   }
-  const token = await prisma.integrationSecret.findFirst({
-    where: { provider: botProvider(bot.id), key: BOT_TOKEN_FIELD },
-    select: { id: true },
-  });
-  return zuZeile(bot, token !== null);
+  return zuZeile(bot, await hatToken(bot));
 }
 
-/** Das Token eines Bots - ausschliesslich für den Verbindungsaufbau. */
+/**
+ * Das Token eines Bots - ausschliesslich für den Verbindungsaufbau.
+ *
+ * Der Systembot verweist auf das Token der Anwendung. Damit benutzt der
+ * Musik-Controller dasselbe Konto wie der Bot selbst und braucht keine eigene
+ * Discord-Anwendung mehr.
+ */
 export async function botToken(botId: string): Promise<string | null> {
+  const bot = await prisma.integrationBot.findUnique({
+    where: { id: botId },
+    select: { kind: true },
+  });
+  if (bot && istSystemBot(bot)) {
+    return getSecret(DISCORD_INTEGRATION_ID, 'botToken');
+  }
   return getSecret(botProvider(botId), BOT_TOKEN_FIELD);
 }
 
@@ -102,6 +141,12 @@ export interface BotEingabe {
 }
 
 export async function createBot(eingabe: BotEingabe, actorDiscordId?: string | null): Promise<BotZeile> {
+  // Der Systembot ist die Anwendung selbst - es gibt genau einen, und er
+  // entsteht beim Start, nicht von Hand. Ein Controller mit eigener
+  // Anwendung wird nicht mehr angelegt: diese Rolle hat der Systembot.
+  if (eingabe.kind !== 'MUSIC_WORKER') {
+    throw conflict('Hier lassen sich ausschliesslich Musik-Worker anlegen.');
+  }
   const vorhanden = await prisma.integrationBot.findUnique({ where: { slug: eingabe.slug } });
   if (vorhanden) {
     throw conflict(`Es gibt bereits einen Bot mit dem Kurznamen «${eingabe.slug}».`);
@@ -148,6 +193,11 @@ export async function deleteBot(id: string, actorDiscordId?: string | null): Pro
   if (!bot) {
     throw notFound('Diesen Bot gibt es nicht.');
   }
+  if (istSystemBot(bot)) {
+    throw conflict(
+      'Der Systembot lässt sich nicht entfernen - er ist die SwissHub-Anwendung selbst.',
+    );
+  }
   await deleteProvider(botProvider(id), { actorDiscordId });
   await prisma.integrationBot.delete({ where: { id } });
   await bumpConfigRevision(`integration:bot ${bot.slug} entfernt`, actorDiscordId ?? null);
@@ -177,6 +227,13 @@ export async function rotateBotToken(
   const bot = await prisma.integrationBot.findUnique({ where: { id } });
   if (!bot) {
     throw notFound('Diesen Bot gibt es nicht.');
+  }
+  if (istSystemBot(bot)) {
+    // Sonst laege derselbe Token an zwei Stellen, und beim naechsten Wechsel
+    // wuerde eine davon vergessen.
+    throw conflict(
+      'Das Token des Systembots wird unter Integrationen → Discord gepflegt, nicht hier.',
+    );
   }
 
   const pruefung = await validateBotToken(neuesToken);
@@ -242,8 +299,9 @@ export async function checkBot(id: string): Promise<RotationsErgebnis> {
  * Den Eintrag für den SwissHub-Bot anlegen, falls er fehlt.
  *
  * Damit die Übersicht auch bei einer bestehenden Installation sofort etwas
- * zeigt und der Systembot dieselbe Behandlung erfährt wie die Musik-Bots.
- * Legt ausdrücklich kein Token an - das kommt aus der Übernahme oder von Hand.
+ * zeigt. Legt ausdrücklich kein Token an: der Systembot benutzt das der
+ * Anwendung aus Integrationen → Discord, und dasselbe Token dient der
+ * Musik-Laufzeit als Controller.
  */
 export async function ensureSystemBot(): Promise<BotZeile> {
   const vorhanden = await prisma.integrationBot.findUnique({ where: { slug: SYSTEM_BOT_SLUG } });
@@ -253,7 +311,7 @@ export async function ensureSystemBot(): Promise<BotZeile> {
   const bot = await prisma.integrationBot.create({
     data: {
       kind: 'SYSTEM',
-      label: 'SwissHub System',
+      label: 'SwissHub System (auch Musik-Controller)',
       slug: SYSTEM_BOT_SLUG,
       position: 0,
     },

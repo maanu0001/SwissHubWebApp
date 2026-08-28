@@ -340,3 +340,96 @@ describe('Logger-Schwärzung', () => {
     clearRuntimeSecrets();
   });
 });
+
+describeWithDatabase('Integrationen: Bots', () => {
+  beforeAll(() => {
+    pushSchema();
+  });
+
+  beforeEach(async () => {
+    await prisma.$executeRawUnsafe(
+      'TRUNCATE "IntegrationSecret","IntegrationBot","IntegrationStatus","SystemConfig","ConfigRevision","AuditLog" RESTART IDENTITY CASCADE',
+    );
+    secrets.dropSecretCache();
+    for (const name of UMGEBUNG) {
+      delete process.env[name];
+    }
+    process.env.MASTER_ENCRYPTION_KEY = KEY;
+  });
+
+  it('gibt dem Systembot das Token der Anwendung', async () => {
+    // Der Kern der Umstellung: der Musik-Controller ist der Systembot, und
+    // sein Token ist das der SwissHub-Anwendung. Ein eigenes Feld dafür gäbe
+    // es zweimal - und beim nächsten Wechsel wäre eine Fassung veraltet.
+    const bot = await secrets.ensureSystemBot();
+    expect(bot.kind).toBe('SYSTEM');
+    expect(bot.hasToken).toBe(false);
+
+    await secrets.setSecret('discord', 'botToken', BOT_TOKEN, { actorDiscordId: '1' });
+
+    expect(await secrets.botToken(bot.id)).toBe(BOT_TOKEN);
+    const frisch = await secrets.getBot(bot.id);
+    expect(frisch?.hasToken).toBe(true);
+  });
+
+  it('legt für den Systembot kein eigenes Geheimnis an', async () => {
+    const bot = await secrets.ensureSystemBot();
+    await secrets.setSecret('discord', 'botToken', BOT_TOKEN, { actorDiscordId: '1' });
+
+    // Genau eine Zeile - unter `discord`, nicht unter `bot:<id>`.
+    const zeilen = await prisma.integrationSecret.findMany({ select: { provider: true } });
+    expect(zeilen.map((zeile) => zeile.provider)).toEqual(['discord']);
+    expect(zeilen.map((zeile) => zeile.provider)).not.toContain(`bot:${bot.id}`);
+  });
+
+  it('lässt das Token des Systembots hier nicht ersetzen', async () => {
+    const bot = await secrets.ensureSystemBot();
+    await expect(
+      secrets.rotateBotToken(bot.id, 'kein-echtes-token-versuch-0009', '1'),
+    ).rejects.toMatchObject({ code: 'CONFLICT' });
+  });
+
+  it('lässt den Systembot nicht entfernen', async () => {
+    const bot = await secrets.ensureSystemBot();
+    await expect(secrets.deleteBot(bot.id, '1')).rejects.toMatchObject({ code: 'CONFLICT' });
+    expect(await prisma.integrationBot.count()).toBe(1);
+  });
+
+  it('legt ausschliesslich Worker an', async () => {
+    await expect(
+      secrets.createBot({ kind: 'MUSIC_CONTROLLER', label: 'Alt', slug: 'ALT' }, '1'),
+    ).rejects.toMatchObject({ code: 'CONFLICT' });
+    await expect(
+      secrets.createBot({ kind: 'SYSTEM', label: 'Zweiter', slug: 'ZWEI' }, '1'),
+    ).rejects.toMatchObject({ code: 'CONFLICT' });
+
+    const worker = await secrets.createBot(
+      { kind: 'MUSIC_WORKER', label: 'Music Worker 1', slug: 'WORKER_1' },
+      '1',
+    );
+    expect(worker.kind).toBe('MUSIC_WORKER');
+    expect(worker.hasToken).toBe(false);
+  });
+
+  it('hält das Token eines Workers getrennt vom Systembot', async () => {
+    const system = await secrets.ensureSystemBot();
+    await secrets.setSecret('discord', 'botToken', BOT_TOKEN, { actorDiscordId: '1' });
+    const worker = await secrets.createBot(
+      { kind: 'MUSIC_WORKER', label: 'Music Worker 1', slug: 'WORKER_1' },
+      '1',
+    );
+    await secrets.setSecret(
+      `bot:${worker.id}`,
+      'token',
+      'kein-echtes-token-worker-eins-0004',
+      { actorDiscordId: '1' },
+    );
+
+    // Jeder bekommt seinen eigenen Wert - ein Austausch beim einen rührt den
+    // anderen nicht an.
+    expect(await secrets.botToken(system.id)).toBe(BOT_TOKEN);
+    expect(await secrets.botToken(worker.id)).toBe('kein-echtes-token-worker-eins-0004');
+    expect(await alleZellen()).not.toContain(BOT_TOKEN);
+    expect(await alleZellen()).not.toContain('kein-echtes-token-worker-eins-0004');
+  });
+});

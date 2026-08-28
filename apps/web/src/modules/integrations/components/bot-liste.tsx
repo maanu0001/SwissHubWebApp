@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { toast } from 'sonner';
 import { Plus, RefreshCw, Trash2 } from 'lucide-react';
 import type { IntegrationHealth } from '@swisshub/secrets';
@@ -32,20 +33,27 @@ export interface BotAnzeige {
 }
 
 const ART_LABEL: Record<BotAnzeige['kind'], string> = {
-  SYSTEM: 'SwissHub System',
-  MUSIC_CONTROLLER: 'Musik-Controller',
+  SYSTEM: 'Systembot · zugleich Musik-Controller',
+  // Bleibt fuer den Fall, dass eine alte Zeile noch so gekennzeichnet ist.
+  MUSIC_CONTROLLER: 'Musik-Controller (abgelöst)',
   MUSIC_WORKER: 'Musik-Worker',
 };
 
 /**
- * Die hinterlegten Discord-Bots (§36/§37).
+ * Die hinterlegten Discord-Bots.
  *
  * Jeder Bot ist eine Zeile mit Name, Anwendungs-ID, Zustand und letztem
  * erfolgreichen Login. Das Token steht in keiner davon - es geht nur in eine
  * Richtung hinein.
  *
- * «Token ersetzen» prüft zuerst bei Discord und speichert erst danach (§16):
- * ein Tippfehler nimmt den Bot nicht vom Netz, weil der alte Wert bis zum
+ * **Der Systembot ist der Sonderfall.** Er ist die SwissHub-Anwendung selbst
+ * und benutzt deren Token aus Integrationen → Discord; er dient zugleich als
+ * Musik-Controller. Deshalb bekommt seine Zeile kein Eingabefeld und keinen
+ * Löschknopf - ein zweites Token-Feld wäre derselbe Wert an zwei Stellen, und
+ * zwei Stellen laufen auseinander. Prüfen lässt er sich trotzdem.
+ *
+ * «Token ersetzen» prüft zuerst bei Discord und speichert erst danach: ein
+ * Tippfehler nimmt den Bot nicht vom Netz, weil der alte Wert bis zum
  * bestandenen Test unangetastet bleibt.
  */
 export function BotListe({
@@ -61,12 +69,7 @@ export function BotListe({
   const [tokenFeld, setTokenFeld] = useState<Record<string, string>>({});
   const [loeschen, setLoeschen] = useState<BotAnzeige | null>(null);
   const [neu, setNeu] = useState(false);
-  const [entwurf, setEntwurf] = useState({
-    kind: 'MUSIC_WORKER' as BotAnzeige['kind'],
-    label: '',
-    slug: '',
-    clientId: '',
-  });
+  const [entwurf, setEntwurf] = useState({ label: '', slug: '', clientId: '' });
 
   const rotieren = async (bot: BotAnzeige): Promise<void> => {
     const token = tokenFeld[bot.id] ?? '';
@@ -113,13 +116,18 @@ export function BotListe({
   const anlegen = async (): Promise<void> => {
     setPending('neu');
     try {
-      const antwort = await createBotAction({ csrfToken, ...entwurf, position: 0 });
+      const antwort = await createBotAction({
+        csrfToken,
+        kind: 'MUSIC_WORKER',
+        ...entwurf,
+        position: 0,
+      });
       if (!antwort.ok) {
         toast.error(antwort.error?.message ?? 'Anlegen hat nicht geklappt.');
         return;
       }
       setNeu(false);
-      setEntwurf({ kind: 'MUSIC_WORKER', label: '', slug: '', clientId: '' });
+      setEntwurf({ label: '', slug: '', clientId: '' });
       toast.success('Bot angelegt. Jetzt noch das Token hinterlegen.');
     } finally {
       setPending(null);
@@ -129,12 +137,12 @@ export function BotListe({
   return (
     <Panel
       title="Discord-Bots"
-      description="Der Systembot und die Musik-Bots. Jeder braucht eine eigene Discord-Anwendung."
+      description="Der Systembot ist zugleich der Musik-Controller. Jeder Worker braucht eine eigene Discord-Anwendung."
       action={
         darfAendern && !neu ? (
           <Button size="sm" variant="outline" onClick={() => setNeu(true)}>
             <Plus aria-hidden="true" />
-            Bot hinzufügen
+            Worker hinzufügen
           </Button>
         ) : undefined
       }
@@ -142,20 +150,6 @@ export function BotListe({
       {neu ? (
         <div className="mb-4 space-y-3 rounded-lg border border-primary/30 bg-primary/5 p-4">
           <div className="grid gap-3 sm:grid-cols-2">
-            <div className="space-y-1.5">
-              <Label htmlFor="bot-art">Art</Label>
-              <select
-                id="bot-art"
-                className="h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm"
-                value={entwurf.kind}
-                onChange={(event) =>
-                  setEntwurf({ ...entwurf, kind: event.target.value as BotAnzeige['kind'] })
-                }
-              >
-                <option value="MUSIC_WORKER">Musik-Worker</option>
-                <option value="MUSIC_CONTROLLER">Musik-Controller</option>
-              </select>
-            </div>
             <div className="space-y-1.5">
               <Label htmlFor="bot-label">Anzeigename</Label>
               <Input
@@ -229,7 +223,28 @@ export function BotListe({
               <HealthBadge status={bot.status} />
             </div>
 
-            {darfAendern ? (
+            {bot.kind === 'SYSTEM' ? (
+              <div className="flex flex-wrap items-center gap-3">
+                <p className="min-w-0 flex-1 text-xs text-muted-foreground">
+                  Benutzt das Bot-Token der Anwendung aus{' '}
+                  <Link href="/system/integrationen/discord" className="text-primary hover:underline">
+                    Integrationen → Discord
+                  </Link>{' '}
+                  und dient zugleich als Musik-Controller. Ein eigenes Token braucht er nicht.
+                </p>
+                {darfAendern ? (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={pending === bot.id || !bot.hasToken}
+                    onClick={() => void pruefen(bot)}
+                  >
+                    <RefreshCw aria-hidden="true" />
+                    Prüfen
+                  </Button>
+                ) : null}
+              </div>
+            ) : darfAendern ? (
               <div className="flex flex-wrap items-center gap-2">
                 <Input
                   type="password"
@@ -260,17 +275,15 @@ export function BotListe({
                   <RefreshCw aria-hidden="true" />
                   Prüfen
                 </Button>
-                {bot.kind !== 'SYSTEM' ? (
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    disabled={pending === bot.id}
-                    aria-label={`${bot.label} entfernen`}
-                    onClick={() => setLoeschen(bot)}
-                  >
-                    <Trash2 aria-hidden="true" />
-                  </Button>
-                ) : null}
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  disabled={pending === bot.id}
+                  aria-label={`${bot.label} entfernen`}
+                  onClick={() => setLoeschen(bot)}
+                >
+                  <Trash2 aria-hidden="true" />
+                </Button>
               </div>
             ) : null}
           </li>

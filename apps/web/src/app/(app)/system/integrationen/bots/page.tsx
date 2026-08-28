@@ -56,10 +56,17 @@ export default async function BotsPage(): Promise<React.JSX.Element> {
         }))}
       />
 
-      <p className="text-xs text-muted-foreground">
-        Jeder Bot braucht eine eigene Discord-Anwendung. Zwei Bots mit demselben Token können nicht
-        gleichzeitig verbunden sein - Discord trennt dann den einen, sobald sich der andere anmeldet.
-      </p>
+      <div className="space-y-2 text-xs text-muted-foreground">
+        <p>
+          Der Systembot dient zugleich als Musik-Controller: er betritt den Sprachkanal unter dem
+          Namen, den alle ohnehin kennen, und braucht dafür keine zweite Discord-Anwendung.
+        </p>
+        <p>
+          Jeder <strong>Worker</strong> dagegen braucht eine eigene Anwendung. Zwei Bots mit
+          demselben Token können nicht gleichzeitig in verschiedenen Kanälen spielen - ein Bot ist
+          je Server immer nur in einem Sprachkanal.
+        </p>
+      </div>
     </>
   );
 }

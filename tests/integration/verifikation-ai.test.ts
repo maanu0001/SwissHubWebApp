@@ -65,22 +65,31 @@ function discordAttrappe() {
   return { gateway, gesetzteRollen, banns, kicks, timeouts };
 }
 
-/** Ein Anthropic-Zugang, der eine feste Antwort liefert. */
-function aiAttrappe(antwort: unknown, options: { wirft?: Error; stopReason?: string } = {}) {
-  return {
-    messages: {
-      create: vi.fn(async () => {
-        if (options.wirft) {
-          throw options.wirft;
-        }
-        return {
-          model: 'claude-opus-5',
-          stop_reason: options.stopReason ?? 'end_turn',
-          content: [{ type: 'text', text: JSON.stringify(antwort) }],
-        };
-      }),
-    },
-  } as unknown as NonNullable<Parameters<typeof verification.classify>[2]>['client'];
+/**
+ * Ein AI-Zugang, der eine feste Antwort liefert.
+ *
+ * Seit der zentralen AI-Verwaltung ist der Zugang genau ein Aufruf: eine
+ * Anfrage rein, eine strukturierte Antwort raus. Die Attrappe muss deshalb
+ * kein Anbieter-SDK mehr nachbilden - was hier nicht steht, kann die
+ * Einordnung auch nicht tun.
+ */
+function aiAttrappe(
+  antwort: unknown,
+  options: { wirft?: Error; abgelehnt?: boolean; roh?: string } = {},
+): NonNullable<Parameters<typeof verification.classify>[2]>['client'] {
+  return vi.fn(async () => {
+    if (options.wirft) {
+      throw options.wirft;
+    }
+    if (options.abgelehnt) {
+      return { ok: false, error: 'Das Modell hat die Antwort abgelehnt.', model: 'claude-opus-5' };
+    }
+    if (options.roh !== undefined) {
+      // Kein gueltiges JSON - so, wie der Anbieterpfad es meldet.
+      return { ok: false, error: 'Antwort war kein gültiges JSON.', model: 'claude-opus-5' };
+    }
+    return { ok: true, json: antwort, model: 'claude-opus-5' };
+  });
 }
 
 async function fallMitNachricht(discordId: string, text: string) {
@@ -222,13 +231,18 @@ describeWithDatabase('Verifikation: AI', () => {
 
     const ergebnis = await verification.aiPipeline(fall.id, {
       gateway: discord.gateway,
-      client: aiAttrappe(null, { wirft: new Error('rate limit') }),
+      client: aiAttrappe(null, { wirft: new Error('401 invalid x-api-key sk-ant-geheim') }),
     });
 
     expect(ergebnis.freigeschaltet).toBe(false);
     expect(ergebnis.request.status).toBe('WAITING_FOR_REVIEW');
     expect(ergebnis.request.aiVerdict).toBe('FAILED');
-    expect(ergebnis.request.aiError).toContain('rate limit');
+    expect(ergebnis.request.aiError).toBeTruthy();
+    // Der Rohtext des Anbieters wird nicht durchgereicht (§47): er kann den
+    // gesendeten Schluessel enthalten, und dieses Feld wird im Dashboard
+    // angezeigt.
+    expect(ergebnis.request.aiError).not.toContain('sk-ant-geheim');
+    expect(ergebnis.request.aiError).not.toContain('x-api-key');
     expect(discord.banns).toHaveLength(0);
   });
 
@@ -254,7 +268,7 @@ describeWithDatabase('Verifikation: AI', () => {
 
     const ergebnis = await verification.aiPipeline(fall.id, {
       gateway: discord.gateway,
-      client: aiAttrappe({}, { stopReason: 'refusal' }),
+      client: aiAttrappe({}, { abgelehnt: true }),
     });
 
     expect(ergebnis.request.aiVerdict).toBe('FAILED');

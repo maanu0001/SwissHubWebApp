@@ -4422,8 +4422,8 @@ model CalendarEvent {
   endAt    DateTime?
   /// Anzeigezone. Ohne sie waere eine Zeit ueber die Zeitumstellung hinweg
   /// nicht eindeutig zurueckzurechnen.
-  timezone String   @default("Europe/Zurich")
-  allDay   Boolean  @default(false)
+  timezone String    @default("Europe/Zurich")
+  allDay   Boolean   @default(false)
 
   // --- Ort ---------------------------------------------------------------
   locationKind      CalendarLocationKind @default(DISCORD)
@@ -4445,7 +4445,7 @@ model CalendarEvent {
   /// spaeter ihre Berechtigung verliert - sonst waere der Verlauf luecken-
   /// haft. Ob sie noch handeln darf, entscheidet die Rechtepruefung, nicht
   /// dieses Feld.
-  createdByDiscordId String
+  createdByDiscordId  String
   /// Organisatoren als Discord-Kennungen. Sie duerfen den Termin verwalten,
   /// sofern ihre Rolle es zulaesst.
   organizerDiscordIds String[]
@@ -4453,34 +4453,34 @@ model CalendarEvent {
   contactNote         String?
 
   // --- Anmeldung ---------------------------------------------------------
-  registrationEnabled Boolean   @default(false)
+  registrationEnabled  Boolean   @default(false)
   /// 0 = keine Obergrenze.
-  capacity            Int       @default(0)
+  capacity             Int       @default(0)
   registrationClosesAt DateTime?
-  waitlistEnabled     Boolean   @default(true)
+  waitlistEnabled      Boolean   @default(true)
   /// Duerfen Angemeldete selbst zuruecktreten?
-  allowSelfCancel     Boolean   @default(true)
-  cancelDeadlineAt    DateTime?
+  allowSelfCancel      Boolean   @default(true)
+  cancelDeadlineAt     DateTime?
   /// Teilnehmerliste fuer alle Mitglieder sichtbar, oder nur fuer die
   /// Verwaltung?
-  participantsPublic  Boolean   @default(true)
+  participantsPublic   Boolean   @default(true)
 
   // --- Discord -----------------------------------------------------------
-  announceOnDiscord   Boolean @default(false)
+  announceOnDiscord     Boolean @default(false)
   announcementChannelId String?
   /// Rolle, die bei Ankuendigung und Erinnerung erwaehnt wird. Erlaubt ist
   /// nur, was in den Moduleinstellungen freigegeben wurde - ein freies
   /// Textfeld waere ein Ping-Knopf fuer den ganzen Server.
-  mentionRoleId       String?
-  discordMessageId    String?
+  mentionRoleId         String?
+  discordMessageId      String?
   /// Gesetzt, wenn die Ankuendigung nicht mehr auffindbar ist.
   discordMessageMissing Boolean @default(false)
 
   // --- Lebenslauf --------------------------------------------------------
-  publishedAt DateTime?
-  startedAt   DateTime?
-  completedAt DateTime?
-  cancelledAt DateTime?
+  publishedAt  DateTime?
+  startedAt    DateTime?
+  completedAt  DateTime?
+  cancelledAt  DateTime?
   cancelReason String?
 
   createdAt DateTime @default(now())
@@ -4508,10 +4508,10 @@ model CalendarQuestion {
   label    String
   /// Kurzer Hinweis unter dem Feld.
   hint     String?
-  required Boolean @default(false)
+  required Boolean  @default(false)
   /// Freitext oder Auswahl. Mehr Feldarten braucht es hier nicht.
   choices  String[]
-  position Int     @default(0)
+  position Int      @default(0)
 
   answers CalendarAnswer[]
 
@@ -4523,20 +4523,20 @@ model CalendarRegistration {
   eventId String
   event   CalendarEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
 
-  discordId String
+  discordId   String
   /// Namensstand zum Zeitpunkt der Anmeldung - fuer die Nachvollziehbarkeit,
   /// wenn jemand den Server spaeter verlaesst.
   username    String?
   displayName String?
 
-  status CalendarRegistrationStatus @default(CONFIRMED)
+  status           CalendarRegistrationStatus @default(CONFIRMED)
   /// Platz auf der Warteliste, ab 1. NULL bei bestaetigt und abgemeldet.
   waitlistPosition Int?
 
-  registeredAt DateTime  @default(now())
-  cancelledAt  DateTime?
+  registeredAt        DateTime  @default(now())
+  cancelledAt         DateTime?
   /// Gesetzt, wenn die Person von der Warteliste nachgerueckt ist.
-  promotedAt   DateTime?
+  promotedAt          DateTime?
   /// Gesetzt, sobald ueber das Nachruecken benachrichtigt wurde. Verhindert,
   /// dass ein wiederholter Lauf zweimal schreibt.
   promotionNotifiedAt DateTime?
@@ -4585,9 +4585,9 @@ model CalendarReminder {
 
   /// Zielkanal. Ohne eigenen Kanal geht die Erinnerung in den
   /// Ankuendigungskanal des Termins.
-  channelId     String?
+  channelId          String?
   /// Rollen-Erwaehnung, denselben Regeln unterworfen wie die Ankuendigung.
-  mentionRoleId String?
+  mentionRoleId      String?
   /// Statt einer Rolle die angemeldeten Teilnehmer erwaehnen.
   mentionRegistrants Boolean @default(false)
 
@@ -4626,6 +4626,7 @@ model CalendarNotice {
   @@unique([eventId, kind])
   @@index([eventId, sentAt])
 }
+
 // ---------------------------------------------------------------------------
 // Verifikation
 //
@@ -4703,23 +4704,23 @@ model VerificationRequest {
   accountCreatedAt DateTime?
 
   /// Neueste Nachricht - Grundlage der Anzeige und der AI-Pruefung.
-  latestMessage      String?  @db.Text
-  latestMessageId    String?
-  latestMessageAt    DateTime?
+  latestMessage   String?   @db.Text
+  latestMessageId String?
+  latestMessageAt DateTime?
   /// Wie oft die Person geschrieben hat. Ein neuer Vorgang entsteht dadurch
   /// nicht, und die Moderation wird nicht bei jeder Nachricht erneut geweckt.
-  messageCount       Int      @default(0)
+  messageCount    Int       @default(0)
 
   // --- AI ----------------------------------------------------------------
-  aiVerdict     VerificationAiVerdict?
+  aiVerdict    VerificationAiVerdict?
   /// 0..1, auf vier Nachkommastellen gerundet.
-  aiConfidence  Float?
-  aiReasonCode  String?
-  aiModel       String?
-  aiCheckedAt   DateTime?
-  aiError       String?
+  aiConfidence Float?
+  aiReasonCode String?
+  aiModel      String?
+  aiCheckedAt  DateTime?
+  aiError      String?
   /// Wie oft die AI fuer diesen Vorgang befragt wurde - Kostenbremse.
-  aiAttempts    Int                    @default(0)
+  aiAttempts   Int                    @default(0)
 
   // --- Entscheidung ------------------------------------------------------
   /// Gesetzt, sobald der Vorgang entschieden ist. Zugleich die Bedingung, die
@@ -4734,8 +4735,8 @@ model VerificationRequest {
 
   /// Ankuendigung im Moderationskanal - wird fortgeschrieben statt neu
   /// gepostet.
-  modChannelId  String?
-  modMessageId  String?
+  modChannelId String?
+  modMessageId String?
 
   /// Interner Vermerk der Moderation. Der Verweis auf die Akte im Member
   /// Center, damit es keine zweite Notizenwelt gibt.
@@ -4772,4 +4773,116 @@ model VerificationMessage {
   /// Dieselbe Discord-Nachricht wird nicht zweimal erfasst.
   @@unique([requestId, discordMessageId])
   @@index([requestId, createdAt])
+}
+
+// ---------------------------------------------------------------------------
+// Integrationen: zentrale Verwaltung technischer Zugangsdaten
+// ---------------------------------------------------------------------------
+
+/// Gilt eine Angabe fuer die ganze Installation oder fuer einen Server?
+enum IntegrationScope {
+  /// Bot-Token, OAuth-Zugangsdaten, AI-Schluessel: eine Installation, ein Wert.
+  GLOBAL
+  /// Werte, die sich je verbundenem Discord-Server unterscheiden duerfen.
+  GUILD
+}
+
+/// Zustand einer Integration - dieselbe Skala fuer Discord, AI und Bots.
+enum IntegrationHealth {
+  CONNECTED
+  DEGRADED
+  NOT_CONFIGURED
+  ERROR
+}
+
+/// Wofuer ein hinterlegter Discord-Bot zustaendig ist.
+enum IntegrationBotKind {
+  /// Der SwissHub-Bot selbst.
+  SYSTEM
+  /// Musik: der steuernde Bot.
+  MUSIC_CONTROLLER
+  /// Musik: ein zusaetzlicher Bot, der einen weiteren Kanal bedienen kann.
+  MUSIC_WORKER
+}
+
+/// Ein verschluesseltes Geheimnis.
+///
+/// Hier steht ausschliesslich der Umschlag aus `@swisshub/secrets` - niemals
+/// ein Klartext. `hint` sind die letzten vier Zeichen und dient allein dazu,
+/// zwei Schluessel im Dashboard auseinanderhalten zu koennen.
+model IntegrationSecret {
+  id         String           @id @default(cuid())
+  scope      IntegrationScope @default(GLOBAL)
+  /// Nur bei `scope = GUILD` gefuellt, sonst die leere Zeichenkette.
+  ///
+  /// Bewusst nicht `null`: in PostgreSQL ist NULL nie gleich NULL, ein
+  /// eindeutiger Index ueber eine nullbare Spalte liesse also beliebig viele
+  /// globale Zeilen fuer dasselbe Feld zu. Genau die soll es nicht geben.
+  guildId    String           @default("")
+  /// `discord`, `ai`, `bot:<id>`, ... - siehe Katalog in @swisshub/secrets.
+  provider   String
+  /// Feldname innerhalb des Anbieters, z.B. `botToken`.
+  key        String
+  /// `v1.<schluesselKennung>.<iv>.<tag>.<geheimtext>`
+  ciphertext String
+  /// Fassung des Umschlags - Grundlage fuer einen spaeteren Schluesselwechsel.
+  envelope   String           @default("v1")
+  /// Letzte vier Zeichen des Klartexts. Nie mehr.
+  hint       String?
+  /// Zaehler statt Verlauf: alte Tokens werden bewusst nicht aufbewahrt.
+  version    Int              @default(1)
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+  updatedBy  String?
+
+  @@unique([scope, guildId, provider, key])
+  @@index([provider])
+}
+
+/// Ein Discord-Bot mit eigenen Zugangsdaten.
+///
+/// Das Token steht nicht hier, sondern als `IntegrationSecret` unter
+/// `provider = "bot:<id>"`. Diese Zeile traegt nur, was sich gefahrlos
+/// anzeigen laesst: Name, Anwendungs-ID, Zustand, letzter erfolgreicher Login.
+model IntegrationBot {
+  id            String             @id @default(cuid())
+  kind          IntegrationBotKind
+  /// Anzeigename, z.B. «Music Worker 1».
+  label         String
+  /// Stabiler Schluessel fuer die Laufzeit, z.B. `CONTROLLER`, `WORKER_1`.
+  slug          String             @unique
+  /// Discord Application ID - keine Geheimnis, hilft beim Zuordnen.
+  clientId      String?
+  /// Von Discord gemeldeter Benutzername des Bots, nach erfolgreichem Test.
+  botUsername   String?
+  botUserId     String?
+  status        IntegrationHealth  @default(NOT_CONFIGURED)
+  /// Zuletzt gemeldeter Fehler - bereinigt, ohne Anbieter-Rohtext.
+  lastError     String?
+  lastCheckedAt DateTime?
+  lastLoginAt   DateTime?
+  /// Reihenfolge in der Uebersicht und beim Zuteilen von Sprachkanaelen.
+  position      Int                @default(0)
+  enabled       Boolean            @default(true)
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+  updatedBy     String?
+
+  @@index([kind, position])
+}
+
+/// Zustand einer Integration, wie ihn die Uebersicht anzeigt.
+///
+/// Bewusst eine eigene, schmale Zeile statt eines Feldes an
+/// `IntegrationSecret`: der Zustand gehoert zur Integration als Ganzes und
+/// nicht zu einem einzelnen Feld, und er wird deutlich haeufiger geschrieben
+/// als die Zugangsdaten.
+model IntegrationStatus {
+  provider      String            @id
+  status        IntegrationHealth @default(NOT_CONFIGURED)
+  /// Kurze, bereinigte Auskunft - nie eine Anbieter-Rohantwort.
+  detail        String?
+  lastCheckedAt DateTime?
+  lastOkAt      DateTime?
+  updatedAt     DateTime          @updatedAt
 }

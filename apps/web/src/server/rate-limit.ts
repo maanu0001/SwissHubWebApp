@@ -101,6 +101,24 @@ export const RATE_LIMITS = {
    * unmoeglich, wenn sie noetig ist.
    */
   verificationReview: { limit: 120, windowMs: 5 * 60 * 1000 },
+
+  /**
+   * Zugangsdaten ändern.
+   *
+   * Eng: es gibt keinen Grund, in fünf Minuten zwanzig Mal ein Token zu
+   * setzen. Wer es doch versucht, hat entweder ein Problem oder ist nicht der,
+   * für den er sich ausgibt.
+   */
+  integrationWrite: { limit: 20, windowMs: 5 * 60 * 1000 },
+
+  /**
+   * «Verbindung testen».
+   *
+   * Jeder Test kostet eine echte Anfrage beim Anbieter und bei der AI auch
+   * Geld (§48). Zehn in fünf Minuten reichen zum Einrichten und verhindern,
+   * dass ein festgehaltener Knopf hundert Anfragen auslöst.
+   */
+  integrationTest: { limit: 10, windowMs: 5 * 60 * 1000 },
 } as const satisfies Record<string, RateLimitRule>;
 
 export type RateLimitName = keyof typeof RATE_LIMITS;

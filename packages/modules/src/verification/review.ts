@@ -260,7 +260,7 @@ export async function aiPipeline(
     targetDiscordId: vorher.discordId,
     targetLabel: vorher.displayName ?? vorher.discordId,
     success: true,
-    metadata: { requestId, model: settings.aiModel },
+    metadata: { requestId },
   });
 
   const ausgang = await classify(vorher.latestMessage, settings, { client: options.client });
@@ -272,7 +272,7 @@ export async function aiPipeline(
     data: {
       status: 'WAITING_FOR_REVIEW',
       aiCheckedAt: new Date(),
-      aiModel: ausgang.model ?? settings.aiModel,
+      aiModel: ausgang.model ?? null,
       ...(ausgang.ok && ausgang.result
         ? {
             aiVerdict: ausgang.result.classification,

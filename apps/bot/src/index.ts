@@ -2,11 +2,12 @@ import { Client, Events, GatewayIntentBits } from 'discord.js';
 import {
   EnvironmentError,
   assertServerEnv,
-  env,
   discordMocksEnabled,
   listDeprecatedEnvKeys,
 } from '@swisshub/config';
+import { discordConfig } from '@swisshub/config';
 import { clearGuildIdCache, discord, tryResolveGuildId } from '@swisshub/discord';
+import { assertIntegrationsReady, ensureSystemBot } from '@swisshub/secrets';
 import { createLogger } from '@swisshub/logger';
 import { disconnectDatabase } from '@swisshub/database';
 import { invalidateIdentity } from '@swisshub/auth';
@@ -21,6 +22,7 @@ import {
   writeHeartbeat,
 } from '@swisshub/modules';
 import { createJobRunner } from './jobs';
+import { startIntegrationWatch } from './integration-reload';
 import { registerVoteJailHandler } from './vote-jail';
 import { registerCommandHandler, registerCommands } from './commands/register';
 import { registerSpielersucheButtons } from './spielersuche-buttons';
@@ -54,6 +56,30 @@ async function main(): Promise<void> {
       process.exit(1);
     }
     throw error;
+  }
+
+  /**
+   * Zuerst die zentralen Zugangsdaten.
+   *
+   * Der Bot-Token liegt verschluesselt in der Datenbank und nicht mehr
+   * zwingend in der Umgebung (§19). Also: Datenbank -> Geheimnis laden ->
+   * entschluesseln -> und erst danach alles, was einen Token braucht. `strikt`
+   * heisst hier: ohne Token hat dieser Prozess keinen Zweck, dann soll er
+   * sich beschweren statt still ohne Verbindung weiterzulaufen.
+   */
+  if (!discordMocksEnabled()) {
+    try {
+      await assertIntegrationsReady({ strikt: true });
+    } catch (error) {
+      log.error(error instanceof Error ? error.message : String(error));
+      process.exit(1);
+    }
+    // Damit der Systembot in der Uebersicht erscheint, auch wenn sein Token
+    // noch aus der Umgebung stammt.
+    await ensureSystemBot().catch((error: unknown) => {
+      log.warn('Eintrag des Systembots konnte nicht angelegt werden', { error });
+      return null;
+    });
   }
 
   // Bestehende Installationen: Guild aus der Umgebung einmalig übernehmen.
@@ -372,9 +398,23 @@ async function main(): Promise<void> {
 
   jobs.start();
 
-  if (!discordMocksEnabled()) {
-    await client.login(env.DISCORD_BOT_TOKEN);
+  // Der Token kommt aus der zentralen Verwaltung; steht dort nichts, gilt
+  // weiterhin die Umgebung - `discordConfig` entscheidet das an einer Stelle.
+  const botToken = discordConfig.botToken;
+  if (!mockMode) {
+    await client.login(botToken);
   }
+
+  /**
+   * Aenderungen aus dem Dashboard uebernehmen.
+   *
+   * Laeuft auch im Mock-Modus, damit ein gewechselter AI-Schluessel dort
+   * ebenso greift - nur verbunden wird dann nicht.
+   */
+  const integrationen = startIntegrationWatch(client, {
+    anfangsToken: mockMode ? null : botToken,
+    verbinden: !mockMode,
+  });
 
   // --- Graceful Shutdown ---------------------------------------------------
   let shuttingDown = false;
@@ -386,6 +426,7 @@ async function main(): Promise<void> {
     log.info('Shutdown gestartet', { signal });
     clearInterval(pingTimer);
     clearInterval(guildWatchTimer);
+    integrationen.stop();
     if (syncTimer) {
       clearTimeout(syncTimer);
     }

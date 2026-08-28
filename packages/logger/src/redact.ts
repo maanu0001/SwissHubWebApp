@@ -12,12 +12,53 @@ const SENSITIVE_KEY_PATTERN =
 export const REDACTED = '[redacted]';
 
 /** Environment variables whose *values* are scrubbed from any logged string. */
-const SECRET_ENV_KEYS = ['DISCORD_BOT_TOKEN', 'DISCORD_CLIENT_SECRET', 'AUTH_SECRET', 'DATABASE_URL'];
+const SECRET_ENV_KEYS = [
+  'DISCORD_BOT_TOKEN',
+  'DISCORD_CLIENT_SECRET',
+  'AUTH_SECRET',
+  'DATABASE_URL',
+  'MASTER_ENCRYPTION_KEY',
+];
+
+/**
+ * Geheimnisse, die zur Laufzeit aus der Datenbank kommen.
+ *
+ * Seit die Zugangsdaten zentral verwaltet werden, steht ein Bot-Token nicht
+ * mehr zwingend in einer Umgebungsvariablen - die Liste oben allein wuerde es
+ * also nicht mehr finden. Der Secret-Speicher meldet jeden entschluesselten
+ * Wert hier an, und von da an verschwindet er aus jeder Logzeile, auch aus
+ * einer fremden Ausnahme, die ihn zufaellig enthaelt.
+ *
+ * Die Werte stehen ohnehin im Speicher dieses Prozesses; dass sie hier ein
+ * zweites Mal liegen, schafft keine neue Angriffsflaeche und ist der Preis
+ * dafuer, sie nirgends sonst zu sehen.
+ */
+const runtimeSecrets = new Set<string>();
+
+/** Wird vom Secret-Speicher aufgerufen, sobald ein Wert entschluesselt wurde. */
+export function registerRuntimeSecret(value: string): void {
+  if (typeof value === 'string' && value.length >= 8) {
+    runtimeSecrets.add(value);
+  }
+}
+
+/** Nach dem Loeschen eines Geheimnisses - die Liste soll nicht ewig wachsen. */
+export function unregisterRuntimeSecret(value: string): void {
+  runtimeSecrets.delete(value);
+}
+
+/** Nur fuer Tests. */
+export function clearRuntimeSecrets(): void {
+  runtimeSecrets.clear();
+}
 
 function secretValues(): string[] {
-  return SECRET_ENV_KEYS.map((key) => process.env[key])
-    .filter((value): value is string => typeof value === 'string' && value.length >= 8)
-    .sort((a, b) => b.length - a.length);
+  const ausUmgebung = SECRET_ENV_KEYS.map((key) => process.env[key]).filter(
+    (value): value is string => typeof value === 'string' && value.length >= 8,
+  );
+  // Lange zuerst: enthaelt ein Geheimnis ein anderes als Teilzeichenkette,
+  // muss das laengere zuerst ersetzt werden, sonst bleibt ein Rest stehen.
+  return [...ausUmgebung, ...runtimeSecrets].sort((a, b) => b.length - a.length);
 }
 
 export function redactString(value: string): string {

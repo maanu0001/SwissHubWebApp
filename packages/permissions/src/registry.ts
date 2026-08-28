@@ -93,6 +93,51 @@ export const CORE_PERMISSIONS: PermissionDefinition[] = [
     module: 'core',
     critical: true,
   },
+  /**
+   * Integrationen: technische Zugangsdaten.
+   *
+   * Fein geschnitten, weil «ansehen» und «Bot-Token austauschen» nicht
+   * dieselbe Befugnis sind. Wer nur `integrations.view` hat, sieht Zustaende
+   * und Masken - nie einen Wert, aber das gilt ohnehin fuer alle.
+   *
+   * `integrations.secrets.manage` ist die scharfe: sie erlaubt, Geheimnisse
+   * zu setzen und zu loeschen. Ein falsch gesetzter Bot-Token nimmt den Bot
+   * vom Netz, ein geloeschtes OAuth-Secret sperrt alle aus dem Dashboard aus.
+   */
+  {
+    key: 'integrations.view',
+    label: 'Integrationen ansehen',
+    description: 'Zustand der Zugangsdaten und Verbindungen einsehen. Niemals Werte.',
+    module: 'core',
+  },
+  {
+    key: 'integrations.manage',
+    label: 'Integrationen verwalten',
+    description: 'Nicht geheime Einstellungen ändern und Verbindungen testen.',
+    module: 'core',
+    critical: true,
+  },
+  {
+    key: 'integrations.secrets.manage',
+    label: 'Zugangsdaten ändern',
+    description: 'Tokens und Schlüssel hinterlegen, ersetzen und entfernen.',
+    module: 'core',
+    critical: true,
+  },
+  {
+    key: 'integrations.discord.manage',
+    label: 'Discord-Zugangsdaten verwalten',
+    description: 'Bot-Token, OAuth-Zugangsdaten und die hinterlegten Bots.',
+    module: 'core',
+    critical: true,
+  },
+  {
+    key: 'integrations.ai.manage',
+    label: 'AI-Integration verwalten',
+    description: 'Anbieter, Modell und Schlüssel der zentralen AI-Anbindung.',
+    module: 'core',
+    critical: true,
+  },
   {
     key: ADMIN_FULL,
     label: 'Vollzugriff',

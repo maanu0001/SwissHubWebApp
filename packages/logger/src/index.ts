@@ -74,4 +74,11 @@ export function createLogger(name: string, bindings: LogContext = {}): Logger {
 /** Default application logger. */
 export const logger = createLogger('swisshub');
 
-export { redact, redactString, REDACTED } from './redact';
+export {
+  redact,
+  redactString,
+  REDACTED,
+  registerRuntimeSecret,
+  unregisterRuntimeSecret,
+  clearRuntimeSecrets,
+} from './redact';

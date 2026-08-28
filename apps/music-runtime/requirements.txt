@@ -22,3 +22,7 @@ ytmusicapi>=1.12.2
 # Verhalten betreffen und nicht eine fremde Webseite.
 asyncpg==0.31.0
 aiohttp==3.14.3
+
+# Fuer die zentral verwalteten Bot-Tokens: sie liegen mit AES-256-GCM
+# verschluesselt in der Datenbank, und die Standardbibliothek kennt GCM nicht.
+cryptography==50.0.1

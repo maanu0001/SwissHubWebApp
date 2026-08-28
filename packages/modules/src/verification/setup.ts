@@ -1,5 +1,5 @@
-import { env } from '@swisshub/config';
 import { discord as defaultDiscord, type DiscordGateway } from '@swisshub/discord';
+import { aiUsable, readAiSettings } from '../ai/settings';
 import { listCachedChannels, listCachedRoles } from '../discord/sync';
 import { isModuleEnabled } from '../module-state';
 import { VERIFICATION_MODULE_ID, type VerificationSettings } from './config';
@@ -192,19 +192,23 @@ export async function runSetupCheck(
   // --- AI -----------------------------------------------------------------
   if (!settings.aiEnabled) {
     eintragen('ai', 'AI-Prüfung', 'skipped', 'Ausgeschaltet - es entscheiden ausschliesslich Menschen.');
-  } else if (!env.ANTHROPIC_API_KEY) {
+  } else if (!(await aiUsable())) {
+    const ai = await readAiSettings();
     eintragen(
       'ai',
       'AI-Prüfung',
       'error',
-      'Eingeschaltet, aber ANTHROPIC_API_KEY fehlt in der Serverkonfiguration. Es wird nichts geprüft; alle Fälle gehen an die Moderation.',
+      ai.enabled
+        ? 'Hier eingeschaltet, aber unter System → Integrationen → AI ist kein Schlüssel hinterlegt. Es wird nichts geprüft; alle Fälle gehen an die Moderation.'
+        : 'Hier eingeschaltet, aber die zentrale AI-Integration ist aus. Es wird nichts geprüft; alle Fälle gehen an die Moderation.',
     );
   } else {
+    const ai = await readAiSettings();
     eintragen(
       'ai',
       'AI-Prüfung',
       'ok',
-      `Schlüssel hinterlegt, Modell ${settings.aiModel}, Schwelle ${Math.round(settings.aiThreshold * 100)} %.${
+      `${ai.provider}, Modell ${ai.model}, Schwelle ${Math.round(settings.aiThreshold * 100)} %.${
         settings.aiAutoVerify ? '' : ' Automatische Freischaltung ist aus - die AI schlägt nur vor.'
       }`,
     );

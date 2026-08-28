@@ -204,6 +204,7 @@ registerModule({
   permissions: CORE_PERMISSIONS.filter(
     (entry) =>
       entry.key.startsWith('settings.') ||
+      entry.key.startsWith('integrations.') ||
       entry.key === 'permissions.manage' ||
       entry.key === 'system.manage' ||
       entry.key === 'branding.manage' ||
@@ -227,6 +228,15 @@ registerModule({
       icon: 'RefreshCw',
       group: 'system',
       order: 79,
+    },
+    {
+      href: '/system/integrationen',
+      label: 'Integrationen',
+      description: 'Zugangsdaten für Discord, AI und weitere Anbieter',
+      permission: 'integrations.view',
+      icon: 'Plug',
+      group: 'system',
+      order: 80,
     },
     {
       href: '/settings/branding',

@@ -38,3 +38,8 @@ packages/database/prisma/*.db-journal
 
 # Docker volumes
 .docker-data/
+
+# Python-Bytecode. Er entsteht bei jedem Lauf neu und gehoert nicht in
+# das Repository - eine Aenderung daran ist keine Aenderung am Programm.
+__pycache__/
+*.pyc

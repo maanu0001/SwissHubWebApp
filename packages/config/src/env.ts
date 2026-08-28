@@ -9,10 +9,6 @@ import { z } from 'zod';
  * somewhere deep inside a request handler.
  */
 
-const snowflake = z
-  .string()
-  .regex(/^\d{17,20}$/u, 'muss eine gültige Discord Snowflake ID sein (17-20 Ziffern)');
-
 const optionalSnowflake = z
   .string()
   .trim()
@@ -45,10 +41,35 @@ export const serverEnvSchema = z
     /** PostgreSQL connection string used by Prisma. */
     DATABASE_URL: z.string().min(1, 'wird benötigt (PostgreSQL Connection String)'),
 
-    /** Discord application + bot credentials. Never exposed to the browser. */
-    DISCORD_BOT_TOKEN: z.string().min(20, 'sieht nicht wie ein gültiger Bot Token aus'),
-    DISCORD_CLIENT_ID: snowflake,
-    DISCORD_CLIENT_SECRET: z.string().min(10, 'wird benötigt'),
+    /**
+     * Hauptschluessel der Zugangsdatenverwaltung.
+     *
+     * Das eine Geheimnis, das in der Umgebung bleiben MUSS: mit ihm werden die
+     * uebrigen in der Datenbank ver- und entschluesselt. Er wird niemals im
+     * Dashboard angezeigt, niemals in der Datenbank abgelegt und niemals
+     * protokolliert. Ohne ihn sind die gespeicherten Zugangsdaten absichtlich
+     * nicht lesbar - siehe docs/INTEGRATIONS.md.
+     *
+     * 32 Bytes in base64 oder hex, z.B. `openssl rand -base64 32`.
+     */
+    MASTER_ENCRYPTION_KEY: z.string().min(1).optional(),
+
+    /**
+     * Discord application + bot credentials.
+     *
+     * Seit der zentralen Integrationsverwaltung sind sie **optional**: sie
+     * werden im Dashboard unter System -> Integrationen gepflegt und liegen
+     * verschluesselt in der Datenbank. Was hier steht, gilt weiterhin als
+     * Rueckfall, solange in der Datenbank nichts hinterlegt ist (§39). Ob am
+     * Ende ueberhaupt etwas da ist, prueft `assertIntegrationsReady()` beim
+     * Start - nicht dieses Schema, denn es kennt die Datenbank nicht.
+     */
+    DISCORD_BOT_TOKEN: z
+      .string()
+      .min(20, 'sieht nicht wie ein gültiger Bot Token aus')
+      .optional(),
+    DISCORD_CLIENT_ID: optionalSnowflake,
+    DISCORD_CLIENT_SECRET: z.string().min(10, 'wird benötigt').optional(),
 
     /**
      * Bootstrap-Werte. Sie werden beim ersten Start einmalig in die Datenbank
@@ -96,27 +117,23 @@ export const serverEnvSchema = z
     TRUST_PROXY: boolish(false),
 
     /**
-     * Zahlungsanbieter fuer SwissHub Premium.
+     * AI-Schluessel als Rueckfall.
      *
-     * `mock` ist ausschliesslich fuer die Entwicklung und wird in Production
-     * zurueckgewiesen - siehe `superRefine` weiter unten. Discord-Rollen,
-     * Kategorien und Kanaele werden bewusst NICHT hier konfiguriert, sondern
-     * im Dashboard: sie aendern sich im Betrieb und gehoeren in die Datenbank.
-     */
-    /**
-     * Schluessel fuer die AI-gestuetzte Verifikation.
-     *
-     * Wie jedes andere Geheimnis ausschliesslich hier und niemals im
-     * Dashboard: der Schluessel gehoert nicht in die Datenbank, und ein
-     * Administrator soll ihn weder sehen noch versehentlich weitergeben
-     * koennen. Im Dashboard laesst sich nur einstellen, *ob* und *wie* die
-     * AI genutzt wird.
-     *
-     * Fehlt er, bleibt die AI-Pruefung aus - der Ablauf funktioniert dann
-     * vollstaendig ueber die Moderation.
+     * Massgeblich ist die zentrale Verwaltung unter System -> Integrationen
+     * -> AI. Diese beiden Variablen werden nur noch gelesen, solange dort
+     * nichts hinterlegt ist, und lassen sich von dort per Knopfdruck
+     * uebernehmen. Danach koennen sie aus der Umgebung verschwinden.
      */
     ANTHROPIC_API_KEY: z.string().min(1).optional(),
+    OPENAI_API_KEY: z.string().min(1).optional(),
 
+    /**
+     * Zahlungsanbieter fuer SwissHub Premium - ebenfalls nur noch Rueckfall.
+     *
+     * `mock` ist ausschliesslich fuer die Entwicklung und wird in Production
+     * zurueckgewiesen. Discord-Rollen, Kategorien und Kanaele werden bewusst
+     * NICHT hier konfiguriert, sondern im Dashboard.
+     */
     PAYMENT_PROVIDER: z.enum(['mock', 'stripe']).optional(),
     PAYMENT_API_KEY: z.string().min(1).optional(),
     PAYMENT_WEBHOOK_SECRET: z.string().min(1).optional(),
@@ -149,6 +166,14 @@ export const serverEnvSchema = z
         code: z.ZodIssueCode.custom,
         path: ['PAYMENT_API_KEY'],
         message: 'PAYMENT_API_KEY und PAYMENT_WEBHOOK_SECRET werden fuer Stripe benoetigt',
+      });
+    }
+    if (value.NODE_ENV === 'production' && !value.MASTER_ENCRYPTION_KEY) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['MASTER_ENCRYPTION_KEY'],
+        message:
+          'wird in Production benoetigt - ohne ihn lassen sich keine Zugangsdaten speichern (openssl rand -base64 32)',
       });
     }
     if (value.NODE_ENV === 'production' && value.DEV_MOCK_DISCORD) {

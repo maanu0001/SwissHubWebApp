@@ -1,15 +1,28 @@
 """Konfiguration der Voice-Laufzeit.
 
-Alles kommt aus der Umgebung - es gibt bewusst keine config.json mehr. Die
-Legacy-Datei trug sechs Bot-Tokens im Klartext und wurde herumgereicht; genau
-das soll sich nicht wiederholen. Die Tokens stehen hier ausschliesslich im
-Speicher des Prozesses, der sie braucht, und werden nie protokolliert.
+Die Bot-Tokens kommen aus der zentralen Verwaltung des Dashboards: sie liegen
+verschluesselt in derselben Datenbank, mit der diese Laufzeit ohnehin spricht,
+und werden hier mit dem ``MASTER_ENCRYPTION_KEY`` gelesen. Steht dort nichts -
+oder fehlt der Hauptschluessel -, gilt weiterhin die Umgebung; so laesst sich
+umstellen, ohne die Musik abzuschalten.
+
+Es gibt bewusst keine config.json mehr. Die Legacy-Datei trug sechs Bot-Tokens
+im Klartext und wurde herumgereicht; genau das soll sich nicht wiederholen.
+Die Tokens stehen ausschliesslich im Speicher des Prozesses, der sie braucht,
+und werden nie protokolliert.
 """
 
 from __future__ import annotations
 
+import logging
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
+
+import asyncpg
+
+from .secrets import SecretError, entschluessele, lade_hauptschluessel
+
+log = logging.getLogger("swisshub.music.config")
 
 
 class ConfigError(RuntimeError):
@@ -62,18 +75,24 @@ class Settings:
 
 
 def lade_settings() -> Settings:
-    controller = _pflicht("MUSIC_CONTROLLER_TOKEN")
+    # Rueckfall aus der Umgebung. Ob er gebraucht wird, entscheidet sich erst
+    # nach `lade_bots_aus_datenbank` - deshalb hier keine Pflicht mehr.
+    controller = os.environ.get("MUSIC_CONTROLLER_TOKEN", "").strip()
 
     # Worker als eine kommagetrennte Liste: die Anzahl ist damit frei und
     # nicht auf fuenf festgeschrieben.
     roh_worker = os.environ.get("MUSIC_WORKER_TOKENS", "")
     worker = [t.strip() for t in roh_worker.split(",") if t.strip()]
 
-    bots = [BotToken(key="CONTROLLER", typ="CONTROLLER", token=controller)]
+    bots = (
+        [BotToken(key="CONTROLLER", typ="CONTROLLER", token=controller)]
+        if controller
+        else []
+    )
     for nummer, token in enumerate(worker, start=1):
         bots.append(BotToken(key=f"WORKER_{nummer}", typ="WORKER", token=token))
 
-    if len({b.token for b in bots}) != len(bots):
+    if bots and len({b.token for b in bots}) != len(bots):
         raise ConfigError(
             "Zwei Bots teilen sich dasselbe Token. Jeder Bot braucht eine eigene "
             "Discord-Anwendung, sonst kann nur einer gleichzeitig verbunden sein."
@@ -89,3 +108,81 @@ def lade_settings() -> Settings:
         heartbeat_seconds=_zahl("MUSIC_HEARTBEAT_SECONDS", 30),
         poll_seconds=_zahl("MUSIC_POLL_SECONDS", 1),
     )
+
+
+async def lade_bots_aus_datenbank(settings: Settings) -> Settings:
+    """Die Bot-Tokens aus der zentralen Verwaltung uebernehmen.
+
+    Rueckwaertskompatibel und ausfallsicher: findet sich nichts, bleibt es bei
+    dem, was aus der Umgebung kam. Eine Laufzeit, die wegen einer halb
+    abgeschlossenen Umstellung nicht mehr startet, waere die schlechtere
+    Antwort auf ein fehlendes Token.
+
+    Es werden ausschliesslich eingeschaltete Bots der Musik-Arten gelesen. Der
+    Systembot steht in derselben Tabelle, gehoert aber nicht in diesen Pool.
+    """
+    key = lade_hauptschluessel()
+    if key is None:
+        log.info(
+            "Kein MASTER_ENCRYPTION_KEY gesetzt - die Bot-Tokens kommen aus der Umgebung"
+        )
+        return settings
+
+    try:
+        verbindung = await asyncpg.connect(settings.database_url)
+    except Exception:
+        log.warning("Datenbank nicht erreichbar - die Bot-Tokens kommen aus der Umgebung")
+        return settings
+
+    try:
+        zeilen = await verbindung.fetch(
+            """
+            SELECT b.id, b.slug, b.kind, s.ciphertext, s.scope, s."guildId"
+              FROM "IntegrationBot" b
+              JOIN "IntegrationSecret" s
+                ON s.provider = 'bot:' || b.id AND s.key = 'token'
+             WHERE b.enabled = true
+               AND b.kind IN ('MUSIC_CONTROLLER', 'MUSIC_WORKER')
+             ORDER BY b.kind DESC, b.position ASC, b.label ASC
+            """
+        )
+    except Exception:
+        log.warning("Bot-Tokens konnten nicht gelesen werden - es gilt die Umgebung")
+        return settings
+    finally:
+        await verbindung.close()
+
+    if not zeilen:
+        return settings
+
+    bots: list[BotToken] = []
+    for zeile in zeilen:
+        try:
+            token = entschluessele(
+                zeile["ciphertext"],
+                scope=zeile["scope"],
+                guild_id=zeile["guildId"],
+                provider=f"bot:{zeile['id']}",
+                feld="token",
+                key=key,
+            )
+        except SecretError as fehler:
+            # Ohne Token laeuft dieser eine Bot nicht - die uebrigen schon.
+            # Der Grund wird genannt, das Token niemals.
+            log.error("Token von %s ist nicht lesbar: %s", zeile["slug"], fehler)
+            continue
+        typ = "CONTROLLER" if zeile["kind"] == "MUSIC_CONTROLLER" else "WORKER"
+        bots.append(BotToken(key=zeile["slug"], typ=typ, token=token))
+
+    if not bots:
+        log.warning("Kein lesbares Token in der Verwaltung - es gilt die Umgebung")
+        return settings
+
+    if len({bot.token for bot in bots}) != len(bots):
+        raise ConfigError(
+            "Zwei Bots teilen sich dasselbe Token. Jeder Bot braucht eine eigene "
+            "Discord-Anwendung, sonst kann nur einer gleichzeitig verbunden sein."
+        )
+
+    log.info("%d Bot-Tokens aus der zentralen Verwaltung uebernommen", len(bots))
+    return replace(settings, bots=tuple(bots))

@@ -16,7 +16,7 @@ from aiohttp import web
 
 from .api import erstelle_app
 from .bot import MusicBot
-from .config import ConfigError, lade_settings
+from .config import ConfigError, lade_bots_aus_datenbank, lade_settings
 from .store import Store
 
 logging.basicConfig(
@@ -29,8 +29,17 @@ log = logging.getLogger("swisshub.music")
 async def main() -> int:
     try:
         settings = lade_settings()
+        # Die zentrale Verwaltung gewinnt; die Umgebung bleibt der Rueckfall.
+        settings = await lade_bots_aus_datenbank(settings)
     except ConfigError as fehler:
         log.error("%s", fehler)
+        return 1
+
+    if not settings.bots:
+        log.error(
+            "Kein Bot-Token vorhanden. Sie werden im Dashboard unter "
+            "System -> Integrationen -> Discord-Bots gepflegt."
+        )
         return 1
 
     log.info("Starte Voice-Laufzeit mit %d Bots", len(settings.bots))

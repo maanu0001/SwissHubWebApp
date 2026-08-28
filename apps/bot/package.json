@@ -16,6 +16,7 @@
     "@swisshub/logger": "*",
     "@swisshub/modules": "*",
     "@swisshub/permissions": "*",
+    "@swisshub/secrets": "*",
     "@swisshub/shared": "*",
     "discord.js": "14.27.0",
     "sharp": "^0.35.3",

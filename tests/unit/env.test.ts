@@ -33,16 +33,50 @@ describe('Environment-Validierung', () => {
   it('meldet fehlende Variablen mit klarer Fehlermeldung', () => {
     resetServerEnvCache();
     const incomplete = { ...VALID };
-    delete incomplete.DISCORD_BOT_TOKEN;
+    delete incomplete.DATABASE_URL;
 
     try {
       assertServerEnv(incomplete);
       throw new Error('Es hätte ein Fehler geworfen werden müssen');
     } catch (error) {
       expect(error).toBeInstanceOf(EnvironmentError);
-      expect((error as EnvironmentError).message).toContain('DISCORD_BOT_TOKEN');
+      expect((error as EnvironmentError).message).toContain('DATABASE_URL');
       expect((error as EnvironmentError).message).toContain('.env.example');
     }
+  });
+
+  it('startet ohne Discord-Zugangsdaten in der Umgebung', () => {
+    // Sie werden seit der zentralen Integrationsverwaltung im Dashboard
+    // gepflegt und liegen verschlüsselt in der Datenbank. Die Umgebung ist
+    // nur noch der Rückfall - ein Start daran scheitern zu lassen hiesse,
+    // dass sich eine Installation ohne .env-Zugriff nie einrichten liesse.
+    // Ob am Ende irgendwo ein Token steht, prüft `assertIntegrationsReady()`.
+    const ohneDiscord = { ...VALID };
+    delete ohneDiscord.DISCORD_BOT_TOKEN;
+    delete ohneDiscord.DISCORD_CLIENT_ID;
+    delete ohneDiscord.DISCORD_CLIENT_SECRET;
+
+    const parsed = serverEnvSchema.safeParse(ohneDiscord);
+    expect(parsed.success).toBe(true);
+  });
+
+  it('verlangt den Hauptschlüssel in Production', () => {
+    // Ohne ihn liesse sich kein Geheimnis lesen oder schreiben - in
+    // Production ist das kein zulässiger Zustand.
+    const ohneKey: NodeJS.ProcessEnv = {
+      ...VALID,
+      NODE_ENV: 'production',
+      NEXT_PUBLIC_APP_URL: 'https://example.test',
+    };
+    delete ohneKey.MASTER_ENCRYPTION_KEY;
+    const ergebnis = serverEnvSchema.safeParse(ohneKey);
+    expect(ergebnis.success).toBe(false);
+    if (!ergebnis.success) {
+      expect(JSON.stringify(ergebnis.error.issues)).toContain('MASTER_ENCRYPTION_KEY');
+    }
+
+    // In der Entwicklung ist er optional - man soll ohne ihn arbeiten können.
+    expect(serverEnvSchema.safeParse(ohneKey2()).success).toBe(true);
   });
 
   it('lehnt zu kurze Secrets ab', () => {
@@ -95,3 +129,10 @@ describe('Environment-Validierung', () => {
     expect(result.success).toBe(false);
   });
 });
+
+/** Dieselbe Konfiguration ohne Hauptschlüssel, aber in der Entwicklung. */
+function ohneKey2(): Record<string, string | undefined> {
+  const kopie: Record<string, string | undefined> = { ...VALID };
+  delete kopie.MASTER_ENCRYPTION_KEY;
+  return kopie;
+}

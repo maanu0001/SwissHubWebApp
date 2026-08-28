@@ -96,8 +96,14 @@ export const verificationSettingsSchema = z.object({
    * Minute Wartezeit fuer ein echtes Mitglied.
    */
   aiThreshold: z.number().min(0.5).max(1).default(0.95),
-  /** Modell fuer die Einordnung. */
-  aiModel: z.string().default('claude-opus-5'),
+  /**
+   * Anbieter, Schluessel und Modell stehen NICHT hier.
+   *
+   * Sie werden zentral unter System -> Integrationen -> AI gepflegt und von
+   * allen Modulen geteilt. Dieses Modul entscheidet nur, OB es die AI nutzt,
+   * ob sie selbst freischalten darf und ab welcher Sicherheit - alles
+   * Weitere waere derselbe Schluessel an einer zweiten Stelle.
+   */
   /** Hoechstzahl der AI-Anfragen je Vorgang - Kostenbremse. */
   aiMaxAttempts: z.number().int().min(1).max(10).default(2),
 
@@ -382,15 +388,18 @@ async function verificationHealthChecks(
   // AI: eingeschaltet, aber ohne Schluessel - dann prueft nichts, und
   // niemand merkt es.
   if (settings.aiEnabled) {
-    const { env } = await import('@swisshub/config');
+    const { readAiSettings, aiUsable } = await import('../ai/settings');
+    const ai = await readAiSettings();
     checks.push(
-      env.ANTHROPIC_API_KEY
-        ? { label: 'AI-Prüfung', status: 'ok', detail: `Aktiv (${settings.aiModel}).` }
+      (await aiUsable())
+        ? { label: 'AI-Prüfung', status: 'ok', detail: `Aktiv (${ai.provider}, ${ai.model}).` }
         : {
             label: 'AI-Prüfung',
             status: 'error',
-            detail:
-              'Eingeschaltet, aber ANTHROPIC_API_KEY fehlt in der Serverkonfiguration. Es wird nichts geprüft.',
+            detail: ai.enabled
+              ? 'Eingeschaltet, aber unter System → Integrationen → AI ist kein Schlüssel hinterlegt. Es wird nichts geprüft.'
+              : 'Hier eingeschaltet, aber die zentrale AI-Integration ist aus. Es wird nichts geprüft.',
+            fixHref: '/system/integrationen/ai',
           },
     );
   }

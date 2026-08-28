@@ -51,4 +51,5 @@ export * as members from './members';
 export * as moderation from './moderation';
 export * as analytics from './analytics';
 export * as calendar from './calendar';
+export * as ai from './ai';
 export * as verification from './verification';

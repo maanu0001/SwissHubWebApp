@@ -20,6 +20,7 @@ export type AppErrorCode =
   | 'DISCORD_UNKNOWN_ROLE'
   | 'DISCORD_RATE_LIMITED'
   | 'CONFIGURATION_MISSING'
+  | 'SECRET_UNREADABLE'
   | 'POLICY_VIOLATION'
   | 'INTERNAL';
 
@@ -37,6 +38,7 @@ const DEFAULT_STATUS: Record<AppErrorCode, number> = {
   DISCORD_UNKNOWN_ROLE: 409,
   DISCORD_RATE_LIMITED: 429,
   CONFIGURATION_MISSING: 409,
+  SECRET_UNREADABLE: 500,
   POLICY_VIOLATION: 403,
   INTERNAL: 500,
 };
@@ -56,6 +58,8 @@ const DEFAULT_MESSAGE: Record<AppErrorCode, string> = {
   DISCORD_UNKNOWN_ROLE: 'Eine konfigurierte Discord-Rolle existiert nicht mehr.',
   DISCORD_RATE_LIMITED: 'Discord drosselt aktuell die Anfragen. Bitte versuche es in Kürze erneut.',
   CONFIGURATION_MISSING: 'Die Konfiguration ist unvollständig. Bitte prüfe die Einstellungen.',
+  SECRET_UNREADABLE:
+    'Ein gespeichertes Geheimnis liess sich nicht lesen. Bitte den Wert unter Integrationen neu hinterlegen.',
   POLICY_VIOLATION: 'Diese Aktion ist gegen dieses Mitglied nicht zulässig.',
   INTERNAL: 'Aktion konnte nicht ausgeführt werden. Bitte versuche es später erneut.',
 };

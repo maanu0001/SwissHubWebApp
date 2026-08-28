@@ -7,14 +7,25 @@ import {
 import { createLogger } from '@swisshub/logger';
 import { ensureBootstrapRoles } from '@swisshub/permissions';
 import { importGuildFromEnvironment } from '@swisshub/modules';
+import {
+  assertIntegrationsReady,
+  ensureSystemBot,
+  refreshIntegrationRuntimeIfChanged,
+} from '@swisshub/secrets';
 
 const log = createLogger('web');
 
 /**
  * Startprüfung der WebApp:
  *  1. Umgebungsvariablen validieren (Fail Fast mit klarer Meldung),
- *  2. abgelöste Variablen einmalig in die Datenbank übernehmen,
- *  3. Administratorrolle aus der Umgebung bootstrappen.
+ *  2. zentrale Zugangsdaten laden und ihren Zustand melden,
+ *  3. abgelöste Variablen einmalig in die Datenbank übernehmen,
+ *  4. Administratorrolle aus der Umgebung bootstrappen.
+ *
+ * Bewusst ohne `strikt`: die WebApp muss gerade dann erreichbar sein, wenn
+ * eine Integration fehlt - dort trägt man sie nach. Ein Abbruch hier hiesse,
+ * dass sich eine unvollständige Installation nicht mehr vervollständigen
+ * lässt (§44).
  */
 async function bootstrap(): Promise<void> {
   try {
@@ -29,6 +40,12 @@ async function bootstrap(): Promise<void> {
   if (discordMocksEnabled()) {
     log.warn('DEV_MOCK_DISCORD ist aktiv - es werden Mock-Daten statt echter Discord-Daten verwendet.');
   }
+
+  await assertIntegrationsReady().catch((error: unknown) => {
+    log.warn('Zentrale Zugangsdaten konnten nicht geprüft werden', { error });
+    return null;
+  });
+  await ensureSystemBot().catch(() => null);
 
   // Bestehende Installationen: Guild aus DISCORD_GUILD_ID übernehmen. Danach
   // ist die Datenbank massgeblich und die Variable kann entfallen.
@@ -49,8 +66,27 @@ async function bootstrap(): Promise<void> {
     );
   }
 
+  watchIntegrations();
   registerShutdownHooks();
   log.info('SwissHub WebApp gestartet');
+}
+
+/**
+ * Änderungen an den Zugangsdaten nachziehen.
+ *
+ * `discordConfig.botToken` und `clientSecret` sind synchrone Zugriffe auf eine
+ * Ablage im Speicher dieses Prozesses. Wird ein Wert in einer anderen Instanz
+ * geändert - oder in derselben, aber ausserhalb des schreibenden Aufrufs -,
+ * merkt dieser Prozess es nur, wenn er nachsieht. Eine Zeile aus der Datenbank
+ * alle fünfzehn Sekunden, derselbe Zähler wie überall sonst.
+ */
+function watchIntegrations(): void {
+  const timer = setInterval(() => {
+    void refreshIntegrationRuntimeIfChanged().catch((error: unknown) => {
+      log.warn('Zugangsdaten konnten nicht nachgezogen werden', { error });
+    });
+  }, 15_000);
+  timer.unref?.();
 }
 
 /**

@@ -1,4 +1,5 @@
 import { env } from './env';
+import { runtimeConfigValue } from './runtime';
 
 /**
  * OAuth2 scopes requested from Discord.
@@ -60,14 +61,26 @@ export const discordConfig = {
   get bootstrapGuildId(): string | undefined {
     return env.DISCORD_GUILD_ID;
   },
+  /**
+   * Die drei Zugangsdaten der Discord-Anwendung.
+   *
+   * Zuerst die zentrale Verwaltung, dann die Umgebung. Wer sie hier abfragt,
+   * merkt vom Unterschied nichts - genau darum stehen die Zugriffe weiterhin
+   * an dieser einen Stelle und nicht verteilt im Code.
+   *
+   * `?? ''` statt eines Fehlers: das Fehlen wird beim Start geprueft
+   * (`assertIntegrationsReady`) und in der Uebersicht angezeigt. Ein Wurf
+   * mitten in einem Anfragepfad waere eine schlechtere Auskunft als eine
+   * Integration, die sich sichtbar als «nicht konfiguriert» meldet.
+   */
   get botToken(): string {
-    return env.DISCORD_BOT_TOKEN;
+    return runtimeConfigValue('discord.botToken') ?? env.DISCORD_BOT_TOKEN ?? '';
   },
   get clientId(): string {
-    return env.DISCORD_CLIENT_ID;
+    return runtimeConfigValue('discord.clientId') ?? env.DISCORD_CLIENT_ID ?? '';
   },
   get clientSecret(): string {
-    return env.DISCORD_CLIENT_SECRET;
+    return runtimeConfigValue('discord.clientSecret') ?? env.DISCORD_CLIENT_SECRET ?? '';
   },
   get redirectUri(): string {
     return appUrl('/api/auth/callback/discord');

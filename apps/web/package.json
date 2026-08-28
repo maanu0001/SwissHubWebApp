@@ -25,6 +25,7 @@
     "@swisshub/logger": "*",
     "@swisshub/modules": "*",
     "@swisshub/permissions": "*",
+    "@swisshub/secrets": "*",
     "@swisshub/shared": "*",
     "class-variance-authority": "0.7.1",
     "clsx": "2.1.1",

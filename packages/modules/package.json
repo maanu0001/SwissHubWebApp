@@ -17,7 +17,9 @@
     "@swisshub/discord": "*",
     "@swisshub/logger": "*",
     "@swisshub/permissions": "*",
+    "@swisshub/secrets": "*",
     "@swisshub/shared": "*",
+    "openai": "7.8.0",
     "stripe": "^22.5.0",
     "zod": "3.25.76"
   }

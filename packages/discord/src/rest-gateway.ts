@@ -311,6 +311,40 @@ export function createRestGateway(): DiscordGateway {
       });
     },
 
+    /**
+     * Direktnachricht: erst den privaten Kanal öffnen, dann senden.
+     *
+     * Discord bietet keinen Weg, ohne diesen ersten Schritt an eine Person zu
+     * schreiben. Der Kanal bleibt bestehen, das Öffnen ist also nur beim
+     * ersten Mal ein echter Vorgang.
+     *
+     * Eine Ablehnung (403) heisst: die Person nimmt keine Direktnachrichten
+     * von diesem Server an. Das wird als `false` gemeldet und nicht als
+     * Fehler - siehe die Erklärung am Interface.
+     */
+    async sendDirect(discordId, payload: DiscordMessagePayload): Promise<boolean> {
+      try {
+        const kanal = await discordRequest<{ id?: string }>('/users/@me/channels', {
+          method: 'POST',
+          body: { recipient_id: discordId },
+        });
+        if (!kanal?.id) {
+          return false;
+        }
+        await discordRequest(`/channels/${kanal.id}/messages`, {
+          method: 'POST',
+          body: toMessageBody(payload),
+        });
+        return true;
+      } catch (error) {
+        const status = (error as { status?: number })?.status;
+        if (status === 403 || status === 400) {
+          return false;
+        }
+        throw error;
+      }
+    },
+
     async react(channelId, messageId, emoji) {
       // Unicode-Emoji müssen URL-kodiert werden; @me = eigene Reaktion.
       await discordRequest(

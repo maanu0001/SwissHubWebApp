@@ -4,6 +4,7 @@ import { createLogger } from '@swisshub/logger';
 import { purgeExpiredIdempotencyKeys } from '@swisshub/database';
 import { purgeExpiredSessions } from '@swisshub/auth';
 import { tryResolveGuildId } from '@swisshub/discord';
+import * as automationEngine from '@swisshub/automation';
 import {
   analytics,
   calendar,
@@ -18,7 +19,9 @@ import {
   voice,
   verification,
   voiceHub,
+  getModuleSettings,
 } from '@swisshub/modules';
+import type { automation } from '@swisshub/modules';
 
 const log = createLogger('bot:jobs');
 
@@ -451,6 +454,83 @@ export function createJobRunner(
             medien: ergebnis.medien,
             bytes: ergebnis.bytes,
           });
+        }
+      },
+    },
+    {
+      // Der Herzschlag der Automation Engine.
+      //
+      // Ereignisse werden geschrieben, sobald etwas geschieht - verteilt
+      // werden sie hier. Fuenf Sekunden sind der Kompromiss: schnell genug,
+      // dass eine Willkommensnachricht als sofort empfunden wird, selten
+      // genug, dass ein leerer Server keine Last erzeugt.
+      name: 'automation-dispatch',
+      intervalMs: 5 * 1000,
+      runOnStart: true,
+      async run() {
+        const ergebnis = await automationEngine.verteileEreignisse({ limit: 50 });
+        if (ergebnis.laeufe > 0) {
+          log.info('Automationen ausgeloest', {
+            ereignisse: ergebnis.ereignisse,
+            laeufe: ergebnis.laeufe,
+            uebersprungen: ergebnis.uebersprungen,
+          });
+        }
+      },
+    },
+    {
+      // Faellige Wecker: Fortsetzungen nach einem Wait, Zeitplaene und
+      // eingereihte Laeufe. Getrennt vom Verteiler, damit ein langsamer
+      // Wait-Schritt die Ereignisverteilung nicht aufhaelt.
+      name: 'automation-jobs',
+      intervalMs: 10 * 1000,
+      runOnStart: true,
+      async run() {
+        // Zuerst die verwaisten zurueckholen: ein Job, den ein abgestuerzter
+        // Prozess in der Hand hielt, liefe sonst nie wieder an.
+        await automationEngine.holeVerwaisteZurueck();
+        const ergebnis = await automationEngine.verarbeiteJobs({ limit: 20 });
+        if (ergebnis.gescheitert > 0) {
+          log.warn('Automations-Aufgaben gescheitert', {
+            bearbeitet: ergebnis.bearbeitet,
+            gescheitert: ergebnis.gescheitert,
+          });
+        }
+      },
+    },
+    {
+      // Kommende Termine sichern. Der Verteiler plant nach jedem Lauf den
+      // naechsten; dieser Durchgang faengt den Fall ab, dass ein Wecker
+      // verlorenging - etwa weil der Prozess zwischen Ausfuehrung und
+      // Neuplanung endete.
+      name: 'automation-schedule',
+      intervalMs: 5 * 60 * 1000,
+      runOnStart: true,
+      async run() {
+        const geplant = await automationEngine.planeZeitTrigger();
+        if (geplant > 0) {
+          log.info('Zeitgesteuerte Automationen eingeplant', { anzahl: geplant });
+        }
+      },
+    },
+    {
+      // Aufbewahrung (§34). Einmal pro Stunde genuegt: es geht um Tage, nicht
+      // um Minuten.
+      name: 'automation-retention',
+      intervalMs: 60 * 60 * 1000,
+      async run() {
+        const guildId = await tryResolveGuildId();
+        if (!guildId) {
+          return;
+        }
+        const settings = await getModuleSettings<automation.AutomationSettings>('automation');
+        const [laeufe, ereignisse, aufgaben] = await Promise.all([
+          automationEngine.raeumeLaeufe(settings.verlaufTage),
+          automationEngine.raeumeEreignisse(settings.ereignisseTage),
+          automationEngine.raeumeJobs(settings.ereignisseTage),
+        ]);
+        if (laeufe + ereignisse + aufgaben > 0) {
+          log.info('Automations-Aufbewahrung durchgesetzt', { laeufe, ereignisse, aufgaben });
         }
       },
     },

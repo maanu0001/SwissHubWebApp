@@ -392,6 +392,10 @@ export function createMockGateway(): DiscordGateway {
         log.info('Mock: Discord-Nachricht', { channelId, title: payload.embeds?.[0]?.title });
         return { id, channelId };
       },
+      async sendDirect(discordId, payload) {
+        log.info('Mock: Direktnachricht', { discordId, title: payload.embeds?.[0]?.title });
+        return true;
+      },
       async edit(channelId, messageId, payload) {
         log.info('Mock: Nachricht bearbeitet', { channelId, messageId, title: payload.embeds?.[0]?.title });
       },

@@ -185,6 +185,25 @@ export async function humanReject(
     metadata: { requestId, reason: grund },
   });
 
+  // Nur eine Meldung. Die Automation Engine hat den Bann weder ausgeloest
+  // noch kann sie einen ausloesen - sie erfaehrt lediglich davon (§33).
+  const { meldeEreignis } = await import('../automation/emit');
+  await meldeEreignis(
+    'verification.rejected',
+    {
+      requestId,
+      discordId: vorher.discordId,
+      displayName: vorher.displayName ?? vorher.username ?? vorher.discordId,
+      entschiedenVon: 'HUMAN',
+    },
+    {
+      guildId: vorher.guildId,
+      actorId: actor.discordId,
+      subjectId: vorher.discordId,
+      entityId: requestId,
+    },
+  );
+
   logger.info('Verifikation abgelehnt', { requestId, actor: actor.discordId });
   return { request: entschieden, gewonnen: true };
 }

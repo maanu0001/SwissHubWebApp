@@ -104,6 +104,32 @@ export async function closeTicket(
     await frageNachBewertung(ticketId, ticket.ticketNumber);
   }
 
+  const kategorie = ticket.categoryId
+    ? await prisma.ticketCategory.findUnique({
+        where: { id: ticket.categoryId },
+        select: { name: true },
+      })
+    : null;
+  const { meldeEreignis } = await import('../automation/emit');
+  await meldeEreignis(
+    'ticket.closed',
+    {
+      ticketId,
+      nummer: geschlossen.ticketNumber,
+      discordId: geschlossen.creatorDiscordId,
+      kategorie: kategorie?.name ?? 'Ohne Kategorie',
+      offenMinuten: geschlossen.closedAt
+        ? Math.round((geschlossen.closedAt.getTime() - geschlossen.createdAt.getTime()) / 60_000)
+        : null,
+    },
+    {
+      guildId: geschlossen.guildId,
+      actorId: actor.discordId,
+      subjectId: geschlossen.creatorDiscordId,
+      entityId: ticketId,
+    },
+  );
+
   return geschlossen;
 }
 

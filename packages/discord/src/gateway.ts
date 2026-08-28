@@ -90,6 +90,16 @@ export interface DiscordGateway {
     /** Fügt eine Reaktion hinzu (Unicode-Emoji). */
     react(channelId: string, messageId: string, emoji: string): Promise<void>;
     /**
+     * Sendet eine Direktnachricht an ein Mitglied.
+     *
+     * Gibt `false` zurück, wenn Discord die Zustellung verweigert - das ist
+     * der Normalfall bei jemandem, der Direktnachrichten von Servermitgliedern
+     * abgeschaltet hat, und **kein Fehler**. Wer hier eine Ausnahme würfe,
+     * liesse eine Automation an einer Einstellung scheitern, die dem Mitglied
+     * zusteht.
+     */
+    sendDirect(discordId: string, payload: DiscordMessagePayload): Promise<boolean>;
+    /**
      * Effektive Berechtigungen des Bots in einem Channel - inklusive
      * Channel-Overwrites. Grundlage dafür, dass Auswahllisten nur Channels
      * anbieten, in denen der Bot wirklich schreiben darf.

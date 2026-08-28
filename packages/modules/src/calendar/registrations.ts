@@ -204,6 +204,24 @@ export async function register(
     return { registration: eintrag, waitlisted: voll, position: eintrag.waitlistPosition };
   });
 
+  const { meldeEreignis } = await import('../automation/emit');
+  await meldeEreignis(
+    'calendar.registration_created',
+    {
+      eventId,
+      registrationId: ergebnis.registration.id,
+      discordId: identity.discordId,
+      titel: event.title,
+      status: ergebnis.registration.status,
+    },
+    {
+      guildId: event.guildId,
+      actorId: identity.discordId,
+      subjectId: identity.discordId,
+      entityId: eventId,
+    },
+  );
+
   logger.info('Anmeldung eingegangen', {
     eventId,
     discordId: identity.discordId,

@@ -1,6 +1,6 @@
 import { ChannelType, Events, type Client, type GuildMember, type VoiceState } from 'discord.js';
 import { createLogger } from '@swisshub/logger';
-import { level } from '@swisshub/modules';
+import { automation, level } from '@swisshub/modules';
 
 const log = createLogger('bot:level');
 
@@ -90,6 +90,20 @@ async function afterXp(
 
   if (result.levelUp) {
     await announceLevelUp(client, member, result.levelAfter, context);
+    // Das Ereignis fuer die Automation Engine. Es steht nach der Meldung:
+    // die Nachricht im Level-Kanal ist die zugesagte Wirkung, das Ereignis
+    // die Zugabe.
+    await automation.meldeEreignis(
+      'level.up',
+      {
+        discordId: member.id,
+        displayName: member.displayName,
+        level: result.levelAfter,
+        levelVorher: result.levelBefore,
+        xp: result.xpAfter,
+      },
+      { guildId: member.guild.id, subjectId: member.id },
+    );
   }
 }
 

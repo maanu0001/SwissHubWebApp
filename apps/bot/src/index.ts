@@ -34,6 +34,7 @@ import { registerLevelGameButtons } from './level-games';
 import { registerTicketInteractions } from './ticket-interactions';
 import { registerTicketMessageSync } from './ticket-messages';
 import { registerAnalyticsEvents, anwesendeImVoice } from './analytics-events';
+import { registerAutomationEvents } from './automation-events';
 import { registerTournamentInteractions } from './tournament-interactions';
 import { recoverVoiceHub, registerVoiceHub } from './voice-hub';
 import { registerVoiceInteractions } from './voice-interactions';
@@ -191,6 +192,11 @@ async function main(): Promise<void> {
   // tatsaechlich aufgezeichnet wird, entscheidet das Modul selbst - hier
   // werden nur die Zuhoerer angemeldet.
   registerAnalyticsEvents(client, isActiveGuild, messageContent);
+
+  // Dieselbe Stelle, derselbe Grund: die Zuhoerer der Automation Engine
+  // brauchen `isActiveGuild`. Ob ueberhaupt geschrieben wird, entscheidet das
+  // Automation-Modul selbst.
+  registerAutomationEvents(client, isActiveGuild);
 
   client.once(Events.ClientReady, async (readyClient) => {
     status.online = true;

@@ -222,6 +222,25 @@ export async function createTicket(input: CreateTicketInput): Promise<Ticket> {
     // Erst jetzt, mit Kanal: die Nachricht traegt die Angaben aus dem
     // Formular, damit der Kanal fuer sich stehen kann.
     await sendeEroeffnung(offen, kategorie, settings);
+
+    const { meldeEreignis } = await import('../automation/emit');
+    await meldeEreignis(
+      'ticket.opened',
+      {
+        ticketId: offen.id,
+        nummer: offen.ticketNumber,
+        discordId: offen.creatorDiscordId,
+        kategorie: kategorie.name,
+        channelId: offen.discordChannelId,
+      },
+      {
+        guildId,
+        actorId: offen.creatorDiscordId,
+        subjectId: offen.creatorDiscordId,
+        entityId: offen.id,
+      },
+    );
+
     return offen;
   } catch (fehler) {
     logger.warn('Ticket-Kanal konnte nicht erstellt werden', {

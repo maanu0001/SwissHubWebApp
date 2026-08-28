@@ -409,6 +409,27 @@ export async function verify(
     },
   });
 
+  // Die Meldung an die Automation Engine steht nach der Pruefspur und wirft
+  // nie: eine Freischaltung soll nicht daran scheitern, dass eine Automation
+  // nicht erreichbar ist.
+  const { meldeEreignis } = await import('../automation/emit');
+  await meldeEreignis(
+    'verification.completed',
+    {
+      requestId,
+      discordId: vorher.discordId,
+      displayName: vorher.displayName ?? vorher.username ?? vorher.discordId,
+      entschiedenVon: von.by,
+      rollenGesetzt: rollen.ok,
+    },
+    {
+      guildId: vorher.guildId,
+      actorId: von.discordId ?? null,
+      subjectId: vorher.discordId,
+      entityId: requestId,
+    },
+  );
+
   logger.info('Verifikation freigeschaltet', { requestId, by: von.by, rollen: rollen.ok });
   return { request: entschieden, rollen };
 }

@@ -179,6 +179,18 @@ export async function activateSubscription(input: ActivateInput): Promise<Subscr
     });
   });
 
+  const { meldeEreignis } = await import('../automation/emit');
+  await meldeEreignis(
+    'premium.activated',
+    {
+      subscriptionId: result.id,
+      discordId: result.discordId,
+      produkt: result.product.slug,
+      laeuftBis: result.currentPeriodEnd?.toISOString() ?? null,
+    },
+    { subjectId: result.discordId, entityId: result.id },
+  );
+
   logger.info('Abonnement freigeschaltet', {
     subscriptionId: result.id,
     produkt: result.product.slug,

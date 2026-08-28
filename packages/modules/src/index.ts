@@ -14,6 +14,8 @@ import './voice-hub/config';
 import './analytics/config';
 import './calendar/config';
 import './verification/config';
+// Die Automation Engine: Ereignisse, Aktionen und Vorlagen der Module.
+import './automation';
 import { registerGuildResolver } from './guild/config';
 
 // Ab hier löst jeder Discord-Aufruf die Guild aus der Datenbank auf.
@@ -53,3 +55,4 @@ export * as analytics from './analytics';
 export * as calendar from './calendar';
 export * as ai from './ai';
 export * as verification from './verification';
+export * as automation from './automation';

@@ -4886,3 +4886,294 @@ model IntegrationStatus {
   lastOkAt      DateTime?
   updatedAt     DateTime          @updatedAt
 }
+
+// ---------------------------------------------------------------------------
+// Automation Engine
+// ---------------------------------------------------------------------------
+
+/// Wem gehoert eine Automation?
+enum AutomationKind {
+  /// Von der Verwaltung angelegt. Frei aenderbar und loeschbar.
+  USER
+  /// Von SwissHub gebraucht. Konfigurierbar und abschaltbar, nicht loeschbar.
+  SYSTEM
+}
+
+enum AutomationRunStatus {
+  PENDING
+  RUNNING
+  /// Wartet auf einen persistierten Zeitpunkt (Wait-Schritt).
+  WAITING
+  /// Wartet auf eine menschliche Freigabe.
+  AWAITING_APPROVAL
+  SUCCESS
+  /// Bedingungen trafen nicht zu - kein Fehler.
+  SKIPPED
+  FAILED
+  /// Endgueltig gescheitert; liegt im Fehler-Posteingang.
+  DEAD_LETTER
+  CANCELLED
+}
+
+enum AutomationStepStatus {
+  PENDING
+  RUNNING
+  SUCCESS
+  /// Nichts zu tun - die Wirkung bestand bereits (Idempotenz).
+  NO_OP
+  SKIPPED
+  FAILED
+}
+
+enum AutomationJobKind {
+  /// Ein zeitgesteuerter Trigger ist faellig.
+  SCHEDULE
+  /// Ein wartender Lauf wird fortgesetzt.
+  RESUME
+  /// Ein gescheiterter Schritt wird erneut versucht.
+  RETRY
+}
+
+enum AutomationJobStatus {
+  PENDING
+  CLAIMED
+  DONE
+  /// Endgueltig gescheitert - wird nicht mehr aufgenommen.
+  DEAD
+}
+
+/// Was geschieht, wenn eine Automation laeuft und erneut ausgeloest wird?
+enum AutomationConcurrency {
+  ALLOW
+  SKIP_IF_RUNNING
+  QUEUE
+}
+
+enum AutomationApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  EXPIRED
+}
+
+/// Ein Ereignis im System - die Ausgangslage jeder ereignisgesteuerten
+/// Automation.
+///
+/// Bewusst eine Tabelle und kein Bus im Arbeitsspeicher: die WebApp erzeugt
+/// Ereignisse, verarbeitet werden sie im Bot. Ein Bus im Speicher erreichte
+/// den anderen Prozess nie und verloere bei jedem Neustart, was noch offen
+/// ist.
+model AutomationEvent {
+  id            String    @id @default(cuid())
+  /// Stabiler, versionierter Name: `verification.completed`.
+  type          String
+  /// Fassung des Nutzdatenschemas. Aeltere Laeufe bleiben lesbar.
+  schemaVersion Int       @default(1)
+  guildId       String
+  sourceModule  String
+  actorId       String?
+  subjectId     String?
+  entityId      String?
+  /// Klammert eine ganze Ursachenkette. Grundlage der Schleifenerkennung.
+  correlationId String
+  /// Das Ereignis, aus dem dieses hervorging.
+  causationId   String?
+  /// Tiefe in der Kette. Harte Obergrenze im Executor.
+  depth         Int       @default(0)
+  payload       Json
+  occurredAt    DateTime  @default(now())
+  /// Gesetzt, sobald der Verteiler es angesehen hat.
+  processedAt   DateTime?
+  createdAt     DateTime  @default(now())
+
+  @@index([processedAt, occurredAt])
+  @@index([type, occurredAt])
+  @@index([correlationId])
+  @@index([occurredAt])
+}
+
+model Automation {
+  id               String                @id @default(cuid())
+  guildId          String
+  name             String
+  description      String?
+  kind             AutomationKind        @default(USER)
+  /// Nur bei Systemautomationen: der Schluessel, unter dem SwissHub sie kennt.
+  systemKey        String?               @unique
+  enabled          Boolean               @default(false)
+  /// Zaehlt bei jeder Aenderung hoch. Laufende Laeufe behalten ihre Fassung.
+  version          Int                   @default(1)
+  /// Kennung aus der Trigger-Registry, z.B. `event` oder `schedule`.
+  triggerType      String
+  triggerConfig    Json
+  /// Bedingungsbaum (UND/ODER/NICHT). `null` heisst: keine Bedingung.
+  conditions       Json?
+  /// Die Schrittfolge.
+  steps            Json
+  concurrency      AutomationConcurrency @default(ALLOW)
+  /// Vorlage fuer den Schluessel, unter dem gleichzeitige Laeufe zaehlen.
+  concurrencyKey   String?
+  /// Obergrenze der Laeufe je Minute. Schutz vor Ereignisstuermen.
+  maxRunsPerMinute Int                   @default(60)
+  /// Soft Delete: Verlauf und Pruefspur bleiben lesbar.
+  archivedAt       DateTime?
+  lastRunAt        DateTime?
+  lastStatus       AutomationRunStatus?
+  createdBy        String?
+  updatedBy        String?
+  createdAt        DateTime              @default(now())
+  updatedAt        DateTime              @updatedAt
+
+  versions AutomationVersion[]
+  runs     AutomationRun[]
+  jobs     AutomationJob[]
+
+  @@index([guildId, enabled, triggerType])
+  @@index([enabled, triggerType, archivedAt])
+  @@index([guildId, archivedAt])
+}
+
+/// Die Fassung einer Automation zum Zeitpunkt eines Laufs.
+///
+/// Wer eine aktive Automation bearbeitet, aendert nichts an einem Lauf, der
+/// gerade wartet: der arbeitet die Fassung ab, mit der er begonnen hat.
+model AutomationVersion {
+  id           String          @id @default(cuid())
+  automationId String
+  version      Int
+  snapshot     Json
+  /// Was diese Fassung ausmacht - «Angelegt», «Bearbeitet». Fuer die Liste.
+  note         String?
+  createdBy    String?
+  createdAt    DateTime        @default(now())
+  automation   Automation      @relation(fields: [automationId], references: [id], onDelete: Cascade)
+  runs         AutomationRun[]
+
+  @@unique([automationId, version])
+}
+
+model AutomationRun {
+  id             String              @id @default(cuid())
+  automationId   String
+  versionId      String?
+  version        Int
+  guildId        String
+  status         AutomationRunStatus @default(PENDING)
+  /// Wodurch der Lauf entstand: `event`, `schedule`, `manual`, `retry`.
+  trigger        String
+  eventId        String?
+  eventType      String?
+  correlationId  String
+  depth          Int                 @default(0)
+  /// Verhindert, dass dasselbe Ereignis dieselbe Automation zweimal ausloest.
+  idempotencyKey String              @unique
+  /// Probelauf: Bedingungen werden geprueft, Aktionen nicht ausgefuehrt.
+  dryRun         Boolean             @default(false)
+  /// Der aufgeloeste Gleichzeitigkeitsschluessel. `null` = die ganze Automation.
+  concurrencyKey String?
+  /// Naechster auszufuehrender Schritt. Traegt die Fortsetzung nach Wait.
+  cursor         Int                 @default(0)
+  /// Der aufgeloeste Kontext, gekuerzt und bereinigt.
+  context        Json
+  error          String?
+  errorCode      String?
+  startedAt      DateTime?
+  finishedAt     DateTime?
+  durationMs     Int?
+  createdAt      DateTime            @default(now())
+
+  automation Automation           @relation(fields: [automationId], references: [id], onDelete: Cascade)
+  versionRef AutomationVersion?   @relation(fields: [versionId], references: [id], onDelete: SetNull)
+  steps      AutomationStepRun[]
+  approvals  AutomationApproval[]
+
+  @@index([automationId, createdAt])
+  @@index([guildId, status, createdAt])
+  @@index([status, createdAt])
+  @@index([correlationId])
+  @@index([automationId, status, concurrencyKey])
+}
+
+model AutomationStepRun {
+  id         String               @id @default(cuid())
+  runId      String
+  /// Stellung in der Schrittfolge.
+  index      Int
+  /// Kennung aus der Action-Registry, oder `wait` / `branch`.
+  stepType   String
+  label      String?
+  status     AutomationStepStatus @default(PENDING)
+  attempts   Int                  @default(0)
+  /// Kurze, bereinigte Auskunft ueber das Ergebnis. Nie ein Geheimnis.
+  detail     String?
+  error      String?
+  startedAt  DateTime?
+  finishedAt DateTime?
+  durationMs Int?
+
+  run AutomationRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  @@unique([runId, index])
+  @@index([runId])
+}
+
+/// Der persistente Zeitplaner.
+///
+/// Zeitgesteuerte Trigger, wartende Laeufe und Wiederholungen laufen alle
+/// ueber diese eine Tabelle. Ein Neustart verliert dadurch nichts, und
+/// mehrere Instanzen holen sich einen Job unter einer Bedingung, die nur
+/// einmal zutrifft.
+model AutomationJob {
+  id           String              @id @default(cuid())
+  kind         AutomationJobKind
+  status       AutomationJobStatus @default(PENDING)
+  automationId String?
+  runId        String?
+  guildId      String
+  runAt        DateTime
+  claimedAt    DateTime?
+  /// Wer den Job hat. Erlaubt das Zurueckholen nach einem Absturz.
+  claimedBy    String?
+  attempts     Int                 @default(0)
+  maxAttempts  Int                 @default(5)
+  lastError    String?
+  payload      Json?
+  /// Verhindert, dass derselbe Vorgang zweimal geplant wird.
+  dedupeKey    String?             @unique
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+
+  automation Automation? @relation(fields: [automationId], references: [id], onDelete: Cascade)
+
+  @@index([status, runAt])
+  @@index([automationId, status])
+}
+
+/// Eine Aktion, die auf eine menschliche Entscheidung wartet.
+///
+/// Der Lauf bleibt so lange stehen. Ohne Freigabe geschieht nichts - das ist
+/// der Punkt: eine Automation soll heikle Wirkungen vorschlagen koennen, ohne
+/// sie selbst auszuloesen.
+model AutomationApproval {
+  id               String                   @id @default(cuid())
+  runId            String
+  stepIndex        Int
+  guildId          String
+  status           AutomationApprovalStatus @default(PENDING)
+  title            String
+  summary          String
+  requestedAt      DateTime                 @default(now())
+  expiresAt        DateTime?
+  decidedAt        DateTime?
+  decidedBy        String?
+  decidedByName    String?
+  reason           String?
+  discordChannelId String?
+  discordMessageId String?
+
+  run AutomationRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  @@unique([runId, stepIndex])
+  @@index([status, requestedAt])
+  @@index([guildId, status])
+}

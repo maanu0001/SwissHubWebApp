@@ -8,6 +8,20 @@ export * from './config-revision';
 
 export { Prisma } from '@prisma/client';
 export type {
+  Automation,
+  AutomationApproval,
+  AutomationApprovalStatus,
+  AutomationConcurrency,
+  AutomationEvent,
+  AutomationJob,
+  AutomationJobKind,
+  AutomationJobStatus,
+  AutomationKind,
+  AutomationRun,
+  AutomationRunStatus,
+  AutomationStepRun,
+  AutomationStepStatus,
+  AutomationVersion,
   ActionStatus,
   ConfigRevision,
   AnalyticsChannelDaily,

@@ -211,4 +211,19 @@ export const AUDIT_ACTIONS = {
   TOURNAMENT_BLOCKED: 'TOURNAMENT_BLOCKED',
   TOURNAMENT_UNBLOCKED: 'TOURNAMENT_UNBLOCKED',
   RECONCILIATION_RUN: 'RECONCILIATION_RUN',
+  // --- Automation Engine ---------------------------------------------------
+  //
+  // Protokolliert wird, wer eine Automation baut, aendert, ein- oder
+  // ausschaltet, von Hand startet oder eine angehaltene Aktion freigibt.
+  // Nicht protokolliert wird jeder einzelne Lauf: den fuehrt die
+  // Lauf-Historie ohnehin, und ein zweiter Eintrag je Willkommensnachricht
+  // waere Rauschen in genau der Spur, die im Ernstfall lesbar bleiben muss.
+  AUTOMATION_CREATED: 'AUTOMATION_CREATED',
+  AUTOMATION_UPDATED: 'AUTOMATION_UPDATED',
+  AUTOMATION_DELETED: 'AUTOMATION_DELETED',
+  AUTOMATION_ENABLED: 'AUTOMATION_ENABLED',
+  AUTOMATION_DISABLED: 'AUTOMATION_DISABLED',
+  AUTOMATION_EXECUTED: 'AUTOMATION_EXECUTED',
+  AUTOMATION_APPROVAL_GRANTED: 'AUTOMATION_APPROVAL_GRANTED',
+  AUTOMATION_APPROVAL_REJECTED: 'AUTOMATION_APPROVAL_REJECTED',
 } as const;

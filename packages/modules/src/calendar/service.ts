@@ -386,6 +386,18 @@ export async function publishEvent(
     success: true,
     metadata: { eventId: id, status },
   });
+  const { meldeEreignis } = await import('../automation/emit');
+  await meldeEreignis(
+    'calendar.event_published',
+    {
+      eventId: id,
+      titel: aktualisiert.title,
+      beginntAm: aktualisiert.startAt.toISOString(),
+      kategorie: aktualisiert.categoryId,
+    },
+    { guildId: aktualisiert.guildId, actorId: actor.discordId, entityId: id },
+  );
+
   logger.info('Event veröffentlicht', { eventId: id, status });
   return aktualisiert;
 }

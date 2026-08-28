@@ -203,6 +203,19 @@ export async function createTournament(
   });
 
   await tournamentEvent(tournament.id, 'CREATED', actor, { name: tournament.name, slug });
+
+  const { meldeEreignis } = await import('../automation/emit');
+  await meldeEreignis(
+    'tournament.created',
+    {
+      tournamentId: tournament.id,
+      titel: tournament.name,
+      spiel: tournament.gameName,
+      beginntAm: tournament.startsAt?.toISOString() ?? null,
+    },
+    { guildId, actorId: actor.discordId, entityId: tournament.id },
+  );
+
   logger.info('Turnier angelegt', { tournamentId: tournament.id, slug });
   return tournament;
 }

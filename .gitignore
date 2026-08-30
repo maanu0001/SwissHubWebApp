@@ -19,7 +19,10 @@ next-env.d.ts
 # Logs
 *.log
 npm-debug.log*
-logs/
+# Nur das Laufzeitverzeichnis im Projektstamm. Ohne den fuehrenden Schraegstrich
+# traf die Regel jedes Verzeichnis namens "logs" - auch Quelltext wie
+# packages/modules/src/logs, der dadurch stillschweigend nicht committet wurde.
+/logs/
 
 # Tests
 coverage/

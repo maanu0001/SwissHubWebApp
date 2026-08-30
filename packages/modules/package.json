@@ -8,7 +8,8 @@
   "exports": {
     ".": "./src/index.ts",
     "./jail": "./src/jail/index.ts",
-    "./level": "./src/level/index.ts"
+    "./level": "./src/level/index.ts",
+    "./appeals": "./src/appeals/index.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.122.0",

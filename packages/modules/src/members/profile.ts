@@ -170,6 +170,7 @@ export interface MemberCenterProfile {
   tickets?: MemberTicketRow[];
   premium?: MemberPremiumView | null;
   moderation?: MemberModerationView;
+  appeals?: MemberAppealRow[];
   notes?: MemberNoteView[];
 
   /** Welche Abschnitte der Betrachter ueberhaupt sehen darf. */
@@ -369,6 +370,50 @@ async function ladePremium(discordId: string): Promise<MemberPremiumView | null>
   };
 }
 
+/** Ein Entbannungsantrag, wie er im Profil erscheint (§16, §49). */
+export interface MemberAppealRow {
+  id: string;
+  fallnummer: string;
+  status: string;
+  eingereichtAm: Date | null;
+  entschiedenAm: Date | null;
+  ergebnis: string | null;
+}
+
+/**
+ * Die Entbannungsantraege eines Mitglieds.
+ *
+ * Verwiesen, nicht kopiert: Fallnummer, Zustand und Ergebnis. Der Antragstext
+ * und die internen Kommentare bleiben im Antrag - dafuer gibt es den
+ * Fallbereich mit seinen eigenen Berechtigungen.
+ */
+async function ladeAppeals(guildId: string, discordId: string): Promise<MemberAppealRow[]> {
+  const { formatFallnummer } = await import('../appeals/numbering');
+  const zeilen = await prisma.appeal.findMany({
+    where: { guildId, applicantDiscordId: discordId, status: { not: 'DRAFT' } },
+    orderBy: { createdAt: 'desc' },
+    take: 20,
+    select: {
+      id: true,
+      caseYear: true,
+      caseNumber: true,
+      status: true,
+      submittedAt: true,
+      decidedAt: true,
+      decisionKind: true,
+    },
+  });
+
+  return zeilen.map((zeile) => ({
+    id: zeile.id,
+    fallnummer: formatFallnummer(zeile.caseYear, zeile.caseNumber),
+    status: zeile.status,
+    eingereichtAm: zeile.submittedAt,
+    entschiedenAm: zeile.decidedAt,
+    ergebnis: zeile.decisionKind,
+  }));
+}
+
 async function ladeModeration(discordId: string): Promise<MemberModerationView> {
   const [jailHistory, moderationHistory, jailsGesamt] = await Promise.all([
     prisma.jailEntry.findMany({
@@ -481,6 +526,9 @@ export async function getMemberCenterProfile(
   if (erlaubt('moderation')) {
     aufgaben.push(abschnitt('moderation', () => ladeModeration(targetDiscordId)));
   }
+  if (erlaubt('appeals')) {
+    aufgaben.push(abschnitt('appeals', () => ladeAppeals(guildId, targetDiscordId)));
+  }
   if (erlaubt('notes')) {
     aufgaben.push(abschnitt('notes', () => listMemberNotes(viewer, targetDiscordId, guildId)));
   }
@@ -526,6 +574,9 @@ export async function getMemberCenterProfile(
         break;
       case 'moderation':
         profil.moderation = ergebnis.wert as MemberModerationView;
+        break;
+      case 'appeals':
+        profil.appeals = ergebnis.wert as MemberAppealRow[];
         break;
       case 'notes':
         profil.notes = ergebnis.wert as MemberNoteView[];

@@ -78,6 +78,16 @@ export const MEMBER_PERMISSIONS = {
   premiumOwn: 'members.view.premium.own',
   premiumAll: 'members.view.premium.all',
 
+  /**
+   * Entbannungsantraege im Profil.
+   *
+   * Nur `all`: die eigenen Antraege sieht ein Mitglied ohnehin in seinem
+   * Antragsbereich, und wer gebannt ist, kommt gar nicht bis ins Member
+   * Center. Ein `own` waere eine Berechtigung fuer einen Fall, den es nicht
+   * gibt.
+   */
+  appealsAll: 'members.view.appeals.all',
+
   /** Nur `all` - siehe oben. */
   moderationAll: 'members.view.moderation.all',
   notesAll: 'members.view.notes.all',
@@ -182,6 +192,11 @@ export const MEMBER_CENTER_PERMISSIONS: PermissionDefinition[] = [
     'Moderation im Profil ansehen',
     'Jail-Verlauf, Verwarnungen und Moderationsmassnahmen im Mitgliedsprofil einsehen.',
     true,
+  ),
+  sicht(
+    MEMBER_PERMISSIONS.appealsAll,
+    'Entbannungsanträge ansehen',
+    'Die Entbannungsanträge eines Mitglieds im Profil sehen - Datum, Zustand und Ergebnis.',
   ),
   sicht(
     MEMBER_PERMISSIONS.notesAll,

@@ -34,6 +34,7 @@ export const MEMBER_SECTIONS = [
   'tickets',
   'premium',
   'moderation',
+  'appeals',
   'notes',
 ] as const;
 
@@ -59,6 +60,9 @@ const SCHLUESSEL: Record<MemberSection, { own?: string; assigned?: string; all?:
   // Bewusst ohne `own`: was intern ueber jemanden vermerkt ist, ist kein
   // Selbstbedienungsdatum.
   moderation: { all: MEMBER_PERMISSIONS.moderationAll },
+  // Ebenfalls ohne `own`: die eigenen Antraege sieht ein Mitglied in seinem
+  // Antragsbereich, und wer gebannt ist, kommt gar nicht bis hierher.
+  appeals: { all: MEMBER_PERMISSIONS.appealsAll },
   notes: { all: MEMBER_PERMISSIONS.notesAll },
 };
 

@@ -57,6 +57,7 @@ const REITER = [
   { id: 'premium', label: 'Premium', section: 'premium' },
   { id: 'rollen', label: 'Rollen', section: 'roles' },
   { id: 'moderation', label: 'Moderation', section: 'moderation' },
+  { id: 'appeals', label: 'Entbannungsanträge', section: 'appeals' },
   { id: 'notizen', label: 'Notizen', section: 'notes' },
 ] as const;
 
@@ -423,6 +424,38 @@ export default async function MemberDetailPage({
                   nichtVerfuegbar
                 ) : (
                   <Moderation daten={profil.moderation} />
+                )
+              ) : aktiv === 'appeals' ? (
+                fehler.has('appeals') ? (
+                  nichtVerfuegbar
+                ) : (profil.appeals ?? []).length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    Keine Entbannungsanträge.
+                  </p>
+                ) : (
+                  <ul className="space-y-2">
+                    {(profil.appeals ?? []).map((antrag) => (
+                      <li
+                        key={antrag.id}
+                        className="flex flex-wrap items-center gap-3 rounded-lg border border-border/60 px-3 py-2 text-sm"
+                      >
+                        <Link
+                          href={`/appeals/${antrag.id}`}
+                          className="font-mono text-xs text-primary hover:underline"
+                        >
+                          {antrag.fallnummer}
+                        </Link>
+                        <span className="min-w-0 flex-1 truncate text-muted-foreground">
+                          {antrag.status}
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          {(antrag.entschiedenAm ?? antrag.eingereichtAm)?.toLocaleDateString(
+                            'de-CH',
+                          ) ?? '—'}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
                 )
               ) : aktiv === 'notizen' ? (
                 fehler.has('notes') ? (

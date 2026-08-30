@@ -47,16 +47,23 @@ export const ENDZUSTAENDE: readonly AppealStatus[] = [
  */
 const UEBERGAENGE: Record<AppealStatus, readonly AppealStatus[]> = {
   DRAFT: ['SUBMITTED', 'WITHDRAWN'],
-  SUBMITTED: ['UNDER_REVIEW', 'WAITING_FOR_APPLICANT', 'ESCALATED', 'RESOLVED_EXTERNALLY'],
+  SUBMITTED: ['UNDER_REVIEW', 'WAITING_FOR_APPLICANT', 'ESCALATED', 'WITHDRAWN', 'RESOLVED_EXTERNALLY'],
   UNDER_REVIEW: [
     'WAITING_FOR_APPLICANT',
     'ESCALATED',
     'DECISION_PENDING',
     'APPROVED',
     'REJECTED',
+    'WITHDRAWN',
     'RESOLVED_EXTERNALLY',
   ],
-  WAITING_FOR_APPLICANT: ['WAITING_FOR_STAFF', 'UNDER_REVIEW', 'EXPIRED', 'RESOLVED_EXTERNALLY'],
+  WAITING_FOR_APPLICANT: [
+    'WAITING_FOR_STAFF',
+    'UNDER_REVIEW',
+    'EXPIRED',
+    'WITHDRAWN',
+    'RESOLVED_EXTERNALLY',
+  ],
   WAITING_FOR_STAFF: [
     'UNDER_REVIEW',
     'WAITING_FOR_APPLICANT',
@@ -64,6 +71,7 @@ const UEBERGAENGE: Record<AppealStatus, readonly AppealStatus[]> = {
     'DECISION_PENDING',
     'APPROVED',
     'REJECTED',
+    'WITHDRAWN',
     'RESOLVED_EXTERNALLY',
   ],
   ESCALATED: [
@@ -72,11 +80,12 @@ const UEBERGAENGE: Record<AppealStatus, readonly AppealStatus[]> = {
     'DECISION_PENDING',
     'APPROVED',
     'REJECTED',
+    'WITHDRAWN',
     'RESOLVED_EXTERNALLY',
   ],
   // Aus dem Vier-Augen-Zustand führen genau drei Wege: bestätigen, ablehnen,
   // oder zurück in die Prüfung, wenn die zweite Person nicht mitgeht.
-  DECISION_PENDING: ['APPROVED', 'REJECTED', 'UNDER_REVIEW', 'RESOLVED_EXTERNALLY'],
+  DECISION_PENDING: ['APPROVED', 'REJECTED', 'UNDER_REVIEW', 'WITHDRAWN', 'RESOLVED_EXTERNALLY'],
   APPROVED: ['CLOSED'],
   REJECTED: ['CLOSED'],
   WITHDRAWN: ['CLOSED'],
@@ -100,9 +109,14 @@ export function moeglicheUebergaenge(von: AppealStatus): readonly AppealStatus[]
  *
  * Solange keine Entscheidung gefallen ist. Nach einer Entscheidung wäre ein
  * Rückzug eine Möglichkeit, ein «Nein» aus der Akte verschwinden zu lassen.
+ *
+ * **Abgeleitet und nicht zweitgeschrieben.** Eine eigene Liste hier stand
+ * genau einmal im Widerspruch zur Tabelle - der Rückzug galt als erlaubt und
+ * scheiterte dann am Übergang. Eine zweite Wahrheit über dieselbe Frage
+ * findet früher oder später jemand; besser, es gibt sie nicht.
  */
 export function darfZurueckziehen(status: AppealStatus): boolean {
-  return status === 'DRAFT' || OFFENE_STATUS.includes(status);
+  return uebergangErlaubt(status, 'WITHDRAWN');
 }
 
 /** Ist der Antrag noch offen? */

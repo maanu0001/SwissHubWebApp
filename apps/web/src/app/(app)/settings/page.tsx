@@ -34,6 +34,11 @@ const SHORTCUTS = [
     description: 'Rollen und Channels mit Discord abgleichen.',
   },
   { href: '/system/bot', label: 'Bot', description: 'Verbindung und Discord-Berechtigungen des Bots.' },
+  {
+    href: '/system/log-kanaele',
+    label: 'Discord-Log-Kanäle',
+    description: 'Welche Log-Kategorie in welchen Discord-Kanal ausgegeben wird.',
+  },
 ];
 
 /**

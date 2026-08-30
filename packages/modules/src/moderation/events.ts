@@ -1,5 +1,6 @@
 import type { ModerationAction } from '@swisshub/database';
 import { meldeEreignis } from '../automation/emit';
+import { dispatchMassnahme } from '../logs/dispatcher';
 
 /**
  * Die Meldung einer Massnahme an die Automation Engine.
@@ -14,6 +15,11 @@ import { meldeEreignis } from '../automation/emit';
  * dass die zweite Haelfte irgendwann vergessen wird.
  */
 export async function meldeMassnahme(massnahme: ModerationAction): Promise<void> {
+  // Zwei Empfaenger, unabhaengig voneinander: die Automation Engine (nur wenn
+  // eingeschaltet) und die Discord-Log-Ausgabe (nur wenn eingerichtet).
+  // Keiner der beiden darf den anderen aufhalten, und keiner die Massnahme.
+  await dispatchMassnahme(massnahme);
+
   await meldeEreignis(
     'moderation.action_created',
     {

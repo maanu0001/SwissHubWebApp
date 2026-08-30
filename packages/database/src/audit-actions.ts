@@ -201,6 +201,14 @@ export const AUDIT_ACTIONS = {
   // dort hat jemand ueber diese Anwendung gehandelt, hier hat die Anwendung
   // bemerkt, dass anderswo gehandelt wurde.
   MODERATION_EXTERNAL_ACTION_DETECTED: 'MODERATION_EXTERNAL_ACTION_DETECTED',
+  // --- Discord-Log-Kanaele -------------------------------------------------
+  //
+  // Protokolliert wird die Konfiguration, nicht jede Zustellung: wohin Logs
+  // gehen, ist eine Entscheidung; dass eine einzelne Nachricht ankam, ist ein
+  // technischer Vorgang und steht in der Zustelltabelle.
+  LOG_CHANNEL_CONFIG_CHANGED: 'LOG_CHANNEL_CONFIG_CHANGED',
+  LOG_CHANNEL_DISABLED: 'LOG_CHANNEL_DISABLED',
+  LOG_CHANNEL_TEST_SENT: 'LOG_CHANNEL_TEST_SENT',
   // --- Analytics -----------------------------------------------------------
   // Nur die Zugriffe, die Daten aus dem System heraustragen. Das Lesen der
   // Zeitleiste selbst wird nicht protokolliert - ein Protokoll jeder

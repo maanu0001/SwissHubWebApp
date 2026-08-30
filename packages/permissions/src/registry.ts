@@ -138,6 +138,37 @@ export const CORE_PERMISSIONS: PermissionDefinition[] = [
     module: 'core',
     critical: true,
   },
+  /**
+   * Discord-Log-Kanaele.
+   *
+   * Eigener Namensraum statt `analytics.*`: die Kategorien reichen ueber das
+   * Analytics-Modul hinaus - Moderation gibt es auch, wenn das Protokoll der
+   * Nachrichten abgeschaltet ist. Eine Berechtigung, die an einem
+   * abschaltbaren Modul haengt, waere fuer die Moderation die falsche.
+   *
+   * `test` ist von `manage` getrennt, weil die Testnachricht in einem Kanal
+   * sichtbar wird, den andere lesen - wer die Einrichtung ansehen darf, soll
+   * nicht ungefragt hineinschreiben koennen.
+   */
+  {
+    key: 'logs.discord.view',
+    label: 'Discord-Log-Kanäle ansehen',
+    description: 'Welche Log-Kategorie in welchen Discord-Kanal geht.',
+    module: 'core',
+  },
+  {
+    key: 'logs.discord.manage',
+    label: 'Discord-Log-Kanäle verwalten',
+    description: 'Kategorien einem Kanal zuweisen oder abschalten.',
+    module: 'core',
+    critical: true,
+  },
+  {
+    key: 'logs.discord.test',
+    label: 'Log-Testnachricht senden',
+    description: 'Eine Probenachricht in einen eingerichteten Log-Kanal senden.',
+    module: 'core',
+  },
   {
     key: ADMIN_FULL,
     label: 'Vollzugriff',

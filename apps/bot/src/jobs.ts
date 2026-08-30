@@ -12,6 +12,7 @@ import {
   calendar,
   jail,
   level,
+  logs,
   moderation,
   spielersuche,
   syncDiscord,
@@ -144,6 +145,43 @@ export function createJobRunner(
         const ergebnis = await moderation.gleicheAuditLogAb();
         if (ergebnis.erfasst > 0) {
           log.info('Nachgetragene Massnahmen aus Discord', { anzahl: ergebnis.erfasst });
+        }
+      },
+    },
+    {
+      /**
+       * Die eingereihten Discord-Logs zustellen.
+       *
+       * Getrennt vom Einreihen, weil die beiden verschiedene Anforderungen
+       * haben: wer jemanden bannt, soll nicht darauf warten, dass Discord
+       * einen Embed annimmt.
+       */
+      name: 'logs-zustellung',
+      intervalMs: jobConfig.logDeliveryIntervalMs,
+      async run() {
+        await logs.holeSteckengebliebeneZurueck();
+        const ergebnis = await logs.stelleZu();
+        if (ergebnis.gescheitert > 0) {
+          log.warn('Discord-Logs konnten nicht zugestellt werden', {
+            anzahl: ergebnis.gescheitert,
+          });
+        }
+      },
+    },
+    {
+      /**
+       * Taugen die eingerichteten Log-Kanaele noch?
+       *
+       * Ein geloeschter Kanal oder ein entzogenes Recht faellt sonst erst
+       * auf, wenn jemand ein fehlendes Log sucht.
+       */
+      name: 'logs-kanalpruefung',
+      intervalMs: jobConfig.logHealthIntervalMs,
+      runOnStart: true,
+      async run() {
+        const ergebnis = await logs.pruefeAlleZiele();
+        if (ergebnis.ungueltig > 0) {
+          log.warn('Log-Kanäle nicht mehr nutzbar', { anzahl: ergebnis.ungueltig });
         }
       },
     },

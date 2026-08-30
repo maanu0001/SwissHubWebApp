@@ -53,6 +53,7 @@ export * from './members/avatars';
 // Das Member Center. Die beiden Zeilen darueber bleiben, damit bestehende
 // Aufrufer von `searchMembers` und `getMemberProfile` unveraendert laufen.
 export * as members from './members';
+export * as logs from './logs';
 export * as moderation from './moderation';
 export * as analytics from './analytics';
 export * as calendar from './calendar';

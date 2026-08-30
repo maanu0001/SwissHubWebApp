@@ -5546,3 +5546,105 @@ model AppealEvent {
   @@index([appealId, createdAt])
   @@index([appealId, visibility, createdAt])
 }
+
+/// Kategorien der Discord-Log-Ausgabe.
+///
+/// Bewusst die Taxonomie, die SwissHub schon fuehrt, und nicht mehr: jede
+/// Kategorie hier hat eine tatsaechliche Quelle im System. Eine Kategorie
+/// ohne Quelle waere ein Auswahlfeld, das nie etwas sendet.
+enum DiscordLogCategory {
+  /// Aus `ModerationAction` - Bann, Kick, Timeout, Aufhebung, Jail.
+  MODERATION
+  /// Aus `DiscordEvent` der Kategorie MESSAGE.
+  MESSAGES
+  /// Aus `DiscordEvent` der Kategorie VOICE.
+  VOICE
+  /// Aus `DiscordEvent` der Kategorie MEMBER - Beitritt, Austritt, Rollen, Spitzname.
+  MEMBERS
+  /// Aus `DiscordEvent` der Kategorien ROLE, CHANNEL und SERVER.
+  ADMIN
+}
+
+/// Zustand eines konfigurierten Log-Ziels.
+enum DiscordLogHealth {
+  /// Kanal da, Rechte da.
+  HEALTHY
+  /// Erreichbar, aber etwas fehlt - zuletzt ist eine Zustellung gescheitert.
+  DEGRADED
+  /// Kanal geloescht, falscher Typ oder keine Sendeberechtigung.
+  INVALID
+  /// Vom Team abgeschaltet.
+  DISABLED
+}
+
+/// Zustand einer einzelnen Zustellung.
+enum DiscordLogDeliveryStatus {
+  PENDING
+  SENT
+  FAILED
+  /// Bewusst nicht gesendet - Kategorie aus, kein Ziel, oder nichts zu sagen.
+  SKIPPED
+}
+
+/// Wohin eine Log-Kategorie ausgegeben wird.
+///
+/// Eine Zeile je Kategorie. Der Kanal darf mehrfach vorkommen - wer alles in
+/// einen `#server-logs` schreiben will, soll das koennen; ein eindeutiger
+/// Index auf die Kanalkennung waere eine kuenstliche Grenze.
+model DiscordLogChannel {
+  category      DiscordLogCategory @id
+  guildId       String
+  channelId     String
+  /// Name zum Zeitpunkt der Einrichtung - fuer die Anzeige, wenn Discord
+  /// gerade nicht erreichbar ist.
+  channelName   String?
+  enabled       Boolean            @default(true)
+  health        DiscordLogHealth   @default(HEALTHY)
+  /// Warum der Zustand nicht HEALTHY ist - Klartext fuer die Oberflaeche.
+  healthNote    String?
+  checkedAt     DateTime?
+  /// Der letzte Fehler beim Senden, fuer die Fehleranzeige im Dashboard.
+  lastErrorAt   DateTime?
+  lastErrorCode String?
+  updatedBy     String?
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+
+  @@index([guildId])
+  @@index([channelId])
+}
+
+/// Eine Zustellung an einen Discord-Kanal.
+///
+/// Der eigentliche Schutz gegen Doppelnachrichten: `dedupeKey` ist eindeutig
+/// und besteht aus Quelle, Kennung des Logeintrags und Zielkanal. Ein
+/// Neustart mitten in der Zustellung kann dadurch keine zweite Nachricht
+/// erzeugen - das entscheidet die Datenbank, nicht der Anwendungscode.
+model DiscordLogDelivery {
+  id               String                   @id @default(cuid())
+  /// `moderation:<id>:<channelId>` oder `event:<id>:<channelId>`.
+  dedupeKey        String                   @unique
+  guildId          String
+  category         DiscordLogCategory
+  channelId        String
+  status           DiscordLogDeliveryStatus @default(PENDING)
+  /// Nach welchem Zeitpunkt der naechste Versuch fruehestens laeuft.
+  runAt            DateTime                 @default(now())
+  attempts         Int                      @default(0)
+  /// Wer den Vorgang gerade hat - erlaubt das Zurueckholen nach einem Absturz.
+  claimedAt        DateTime?
+  claimedBy        String?
+  lastAttemptAt    DateTime?
+  lastErrorCode    String?
+  sentAt           DateTime?
+  discordMessageId String?
+  /// Der fertige Embed. Gespeichert, weil die Quelle sich aendern kann,
+  /// bevor der zweite Versuch laeuft - gesendet wird, was zum Zeitpunkt des
+  /// Ereignisses galt.
+  payload          Json
+  createdAt        DateTime                 @default(now())
+
+  /// Der Arbeitsvorrat des Zustellers.
+  @@index([status, runAt])
+  @@index([channelId, createdAt])
+}

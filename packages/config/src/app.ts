@@ -128,5 +128,15 @@ export const jobConfig = {
    * einer Trennung - haeufiger zu fragen kostet Anfragen und findet nichts.
    */
   auditReconcileIntervalMs: 900_000,
+  /**
+   * Wie oft eingereihte Discord-Logs zugestellt werden.
+   *
+   * Fuenf Sekunden: ein Protokoll, das eine Minute hinterherhinkt, taugt
+   * nicht zum Mitlesen. Der Stapel je Lauf ist begrenzt - viele Ereignisse
+   * ergeben dadurch mehrere Laeufe statt vieler gleichzeitiger Anfragen.
+   */
+  logDeliveryIntervalMs: 5_000,
+  /** Wie oft geprueft wird, ob die eingerichteten Log-Kanaele noch taugen. */
+  logHealthIntervalMs: 900_000,
   heartbeatStaleAfterMs: 70_000,
 };

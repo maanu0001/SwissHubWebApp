@@ -11,6 +11,7 @@ import { sanitizeText } from '@swisshub/shared';
 import { getModuleSettings, isModuleEnabled } from '../module-state';
 import { ANALYTICS_MODULE_ID, type AnalyticsSettings } from './config';
 import { verknuepfeMitMassnahme } from './dedup';
+import { dispatchEreignis } from '../logs/dispatcher';
 
 const log = createLogger('analytics:events');
 
@@ -30,36 +31,10 @@ const log = createLogger('analytics:events');
  *    und keinen Voice-Beitritt scheitern lassen.
  */
 
-/** Feiner Ereignistyp. Als String, damit neue Arten keinen Enum-Umbau erzwingen. */
-export const EVENT_TYPES = {
-  MESSAGE_EDIT: 'MESSAGE_EDIT',
-  MESSAGE_DELETE: 'MESSAGE_DELETE',
-  MESSAGE_BULK_DELETE: 'MESSAGE_BULK_DELETE',
+import { EVENT_TYPES, type EventType } from './event-types';
 
-  VOICE_JOIN: 'VOICE_JOIN',
-  VOICE_LEAVE: 'VOICE_LEAVE',
-  VOICE_MOVE: 'VOICE_MOVE',
+export { EVENT_TYPES, type EventType };
 
-  MEMBER_JOIN: 'MEMBER_JOIN',
-  MEMBER_LEAVE: 'MEMBER_LEAVE',
-  MEMBER_ROLE_ADD: 'MEMBER_ROLE_ADD',
-  MEMBER_ROLE_REMOVE: 'MEMBER_ROLE_REMOVE',
-  MEMBER_NICKNAME: 'MEMBER_NICKNAME',
-  MEMBER_TIMEOUT: 'MEMBER_TIMEOUT',
-  MEMBER_TIMEOUT_END: 'MEMBER_TIMEOUT_END',
-  MEMBER_BAN: 'MEMBER_BAN',
-  MEMBER_UNBAN: 'MEMBER_UNBAN',
-
-  ROLE_CREATE: 'ROLE_CREATE',
-  ROLE_UPDATE: 'ROLE_UPDATE',
-  ROLE_DELETE: 'ROLE_DELETE',
-
-  CHANNEL_CREATE: 'CHANNEL_CREATE',
-  CHANNEL_UPDATE: 'CHANNEL_UPDATE',
-  CHANNEL_DELETE: 'CHANNEL_DELETE',
-} as const;
-
-export type EventType = (typeof EVENT_TYPES)[keyof typeof EVENT_TYPES];
 
 /** Wie lang ein gespeicherter Nachrichtentext hoechstens wird. */
 const MAX_CONTENT = 4000;
@@ -171,6 +146,19 @@ export async function recordEvent(input: RecordEventInput): Promise<DiscordEvent
     if (VERKNUEPFBAR.has(input.type)) {
       await verknuepfeMitMassnahme(eintrag.id);
     }
+
+    // Die Discord-Ausgabe. Bewusst hier und nicht in den Ereignisbehandlern
+    // des Bots: dort waere sie einundzwanzig Mal einzubauen und beim
+    // zweiundzwanzigsten Ereignis vergessen. Sie wirft nie und haelt nichts
+    // auf - eingereiht wird nur, gesendet spaeter vom Zusteller.
+    //
+    // Frisch gelesen statt `eintrag`, weil der Abgleich oben die Zeile
+    // veraendert haben kann: ein Ereignis, das zu einer Massnahme dieses
+    // Dashboards gehoert, wird von der Akte gemeldet und hier nicht.
+    const fuerDiscord = VERKNUEPFBAR.has(input.type)
+      ? ((await prisma.discordEvent.findUnique({ where: { id: eintrag.id } })) ?? eintrag)
+      : eintrag;
+    await dispatchEreignis(fuerDiscord);
 
     return eintrag;
   } catch (error) {

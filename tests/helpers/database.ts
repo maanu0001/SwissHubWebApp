@@ -1,4 +1,8 @@
 import { execFileSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
+
+/** Die im Projekt installierte Prisma-Fassung - siehe `pushSchema`. */
+const PRISMA_BIN = fileURLToPath(new URL('../../node_modules/.bin/prisma', import.meta.url));
 import { describe } from 'vitest';
 
 /**
@@ -74,9 +78,14 @@ export function useTestSchema(name: string): string {
  */
 export function pushSchema(): void {
   execFileSync(
-    'npx',
+    // Bewusst die im Projekt installierte Fassung statt `npx`: `npx` startet
+    // eine eigene Aufloesung, kostet je Aufruf spuerbar Zeit - bei knapp
+    // hundert Testdateien summiert sich das - und kann eine andere
+    // Hauptversion ziehen als die hier gepinnte. Eine neuere lehnt
+    // `url = env(...)` im Schema ab; der Aufruf schluege dann fehl, ohne dass
+    // sich am Projekt etwas geaendert haette.
+    PRISMA_BIN,
     [
-      'prisma',
       'db',
       'push',
       '--schema',

@@ -7,6 +7,7 @@ import { tryResolveGuildId } from '@swisshub/discord';
 import * as automationEngine from '@swisshub/automation';
 import {
   analytics,
+  appeals,
   automation,
   calendar,
   jail,
@@ -511,6 +512,26 @@ export function createJobRunner(
         const geplant = await automationEngine.planeZeitTrigger();
         if (geplant > 0) {
           log.info('Zeitgesteuerte Automationen eingeplant', { anzahl: geplant });
+        }
+      },
+    },
+    {
+      // Entbannungsantraege: was ausserhalb des Antrags geschieht.
+      //
+      // Zwei Dinge muessen im Antrag ankommen, obwohl sie woanders passieren:
+      // ein von Hand aufgehobener Bann macht ihn gegenstandslos, und ein
+      // Antragsteller, der nicht antwortet, laesst ihn ablaufen. Beides steht
+      // in der Datenbank und ueberlebt damit einen Neustart.
+      name: 'appeals-wartung',
+      intervalMs: 10 * 60 * 1000,
+      async run() {
+        const ergebnis = await appeals.wartung();
+        if (ergebnis.externAufgehoben > 0 || ergebnis.abgelaufen > 0) {
+          log.info('Entbannungsantraege gewartet', {
+            externAufgehoben: ergebnis.externAufgehoben,
+            abgelaufen: ergebnis.abgelaufen,
+            anhaengeEntfernt: ergebnis.anhaengeEntfernt,
+          });
         }
       },
     },

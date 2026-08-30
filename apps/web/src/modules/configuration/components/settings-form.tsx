@@ -318,6 +318,21 @@ function FieldRow({
         />
       ) : null}
 
+      {field.type === 'select' ? (
+        <Select value={text} onValueChange={(next) => onChange(next)} disabled={disabled}>
+          <SelectTrigger id={id}>
+            <SelectValue placeholder="Bitte wählen …" />
+          </SelectTrigger>
+          <SelectContent>
+            {field.options.map((option) => (
+              <SelectItem key={option.value} value={option.value}>
+                {option.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      ) : null}
+
       {field.type === 'textarea' ? (
         <textarea
           id={id}

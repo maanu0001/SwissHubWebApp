@@ -17,6 +17,10 @@ const log = createLogger('web:action');
  *   Authentifizierung -> Guild-Mitgliedschaft -> CSRF -> Rate Limit ->
  *   Validierung -> Autorisierung -> Ausführung.
  *
+ * Genau eine Ausnahme gibt es von der Mitgliedschaft, und sie ist
+ * ausdrücklich zu kennzeichnen: `applicant: true` für den Zugang gebannter
+ * Antragsteller (siehe dort). Alle übrigen Glieder der Kette bleiben.
+ *
  * Ein manipuliertes HTTP-Request kann dadurch nichts auslösen, was der
  * angemeldete Benutzer über die UI nicht ebenfalls dürfte.
  */
@@ -51,6 +55,30 @@ export interface ActionDefinition<TSchema extends z.ZodTypeAny> {
    * pruefen.
    */
   selfService?: boolean;
+  /**
+   * Antragsteller-Zugang: die Aktion laeuft ohne Guild-Mitgliedschaft.
+   *
+   * **Die einzige Stelle im ganzen System, an der die Mitgliedschaft
+   * entfaellt** - und sie entfaellt aus einem Grund, der sich nicht umgehen
+   * laesst: Ein Entbannungsantrag kommt von jemandem, der nicht mehr auf dem
+   * Server ist. Die Mitgliedschaft als Voraussetzung waere genau die Mauer,
+   * die den Antrag unmoeglich macht.
+   *
+   * Was dabei **nicht** entfaellt: Anmeldung, CSRF, Ratengrenze,
+   * Eingabepruefung. Und die Berechtigung entfaellt nicht etwa, sondern wird
+   * durch eine staerkere ersetzt - die Aktion muss im Rumpf pruefen, dass der
+   * Datensatz dem Aufrufer gehoert:
+   *
+   *     appeal.applicantDiscordId === ctx.user.discordId
+   *
+   * `tests/unit/action-authorization.test.ts` verlangt genau diese Pruefung
+   * von jeder so gekennzeichneten Aktion. Ohne sie faellt der Test.
+   *
+   * Ein Nicht-Mitglied hat ausserdem strukturell keine Rechte: `can()` gibt
+   * fuer `isMember: false` immer `false` zurueck. Eine so gekennzeichnete
+   * Aktion kann daher nichts erreichen, was einer Berechtigung beduerfte.
+   */
+  applicant?: boolean;
 }
 
 export interface ActionHandlerContext<TInput> {
@@ -82,7 +110,10 @@ export function defineAction<TSchema extends z.ZodTypeAny, TResult>(
         throw new AppError('UNAUTHENTICATED');
       }
 
-      assertMembership(context, { ...metadata, path: definition.name });
+      // Antragsteller sind keine Mitglieder - siehe `applicant` oben.
+      if (!definition.applicant) {
+        assertMembership(context, { ...metadata, path: definition.name });
+      }
 
       if (definition.csrf !== false) {
         const token = typeof rawInput?.csrfToken === 'string' ? rawInput.csrfToken : null;
@@ -128,6 +159,15 @@ export function defineAction<TSchema extends z.ZodTypeAny, TResult>(
       }
 
       if (definition.permission) {
+        // `assertPermission` prueft die Mitgliedschaft mit. Eine Aktion, die
+        // beides deklariert, waere in sich widerspruechlich - sie liefe fuer
+        // ein Nicht-Mitglied nie und fuer ein Mitglied ohne den Antragsteller-
+        // Pfad. Das faellt hier auf und nicht erst im Betrieb.
+        if (definition.applicant) {
+          throw new AppError('INTERNAL', {
+            internalMessage: `${definition.name}: "applicant" und "permission" schliessen sich aus.`,
+          });
+        }
         await assertPermission(context, definition.permission, {
           ...metadata,
           path: definition.name,

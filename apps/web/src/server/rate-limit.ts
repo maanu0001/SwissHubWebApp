@@ -145,6 +145,42 @@ export const RATE_LIMITS = {
    * und verhindern, dass ein festgehaltener Knopf hundert Laeufe ausloest.
    */
   automationExecute: { limit: 20, windowMs: 5 * 60 * 1000 },
+
+  /**
+   * Einen Entbannungsantrag einreichen.
+   *
+   * Sehr eng, und das ist der Punkt: es gibt genau einen Grund, in einer
+   * Stunde mehrfach einzureichen, und der ist Missbrauch. Ein ehrlicher
+   * Antragsteller braucht einen Versuch. Der Doppelklick faengt ohnehin schon
+   * der Idempotenzschluessel ab - diese Grenze faengt den Rest.
+   */
+  appealSubmit: { limit: 3, windowMs: 60 * 60 * 1000 },
+
+  /**
+   * Nachrichten und Rueckzug eines Antragstellers.
+   *
+   * Grosszuegiger als das Einreichen: eine Rueckfrage kann mehrere Antworten
+   * brauchen. Eng genug, dass der Nachrichtenbereich kein Chat wird.
+   */
+  appealMessage: { limit: 20, windowMs: 10 * 60 * 1000 },
+
+  /** Was das Team im Fall tut - uebernehmen, kommentieren, schreiben. */
+  appealStaff: { limit: 120, windowMs: 5 * 60 * 1000 },
+
+  /**
+   * Entscheidungen.
+   *
+   * Eng, weil jede Entscheidung endgueltig ist und eine davon jemanden auf
+   * den Server zurueckholt. Wer in fuenf Minuten zwanzig Faelle entscheidet,
+   * liest sie nicht.
+   */
+  appealDecision: { limit: 20, windowMs: 5 * 60 * 1000 },
+
+  /** Die AI-Zusammenfassung. Jede Anfrage kostet Geld (§48). */
+  appealAi: { limit: 15, windowMs: 10 * 60 * 1000 },
+
+  /** Anhaenge herunterladen. */
+  appealDownload: { limit: 60, windowMs: 5 * 60 * 1000 },
 } as const satisfies Record<string, RateLimitRule>;
 
 export type RateLimitName = keyof typeof RATE_LIMITS;

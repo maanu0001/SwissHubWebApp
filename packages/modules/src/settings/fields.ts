@@ -67,8 +67,29 @@ export interface TextField extends SettingsFieldBase {
   maxLength?: number;
 }
 
+/**
+ * Eine Auswahl aus festen Werten.
+ *
+ * Für Einstellungen, deren Antwort nicht ja/nein ist und auch keine Zahl -
+ * «wann muss eine zweite Person bestätigen» etwa. Als Freitext wäre sie eine
+ * Fehlerquelle, als zwei Schalter eine Übersetzung, die niemand liest.
+ *
+ * Die Werte sind die des Zod-Enums; die Beschriftungen stehen daneben, damit
+ * in der Oberfläche kein `GENEHMIGUNG` steht.
+ */
+export interface SelectField extends SettingsFieldBase {
+  type: 'select';
+  options: Array<{ value: string; label: string }>;
+}
+
 export type SettingsField =
-  DiscordRoleField | DiscordChannelField | BooleanField | NumberField | DurationField | TextField;
+  | DiscordRoleField
+  | DiscordChannelField
+  | BooleanField
+  | NumberField
+  | DurationField
+  | TextField
+  | SelectField;
 
 export const isRoleField = (field: SettingsField): field is DiscordRoleField =>
   field.type === 'discord-role' || field.type === 'discord-role-list';

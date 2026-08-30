@@ -5180,3 +5180,296 @@ model AutomationApproval {
   @@index([status, requestedAt])
   @@index([guildId, status])
 }
+
+// ===========================================================================
+// Entbannungsantraege
+// ===========================================================================
+//
+// Ein Antrag auf erneute Pruefung einer Sanktion. Zwei Eigenheiten
+// unterscheiden dieses Modul von allen anderen:
+//
+// 1. **Der Antragsteller ist kein Mitglied.** Wer gebannt ist, steht nicht
+//    mehr auf dem Server. Die Zugehoerigkeit als Zugangsvoraussetzung waere
+//    hier genau die Mauer, die den Antrag unmoeglich macht. Identifiziert
+//    wird deshalb ueber die Discord-Kennung aus der Anmeldung - sie ist
+//    stabil, faelschungssicher und unabhaengig von der Mitgliedschaft.
+//
+// 2. **Was der Antragsteller sieht, ist eine Teilmenge.** Interne Kommentare,
+//    interne Begruendungen und interne Zeitleisteneintraege verlassen den
+//    Server nie in seine Richtung. Das ist keine Anzeigefrage: die Trennung
+//    steht in der Datenbank, nicht in der Oberflaeche.
+//
+// Der Antrag traegt eine unveraenderliche Momentaufnahme der Sanktion, auf
+// die er sich bezieht. Ohne sie liesse sich in einem Jahr nicht mehr sagen,
+// worueber ueberhaupt entschieden wurde.
+
+enum AppealStatus {
+  /// Angefangen, aber nicht eingereicht. Zaehlt fuer keine Frist.
+  DRAFT
+  SUBMITTED
+  UNDER_REVIEW
+  /// Das Team hat eine Rueckfrage gestellt.
+  WAITING_FOR_APPLICANT
+  /// Der Antragsteller hat geantwortet.
+  WAITING_FOR_STAFF
+  ESCALATED
+  /// Eine Entscheidung liegt vor und wartet auf die zweite Person (Vier-Augen).
+  DECISION_PENDING
+  APPROVED
+  REJECTED
+  /// Vom Antragsteller zurueckgezogen.
+  WITHDRAWN
+  /// Ohne Antwort des Antragstellers abgelaufen.
+  EXPIRED
+  /// Die Sanktion wurde ausserhalb des Antrags aufgehoben.
+  RESOLVED_EXTERNALLY
+  CLOSED
+}
+
+enum AppealPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+enum AppealDecisionKind {
+  APPROVE
+  REJECT
+}
+
+/// Wer eine Nachricht geschrieben hat.
+enum AppealMessageAuthor {
+  APPLICANT
+  STAFF
+  SYSTEM
+}
+
+/// Wer einen Zeitleisteneintrag sehen darf.
+enum AppealVisibility {
+  /// Auch der Antragsteller.
+  PUBLIC
+  /// Ausschliesslich das Team.
+  INTERNAL
+}
+
+enum AppealEventKind {
+  CREATED
+  SUBMITTED
+  ASSIGNED
+  UNASSIGNED
+  STATUS_CHANGED
+  PRIORITY_CHANGED
+  STAFF_MESSAGE
+  APPLICANT_MESSAGE
+  INTERNAL_COMMENT
+  ESCALATED
+  DECISION_PROPOSED
+  DECISION_CONFIRMED
+  APPROVED
+  REJECTED
+  UNBAN_ATTEMPTED
+  UNBAN_SUCCEEDED
+  UNBAN_FAILED
+  WITHDRAWN
+  EXPIRED
+  SANCTION_LIFTED_EXTERNALLY
+  CLOSED
+  REOPENED
+}
+
+model Appeal {
+  id      String @id @default(cuid())
+  guildId String
+
+  /// Menschenlesbare Fallnummer, z.B. 42 -> «A-2026-0042».
+  ///
+  /// Eigene Spalte und eigener Zaehler statt `MAX(number) + 1`: die Rechnung
+  /// ueber alle Antraege liefert zwei gleichzeitigen Einreichungen dieselbe
+  /// Zahl. Dasselbe Verfahren wie bei den Tickets.
+  caseNumber Int
+  /// Jahr der Einreichung - Teil der Fallnummer, damit sie ohne Rechnung lesbar bleibt.
+  caseYear   Int
+
+  /// **Die Identitaet.** Discord-Kennung, nie der Benutzername.
+  ///
+  /// Ein Benutzername aendert sich; die Kennung nicht. Wer sie als
+  /// Primaerschluessel verwendet, hat in einem Jahr noch denselben Menschen.
+  applicantDiscordId String
+  /// Anzeigename zum Zeitpunkt der Einreichung - reine Anzeige.
+  applicantUsername  String
+  applicantAvatarHash String?
+
+  status   AppealStatus   @default(DRAFT)
+  priority AppealPriority @default(NORMAL)
+
+  /// Die Antworten auf die Formularfragen. Nach der Einreichung unveraenderlich.
+  answers Json @default("{}")
+
+  /// Momentaufnahme der Sanktion beim Einreichen (§8).
+  ///
+  /// Bewusst eine Kopie und keine Verknuepfung: die Moderationsakte darf sich
+  /// aendern, ohne dass sich rueckwirkend aendert, worueber entschieden wurde.
+  /// Enthaelt ausschliesslich Angaben, die auch der Entscheidung zugrunde
+  /// liegen duerfen - keine internen Notizen.
+  banSnapshot Json @default("{}")
+  /// Verweis auf den Moderationseintrag, sofern SwissHub den Bann gesetzt hat.
+  sanctionActionId String?
+
+  assignedToDiscordId String?
+  assignedToUsername  String?
+  assignedAt          DateTime?
+
+  /// Was der Antragsteller als Begruendung zu sehen bekommt.
+  publicDecision   String?  @db.Text
+  /// Was ausschliesslich das Team liest.
+  internalDecision String?  @db.Text
+  decisionKind     AppealDecisionKind?
+  decidedAt        DateTime?
+  decidedByDiscordId String?
+  decidedByUsername  String?
+
+  /// Vier-Augen-Prinzip: wer die Entscheidung vorgeschlagen hat (§24).
+  proposedByDiscordId String?
+  proposedByUsername  String?
+  proposedAt          DateTime?
+
+  /// Zustand der Discord-Entbannung. Trennt «entschieden» von «ausgefuehrt» (§26).
+  unbanStatus     ActionStatus?
+  unbanAttemptAt  DateTime?
+  unbanError      String?
+
+  /// Ab wann ein erneuter Antrag moeglich ist. NULL = keine Sperre.
+  nextEligibleAt DateTime?
+  /// Endgueltig abgelehnt - ein erneuter Antrag ist nie moeglich.
+  finalRejection Boolean @default(false)
+
+  submittedAt DateTime?
+  /// Frist fuer die Antwort des Antragstellers (§44).
+  waitingUntil DateTime?
+  closedAt    DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  /// Optimistische Sperre gegen widerspruechliche Entscheidungen (§57, §58).
+  version Int @default(0)
+
+  messages    AppealMessage[]
+  comments    AppealInternalComment[]
+  attachments AppealAttachment[]
+  events      AppealEvent[]
+
+  @@unique([guildId, caseYear, caseNumber])
+  @@index([guildId, status, createdAt])
+  @@index([applicantDiscordId, createdAt])
+  @@index([guildId, assignedToDiscordId, status])
+  @@index([status, waitingUntil])
+  @@index([guildId, status, priority])
+}
+
+/// Zaehler der Fallnummern - je Gilde und Jahr eine Zeile.
+model AppealCounter {
+  guildId    String
+  year       Int
+  lastNumber Int    @default(0)
+
+  updatedAt DateTime @updatedAt
+
+  @@id([guildId, year])
+}
+
+/// Eine Nachricht zwischen Antragsteller und Team.
+///
+/// Beide Richtungen in derselben Tabelle: der Verlauf ist ein Gespraech, und
+/// zwei Tabellen dafuer muessten beim Anzeigen wieder zusammengefuegt werden.
+model AppealMessage {
+  id       String @id @default(cuid())
+  appealId String
+  appeal   Appeal @relation(fields: [appealId], references: [id], onDelete: Cascade)
+
+  author AppealMessageAuthor
+
+  /// Wer geschrieben hat. Beim Team fuer die Pruefspur - angezeigt wird
+  /// dem Antragsteller «SwissHub Team» (§22).
+  authorDiscordId String?
+  authorUsername  String?
+
+  content String @db.Text
+
+  createdAt DateTime  @default(now())
+  /// Wann der Antragsteller die Nachricht gesehen hat.
+  readAt    DateTime?
+
+  attachments AppealAttachment[]
+
+  @@index([appealId, createdAt])
+}
+
+/// Eine interne Notiz des Teams.
+///
+/// Eigene Tabelle und nicht ein Feld an der Nachricht: was intern ist, soll
+/// nicht versehentlich in derselben Abfrage landen wie das, was hinausgeht.
+model AppealInternalComment {
+  id       String @id @default(cuid())
+  appealId String
+  appeal   Appeal @relation(fields: [appealId], references: [id], onDelete: Cascade)
+
+  authorDiscordId String
+  authorUsername  String
+
+  content String @db.Text
+
+  createdAt DateTime  @default(now())
+  editedAt  DateTime?
+
+  @@index([appealId, createdAt])
+}
+
+/// Ein Anhang - am Antrag selbst oder an einer Nachricht.
+model AppealAttachment {
+  id       String @id @default(cuid())
+  appealId String
+  appeal   Appeal @relation(fields: [appealId], references: [id], onDelete: Cascade)
+
+  /// Gesetzt, wenn der Anhang zu einer Nachricht gehoert.
+  messageId String?
+  message   AppealMessage? @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  uploadedByDiscordId String
+
+  fileName    String
+  contentType String
+  sizeBytes   Int
+  /// Name im geschuetzten Speicher - nie der Name, unter dem hochgeladen wurde.
+  storageName String
+
+  createdAt DateTime  @default(now())
+  /// Bytes entfernt, Eintrag bleibt - «hier gab es eine Datei» ist eine Auskunft.
+  deletedAt DateTime?
+
+  @@index([appealId, createdAt])
+  @@index([messageId])
+}
+
+/// Ein Eintrag in der Zeitleiste.
+model AppealEvent {
+  id       String @id @default(cuid())
+  appealId String
+  appeal   Appeal @relation(fields: [appealId], references: [id], onDelete: Cascade)
+
+  kind       AppealEventKind
+  visibility AppealVisibility @default(INTERNAL)
+
+  actorDiscordId String?
+  actorUsername  String?
+
+  /// Was der Antragsteller liest, sofern der Eintrag oeffentlich ist.
+  publicLabel String?
+  /// Zusatzangaben fuer das Team - alter und neuer Wert und dergleichen.
+  detail Json @default("{}")
+
+  createdAt DateTime @default(now())
+
+  @@index([appealId, createdAt])
+  @@index([appealId, visibility, createdAt])
+}

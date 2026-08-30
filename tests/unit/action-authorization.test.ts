@@ -71,12 +71,51 @@ describe('Server Actions', () => {
       // Bewusst eine ausdrückliche Kennzeichnung und keine Ableitung: eine
       // Aktion, die "ctx.user.id" bloss erwähnt, ist damit nicht abgedeckt.
       const selbstbedienung = /\bselfService:\s*true/.test(action.body);
+      // Vierte Form: der Antragsteller-Zugang. Er ist die einzige Stelle ohne
+      // Guild-Mitgliedschaft - und deshalb die einzige, die eine eigene
+      // Eigentumsprüfung mitbringen muss. Sie wird unten geprüft.
+      const antragsteller = /\bapplicant:\s*true/.test(action.body);
       expect(
-        declared || explicit || selbstbedienung,
-        `${action.name}: weder "permission:", noch eine ausdrückliche Prüfung im Rumpf, noch "selfService: true"`,
+        declared || explicit || selbstbedienung || antragsteller,
+        `${action.name}: weder "permission:", noch eine ausdrückliche Prüfung im Rumpf, noch "selfService: true", noch "applicant: true"`,
       ).toBe(true);
     },
   );
+
+  /**
+   * Der Antragsteller-Zugang trägt seine Prüfung im Rumpf.
+   *
+   * `applicant: true` nimmt die Mitgliedschaft aus der Kette - und damit das
+   * einzige Glied, das bisher jeden Fremden abgewiesen hat. An seine Stelle
+   * muss eine stärkere Prüfung treten: gehört dieser Datensatz dem
+   * Aufrufer? Ohne sie könnte jeder angemeldete Discord-Benutzer den Antrag
+   * eines anderen öffnen.
+   *
+   * Geprüft wird auf den Aufruf eines Helfers, dessen Name die Prüfung
+   * benennt - nicht auf eine beliebige Erwähnung von `discordId`. Eine
+   * Aktion, die die Kennung bloss weiterreicht, ist damit nicht abgedeckt.
+   */
+  const ANTRAGSTELLER_PRUEFUNGEN = ['requireEigenerAppeal', 'assertEigenerAppeal'];
+
+  const antragstellerActions = actions.filter((action) =>
+    /\bapplicant:\s*true/.test(action.body),
+  );
+
+  const antragstellerFaelle: Array<[string, Action | null]> =
+    antragstellerActions.length > 0
+      ? antragstellerActions.map((a) => [`${a.file.split('/').at(-2)}/${a.name}`, a])
+      : [['(derzeit keine)', null]];
+
+  it.each(antragstellerFaelle)('%s prüft das Eigentum am Datensatz', (_label, action) => {
+    if (!action) {
+      expect(antragstellerActions).toHaveLength(0);
+      return;
+    }
+    expect(
+      ANTRAGSTELLER_PRUEFUNGEN.some((pruefung) => action.body.includes(pruefung)),
+      `${action.name}: "applicant: true" ohne Eigentumsprüfung (${ANTRAGSTELLER_PRUEFUNGEN.join(' / ')})`,
+    ).toBe(true);
+  });
 
   it.each(actions.map((a) => [`${a.file.split('/').at(-2)}/${a.name}`, a] as const))(
     '%s validiert die Eingabe',

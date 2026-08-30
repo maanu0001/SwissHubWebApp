@@ -8,6 +8,18 @@ export * from './config-revision';
 
 export { Prisma } from '@prisma/client';
 export type {
+  Appeal,
+  AppealAttachment,
+  AppealCounter,
+  AppealDecisionKind,
+  AppealEvent,
+  AppealEventKind,
+  AppealInternalComment,
+  AppealMessage,
+  AppealMessageAuthor,
+  AppealPriority,
+  AppealStatus,
+  AppealVisibility,
   Automation,
   AutomationApproval,
   AutomationApprovalStatus,

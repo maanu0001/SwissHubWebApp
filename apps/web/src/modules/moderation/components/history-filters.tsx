@@ -6,11 +6,12 @@ import { Filter, X } from 'lucide-react';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { ACTION_LABEL, ACTION_TYPES } from '@/modules/moderation/sections';
+import { ACTION_LABEL, ACTION_TYPES, SOURCE_LABEL, SOURCES } from '@/modules/moderation/sections';
 import { cn } from '@/lib/utils';
 
 interface HistoryFiltersProps {
   type: string;
+  quelle: string;
   member: string;
   actor: string;
   von: string;
@@ -30,17 +31,23 @@ const ALLE = 'alle';
 export function HistoryFilters(props: HistoryFiltersProps): React.JSX.Element {
   const router = useRouter();
   const [type, setType] = useState(props.type || ALLE);
+  const [quelle, setQuelle] = useState(props.quelle || ALLE);
   const [member, setMember] = useState(props.member);
   const [actor, setActor] = useState(props.actor);
   const [von, setVon] = useState(props.von);
   const [bis, setBis] = useState(props.bis);
 
-  const aktiv = Boolean(props.type || props.member || props.actor || props.von || props.bis);
+  const aktiv = Boolean(
+    props.type || props.quelle || props.member || props.actor || props.von || props.bis,
+  );
 
   function anwenden(): void {
     const suche = new URLSearchParams();
     if (type && type !== ALLE) {
       suche.set('type', type);
+    }
+    if (quelle && quelle !== ALLE) {
+      suche.set('quelle', quelle);
     }
     if (member.trim()) {
       suche.set('member', member.trim());
@@ -80,6 +87,25 @@ export function HistoryFilters(props: HistoryFiltersProps): React.JSX.Element {
           {ACTION_TYPES.map((wert) => (
             <option key={wert} value={wert}>
               {ACTION_LABEL[wert]}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <div className="min-w-0 space-y-1.5">
+        <Label htmlFor="filter-quelle">Quelle</Label>
+        {/* Die Frage, die dieser Filter beantwortet: «was haben wir selbst
+            getan, und was ist an uns vorbei geschehen?» */}
+        <select
+          id="filter-quelle"
+          value={quelle}
+          onChange={(event) => setQuelle(event.target.value)}
+          className="flex h-10 w-full rounded-lg border border-border bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          <option value={ALLE}>Alle</option>
+          {SOURCES.map((wert) => (
+            <option key={wert} value={wert}>
+              {SOURCE_LABEL[wert]}
             </option>
           ))}
         </select>

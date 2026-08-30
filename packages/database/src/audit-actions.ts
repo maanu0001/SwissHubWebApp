@@ -196,6 +196,11 @@ export const AUDIT_ACTIONS = {
   MODERATION_TIMEOUT: 'MODERATION_TIMEOUT',
   MODERATION_TIMEOUT_REMOVE: 'MODERATION_TIMEOUT_REMOVE',
   MODERATION_NOTE: 'MODERATION_NOTE',
+  // Eine Massnahme, die nicht ueber SwissHub lief, wurde erkannt. Getrennt
+  // von MODERATION_BAN und den uebrigen, weil es eine andere Aussage ist:
+  // dort hat jemand ueber diese Anwendung gehandelt, hier hat die Anwendung
+  // bemerkt, dass anderswo gehandelt wurde.
+  MODERATION_EXTERNAL_ACTION_DETECTED: 'MODERATION_EXTERNAL_ACTION_DETECTED',
   // --- Analytics -----------------------------------------------------------
   // Nur die Zugriffe, die Daten aus dem System heraustragen. Das Lesen der
   // Zeitleiste selbst wird nicht protokolliert - ein Protokoll jeder

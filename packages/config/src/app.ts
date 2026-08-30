@@ -113,5 +113,20 @@ export const jobConfig = {
   },
   /** Bot heartbeat cadence. The UI marks the bot offline after 3 missed beats. */
   heartbeatIntervalMs: 20_000,
+  /**
+   * Wie oft geprueft wird, ob der Bot Discords Audit Log lesen darf.
+   *
+   * Zehn Minuten: die Antwort aendert sich nur, wenn jemand die Rechte des
+   * Bots umstellt, und dafuer ist eine Probe im Minutentakt Verschwendung an
+   * einer Schnittstelle mit Rate Limit.
+   */
+  auditAccessCheckIntervalMs: 600_000,
+  /**
+   * Wie oft nachgelesen wird, ob der Bot ein Moderationsereignis verpasst hat.
+   *
+   * Fuenfzehn Minuten. Die Luecke, die dieser Lauf schliesst, entsteht nur bei
+   * einer Trennung - haeufiger zu fragen kostet Anfragen und findet nichts.
+   */
+  auditReconcileIntervalMs: 900_000,
   heartbeatStaleAfterMs: 70_000,
 };

@@ -245,6 +245,14 @@ export interface AuditLogEntry {
   /** Wer gehandelt hat. `null`, wenn Discord es selbst nicht angibt. */
   userId: string | null;
   username: string | null;
+  /**
+   * Ist der Handelnde ein Bot?
+   *
+   * Auch andere Bots auf dem Server bannen und kicken. Fuer die Akte macht
+   * das einen Unterschied - «Bot XYZ» ist eine andere Auskunft als ein Name.
+   * `null`, wenn Discord den Handelnden gar nicht mitliefert.
+   */
+  bot: boolean | null;
   /** Wen oder was es betraf - je nach Typ eine Nachricht, ein Mitglied, eine Rolle. */
   targetId: string | null;
   reason: string | null;

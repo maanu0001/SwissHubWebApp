@@ -348,6 +348,10 @@ export async function createJail(
       data: {
         type: 'JAIL_CREATE',
         module: JAIL_MODULE_ID,
+        // Ein Jail entsteht immer auf Veranlassung eines Menschen - ueber das
+        // Dashboard oder einen Slash-Befehl. Beides ist SwissHub.
+        source: 'WEBAPP',
+        actorType: 'HUMAN',
         actorDiscordId: actor.discordId,
         actorUsername: actor.username,
         targetDiscordId: target.discordId,
@@ -751,6 +755,11 @@ export async function releaseJail(jailId: string, options: ReleaseJailOptions): 
       data: {
         type: 'JAIL_RELEASE',
         module: JAIL_MODULE_ID,
+        // Ohne Handelnden war es die Zeitsteuerung: eine abgelaufene Frist,
+        // die der Worker beendet hat. Das ist keine Entscheidung eines
+        // Menschen und soll auch nicht so aussehen.
+        source: actor ? 'WEBAPP' : 'SYSTEM',
+        actorType: actor ? 'HUMAN' : 'SYSTEM',
         actorDiscordId: actor?.discordId ?? 'system',
         actorUsername: actor?.username ?? 'System',
         targetDiscordId: jail.targetDiscordId,

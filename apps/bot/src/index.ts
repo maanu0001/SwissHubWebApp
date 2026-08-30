@@ -34,6 +34,7 @@ import { registerLevelGameButtons } from './level-games';
 import { registerTicketInteractions } from './ticket-interactions';
 import { registerTicketMessageSync } from './ticket-messages';
 import { registerAnalyticsEvents, anwesendeImVoice } from './analytics-events';
+import { registerModerationEvents } from './moderation-events';
 import { registerAutomationEvents } from './automation-events';
 import { registerTournamentInteractions } from './tournament-interactions';
 import { recoverVoiceHub, registerVoiceHub } from './voice-hub';
@@ -192,6 +193,10 @@ async function main(): Promise<void> {
   // tatsaechlich aufgezeichnet wird, entscheidet das Modul selbst - hier
   // werden nur die Zuhoerer angemeldet.
   registerAnalyticsEvents(client, isActiveGuild, messageContent);
+  // Massnahmen, die direkt in Discord ergriffen wurden. Bewusst getrennt von
+  // der Statistik: die Akte darf nicht davon abhaengen, ob jemand das
+  // Analytics-Modul eingeschaltet hat.
+  registerModerationEvents(client, isActiveGuild);
 
   // Dieselbe Stelle, derselbe Grund: die Zuhoerer der Automation Engine
   // brauchen `isActiveGuild`. Ob ueberhaupt geschrieben wird, entscheidet das

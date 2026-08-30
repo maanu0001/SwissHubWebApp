@@ -26,6 +26,7 @@ function eintrag(teile: Partial<AuditLogEntry> = {}): AuditLogEntry {
     actionType: AUDIT_LOG_ACTIONS.MESSAGE_DELETE,
     userId: 'mod-1',
     username: 'nina.mod',
+    bot: false,
     targetId: 'user-1',
     reason: null,
     count: 1,

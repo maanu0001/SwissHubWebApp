@@ -17,6 +17,15 @@ export interface BotStatusView {
   lastConnectedAt: Date | null;
   /** True, wenn der letzte Heartbeat zu lange zurückliegt. */
   stale: boolean;
+  /**
+   * Kann der Bot Discords Audit Log lesen?
+   *
+   * `null` heisst «noch nicht geprüft» - nach einem Neustart, bis der erste
+   * Prüflauf durch ist. Das ist etwas anderes als `false`, und die Anzeige
+   * darf das eine nicht für das andere ausgeben.
+   */
+  auditLogAccess: boolean | null;
+  auditLogCheckedAt: Date | null;
 }
 
 export async function readBotStatus(): Promise<BotStatusView> {
@@ -30,6 +39,8 @@ export async function readBotStatus(): Promise<BotStatusView> {
       lastHeartbeatAt: null,
       lastConnectedAt: null,
       stale: true,
+      auditLogAccess: null,
+      auditLogCheckedAt: null,
     };
   }
 
@@ -42,6 +53,8 @@ export async function readBotStatus(): Promise<BotStatusView> {
     lastHeartbeatAt: row.lastHeartbeatAt,
     lastConnectedAt: row.lastConnectedAt,
     stale,
+    auditLogAccess: row.auditLogAccess,
+    auditLogCheckedAt: row.auditLogCheckedAt,
   };
 }
 

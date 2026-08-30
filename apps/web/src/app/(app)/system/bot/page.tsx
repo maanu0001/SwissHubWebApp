@@ -54,6 +54,50 @@ export default async function BotSystemPage(): Promise<React.JSX.Element> {
 
       <Card>
         <CardHeader>
+          <CardTitle>Moderationsabgleich mit Discord</CardTitle>
+          <CardDescription>
+            Massnahmen, die jemand direkt in der Discord-App ergreift, landen nur dann in der Akte, wenn der
+            Bot Discords Audit-Log lesen darf. Ohne dieses Recht läuft alles Übrige weiter - die
+            Moderationshistorie bleibt aber unvollständig.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {/*
+            Drei Zustände, nicht zwei. «Noch nicht geprüft» ist keine
+            Beanstandung: nach einem Neustart dauert es bis zum ersten
+            Prüflauf, und ein rotes Feld wäre dann schlicht falsch.
+          */}
+          {status.auditLogAccess === null ? (
+            <p className="flex items-start gap-2 rounded-md border border-border px-3 py-2 text-sm text-muted-foreground">
+              <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+              Noch nicht geprüft. Der Bot prüft das nach dem Start und danach regelmässig.
+            </p>
+          ) : status.auditLogAccess ? (
+            <p className="flex items-start gap-2 rounded-md border border-border px-3 py-2 text-sm">
+              <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-success" aria-hidden="true" />
+              <span>
+                Massnahmen aus Discord werden erkannt.
+                {status.auditLogCheckedAt
+                  ? ` Zuletzt geprüft ${formatDateTime(status.auditLogCheckedAt)}.`
+                  : ''}
+              </span>
+            </p>
+          ) : (
+            <p className="flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+              <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+              <span>
+                Moderationsaktionen direkt aus Discord können aktuell nicht erkannt werden, weil dem Bot die
+                Berechtigung <strong>Audit-Log anzeigen</strong> fehlt. Banns und Timeouts landen dann ohne
+                Moderator und ohne Grund in der Akte; Kicks gar nicht, weil sie sich ohne Audit-Eintrag nicht
+                von einem freiwilligen Austritt unterscheiden lassen.
+              </span>
+            </p>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
           <CardTitle>Discord-Berechtigungen</CardTitle>
           <CardDescription>
             Geprüft wird gegen die Anforderungen der aktivierten Module. Fehlende Rechte müssen auf Discord

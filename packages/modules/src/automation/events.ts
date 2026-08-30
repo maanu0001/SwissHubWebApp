@@ -129,6 +129,36 @@ registerEvent({
   variables: [{ path: 'payload.channelName', label: 'Kanalname', type: 'string' }],
 });
 
+// --- Moderation -------------------------------------------------------------
+
+registerEvent({
+  type: 'moderation.action_created',
+  label: 'Moderationsmassnahme wurde erfasst',
+  description:
+    'Ein Bann, Kick oder Timeout ist in der Akte gelandet - ueber das Moderation Center ausgeloest oder direkt in Discord und hier erkannt. Jail-Vorgaenge meldet dieses Ereignis nicht; sie laufen ueber das Jail-Modul.',
+  module: 'moderation',
+  payloadSchema: z.object({
+    /** BAN, UNBAN, KICK, TIMEOUT, TIMEOUT_UPDATE oder TIMEOUT_REMOVE. */
+    art: z.string(),
+    /** WEBAPP, BOT, DISCORD oder SYSTEM - woher die Massnahme kam. */
+    quelle: z.string(),
+    /** HUMAN, BOT, SYSTEM oder UNKNOWN. */
+    handelnderArt: z.string(),
+    targetDiscordId: discordId,
+    targetUsername: z.string(),
+    actorUsername: z.string(),
+    grund: z.string().nullable(),
+  }),
+  variables: [
+    { path: 'payload.art', label: 'Massnahme', type: 'string' },
+    { path: 'payload.quelle', label: 'Quelle', type: 'string' },
+    { path: 'payload.targetUsername', label: 'Betroffene Person', type: 'string' },
+    { path: 'payload.actorUsername', label: 'Handelnde Person', type: 'string' },
+    { path: 'payload.grund', label: 'Grund', type: 'string' },
+    { path: 'event.subjectId', label: 'Discord-ID der betroffenen Person', type: 'string' },
+  ],
+});
+
 // --- Verifikation -----------------------------------------------------------
 
 registerEvent({

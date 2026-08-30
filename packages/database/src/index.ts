@@ -111,6 +111,8 @@ export type {
   ManagedRole,
   ModerationAction,
   ModerationActionType,
+  ModerationActorType,
+  ModerationSource,
   ModuleState,
   PrismaClient,
   ReconciliationMode,

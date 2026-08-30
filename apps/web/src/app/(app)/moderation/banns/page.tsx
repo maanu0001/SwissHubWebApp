@@ -25,8 +25,10 @@ interface BannZeile {
  *
  * Sie kommt von Discord, nicht aus unserer Datenbank: dort ist sie die
  * Wahrheit. Ein Bann, den jemand direkt in Discord gesetzt hat, steht deshalb
- * ebenfalls hier - er hat nur keinen Eintrag in unserer Akte, und das sagt
- * die Seite auch.
+ * ebenfalls hier - und seit direkt in Discord ergriffene Massnahmen erkannt
+ * werden, in aller Regel auch in der Akte. In aller Regel, nicht immer: ein
+ * Bann aus einer Zeit, in der der Bot nicht lief, ist Discord bekannt und uns
+ * nicht. Genau deshalb bleibt Discord hier die Quelle.
  */
 export default async function ModerationBannsPage(): Promise<React.JSX.Element> {
   const p = moderation.MODERATION_PERMISSIONS;

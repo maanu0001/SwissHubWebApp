@@ -1,5 +1,10 @@
 import { prisma } from '@swisshub/database';
-import type { ModerationAction, ModerationActionType } from '@swisshub/database';
+import type {
+  ModerationAction,
+  ModerationActionType,
+  ModerationActorType,
+  ModerationSource,
+} from '@swisshub/database';
 import { discord as defaultDiscord, type DiscordGateway } from '@swisshub/discord';
 
 /**
@@ -83,6 +88,10 @@ export interface ActionQuery {
   type?: ModerationActionType[];
   targetDiscordId?: string;
   actorDiscordId?: string;
+  /** Woher die Massnahme kam - Dashboard, Bot, direkt aus Discord, Zeitsteuerung. */
+  source?: ModerationSource[];
+  /** Mensch oder Bot. */
+  actorType?: ModerationActorType[];
   von?: Date;
   bis?: Date;
   /** Cursor: die Kennung des letzten Eintrags der vorherigen Seite. */
@@ -107,6 +116,8 @@ export async function listActions(
       ...(query.type && query.type.length > 0 ? { type: { in: query.type } } : {}),
       ...(query.targetDiscordId ? { targetDiscordId: query.targetDiscordId } : {}),
       ...(query.actorDiscordId ? { actorDiscordId: query.actorDiscordId } : {}),
+      ...(query.source && query.source.length > 0 ? { source: { in: query.source } } : {}),
+      ...(query.actorType && query.actorType.length > 0 ? { actorType: { in: query.actorType } } : {}),
       ...(query.von || query.bis
         ? {
             createdAt: {
@@ -135,10 +146,17 @@ export async function listActions(
 /**
  * Die Timeouts, die gerade laufen.
  *
- * Wichtig fuer die Anzeige: hier stehen ausschliesslich Timeouts, die ueber
- * dieses System gesetzt wurden. Was jemand direkt in Discord gesetzt hat,
- * kennt die Datenbank nicht - und es zu behaupten waere falsch. Die
- * Oberflaeche sagt das dazu.
+ * Seit direkt in Discord gesetzte Massnahmen erkannt werden, stehen hier
+ * beide: die ueber dieses System gesetzten und die, die jemand in der
+ * Discord-App verhaengt hat. Die Spalte `source` sagt an jeder Zeile, welche
+ * von beiden es ist.
+ *
+ * Eine Einschraenkung bleibt und laesst sich nicht wegprogrammieren: erkannt
+ * wird nur, was geschah, waehrend der Bot lief. Ein Timeout aus einer Zeit
+ * ohne Bot fehlt hier - dagegen hilft kein Abgleich, weil Discord den
+ * Vorgang selbst nicht mehr hergibt.
+ *
+ * `TIMEOUT_UPDATE` zaehlt mit: eine verlaengerte Frist ist eine laufende.
  *
  * Pro Mitglied zaehlt der juengste Timeout, und er zaehlt nur, wenn danach
  * keine Aufhebung kam.
@@ -146,7 +164,11 @@ export async function listActions(
 export async function aktiveTimeouts(limit = 50): Promise<ModerationAction[]> {
   const jetzt = new Date();
   const kandidaten = await prisma.moderationAction.findMany({
-    where: { type: 'TIMEOUT', status: 'COMPLETED', expiresAt: { gt: jetzt } },
+    where: {
+      type: { in: ['TIMEOUT', 'TIMEOUT_UPDATE'] },
+      status: 'COMPLETED',
+      expiresAt: { gt: jetzt },
+    },
     orderBy: { createdAt: 'desc' },
     take: Math.min(limit, 200) * 3,
   });

@@ -22,6 +22,7 @@ import { EmptyState } from '@/components/shared/states';
 import { CreateJailDialog } from '@/modules/jail/components/create-jail-dialog';
 import { ModerationDialog } from '@/modules/moderation/components/moderation-dialog';
 import { ActionTypeBadge } from '@/modules/moderation/components/action-type-badge';
+import { SourceBadge } from '@/modules/moderation/components/source-badge';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { ReleaseJailButton } from '@/modules/jail/components/release-jail-button';
 import { NotesPanel } from '@/modules/members/components/notes-panel';
@@ -852,9 +853,14 @@ function Moderation({ daten }: { daten?: members.MemberModerationView }): React.
               <li key={eintrag.id} className="py-2.5 text-sm">
                 <div className="flex flex-wrap items-center gap-2">
                   <ActionTypeBadge type={eintrag.type} />
+                  {/* Nur Fremdes wird ausgewiesen: dass eine Massnahme ueber
+                      dieses Dashboard lief, ist der Normalfall und muss an
+                      jeder Zeile nicht wiederholt werden. */}
+                  {eintrag.source === 'DISCORD' ? <SourceBadge source={eintrag.source} /> : null}
                   {eintrag.status === 'COMPLETED' ? null : <StatusBadge status={eintrag.status} />}
                   <span className="text-xs text-muted-foreground">
                     {formatDateTime(eintrag.createdAt)} · {eintrag.actorUsername}
+                    {eintrag.actorType === 'BOT' ? ' (Bot)' : ''}
                   </span>
                 </div>
                 {eintrag.reason ? (

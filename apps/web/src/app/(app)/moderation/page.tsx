@@ -139,7 +139,7 @@ export default async function ModerationPage(): Promise<React.JSX.Element> {
             {timeouts.length === 0 ? (
               <EmptyState
                 title="Kein laufender Timeout"
-                description="Hier stehen nur Timeouts, die über dieses System gesetzt wurden."
+                description="Weder über das Dashboard noch direkt in Discord läuft gerade ein Timeout."
               />
             ) : (
               <ul className="divide-y divide-border/60">

@@ -2,3 +2,8 @@ export * from './permissions';
 export * from './policy';
 export * from './service';
 export * from './queries';
+export * from './audit-lookup';
+export * from './extern';
+export * from './events';
+export * from './health';
+export * from './reconcile';

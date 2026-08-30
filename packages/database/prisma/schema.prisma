@@ -196,9 +196,42 @@ enum ModerationActionType {
   UNBAN
   KICK
   TIMEOUT
+  /// Ein laufender Timeout wurde verlaengert oder verkuerzt.
+  ///
+  /// Entsteht nur bei direkt auf Discord gesetzten Timeouts: das Moderation
+  /// Center kennt nur Setzen und Aufheben, Discord dagegen laesst die Frist
+  /// eines laufenden Timeouts aendern. Ohne eigenen Typ waere aus «30 Minuten
+  /// auf 24 Stunden» ein zweiter Timeout geworden.
+  TIMEOUT_UPDATE
   TIMEOUT_REMOVE
   /// Interne Notiz zu einem Mitglied - keine Massnahme, aber Teil der Akte.
   NOTE
+}
+
+/// Wo eine Massnahme ausgeloest wurde.
+///
+/// `DISCORD` heisst: sie geschah ausserhalb von SwissHub - jemand hat direkt
+/// in Discord gehandelt - und wurde hier nachtraeglich erkannt. Der
+/// Unterschied zaehlt beim Lesen der Akte: bei `WEBAPP` ist der Grund eine
+/// Pflichtangabe, bei `DISCORD` steht dort, was Discord hergab, und manchmal
+/// nichts.
+enum ModerationSource {
+  WEBAPP
+  BOT
+  DISCORD
+  SYSTEM
+}
+
+/// Was der Handelnde ist.
+///
+/// Nicht jede Massnahme kommt von einem Menschen: auch andere Bots auf dem
+/// Server bannen und kicken. `UNKNOWN` ist kein Platzhalter, sondern eine
+/// Aussage - Discord hat den Handelnden nicht preisgegeben.
+enum ModerationActorType {
+  HUMAN
+  BOT
+  SYSTEM
+  UNKNOWN
 }
 
 enum SecuritySeverity {
@@ -747,30 +780,56 @@ model CommunicationDraft {
 
 /// Modulunabhängige Moderationshistorie (Basis für Statistiken).
 model ModerationAction {
-  id              String               @id @default(cuid())
-  type            ModerationActionType
-  module          String
-  actorDiscordId  String
-  actorUsername   String
-  targetDiscordId String
-  targetUsername  String
-  reason          String?
-  status          ActionStatus         @default(COMPLETED)
-  referenceId     String?
+  id                     String               @id @default(cuid())
+  type                   ModerationActionType
+  module                 String
+  actorDiscordId         String
+  actorUsername          String
+  targetDiscordId        String
+  targetUsername         String
+  reason                 String?
+  status                 ActionStatus         @default(COMPLETED)
+  referenceId            String?
   /// Geplantes Ende einer befristeten Massnahme (heute: Discord-Timeout).
   ///
   /// Eigene Spalte statt eines Werts im Metadaten-JSON, weil danach gefiltert
   /// wird: «welche Timeouts laufen gerade» ist eine Abfrage, keine Auswertung
   /// im Anwendungscode. NULL bei allem, was kein geplantes Ende hat.
-  expiresAt       DateTime?
-  metadata        Json                 @default("{}")
-  createdAt       DateTime             @default(now())
+  expiresAt              DateTime?
+  /// Wo die Massnahme ausgeloest wurde.
+  ///
+  /// Vorgabe `WEBAPP`, weil bis zur Einfuehrung dieses Feldes jede Zeile hier
+  /// ueber das Dashboard entstanden ist. Die Migration setzt die Zeilen der
+  /// Zeitsteuerung ausdruecklich auf `SYSTEM` - raten muss hier niemand.
+  source                 ModerationSource     @default(WEBAPP)
+  /// Mensch, Bot oder Zeitsteuerung.
+  actorType              ModerationActorType  @default(HUMAN)
+  /// Der Discord-Audit-Eintrag, aus dem diese Zeile entstanden ist.
+  ///
+  /// Eindeutig, und das ist der ganze Zweck: derselbe Audit-Eintrag darf nie
+  /// zwei Massnahmen erzeugen - auch nicht nach einem Neustart des Bots, auch
+  /// nicht, wenn Gateway-Ereignis und Abgleichlauf gleichzeitig darauf
+  /// stossen. Die Datenbank entscheidet das, nicht der Anwendungscode.
+  ///
+  /// Auch an einer ueber das Dashboard ausgeloesten Massnahme kann er stehen:
+  /// dann belegt er, dass Discord sie tatsaechlich vollzogen hat.
+  discordAuditLogEntryId String?              @unique
+  /// Wann SwissHub die Massnahme bemerkt hat - nur bei extern erkannten.
+  ///
+  /// `createdAt` ist der Zeitpunkt der Zeile, `detectedAt` der des Erkennens.
+  /// Bei einer verspaetet erkannten Massnahme liegen sie auseinander, und die
+  /// Akte soll das nicht verwischen.
+  detectedAt             DateTime?
+  metadata               Json                 @default("{}")
+  createdAt              DateTime             @default(now())
 
   @@index([targetDiscordId, createdAt])
   @@index([actorDiscordId, createdAt])
   @@index([createdAt])
   /// Fuer die Abfrage der laufenden Massnahmen.
   @@index([type, expiresAt])
+  /// Fuer den Quellenfilter im Verlauf.
+  @@index([source, createdAt])
 }
 
 /// Manipulationsgeschütztes Audit Log (Hash-Chain).
@@ -846,17 +905,31 @@ model IdempotencyRecord {
 
 /// Laufzeitstatus des Discord-Bots (vom Bot geschrieben, von der WebApp gelesen).
 model BotStatus {
-  id               String    @id @default("singleton")
-  online           Boolean   @default(false)
-  wsPingMs         Int?
-  guildMemberCount Int?
-  botUserId        String?
-  botUsername      String?
-  version          String?
-  lastHeartbeatAt  DateTime  @default(now())
-  lastConnectedAt  DateTime?
-  lastError        String?
-  updatedAt        DateTime  @updatedAt
+  id                String    @id @default("singleton")
+  online            Boolean   @default(false)
+  wsPingMs          Int?
+  guildMemberCount  Int?
+  botUserId         String?
+  botUsername       String?
+  version           String?
+  lastHeartbeatAt   DateTime  @default(now())
+  lastConnectedAt   DateTime?
+  lastError         String?
+  /// Kann der Bot Discords Audit Log lesen?
+  ///
+  /// `null` heisst «noch nicht geprueft», nicht «nein». Ohne dieses Recht
+  /// bleiben direkt auf Discord ausgefuehrte Massnahmen unerkannt - der Bot
+  /// laeuft weiter, aber die Akte ist dann unvollstaendig, und das soll man
+  /// sehen koennen, statt es zu merken, wenn ein Eintrag fehlt.
+  auditLogAccess    Boolean?
+  auditLogCheckedAt DateTime?
+  /// Bis wohin der Abgleichlauf Discords Audit Log gelesen hat.
+  ///
+  /// Audit-Kennungen sind Snowflakes und damit aufsteigend; hier steht die
+  /// zuletzt verarbeitete. Der naechste Lauf macht dort weiter, statt jedes
+  /// Mal von vorn zu lesen - kein Vollscan, kein Dauerpolling.
+  lastAuditEntryId  String?
+  updatedAt         DateTime  @updatedAt
 }
 
 /// Abgleich zwischen Datenbank- und Discord-Zustand.
@@ -5295,9 +5368,9 @@ model Appeal {
   ///
   /// Ein Benutzername aendert sich; die Kennung nicht. Wer sie als
   /// Primaerschluessel verwendet, hat in einem Jahr noch denselben Menschen.
-  applicantDiscordId String
+  applicantDiscordId  String
   /// Anzeigename zum Zeitpunkt der Einreichung - reine Anzeige.
-  applicantUsername  String
+  applicantUsername   String
   applicantAvatarHash String?
 
   status   AppealStatus   @default(DRAFT)
@@ -5312,7 +5385,7 @@ model Appeal {
   /// aendern, ohne dass sich rueckwirkend aendert, worueber entschieden wurde.
   /// Enthaelt ausschliesslich Angaben, die auch der Entscheidung zugrunde
   /// liegen duerfen - keine internen Notizen.
-  banSnapshot Json @default("{}")
+  banSnapshot      Json    @default("{}")
   /// Verweis auf den Moderationseintrag, sofern SwissHub den Bann gesetzt hat.
   sanctionActionId String?
 
@@ -5321,11 +5394,11 @@ model Appeal {
   assignedAt          DateTime?
 
   /// Was der Antragsteller als Begruendung zu sehen bekommt.
-  publicDecision   String?  @db.Text
+  publicDecision     String?             @db.Text
   /// Was ausschliesslich das Team liest.
-  internalDecision String?  @db.Text
-  decisionKind     AppealDecisionKind?
-  decidedAt        DateTime?
+  internalDecision   String?             @db.Text
+  decisionKind       AppealDecisionKind?
+  decidedAt          DateTime?
   decidedByDiscordId String?
   decidedByUsername  String?
 
@@ -5335,21 +5408,21 @@ model Appeal {
   proposedAt          DateTime?
 
   /// Zustand der Discord-Entbannung. Trennt «entschieden» von «ausgefuehrt» (§26).
-  unbanStatus     ActionStatus?
-  unbanAttemptAt  DateTime?
-  unbanError      String?
+  unbanStatus    ActionStatus?
+  unbanAttemptAt DateTime?
+  unbanError     String?
 
   /// Ab wann ein erneuter Antrag moeglich ist. NULL = keine Sperre.
   nextEligibleAt DateTime?
   /// Endgueltig abgelehnt - ein erneuter Antrag ist nie moeglich.
-  finalRejection Boolean @default(false)
+  finalRejection Boolean   @default(false)
 
-  submittedAt DateTime?
+  submittedAt  DateTime?
   /// Frist fuer die Antwort des Antragstellers (§44).
   waitingUntil DateTime?
-  closedAt    DateTime?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  closedAt     DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
   /// Optimistische Sperre gegen widerspruechliche Entscheidungen (§57, §58).
   version Int @default(0)
@@ -5466,7 +5539,7 @@ model AppealEvent {
   /// Was der Antragsteller liest, sofern der Eintrag oeffentlich ist.
   publicLabel String?
   /// Zusatzangaben fuer das Team - alter und neuer Wert und dergleichen.
-  detail Json @default("{}")
+  detail      Json    @default("{}")
 
   createdAt DateTime @default(now())
 

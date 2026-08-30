@@ -12,6 +12,7 @@ import {
   calendar,
   jail,
   level,
+  moderation,
   spielersuche,
   syncDiscord,
   writeHeartbeat,
@@ -106,6 +107,44 @@ export function createJobRunner(
           version: process.env.npm_package_version ?? '1.0.0',
         });
         await beruehreLebenszeichen();
+      },
+    },
+    {
+      /**
+       * Kann der Bot Discords Audit Log lesen?
+       *
+       * Ohne dieses Recht bleiben direkt in Discord ergriffene Massnahmen
+       * ohne Handelnden, und Kicks werden gar nicht erkannt. Der Bot laeuft
+       * dann weiter - aber der Systemstatus soll es sagen, statt dass es
+       * jemandem irgendwann an einer luecken Akte auffaellt.
+       */
+      name: 'moderation-audit-zugang',
+      intervalMs: jobConfig.auditAccessCheckIntervalMs,
+      runOnStart: true,
+      async run() {
+        const befund = await moderation.pruefeUndVermerkeAuditZugang();
+        if (befund.zugang === 'kein-recht') {
+          log.warn(
+            'Dem Bot fehlt die Berechtigung «Audit-Log anzeigen» - Moderationsaktionen direkt aus Discord können nicht vollständig erkannt werden.',
+          );
+        }
+      },
+    },
+    {
+      /**
+       * Was der Bot verpasst hat, waehrend er nicht verbunden war.
+       *
+       * Discord liefert Gateway-Ereignisse nicht nach. Ohne diesen Lauf
+       * fehlte in der Akte genau das, was waehrend eines Neustarts geschah -
+       * und niemand wuesste, dass es fehlt.
+       */
+      name: 'moderation-audit-abgleich',
+      intervalMs: jobConfig.auditReconcileIntervalMs,
+      async run() {
+        const ergebnis = await moderation.gleicheAuditLogAb();
+        if (ergebnis.erfasst > 0) {
+          log.info('Nachgetragene Massnahmen aus Discord', { anzahl: ergebnis.erfasst });
+        }
       },
     },
     {

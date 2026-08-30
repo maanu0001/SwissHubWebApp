@@ -686,15 +686,23 @@ export function createRestGateway(): DiscordGateway {
       if (options.userId) {
         suche.set('user_id', options.userId);
       }
+      if (options.after) {
+        suche.set('after', options.after);
+      }
 
       const raw = await discordRequest<{
         audit_log_entries?: unknown[];
-        users?: Array<{ id?: string; username?: string }>;
+        users?: Array<{ id?: string; username?: string; bot?: boolean }>;
       }>(`${await guildRoute()}/audit-logs?${suche.toString()}`);
 
-      const namen = new Map(
-        (raw.users ?? []).flatMap((benutzer) =>
-          benutzer.id ? [[benutzer.id, benutzer.username ?? null] as const] : [],
+      // Discord liefert die Handelnden getrennt von den Eintraegen. Neben dem
+      // Namen zaehlt hier, ob es ein Bot war - in der Moderationsakte ist das
+      // ein Unterschied.
+      const benutzer = new Map(
+        (raw.users ?? []).flatMap((eintrag) =>
+          eintrag.id
+            ? [[eintrag.id, { name: eintrag.username ?? null, bot: eintrag.bot ?? false }] as const]
+            : [],
         ),
       );
 
@@ -716,7 +724,8 @@ export function createRestGateway(): DiscordGateway {
             id: zeile.id,
             actionType: zeile.action_type,
             userId: zeile.user_id ?? null,
-            username: zeile.user_id ? (namen.get(zeile.user_id) ?? null) : null,
+            username: zeile.user_id ? (benutzer.get(zeile.user_id)?.name ?? null) : null,
+            bot: zeile.user_id ? (benutzer.get(zeile.user_id)?.bot ?? null) : null,
             targetId: zeile.target_id ?? null,
             reason: zeile.reason ?? null,
             count: Number.isFinite(zahl) ? zahl : null,

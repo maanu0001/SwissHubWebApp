@@ -194,7 +194,19 @@ export interface DiscordGateway {
      *
      * @param actionType Discords numerischer Typ (z.B. 72 = Nachricht geloescht).
      */
-    auditLog(options: { actionType?: number; userId?: string; limit?: number }): Promise<AuditLogEntry[]>;
+    auditLog(options: {
+      actionType?: number;
+      userId?: string;
+      limit?: number;
+      /**
+       * Nur Eintraege neuer als diese Kennung.
+       *
+       * Audit-Kennungen sind Snowflakes und damit aufsteigend - `after`
+       * erlaubt deshalb einen Abgleichlauf, der beim letzten verarbeiteten
+       * Eintrag weitermacht, statt jedes Mal von vorn zu lesen.
+       */
+      after?: string;
+    }): Promise<AuditLogEntry[]>;
   };
   bot: {
     identity(): Promise<BotIdentity>;

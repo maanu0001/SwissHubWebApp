@@ -1,9 +1,10 @@
 import { AUDIT_ACTIONS, prisma, safeRecordAudit } from '@swisshub/database';
-import type { ModerationAction, ModerationActionType } from '@swisshub/database';
+import type { ModerationAction, ModerationActionType, ModerationSource } from '@swisshub/database';
 import { discord as defaultDiscord, type DiscordGateway } from '@swisshub/discord';
 import { createLogger } from '@swisshub/logger';
 import { AppError, sanitizeText } from '@swisshub/shared';
 import { MODERATION_PERMISSIONS } from './permissions';
+import { meldeMassnahme } from './events';
 import { assertRangfolge, loadModerationPolicyContext, type ModerationPolicyContext } from './policy';
 
 const log = createLogger('moderation');
@@ -126,6 +127,11 @@ async function vermerke(input: {
   metadata?: Record<string, unknown>;
   auditAction: string;
   errorMessage?: string;
+  /**
+   * Woher die Massnahme kam. Ohne Angabe `WEBAPP` - das Moderation Center
+   * ist der einzige Weg hier hinein, und er fuehrt ueber das Dashboard.
+   */
+  source?: ModerationSource;
 }): Promise<ModerationAction> {
   const eintrag = await prisma.moderationAction.create({
     data: {
@@ -140,7 +146,9 @@ async function vermerke(input: {
       // Nur ein tatsaechlich gesetzter Timeout laeuft - ein gescheiterter
       // Versuch bekommt kein Ablaufdatum, sonst zaehlte er als aktiv.
       expiresAt: input.status === 'COMPLETED' ? (input.expiresAt ?? null) : null,
-      metadata: { source: 'WEBAPP', ...(input.metadata ?? {}) },
+      source: input.source ?? 'WEBAPP',
+      actorType: 'HUMAN',
+      metadata: { source: input.source ?? 'WEBAPP', ...(input.metadata ?? {}) },
     },
   });
 
@@ -155,6 +163,12 @@ async function vermerke(input: {
     errorMessage: input.errorMessage ?? null,
     metadata: { reason: input.reason, ...(input.metadata ?? {}) },
   });
+
+  // Dieselbe Meldung, die auch eine direkt in Discord verhaengte Massnahme
+  // ausloest. Eine Automation, die auf Banns hoert, hoert damit auf alle.
+  if (input.status === 'COMPLETED') {
+    await meldeMassnahme(eintrag);
+  }
 
   return eintrag;
 }

@@ -11,9 +11,10 @@ import { moderationSections } from '@/server/moderation';
 import { ModerationSectionNav } from '@/modules/moderation/components/section-nav';
 import { ActionTypeBadge } from '@/modules/moderation/components/action-type-badge';
 import { HistoryFilters } from '@/modules/moderation/components/history-filters';
-import { ACTION_TYPES } from '@/modules/moderation/sections';
+import { ACTION_TYPES, SOURCES } from '@/modules/moderation/sections';
+import { SourceBadge } from '@/modules/moderation/components/source-badge';
 import { cn } from '@/lib/utils';
-import type { ModerationAction, ModerationActionType } from '@swisshub/database';
+import type { ModerationAction, ModerationActionType, ModerationSource } from '@swisshub/database';
 
 export const metadata: Metadata = { title: 'Moderationsverlauf' };
 export const dynamic = 'force-dynamic';
@@ -27,6 +28,10 @@ const querySchema = z.object({
     .transform((wert) =>
       wert && (ACTION_TYPES as string[]).includes(wert) ? (wert as ModerationActionType) : undefined,
     ),
+  quelle: z
+    .string()
+    .optional()
+    .transform((wert) => (wert && (SOURCES as string[]).includes(wert) ? (wert as ModerationSource) : undefined)),
   member: z
     .string()
     .max(30)
@@ -76,6 +81,7 @@ export default async function ModerationVerlaufPage({
     actorDiscordId: query.actor,
     von: alsDatum(query.von),
     bis: alsDatum(query.bis, true),
+    source: query.quelle ? [query.quelle] : undefined,
     cursor: query.cursor,
     pageSize: PAGE_SIZE,
   });
@@ -84,6 +90,7 @@ export default async function ModerationVerlaufPage({
     const suche = new URLSearchParams();
     for (const [schluessel, wert] of Object.entries({
       type: query.type,
+      quelle: query.quelle,
       member: query.member,
       actor: query.actor,
       von: query.von,
@@ -103,6 +110,7 @@ export default async function ModerationVerlaufPage({
 
       <HistoryFilters
         type={query.type ?? ''}
+        quelle={query.quelle ?? ''}
         member={query.member ?? ''}
         actor={query.actor ?? ''}
         von={query.von ?? ''}
@@ -137,14 +145,33 @@ export default async function ModerationVerlaufPage({
           {
             key: 'actor',
             header: 'Moderator',
-            render: (row: ModerationAction) => row.actorUsername,
+            render: (row: ModerationAction) => (
+              <span className="whitespace-nowrap">
+                {row.actorUsername}
+                {/* Ein Bot handelt anders als ein Mensch - das gehoert an den
+                    Namen, nicht in eine Fussnote. */}
+                {row.actorType === 'BOT' ? (
+                  <span className="ml-1.5 text-xs text-muted-foreground">(Bot)</span>
+                ) : null}
+              </span>
+            ),
+          },
+          {
+            key: 'source',
+            header: 'Quelle',
+            render: (row: ModerationAction) => <SourceBadge source={row.source} />,
           },
           {
             key: 'reason',
             header: 'Grund',
             className: 'max-w-xs',
             render: (row: ModerationAction) => (
-              <span className="line-clamp-2 break-words text-muted-foreground">{row.reason ?? '—'}</span>
+              // Bei einer Massnahme aus dem Dashboard ist der Grund Pflicht,
+              // bei einer aus Discord steht hier, was Discord hergab - und
+              // manchmal gab es nichts her. Erfunden wird keiner.
+              <span className="line-clamp-2 break-words text-muted-foreground">
+                {row.reason ?? 'Kein Grund angegeben'}
+              </span>
             ),
           },
           {

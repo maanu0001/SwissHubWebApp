@@ -61,11 +61,14 @@ const ZUSTAND: Record<
 export function LogKanalVerwaltung({
   ziele,
   channels,
+  csrfToken,
   darfVerwalten,
   darfTesten,
 }: {
   ziele: LogZielAnsicht[];
   channels: ChannelOption[];
+  /** Muss an jede Aktion mit - ohne ihn greift die Sicherheitskette. */
+  csrfToken: string;
   darfVerwalten: boolean;
   darfTesten: boolean;
 }): React.JSX.Element {
@@ -75,7 +78,7 @@ export function LogKanalVerwaltung({
 
   function speichere(category: string, channelId: string | undefined): void {
     starte(async () => {
-      const ergebnis = await setzeLogKanalAction({ category, channelId: channelId ?? null });
+      const ergebnis = await setzeLogKanalAction({ csrfToken, category, channelId: channelId ?? null });
       setMeldung(
         ergebnis.ok
           ? { art: 'ok', text: 'Gespeichert.' }
@@ -89,7 +92,7 @@ export function LogKanalVerwaltung({
       return;
     }
     starte(async () => {
-      const ergebnis = await setzeAlleLogKanaeleAction({ channelId: sammelKanal });
+      const ergebnis = await setzeAlleLogKanaeleAction({ csrfToken, channelId: sammelKanal });
       setMeldung(
         ergebnis.ok
           ? { art: 'ok', text: 'Alle Kategorien wurden diesem Kanal zugewiesen.' }
@@ -100,7 +103,7 @@ export function LogKanalVerwaltung({
 
   function teste(category: string): void {
     starte(async () => {
-      const ergebnis = await sendeLogTestAction({ category });
+      const ergebnis = await sendeLogTestAction({ csrfToken, category });
       setMeldung(
         ergebnis.ok
           ? { art: 'ok', text: 'Testnachricht gesendet.' }

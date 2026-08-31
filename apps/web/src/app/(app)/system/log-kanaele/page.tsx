@@ -3,7 +3,7 @@ import { can } from '@swisshub/auth';
 import { logs } from '@swisshub/modules';
 import { formatDateTime } from '@swisshub/shared';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { requirePagePermission } from '@/server/auth';
+import { csrfTokenFor, requirePagePermission } from '@/server/auth';
 import { loadDiscordOptions } from '@/server/configuration';
 import { LogKanalVerwaltung } from '@/modules/logs/components/log-kanal-verwaltung';
 
@@ -20,6 +20,9 @@ export const dynamic = 'force-dynamic';
  */
 export default async function LogKanaelePage(): Promise<React.JSX.Element> {
   const context = await requirePagePermission('logs.discord.view');
+  // Ohne ihn weist die Sicherheitskette jede Aktion ab - `defineAction` prueft
+  // ihn vor allem anderen ausser der Anmeldung.
+  const csrfToken = csrfTokenFor(context);
   const [ziele, optionen] = await Promise.all([logs.ladeZiele(), loadDiscordOptions()]);
 
   // Nur Kanäle, in die sich schreiben lässt. Sprachkanäle, Kategorien und
@@ -65,6 +68,7 @@ export default async function LogKanaelePage(): Promise<React.JSX.Element> {
           lastErrorCode: ziel.lastErrorCode,
         }))}
         channels={kanaele}
+        csrfToken={csrfToken}
         darfVerwalten={can(context, 'logs.discord.manage')}
         darfTesten={can(context, 'logs.discord.test')}
       />

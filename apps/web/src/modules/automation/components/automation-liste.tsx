@@ -4,7 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { AlertTriangle, Lock, Pencil, Play, Trash2 } from 'lucide-react';
+import { AlertTriangle, Lock, Pencil, Play, Trash2, Zap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { EmptyState } from '@/components/shared/states';
@@ -54,6 +54,8 @@ export function AutomationListe({
   const router = useRouter();
   const [pending, setPending] = useState<string | null>(null);
   const [loeschen, setLoeschen] = useState<AutomationZeile | null>(null);
+  /** Die Automation, deren produktiver Lauf gerade bestaetigt werden soll. */
+  const [ausfuehren, setAusfuehren] = useState<AutomationZeile | null>(null);
 
   if (automationen.length === 0) {
     return (
@@ -87,20 +89,38 @@ export function AutomationListe({
     }
   };
 
-  const probelauf = async (zeile: AutomationZeile): Promise<void> => {
+  /**
+   * Der Lauf - einmal als Probe, einmal in echt.
+   *
+   * Dieselbe Aktion, dieselbe Engine, ein Schalter Unterschied. Genau der
+   * fehlte: der Knopf rief `dryRun: true` fest verdrahtet auf, und damit gab
+   * es in der ganzen Oberflaeche keinen Weg, eine Automation wirklich
+   * laufen zu lassen. Alles darunter - Executor, Server Action,
+   * Berechtigung, Historie - konnte es die ganze Zeit.
+   */
+  const lauf = async (zeile: AutomationZeile, echt: boolean): Promise<void> => {
     setPending(zeile.id);
     try {
-      const antwort = await starteAutomationAction({ csrfToken, id: zeile.id, dryRun: true });
+      const antwort = await starteAutomationAction({ csrfToken, id: zeile.id, dryRun: !echt });
       if (!antwort.ok) {
         toast.error(antwort.error.message);
         return;
       }
       const schritte = antwort.data.schritte ?? [];
-      toast.success('Probelauf fertig', {
-        description:
-          schritte.length === 0
-            ? 'Die Bedingungen trafen nicht zu - es wäre nichts geschehen.'
+      const nichts = schritte.length === 0;
+      if (echt) {
+        toast.success('Ausgeführt', {
+          description: nichts
+            ? 'Die Bedingungen trafen nicht zu - es ist nichts geschehen.'
             : schritte.map((schritt) => schritt.detail ?? schritt.label).join(' · '),
+        });
+        router.refresh();
+        return;
+      }
+      toast.success('Probelauf fertig', {
+        description: nichts
+          ? 'Die Bedingungen trafen nicht zu - es wäre nichts geschehen.'
+          : schritte.map((schritt) => schritt.detail ?? schritt.label).join(' · '),
       });
     } finally {
       setPending(null);
@@ -149,16 +169,33 @@ export function AutomationListe({
 
             <div className="flex items-center gap-1">
               {darfStarten ? (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  disabled={pending === zeile.id}
-                  onClick={() => void probelauf(zeile)}
-                  title="Probelauf - prüft Bedingungen, führt nichts aus"
-                >
-                  <Play aria-hidden="true" />
-                  <span className="sr-only">Probelauf</span>
-                </Button>
+                <>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    disabled={pending === zeile.id}
+                    onClick={() => void lauf(zeile, false)}
+                    title="Probelauf - prüft Bedingungen, führt nichts aus"
+                  >
+                    <Play aria-hidden="true" />
+                    <span className="sr-only">Probelauf</span>
+                  </Button>
+                  {/*
+                    Getrennter Knopf statt eines Schalters am Probelauf: was
+                    echte Wirkung hat, soll man absichtlich anklicken und
+                    nicht versehentlich umstellen.
+                  */}
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    disabled={pending === zeile.id}
+                    onClick={() => setAusfuehren(zeile)}
+                    title="Jetzt ausführen - löst echte Aktionen aus"
+                  >
+                    <Zap aria-hidden="true" />
+                    <span className="sr-only">Jetzt ausführen</span>
+                  </Button>
+                </>
               ) : null}
               {darfBearbeiten && !zeile.istSystem ? (
                 <Button variant="ghost" size="icon" asChild>
@@ -178,6 +215,34 @@ export function AutomationListe({
           </li>
         ))}
       </ul>
+
+      <ConfirmationDialog
+        open={ausfuehren !== null}
+        onOpenChange={(offen) => {
+          if (!offen) {
+            setAusfuehren(null);
+          }
+        }}
+        title={`«${ausfuehren?.name ?? ''}» jetzt ausführen?`}
+        description={
+          <>
+            Diese Automation wird produktiv ausgeführt und kann echte Aktionen auf Discord und im SwissHub
+            System auslösen - Nachrichten senden, Rollen ändern, Massnahmen anstossen.
+            {ausfuehren && !ausfuehren.enabled
+              ? ' Die Automation ist ausgeschaltet; dieser eine Lauf findet trotzdem statt, sie bleibt danach aus.'
+              : ''}
+          </>
+        }
+        confirmLabel="Produktiv ausführen"
+        onConfirm={async () => {
+          if (!ausfuehren) {
+            return;
+          }
+          const zeile = ausfuehren;
+          setAusfuehren(null);
+          await lauf(zeile, true);
+        }}
+      />
 
       <ConfirmationDialog
         open={loeschen !== null}

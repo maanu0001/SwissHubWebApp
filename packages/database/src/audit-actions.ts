@@ -239,6 +239,22 @@ export const AUDIT_ACTIONS = {
   AUTOMATION_EXECUTED: 'AUTOMATION_EXECUTED',
   AUTOMATION_APPROVAL_GRANTED: 'AUTOMATION_APPROVAL_GRANTED',
   AUTOMATION_APPROVAL_REJECTED: 'AUTOMATION_APPROVAL_REJECTED',
+  // --- Uebertragung auf eine andere Guild ----------------------------------
+  //
+  // Eine Uebertragung schreibt Berechtigungen und Moduleinstellungen einer
+  // ganzen Installation. Wer sie angestossen hat, von wo nach wo, und was
+  // dabei geschah, muss hinterher nachlesbar sein - Zugangsdaten stehen
+  // dabei nie im Protokoll, weil sie auch nie im Paket stehen.
+  MIGRATION_CREATED: 'MIGRATION_CREATED',
+  MIGRATION_EXPORTED: 'MIGRATION_EXPORTED',
+  MIGRATION_IMPORTED: 'MIGRATION_IMPORTED',
+  MIGRATION_MAPPED: 'MIGRATION_MAPPED',
+  MIGRATION_DRY_RUN: 'MIGRATION_DRY_RUN',
+  MIGRATION_STARTED: 'MIGRATION_STARTED',
+  MIGRATION_APPLIED: 'MIGRATION_APPLIED',
+  MIGRATION_COMPLETED: 'MIGRATION_COMPLETED',
+  MIGRATION_FAILED: 'MIGRATION_FAILED',
+  MIGRATION_ROLLED_BACK: 'MIGRATION_ROLLED_BACK',
   // --- Entbannungsantraege -------------------------------------------------
   //
   // Protokolliert wird jeder Schritt, der den Fall bewegt: eingereicht,

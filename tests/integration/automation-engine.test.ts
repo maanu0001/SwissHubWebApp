@@ -594,6 +594,76 @@ describeWithDatabase('Automation Engine', () => {
     expect(ergebnis.schritte?.[0]?.detail).toContain(KANAL);
   });
 
+  it('führt von Hand ausgelöst die Aktion tatsächlich aus', async () => {
+    /*
+      Der eigentliche Fehler steckte nicht hier, sondern in der Oberfläche:
+      der Knopf rief `dryRun: true` fest verdrahtet auf, und damit gab es
+      keinen Weg, eine Automation von Hand wirklich laufen zu lassen. Die
+      Engine konnte es die ganze Zeit - dieser Fall hält das fest, damit es
+      nicht wieder unbemerkt verlorengeht.
+    */
+    const eintrag = await legeAutomationAn();
+    const { gateway, gesendet } = attrappe();
+
+    const ergebnis = await automation.starte({
+      automation: eintrag,
+      trigger: 'manual',
+      guildId: GILDE,
+      gateway,
+      dryRun: false,
+    });
+
+    expect(gesendet).toHaveLength(1);
+    expect(gesendet[0]?.channelId).toBe(KANAL);
+    expect(ergebnis.status).toBe('SUCCESS');
+    expect(ergebnis.schritte?.[0]?.status).not.toBe('DRY_RUN');
+  });
+
+  it('hält den Modus im Verlauf fest', async () => {
+    // Sonst liesse sich hinterher nicht sagen, ob ein Lauf etwas bewirkt hat.
+    const eintrag = await legeAutomationAn();
+    const { gateway } = attrappe();
+
+    const probe = await automation.starte({
+      automation: eintrag,
+      trigger: 'manual',
+      guildId: GILDE,
+      gateway,
+      dryRun: true,
+    });
+    const echt = await automation.starte({
+      automation: eintrag,
+      trigger: 'manual',
+      guildId: GILDE,
+      gateway,
+      dryRun: false,
+    });
+
+    const [probeLauf, echterLauf] = await Promise.all([
+      prisma.automationRun.findUniqueOrThrow({ where: { id: probe.runId! } }),
+      prisma.automationRun.findUniqueOrThrow({ where: { id: echt.runId! } }),
+    ]);
+
+    expect(probeLauf.dryRun).toBe(true);
+    expect(echterLauf.dryRun).toBe(false);
+  });
+
+  it('prüft im Probelauf dieselben Bedingungen wie im echten Lauf', async () => {
+    // Zwei Modi derselben Engine - nicht zwei Ausführungssysteme. Träfe der
+    // Probelauf andere Entscheidungen, sagte er nichts über den echten aus.
+    const eintrag = await legeAutomationAn();
+    const { gateway, gesendet } = attrappe();
+    const basis = { automation: eintrag, trigger: 'manual' as const, guildId: GILDE, gateway };
+
+    const probe = await automation.starte({ ...basis, dryRun: true });
+    const echt = await automation.starte({ ...basis, dryRun: false });
+
+    expect(probe.status).toBe(echt.status);
+    expect(probe.schritte?.length).toBe(echt.schritte?.length);
+    // Der einzige Unterschied ist die Wirkung.
+    expect(gesendet).toHaveLength(1);
+  });
+
   it('lässt sich beliebig oft als Probelauf wiederholen', async () => {
     const eintrag = await legeAutomationAn();
     const { gateway } = attrappe();

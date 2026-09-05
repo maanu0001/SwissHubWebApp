@@ -147,6 +147,16 @@ export const RATE_LIMITS = {
   automationExecute: { limit: 20, windowMs: 5 * 60 * 1000 },
 
   /**
+   * Eine Uebertragung vorbereiten oder anwenden.
+   *
+   * Sehr eng. Ein Export liest die halbe Konfiguration, ein Probelauf
+   * rechnet sie durch, und das Anwenden schreibt sie - nichts davon macht
+   * jemand zwanzigmal in fuenf Minuten. Die Grenze schuetzt hier nicht vor
+   * Missbrauch, sondern vor einem festgehaltenen Knopf.
+   */
+  migration: { limit: 10, windowMs: 5 * 60 * 1000 },
+
+  /**
    * Einen Entbannungsantrag einreichen.
    *
    * Sehr eng, und das ist der Punkt: es gibt genau einen Grund, in einer

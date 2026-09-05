@@ -31,6 +31,8 @@ export type {
   AutomationKind,
   AutomationRun,
   AutomationRunStatus,
+  MigrationRun,
+  MigrationRunStatus,
   AutomationStepRun,
   AutomationStepStatus,
   AutomationVersion,

@@ -16,6 +16,7 @@ import './calendar/config';
 import './verification/config';
 // Die Automation Engine: Ereignisse, Aktionen und Vorlagen der Module.
 import './automation';
+import './migration';
 // Entbannungsantraege - registriert Modul und Automations-Ereignisse.
 import './appeals/config';
 import './appeals/events';
@@ -61,4 +62,5 @@ export * as calendar from './calendar';
 export * as ai from './ai';
 export * as verification from './verification';
 export * as automation from './automation';
+export * as migration from './migration';
 export * as appeals from './appeals';

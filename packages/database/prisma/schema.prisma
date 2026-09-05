@@ -5692,3 +5692,68 @@ model DiscordLogDelivery {
   @@index([status, runAt])
   @@index([channelId, createdAt])
 }
+
+/// Wie weit eine Übertragung ist.
+///
+/// `PARTIAL` ist kein Zwischenzustand, sondern ein Ergebnis: einzelne
+/// Phasen sind durchgelaufen, eine ist gescheitert, und was bereits
+/// angewendet wurde, steht auch so in der Ziel-Guild. Wer das als `FAILED`
+/// führte, verschwiege den halben Zustand.
+enum MigrationRunStatus {
+  DRAFT
+  VALIDATING
+  READY
+  RUNNING
+  PARTIAL
+  COMPLETED
+  FAILED
+  ROLLED_BACK
+}
+
+/// Eine Übertragung der Konfiguration auf eine andere Guild.
+///
+/// Der Lauf steht in der Datenbank und nicht im Browser: eine Übertragung
+/// legt Discord-Objekte an und schreibt Einstellungen, und wer das an einen
+/// Reiter bindet, verliert bei jedem Neuladen den Überblick darüber, was
+/// bereits geschehen ist.
+///
+/// Was hier NICHT steht, ist genauso wichtig: keine Secrets, keine Tokens,
+/// kein Schlüsselmaterial. Das Paket trägt Konfiguration - Modulzustände,
+/// Berechtigungen, Automationen - und Verweise auf Rollen und Kanäle, die
+/// beim Anwenden übersetzt werden.
+model MigrationRun {
+  id String @id @default(cuid())
+
+  /// Woher. Die Guild, in der dieser Lauf angelegt wurde.
+  sourceGuildId String
+  /// Wohin. Muss eine Guild sein, auf der der Bot Mitglied ist.
+  targetGuildId String
+
+  status MigrationRunStatus @default(DRAFT)
+  /// Die zuletzt begonnene Phase - für die Fortschrittsanzeige.
+  phase  String?
+
+  /// Das Paket: Module, Einstellungen, Berechtigungen, Automationen.
+  package Json
+  /// Zuordnung von Quell- zu Ziel-Rollen und -Kanälen.
+  mappings Json @default("{}")
+  /// Was ein Probelauf ergeben hat - die geplanten Änderungen.
+  plan Json?
+  /// Der Zustand des Ziels vor dem Anwenden. Grundlage für die Rücknahme.
+  snapshot Json?
+  /// Was tatsächlich geschehen ist, Phase für Phase.
+  report Json?
+
+  error String?
+
+  createdByDiscordId String
+  createdByUsername  String
+
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  startedAt  DateTime?
+  finishedAt DateTime?
+
+  @@index([sourceGuildId, createdAt])
+  @@index([status, createdAt])
+}

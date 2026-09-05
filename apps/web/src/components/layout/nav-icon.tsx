@@ -34,6 +34,7 @@ import {
   UserRound,
   UserSearch,
   Volume2,
+  ArrowRightLeft,
   Workflow,
   type LucideIcon,
 } from 'lucide-react';
@@ -81,6 +82,7 @@ const ICONS: Record<string, LucideIcon> = {
   UserRound,
   UserSearch,
   Volume2,
+  ArrowRightLeft,
   Workflow,
 };
 

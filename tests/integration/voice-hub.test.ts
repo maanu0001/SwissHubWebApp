@@ -39,10 +39,26 @@ const viewer = (discordId: string, rechte: string[]) => ({
   can: (permission: string) => rechte.includes(permission),
 });
 
-const kontext = (discordId: string, username: string, rechte: string[]) => ({
+/**
+ * Ein Handelnder auf dem Discord-Weg.
+ *
+ * Die Vorgabe ist Absicht: den eigenen Talk bedient man im Bedienfeld auf
+ * Discord. Wer aus dem Dashboard heraus handelt, braucht Verwaltungsrechte -
+ * `webKontext` ist der Weg dafuer, und die Regel selbst steht weiter unten.
+ */
+const kontext = (
+  discordId: string,
+  username: string,
+  rechte: string[],
+  source: 'DISCORD' | 'WEBAPP' = 'DISCORD',
+) => ({
   viewer: viewer(discordId, rechte),
-  actor: { discordId, username, source: 'WEBAPP' as const },
+  actor: { discordId, username, source },
 });
+
+/** Derselbe Handelnde, aber aus dem Dashboard. */
+const webKontext = (discordId: string, username: string, rechte: string[]) =>
+  kontext(discordId, username, rechte, 'WEBAPP');
 
 /** Alle Rechte des eigenen Talks - fuer Faelle, in denen sie nicht der Punkt sind. */
 const EIGENE_RECHTE = [
@@ -898,5 +914,167 @@ describeWithDatabase('Voice Hub', () => {
     const gelesen = voiceHub.leseKnopfId(id);
     expect(gelesen).toEqual({ action: 'lock', kanalId: 'cmt123456789012345678901' });
     expect(voiceHub.leseKnopfId('tournaments:result:abc')).toBeNull();
+  });
+  // --- Wo der eigene Talk bedient wird -----------------------------------
+  //
+  // Zwei Bedienfelder fuer dieselbe Sache waren eines zu viel. Das auf
+  // Discord steht im Talk selbst; das im Browser verlangte, den Server zu
+  // verlassen, um den Kanal zu aendern, in dem man gerade sitzt.
+  //
+  // Die Regel steht im Modul und nicht in der Oberflaeche: was fehlt, ist der
+  // Knopf, nicht die Pruefung. Ein Aufruf, der die Seite umgeht, wird
+  // genauso abgewiesen.
+
+  it('lässt den Besitzer seinen Talk auf Discord bedienen', async () => {
+    const p = await preset();
+    await hub(p.id);
+    const erstellt = await voiceHub.handleHubJoin(beitritt('900000000000002501', 'anna'));
+    if (erstellt.art !== 'ERSTELLT') {
+      throw new Error('Talk nicht erstellt');
+    }
+
+    const umbenannt = await voiceHub.renameTalk(
+      kontext('900000000000002501', 'anna', EIGENE_RECHTE),
+      erstellt.kanal.id,
+      'Annas Runde',
+    );
+
+    expect(umbenannt.name).toBe('Annas Runde');
+  });
+
+  it('weist denselben Besitzer aus dem Dashboard ab', async () => {
+    const p = await preset();
+    await hub(p.id);
+    const erstellt = await voiceHub.handleHubJoin(beitritt('900000000000002502', 'anna'));
+    if (erstellt.art !== 'ERSTELLT') {
+      throw new Error('Talk nicht erstellt');
+    }
+
+    await expect(
+      voiceHub.renameTalk(
+        webKontext('900000000000002502', 'anna', EIGENE_RECHTE),
+        erstellt.kanal.id,
+        'Aus dem Browser',
+      ),
+    ).rejects.toThrow();
+
+    // Und zwar wirklich abgewiesen - nicht bloss stillschweigend übergangen.
+    const frisch = await prisma.temporaryVoiceChannel.findUniqueOrThrow({
+      where: { id: erstellt.kanal.id },
+    });
+    expect(frisch.name).not.toBe('Aus dem Browser');
+  });
+
+  it('weist auch Mitgliederaktionen aus dem Dashboard ab', async () => {
+    const p = await preset();
+    await hub(p.id);
+    const erstellt = await voiceHub.handleHubJoin(beitritt('900000000000002503', 'anna'));
+    if (erstellt.art !== 'ERSTELLT') {
+      throw new Error('Talk nicht erstellt');
+    }
+    const eigener = webKontext('900000000000002503', 'anna', EIGENE_RECHTE);
+
+    await expect(
+      voiceHub.allowInTalk(eigener, erstellt.kanal.id, {
+        discordId: '900000000000002504',
+        username: 'ben',
+      }),
+    ).rejects.toThrow();
+    await expect(
+      voiceHub.kickFromTalk(eigener, erstellt.kanal.id, '900000000000002504'),
+    ).rejects.toThrow();
+    await expect(
+      voiceHub.transferTalk(eigener, erstellt.kanal.id, {
+        discordId: '900000000000002504',
+        username: 'ben',
+      }),
+    ).rejects.toThrow();
+    await expect(voiceHub.deleteTalk(eigener, erstellt.kanal.id)).rejects.toThrow();
+  });
+
+  it('lässt die Verwaltung weiterhin aus dem Dashboard eingreifen', async () => {
+    // Sie greift von aussen ein, oft in einen Talk, in dem sie gar nicht
+    // sitzt - dafür ist die Übersicht im Dashboard der richtige Ort.
+    const p = await preset();
+    await hub(p.id);
+    const erstellt = await voiceHub.handleHubJoin(beitritt('900000000000002505', 'anna'));
+    if (erstellt.art !== 'ERSTELLT') {
+      throw new Error('Talk nicht erstellt');
+    }
+
+    const umbenannt = await voiceHub.renameTalk(
+      webKontext('900000000000002506', 'mod', ['voiceHub.admin.view', 'voiceHub.admin.manage']),
+      erstellt.kanal.id,
+      'Von der Leitung',
+    );
+
+    expect(umbenannt.name).toBe('Von der Leitung');
+  });
+
+  it('lässt einen Moderator auch seinen eigenen Talk aus dem Dashboard bedienen', async () => {
+    // Sonst wäre er in seinem eigenen Talk schlechter gestellt als in einem
+    // fremden - `alsVerwaltung` allein hätte genau das getan.
+    const p = await preset();
+    await hub(p.id);
+    const erstellt = await voiceHub.handleHubJoin(beitritt('900000000000002507', 'mod'));
+    if (erstellt.art !== 'ERSTELLT') {
+      throw new Error('Talk nicht erstellt');
+    }
+
+    const umbenannt = await voiceHub.renameTalk(
+      webKontext('900000000000002507', 'mod', [
+        ...EIGENE_RECHTE,
+        'voiceHub.admin.view',
+        'voiceHub.admin.manage',
+      ]),
+      erstellt.kanal.id,
+      'Mein eigener',
+    );
+
+    expect(umbenannt.name).toBe('Mein eigener');
+  });
+
+  it('lässt das Bedienfeld auch aus dem Dashboard erneuern', async () => {
+    // Die eine Ausnahme, und sie hat einen Grund: wer sein Bedienfeld verloren
+    // hat, kann es nicht über das Bedienfeld zurückholen.
+    const p = await preset();
+    await hub(p.id);
+    const erstellt = await voiceHub.handleHubJoin(beitritt('900000000000002508', 'anna'));
+    if (erstellt.art !== 'ERSTELLT') {
+      throw new Error('Talk nicht erstellt');
+    }
+    await prisma.temporaryVoiceChannel.update({
+      where: { id: erstellt.kanal.id },
+      data: { controlMessageId: null },
+    });
+
+    await expect(
+      voiceHub.repairTalkPanel(
+        webKontext('900000000000002508', 'anna', EIGENE_RECHTE),
+        erstellt.kanal.id,
+      ),
+    ).resolves.toBe(true);
+  });
+
+  it('unterscheidet Verwaltungsrechte von der Rolle im eigenen Talk', () => {
+    const kanal = { ownerDiscordId: '900000000000002509' } as never;
+
+    const besitzer = voiceHub.getVoiceAccess(
+      viewer('900000000000002509', EIGENE_RECHTE),
+      kanal,
+    );
+    expect(besitzer.istBesitzer).toBe(true);
+    expect(besitzer.istVerwaltung).toBe(false);
+    expect(voiceHub.darfUeberWebApp(besitzer)).toBe(false);
+
+    const modMitEigenem = voiceHub.getVoiceAccess(
+      viewer('900000000000002509', [...EIGENE_RECHTE, 'voiceHub.admin.manage']),
+      kanal,
+    );
+    expect(modMitEigenem.istBesitzer).toBe(true);
+    // Er handelt als Besitzer - Verwaltungsrechte hat er trotzdem.
+    expect(modMitEigenem.alsVerwaltung).toBe(false);
+    expect(modMitEigenem.istVerwaltung).toBe(true);
+    expect(voiceHub.darfUeberWebApp(modMitEigenem)).toBe(true);
   });
 });

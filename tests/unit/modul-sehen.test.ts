@@ -219,14 +219,32 @@ describe('«Modul sehen» - bestehende Rollen', () => {
     expect(module.has('moderation')).toBe(false);
   });
 
-  it('gibt der Vorlage «Premium» Musik, aber keine Moderation', () => {
+  it('gibt der Vorlage «Premium» Musik und den Vote Jail, aber keine Moderation', () => {
     const rechte = resolvePreset(PERMISSION_PRESETS.find((v) => v.id === 'premium')!);
     const module = new Set(buildNavigation(rechte, ALLE_MODULE).map((e) => e.moduleId));
     const seiten = new Set(
       buildNavigation(rechte, ALLE_MODULE).map((eintrag) => eintrag.href),
     );
     expect(module.has('music')).toBe(true);
-    expect(module.has('jail')).toBe(false);
+
+    // Den Jail-Bereich sieht Premium, weil dort der Vote Jail beginnt - eine
+    // Abstimmung, die die Gemeinschaft führt, nicht eine Massnahme, die
+    // Premium verhängt. Moderationsrechte folgen daraus ausdrücklich nicht:
+    // wer abstimmen lassen darf, darf deswegen nicht selbst einsperren.
+    expect(module.has('jail')).toBe(true);
+    expect(rechte).toContain('jail.vote.start');
+    for (const moderationsrecht of [
+      'jail.create',
+      'jail.edit',
+      'jail.release',
+      'jail.settings',
+      'jail.import',
+      'jail.vote.multivote',
+      'jail.vote.bypassCooldown',
+    ]) {
+      expect(rechte, `Premium hat ${moderationsrecht}`).not.toContain(moderationsrecht);
+    }
+    expect(module.has('moderation')).toBe(false);
     // Das eigene Profil ja - die Mitgliedersuche nicht. Beide gehoeren zum
     // Modul «Mitglieder»; «Modul sehen» oeffnet den Bereich, nicht die Suche.
     expect(seiten.has('/profile')).toBe(true);

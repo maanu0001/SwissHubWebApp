@@ -96,6 +96,7 @@ export default async function TalkDetailPage({
         darfMitglieder={zugriff.members}
         darfUebergeben={zugriff.transfer}
         darfSchliessen={zugriff.destroy}
+        darfBedienfeldErneuern={zugriff.manage}
         alsVerwaltung={zugriff.alsVerwaltung}
       />
 

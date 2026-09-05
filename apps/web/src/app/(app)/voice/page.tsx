@@ -51,6 +51,18 @@ export default async function VoiceUebersichtPage(): Promise<React.JSX.Element> 
             <Mic className="size-4" aria-hidden="true" />
             Dein Talk
           </h2>
+          {/*
+            Den eigenen Talk bedient man auf Discord. Das Bedienfeld steht im
+            Talk selbst, also dort, wo die Leute ohnehin sind - der Weg durch
+            den Browser hiess, den Server zu verlassen, um den Kanal zu
+            ändern, in dem man gerade sitzt. Für die Verwaltung bleibt er
+            offen: sie greift von aussen ein, oft in einen Talk, in dem sie
+            gar nicht sitzt.
+
+            Dieselbe Regel gilt serverseitig - die Aktion weist einen Aufruf
+            ohne Verwaltungsrechte ab. Was hier fehlt, ist der Knopf, nicht
+            die Prüfung.
+          */}
           <TalkPanel
             csrfToken={csrfToken}
             guildId={guildId}
@@ -77,11 +89,19 @@ export default async function VoiceUebersichtPage(): Promise<React.JSX.Element> 
               username: eintrag.username,
               kind: eintrag.kind,
             }))}
-            darfVerwalten={zugriff.manage}
-            darfMitglieder={zugriff.members}
-            darfUebergeben={zugriff.transfer}
-            darfSchliessen={zugriff.destroy}
+            darfVerwalten={zugriff.manage && zugriff.istVerwaltung}
+            darfMitglieder={zugriff.members && zugriff.istVerwaltung}
+            darfUebergeben={zugriff.transfer && zugriff.istVerwaltung}
+            darfSchliessen={zugriff.destroy && zugriff.istVerwaltung}
+            darfBedienfeldErneuern={zugriff.manage}
           />
+
+          {zugriff.istVerwaltung ? null : (
+            <p className="rounded-xl border border-border bg-card px-4 py-3 text-sm text-muted-foreground">
+              Namen, Limit, Sperre und wer hereindarf, stellst du im Bedienfeld
+              deines Talks auf Discord ein - dort, wo du ohnehin bist.
+            </p>
+          )}
         </section>
       ) : (
         <EmptyState

@@ -37,6 +37,14 @@ export interface VoiceZugriff {
   istBesitzer: boolean;
   /** Handelt er als Verwaltung statt als Besitzer? */
   alsVerwaltung: boolean;
+  /**
+   * Hat er Verwaltungsrechte - unabhaengig davon, wem der Talk gehoert?
+   *
+   * Der Unterschied zu `alsVerwaltung` faellt bei genau einem Fall ins
+   * Gewicht: der Moderator, dem der Talk selbst gehoert. Er handelt dann als
+   * Besitzer, hat die Rechte der Verwaltung aber trotzdem.
+   */
+  istVerwaltung: boolean;
 }
 
 const KEIN_ZUGRIFF: VoiceZugriff = {
@@ -47,6 +55,7 @@ const KEIN_ZUGRIFF: VoiceZugriff = {
   destroy: false,
   istBesitzer: false,
   alsVerwaltung: false,
+  istVerwaltung: false,
 };
 
 /**
@@ -78,7 +87,39 @@ export function getVoiceAccess(viewer: VoiceViewer, kanal: TemporaryVoiceChannel
     destroy: eigen(p.manageOwn) || viewer.can(p.adminDelete),
     istBesitzer,
     alsVerwaltung: !istBesitzer,
+    istVerwaltung: alsVerwaltung,
   };
+}
+
+/**
+ * Der eigene Talk wird auf Discord bedient, nicht im Dashboard.
+ *
+ * Zwei Bedienfelder fuer dieselbe Sache waren eines zu viel. Das auf Discord
+ * steht im Talk selbst, also dort, wo die Leute ohnehin sind; das im Browser
+ * verlangte, den Server zu verlassen, um den Kanal zu aendern, in dem man
+ * gerade sitzt. Es war ausserdem das langsamere von beiden - jede Aenderung
+ * ging ueber eine Seite, die sich danach neu laedt.
+ *
+ * Fuer die Verwaltung bleibt der Weg offen: sie greift von aussen ein, oft in
+ * einen Talk, in dem sie gar nicht sitzt, und dafuer ist die Uebersicht im
+ * Dashboard der richtige Ort.
+ *
+ * Der Dienst selbst bleibt unveraendert - er entscheidet weiterhin allein
+ * ueber Besitz und Rechte. Diese Regel sagt nur, welcher *Weg* offen steht,
+ * und sie steht hier und nicht in der Server Action, damit sie sich nicht
+ * unbemerkt von der Zugriffspruefung entfernt.
+ */
+export function darfUeberWebApp(zugriff: VoiceZugriff): boolean {
+  return zugriff.istVerwaltung;
+}
+
+/** Wirft, wenn der eigene Talk aus dem Dashboard gesteuert werden soll. */
+export function assertWebAppErlaubt(zugriff: VoiceZugriff): void {
+  if (!darfUeberWebApp(zugriff)) {
+    throw new AppError('FORBIDDEN', {
+      userMessage: 'Deinen eigenen Talk bedienst du im Bedienfeld auf Discord.',
+    });
+  }
 }
 
 /** Wirft, wenn das benoetigte Recht fehlt. */

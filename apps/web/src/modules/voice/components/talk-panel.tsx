@@ -82,6 +82,7 @@ export function TalkPanel({
   darfMitglieder,
   darfUebergeben,
   darfSchliessen,
+  darfBedienfeldErneuern,
   alsVerwaltung = false,
 }: {
   csrfToken: string;
@@ -94,6 +95,14 @@ export function TalkPanel({
   darfMitglieder: boolean;
   darfUebergeben: boolean;
   darfSchliessen: boolean;
+  /**
+   * Das Bedienfeld erneuern - die eine Sache, die hier bleiben muss.
+   *
+   * Wer sein Bedienfeld auf Discord verloren hat, kann es nicht ueber das
+   * Bedienfeld zurueckholen. Ohne diesen Knopf bliebe ihm nur, den Talk zu
+   * schliessen und neu zu oeffnen.
+   */
+  darfBedienfeldErneuern: boolean;
   /** Verwaltet jemand einen fremden Talk? Dann ändert sich der Ton. */
   alsVerwaltung?: boolean;
 }): React.JSX.Element {
@@ -159,6 +168,30 @@ export function TalkPanel({
           </div>
         </div>
 
+        {darfBedienfeldErneuern && !talk.hatBedienfeld ? (
+          <div className="flex flex-wrap gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={laeuft !== null}
+              onClick={() =>
+                fuehreAus(
+                  'repair',
+                  () => repairPanelAction({ csrfToken, kanalId: talk.id }),
+                  'Bedienfeld erneuert.',
+                )
+              }
+            >
+              {laeuft === 'repair' ? (
+                <Loader2 className="animate-spin" aria-hidden="true" />
+              ) : (
+                <RefreshCw aria-hidden="true" />
+              )}
+              Bedienfeld reparieren
+            </Button>
+          </div>
+        ) : null}
+
         {darfVerwalten ? (
           <div className="flex flex-wrap gap-2">
             <Button
@@ -182,28 +215,6 @@ export function TalkPanel({
               )}
               {talk.locked ? 'Entsperren' : 'Sperren'}
             </Button>
-
-            {!talk.hatBedienfeld ? (
-              <Button
-                size="sm"
-                variant="outline"
-                disabled={laeuft !== null}
-                onClick={() =>
-                  fuehreAus(
-                    'repair',
-                    () => repairPanelAction({ csrfToken, kanalId: talk.id }),
-                    'Bedienfeld erneuert.',
-                  )
-                }
-              >
-                {laeuft === 'repair' ? (
-                  <Loader2 className="animate-spin" aria-hidden="true" />
-                ) : (
-                  <RefreshCw aria-hidden="true" />
-                )}
-                Bedienfeld reparieren
-              </Button>
-            ) : null}
 
             {darfSchliessen ? (
               <Button

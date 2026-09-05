@@ -17,7 +17,12 @@ import {
   type VoiceActor,
 } from '../voice/service';
 import { aktualisiereBedienfeld } from './control-panel';
-import { assertVoiceRecht, ladeKanalMitZugriff, type VoiceViewer } from './access';
+import {
+  assertVoiceRecht,
+  assertWebAppErlaubt,
+  ladeKanalMitZugriff,
+  type VoiceViewer,
+} from './access';
 
 /**
  * Die Aktionen eines Talks.
@@ -36,9 +41,24 @@ export interface AktionsKontext {
   actor: VoiceActor;
 }
 
-async function lade(kontext: AktionsKontext, kanalId: string) {
+/**
+ * Talk laden, Zugriff pruefen - und den Weg pruefen.
+ *
+ * `wegPruefen` ist der Regelfall: den eigenen Talk bedient man auf Discord.
+ * Zwei Bedienfelder fuer dieselbe Sache waren eines zu viel, und das im
+ * Browser war das umstaendlichere - es verlangte, den Server zu verlassen, um
+ * den Kanal zu aendern, in dem man gerade sitzt.
+ *
+ * Die Verwaltung bleibt ausgenommen: sie greift von aussen ein, oft in einen
+ * Talk, in dem sie gar nicht sitzt.
+ */
+async function lade(kontext: AktionsKontext, kanalId: string, wegPruefen = true) {
   const guildId = await resolveGuildId();
-  return ladeKanalMitZugriff(kontext.viewer, kanalId, guildId);
+  const ergebnis = await ladeKanalMitZugriff(kontext.viewer, kanalId, guildId);
+  if (wegPruefen && kontext.actor.source === 'WEBAPP') {
+    assertWebAppErlaubt(ergebnis.zugriff);
+  }
+  return ergebnis;
 }
 
 export async function renameTalk(
@@ -190,12 +210,18 @@ export async function deleteTalk(kontext: AktionsKontext, kanalId: string): Prom
   );
 }
 
-/** Legt das Bedienfeld neu an - fuer den Fall, dass es jemand geloescht hat. */
+/**
+ * Legt das Bedienfeld neu an - fuer den Fall, dass es jemand geloescht hat.
+ *
+ * Die eine Ausnahme von der Discord-Regel, und zwar aus einem Grund: wer sein
+ * Bedienfeld verloren hat, kann es nicht ueber das Bedienfeld zurueckholen.
+ * Ohne diesen Weg bliebe ihm nur, den Talk zu schliessen und neu zu oeffnen.
+ */
 export async function repairTalkPanel(
   kontext: AktionsKontext,
   kanalId: string,
 ): Promise<boolean> {
-  const { kanal, zugriff } = await lade(kontext, kanalId);
+  const { kanal, zugriff } = await lade(kontext, kanalId, false);
   assertVoiceRecht(zugriff, 'manage', 'Du kannst dieses Bedienfeld nicht erneuern.');
 
   const { repariereBedienfeld } = await import('./control-panel');

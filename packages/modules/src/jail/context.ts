@@ -41,7 +41,17 @@ export async function loadJailContext(
     gateway.guild.get().catch(() => null),
   ]);
 
-  const botHighestPosition = await gateway.bot.highestRolePosition().catch(() => 0);
+  // Ohne `catch`, und das ist Absicht.
+  //
+  // Hier stand `.catch(() => 0)`. Die Moderation Policy lehnt jedes Ziel ab,
+  // das nicht unter dem Bot steht - bei 0 ist das jeder. Ein einziger
+  // Aussetzer beim Abruf hat damit den ganzen Vote Jail lahmgelegt: die
+  // Suche fand Mitglieder, aber keines liess sich waehlen, und nirgends
+  // stand, warum.
+  //
+  // Ein Fehler soll hier ein Fehler bleiben. Dann sagt die Maske «gerade
+  // nicht erreichbar» statt «gegen niemanden moeglich».
+  const botHighestPosition = await gateway.bot.highestRolePosition();
 
   return {
     gateway,

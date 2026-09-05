@@ -284,6 +284,25 @@ async function ticketHealthChecks(context: ModuleHealthContext): Promise<ModuleH
           },
   );
 
+  // Was mit dem Kanal nach dem Abschluss geschieht.
+  //
+  // Steht hier etwas anderes als «sofort», dann bleibt der Kanal stehen -
+  // nicht als Fehler, sondern als Folge der Einstellung. Von aussen sieht
+  // beides gleich aus, und genau deshalb steht es jetzt hier: sonst sucht
+  // jemand einen Fehler, wo eine Entscheidung steht.
+  const AUFBEWAHRUNG_TEXT: Record<TicketSettings['closeBehaviour'], string> = {
+    DELETE_IMMEDIATELY: 'Der Kanal wird rund 5 Sekunden nach dem Schliessen gelöscht.',
+    KEEP_24H: 'Der Kanal bleibt nach dem Schliessen 24 Stunden stehen.',
+    KEEP_7D: 'Der Kanal bleibt nach dem Schliessen 7 Tage stehen.',
+    KEEP_FOREVER: 'Der Kanal bleibt nach dem Schliessen dauerhaft stehen.',
+  };
+  checks.push({
+    label: 'Kanal nach Abschluss',
+    status: 'ok',
+    detail: AUFBEWAHRUNG_TEXT[settings.closeBehaviour],
+    fixHref: `/modules/${TICKETS_MODULE_ID}`,
+  });
+
   // Kanalloeschungen, die nicht durchkommen.
   //
   // Der Aufraeumer versucht es unbegrenzt weiter, mit wachsendem Abstand - er

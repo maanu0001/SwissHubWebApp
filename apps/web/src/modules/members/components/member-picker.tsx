@@ -79,6 +79,21 @@ const DEBOUNCE_MS = 350;
  * Mitgliedersuche kennt `waehlbar` nicht, weil dort jeder Treffer waehlbar
  * ist - fehlt die Angabe, gilt genau das.
  */
+/**
+ * Der eine Grund, an dem alle Treffer scheitern - oder `null`.
+ *
+ * Nur wenn wirklich keiner waehlbar ist und alle denselben Grund tragen.
+ * Sonst waere es eine Verallgemeinerung: dass zufaellig beide Treffer
+ * Moderatoren sind, sagt nichts ueber die Einrichtung.
+ */
+function gemeinsamerHinderungsgrund(eintraege: Vorschlag[]): string | null {
+  if (eintraege.length === 0 || eintraege.some((eintrag) => eintrag.waehlbar)) {
+    return null;
+  }
+  const gruende = new Set(eintraege.map((eintrag) => eintrag.grund ?? 'Nicht möglich'));
+  return gruende.size === 1 ? [...gruende][0]! : null;
+}
+
 function alsVorschlag(member: SucheTreffer): Vorschlag {
   return {
     discordId: member.discordId,
@@ -244,6 +259,19 @@ export function MemberPicker({
       {stand.art === 'fehler' ? (
         <p className="px-1 py-2 text-xs text-destructive" role="alert">
           {stand.meldung}
+        </p>
+      ) : null}
+
+      {/*
+        Wenn gar nichts waehlbar ist, und immer aus demselben Grund, dann ist
+        das keine Eigenschaft der Treffer, sondern ein Zustand des Servers.
+        Er gehoert nach oben und nicht als Abzeichen an jede einzelne Zeile -
+        sonst sucht jemand den Fehler bei den Mitgliedern.
+      */}
+      {stand.art === 'treffer' && gemeinsamerHinderungsgrund(stand.eintraege) ? (
+        <p className="rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-xs" role="status">
+          Keines der gefundenen Mitglieder lässt sich auswählen:{' '}
+          <strong>{gemeinsamerHinderungsgrund(stand.eintraege)}</strong>.
         </p>
       ) : null}
 

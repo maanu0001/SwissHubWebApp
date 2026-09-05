@@ -53,7 +53,10 @@ export async function loadModerationPolicyContext(
     gateway.roles.list({ force: true }),
     gateway.bot.identity().catch(() => null),
     gateway.guild.get().catch(() => null),
-    gateway.bot.highestRolePosition().catch(() => 0),
+    // Ohne `catch`: 0 hiesse «der Bot steht ganz unten», und damit lehnte
+    // die Policy jedes Ziel ab - lautlos, weil ein abgefangener Fehler keiner
+    // mehr ist. Derselbe Fall wie beim Vote Jail.
+    gateway.bot.highestRolePosition(),
   ]);
 
   return {

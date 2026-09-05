@@ -764,10 +764,25 @@ export function createRestGateway(): DiscordGateway {
       });
     },
 
+    /**
+     * Die hoechste Rollenposition des Bots.
+     *
+     * Wirft, wenn sie sich nicht ermitteln laesst - und das ist der Punkt.
+     * Frueher stand hier `return 0`, und damit war «wir wissen es nicht»
+     * dasselbe wie «der Bot steht ganz unten». Die Moderation Policy liest
+     * diesen Wert und lehnt jedes Ziel ab, das nicht *unter* dem Bot steht;
+     * bei 0 ist das jeder, einschliesslich der Serverleitung.
+     *
+     * Ein Aussetzer beim Abruf hat so die ganze Moderation stillgelegt, ohne
+     * dass irgendwo ein Fehler auftauchte. 0 ist eine gueltige Position und
+     * taugt deshalb nicht als Platzhalter fuer «unbekannt».
+     */
     async highestRolePosition() {
       const [botMember, allRoles] = await Promise.all([bot.member(), roles.list()]);
       if (!botMember) {
-        return 0;
+        throw new Error(
+          'Die Rollenposition des Bots liess sich nicht ermitteln - der Bot wurde auf dem Server nicht gefunden.',
+        );
       }
       const positions = botMember.roleIds
         .map((roleId) => allRoles.find((role) => role.id === roleId)?.position ?? 0)

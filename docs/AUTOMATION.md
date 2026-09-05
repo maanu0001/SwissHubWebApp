@@ -274,6 +274,33 @@ Probelauf gefährlich statt hilfreich.
 Ein Probelauf bekommt einen eigenen, immer neuen Idempotenzschlüssel: er soll
 sich beliebig oft wiederholen lassen.
 
+### Probelauf und echter Lauf
+
+Zwei Modi **derselben** Engine, kein zweites Ausführungssystem. Derselbe
+Executor, dieselben Bedingungen, dieselbe Validierung — der Unterschied ist
+die Wirkung:
+
+|                    | Probelauf                | Jetzt ausführen       |
+| ------------------ | ------------------------ | --------------------- |
+| Bedingungen        | echt geprüft             | echt geprüft          |
+| Vorlagen aufgelöst | ja                       | ja                    |
+| Aktionen           | beschrieben              | ausgeführt            |
+| Verlauf            | als `Probelauf` markiert | als echter Lauf       |
+| Berechtigung       | `automations.execute`    | `automations.execute` |
+
+In der Übersicht stehen dafür zwei getrennte Knöpfe — nicht ein Schalter am
+Probelauf. Was echte Wirkung hat, soll man absichtlich anklicken und nicht
+versehentlich umstellen. Vor dem echten Lauf steht eine Bestätigung, die
+sagt, was gleich geschieht.
+
+Eine **ausgeschaltete** Automation lässt sich von Hand trotzdem einmal
+ausführen — die Bestätigung sagt das ausdrücklich, und sie bleibt danach aus.
+Das ist der Weg, eine Automation vor dem Einschalten einmal in echt zu
+erleben.
+
+Läufe aus **Ereignissen und Zeitplänen** sind immer echt. Ein Probelauf
+entsteht nur, wenn ihn jemand ausdrücklich anstösst.
+
 ---
 
 ## 11. Versionierung (§12)

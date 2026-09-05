@@ -135,10 +135,15 @@ export default async function EventDetailPage({
         }
       />
 
-      {event.bannerUrl ? (
+      {/*
+        Das eigene Banner zuerst, sonst das der Kategorie. Dieselbe Reihenfolge
+        wie in der Discord-Ankündigung - ein Termin, der im Kanal ein Bild hat
+        und auf der Seite keines, sähe nach zwei verschiedenen Terminen aus.
+      */}
+      {calendar.bannerFuer(event, kategorie) ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
-          src={event.bannerUrl}
+          src={calendar.bannerFuer(event, kategorie)!}
           alt=""
           className="max-h-64 w-full rounded-xl border border-border object-cover"
         />
@@ -190,13 +195,9 @@ export default async function EventDetailPage({
         <StatCard
           label="Ort"
           value={
-            event.locationKind === 'DISCORD'
+            calendar.ortsArt(event) === 'DISCORD'
               ? 'Discord'
-              : event.locationKind === 'ONLINE'
-                ? 'Online'
-                : event.locationKind === 'OFFLINE'
-                  ? (event.locationName ?? 'Vor Ort')
-                  : 'Hybrid'
+              : (event.locationName ?? 'Vor Ort')
           }
           hint={event.locationAddress ?? undefined}
           icon={<MapPin aria-hidden="true" />}

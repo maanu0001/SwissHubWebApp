@@ -20,6 +20,7 @@ interface Kategorie {
   description: string;
   color: string;
   icon: string;
+  defaultBannerUrl: string;
   active: boolean;
   position: number;
 }
@@ -29,6 +30,10 @@ interface Kategorie {
  *
  * Bewusst schlicht: Name, Farbe, Symbol, Beschreibung, aktiv. Jede weitere
  * Einstellung waere eine, die gepflegt werden muesste.
+ *
+ * Das Vorgabe-Banner ist die eine Ausnahme, und es spart Arbeit statt welche
+ * zu machen: eine wiederkehrende Reihe hat ihr Bild, und ohne diese Zeile war
+ * es an jedem einzelnen Termin nachzutragen.
  */
 export function KategorienVerwaltung({
   csrfToken,
@@ -97,6 +102,14 @@ export function KategorienVerwaltung({
           aria-label="Beschreibung"
           onChange={(event) => setWerte({ ...werte, description: event.target.value })}
         />
+        <Input
+          value={werte.defaultBannerUrl}
+          maxLength={1000}
+          placeholder="Banner (https), optional"
+          aria-label="Vorgabe-Banner"
+          onChange={(event) => setWerte({ ...werte, defaultBannerUrl: event.target.value })}
+          className="sm:col-span-3"
+        />
         <label className="flex items-center gap-2">
           <Switch
             checked={werte.active}
@@ -142,6 +155,7 @@ export function KategorienVerwaltung({
               description: '',
               color: '#83060A',
               icon: '',
+              defaultBannerUrl: '',
               active: true,
               position: kategorien.length,
             })

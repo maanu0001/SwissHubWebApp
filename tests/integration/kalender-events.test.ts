@@ -191,15 +191,18 @@ describeWithDatabase('Kalender-Events', () => {
 
   // --- Discord -----------------------------------------------------------
 
-  it('kündigt ein Event an und merkt sich die Nachricht', async () => {
+  it('kündigt beim Veröffentlichen an, ohne dass es ein zweiter Schritt wäre', async () => {
+    // Das Häkchen «Auf Discord ankündigen» ist eine Ansage darüber, was beim
+    // Veröffentlichen geschehen soll. Vorher geschah es nicht: der Termin ging
+    // live, im Kanal blieb es still, und wer den zusätzlichen Knopf in der
+    // Verwaltung nicht kannte, hielt die Ankündigung für kaputt.
     const event = await calendar.createEvent(
       ADMIN,
       eingabe({ announceOnDiscord: true, announcementChannelId: KANAL }),
     );
-    await calendar.publishEvent(ADMIN, event.id);
     const { gateway, gesendet } = attrappe();
 
-    await calendar.announceEvent(event.id, { gateway, actor: ADMIN });
+    await calendar.publishEvent(ADMIN, event.id, new Date(), { gateway });
 
     expect(gesendet).toHaveLength(1);
     const frisch = await prisma.calendarEvent.findUniqueOrThrow({ where: { id: event.id } });
@@ -450,6 +453,7 @@ describeWithDatabase('Kalender-Events', () => {
       position: 0,
       description: null,
       icon: null,
+      defaultBannerUrl: null,
     });
     const mitKategorie = await calendar.createEvent(
       ADMIN,

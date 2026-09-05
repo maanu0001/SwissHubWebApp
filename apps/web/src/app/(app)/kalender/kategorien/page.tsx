@@ -24,7 +24,7 @@ export default async function KategorienPage(): Promise<React.JSX.Element> {
     <>
       <PageHeader
         title="Event-Kategorien"
-        description="Farbe und Symbol unterscheiden Events im Kalender. Eine stillgelegte Kategorie verschwindet aus der Auswahl, bleibt aber an ihren Events."
+        description="Farbe, Symbol und ein Vorgabe-Banner unterscheiden Events im Kalender. Eine stillgelegte Kategorie verschwindet aus der Auswahl, bleibt aber an ihren Events."
       />
       <KategorienVerwaltung
         csrfToken={csrfTokenFor(context)}
@@ -34,6 +34,7 @@ export default async function KategorienPage(): Promise<React.JSX.Element> {
           description: eintrag.description ?? '',
           color: eintrag.color,
           icon: eintrag.icon ?? '',
+          defaultBannerUrl: eintrag.defaultBannerUrl ?? '',
           active: eintrag.active,
           position: eintrag.position,
         }))}

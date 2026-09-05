@@ -69,6 +69,7 @@ export async function saveCategory(
     description: input.description,
     color: input.color,
     icon: input.icon,
+    defaultBannerUrl: input.defaultBannerUrl || null,
     active: input.active,
     position: input.position,
     slug,

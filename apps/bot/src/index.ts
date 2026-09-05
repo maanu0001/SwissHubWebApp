@@ -28,6 +28,7 @@ import { registerVoteJailHandler } from './vote-jail';
 import { registerCommandHandler, registerCommands } from './commands/register';
 import { registerSpielersucheButtons } from './spielersuche-buttons';
 import { registerRaffleButtons } from './raffle-buttons';
+import { registerCalendarInteractions } from './calendar-interactions';
 import { registerRejectConfirmation, registerVerification } from './verification';
 import { recoverVoiceSessions, registerSpielersucheVoice } from './spielersuche-voice';
 import { registerVoicePresence } from './voice-presence';
@@ -178,6 +179,8 @@ async function main(): Promise<void> {
   registerTicketMessageSync(client, messageContent);
   // Check-in, Bereitmeldung, Resultat und der Ruf nach der Turnierleitung.
   registerTournamentInteractions(client);
+  // An- und Abmeldung direkt unter der Kalender-Ankündigung.
+  registerCalendarInteractions(client);
   // Join-to-Create und das Bedienfeld im Talk.
   registerVoiceHub(client);
   registerVoiceInteractions(client);

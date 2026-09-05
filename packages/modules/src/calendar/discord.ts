@@ -11,7 +11,7 @@ import {
 } from '@swisshub/discord';
 import { createLogger } from '@swisshub/logger';
 import { CALENDAR_ACCENT_COLOR, CALENDAR_MODULE_ID } from './config';
-import { belegung } from './registrations';
+import { anmeldungGesperrt, belegung } from './registrations';
 import { calendarSettings, erlaubteErwaehnung, requireEvent } from './service';
 import type { CalendarActor } from './schemas';
 
@@ -77,10 +77,29 @@ export function formatiereZeit(event: CalendarEvent): { datum: string; zeit: str
   return { datum, zeit };
 }
 
+/**
+ * Die zwei Arten, die es noch zu waehlen gibt.
+ *
+ * `ONLINE`, `OFFLINE` und `HYBRID` werden nicht mehr vergeben. Sie stehen
+ * weiterhin im Datentyp, damit eine alte Zeile lesbar bleibt - deshalb faellt
+ * die Zuordnung hier und nicht an jeder Stelle, die einen Ort anzeigt.
+ */
+export type OrtsArt = 'DISCORD' | 'REAL_LIFE';
+
+/** Alte Einordnungen auf die zwei verbliebenen abbilden. */
+export function ortsArt(event: Pick<CalendarEvent, 'locationKind'>): OrtsArt {
+  return event.locationKind === 'OFFLINE' ||
+    event.locationKind === 'HYBRID' ||
+    event.locationKind === 'REAL_LIFE'
+    ? 'REAL_LIFE'
+    : 'DISCORD';
+}
+
 /** Wo der Abend stattfindet, in einer Zeile. */
 export function ortsZeile(event: CalendarEvent): string {
   const teile: string[] = [];
-  if (event.locationKind === 'DISCORD' || event.locationKind === 'HYBRID') {
+
+  if (ortsArt(event) === 'DISCORD') {
     if (event.locationVoiceId) {
       teile.push(`<#${event.locationVoiceId}>`);
     } else if (event.locationChannelId) {
@@ -88,13 +107,15 @@ export function ortsZeile(event: CalendarEvent): string {
     } else {
       teile.push('SwissHub Discord');
     }
-  }
-  if (event.locationKind === 'ONLINE' && event.locationUrl) {
-    teile.push(event.locationUrl);
-  }
-  if (event.locationKind === 'OFFLINE' || event.locationKind === 'HYBRID') {
+    // Ein Termin auf einer anderen Plattform ist weiterhin einer im Netz -
+    // die hinterlegte Adresse gehoert dann dazu.
+    if (event.locationUrl) {
+      teile.push(event.locationUrl);
+    }
+  } else {
     teile.push([event.locationName, event.locationAddress].filter(Boolean).join(', '));
   }
+
   return teile.filter(Boolean).join(' · ') || 'Wird noch bekannt gegeben';
 }
 
@@ -104,10 +125,37 @@ export interface EmbedZahlen {
   waitlist: number;
 }
 
+/**
+ * Was eine Kategorie zur Darstellung eines Termins beitraegt.
+ *
+ * Nur diese drei Felder - der Rest der Kategorie geht die Ankuendigung nichts
+ * an, und ein vollstaendiger Datensatz waere eine Einladung, hier spaeter
+ * mehr davon zu verwenden.
+ */
+export interface KategorieDarstellung {
+  name: string;
+  icon: string | null;
+  defaultBannerUrl?: string | null;
+}
+
+/**
+ * Welches Banner ein Termin bekommt.
+ *
+ * Das eigene zuerst. Ohne eigenes greift das der Kategorie - wiederkehrende
+ * Reihen haben ihr Bild, und es an jedem einzelnen Termin nachzutragen ist
+ * Arbeit, die irgendwann jemand vergisst.
+ */
+export function bannerFuer(
+  event: Pick<CalendarEvent, 'bannerUrl'>,
+  kategorie?: KategorieDarstellung | null,
+): string | null {
+  return event.bannerUrl ?? kategorie?.defaultBannerUrl ?? null;
+}
+
 export function buildEventEmbed(
   event: CalendarEvent,
   zahlen: EmbedZahlen,
-  kategorie?: { name: string; icon: string | null } | null,
+  kategorie?: KategorieDarstellung | null,
 ): DiscordEmbed {
   const { datum, zeit } = formatiereZeit(event);
   const symbol = kategorie?.icon ? `${kategorie.icon} ` : '';
@@ -123,6 +171,8 @@ export function buildEventEmbed(
   if (event.status === 'CANCELLED' && event.cancelReason) {
     zeilen.push('', `**Abgesagt:** ${event.cancelReason.slice(0, 300)}`);
   }
+
+  const banner = bannerFuer(event, kategorie);
 
   const felder = [];
   if (event.registrationEnabled) {
@@ -145,7 +195,7 @@ export function buildEventEmbed(
     color: CALENDAR_ACCENT_COLOR,
     url: eventUrl(event),
     author: { name: 'SWISSHUB EVENT' },
-    ...(event.bannerUrl ? { image: { url: event.bannerUrl } } : {}),
+    ...(banner ? { image: { url: banner } } : {}),
     ...(event.iconUrl ? { thumbnail: { url: event.iconUrl } } : {}),
     ...(felder.length > 0 ? { fields: felder } : {}),
     timestamp: event.startAt.toISOString(),
@@ -153,36 +203,112 @@ export function buildEventEmbed(
   };
 }
 
+/**
+ * Anmelden, ohne die Webseite zu oeffnen.
+ *
+ * Der Weg ueber den Browser war die einzige Moeglichkeit, und das ist genau
+ * ein Klick zu viel: die Ankuendigung steht im Kanal, die Person liest sie
+ * dort, und dann soll sie den Server verlassen, sich anmelden und
+ * zurueckfinden. Die meisten tun das nicht.
+ *
+ * In der Kennung steht nur die Termin-ID. Alles Weitere - Platz, Frist,
+ * Warteliste - wird beim Klick frisch gelesen: einem Embed, das seit Tagen im
+ * Kanal steht, ist ueber den heutigen Stand nichts zu entnehmen. Dadurch
+ * ueberstehen die Knoepfe auch jeden Neustart, ohne dass irgendwo ein
+ * Zeitgeber mitlaufen muss.
+ */
+export const CALENDAR_JOIN_PREFIX = 'swisshub:calendar:join:';
+export const CALENDAR_LEAVE_PREFIX = 'swisshub:calendar:leave:';
+
+export function buildJoinButtonId(eventId: string): string {
+  return `${CALENDAR_JOIN_PREFIX}${eventId}`;
+}
+
+export function buildLeaveButtonId(eventId: string): string {
+  return `${CALENDAR_LEAVE_PREFIX}${eventId}`;
+}
+
+/** Die Termin-ID aus einer Knopfkennung - oder `null`, wenn es keine ist. */
+export function parseCalendarButtonId(
+  customId: string,
+): { eventId: string; aktion: 'JOIN' | 'LEAVE' } | null {
+  if (customId.startsWith(CALENDAR_JOIN_PREFIX)) {
+    const eventId = customId.slice(CALENDAR_JOIN_PREFIX.length);
+    return eventId ? { eventId, aktion: 'JOIN' } : null;
+  }
+  if (customId.startsWith(CALENDAR_LEAVE_PREFIX)) {
+    const eventId = customId.slice(CALENDAR_LEAVE_PREFIX.length);
+    return eventId ? { eventId, aktion: 'LEAVE' } : null;
+  }
+  return null;
+}
+
+/**
+ * Ob die Ankuendigung Anmeldeknoepfe traegt.
+ *
+ * Zusatzfragen sind der Grund fuer die Ausnahme: sie lassen sich mit einem
+ * Klick nicht beantworten, und eine Anmeldung ohne die Pflichtantworten waere
+ * eine halbe. In dem Fall bleibt der Weg ueber die Seite - dort steht das
+ * Formular.
+ */
+export async function zeigtAnmeldeknoepfe(event: CalendarEvent): Promise<boolean> {
+  if (!event.registrationEnabled || anmeldungGesperrt(event) !== null) {
+    return false;
+  }
+  const fragen = await prisma.calendarQuestion.count({ where: { eventId: event.id } });
+  return fragen === 0;
+}
+
 async function payload(
   event: CalendarEvent,
   options: { mentionRoleId?: string | null } = {},
 ): Promise<DiscordMessagePayload> {
-  const [zahlen, kategorie] = await Promise.all([
+  const [zahlen, kategorie, mitKnoepfen] = await Promise.all([
     belegung(event.id),
     event.categoryId
       ? prisma.calendarCategory.findUnique({
           where: { id: event.categoryId },
-          select: { name: true, icon: true },
+          select: { name: true, icon: true, defaultBannerUrl: true },
         })
       : Promise.resolve(null),
+    zeigtAnmeldeknoepfe(event),
   ]);
+
+  const knoepfe = [
+    ...(mitKnoepfen
+      ? [
+          {
+            type: 2 as const,
+            style: BUTTON_STYLE.PRIMARY,
+            label: zahlen.capacity > 0 && zahlen.confirmed >= zahlen.capacity
+              ? 'Auf die Warteliste'
+              : 'Anmelden',
+            custom_id: buildJoinButtonId(event.id),
+          },
+          ...(event.allowSelfCancel
+            ? [
+                {
+                  type: 2 as const,
+                  style: BUTTON_STYLE.SECONDARY,
+                  label: 'Abmelden',
+                  custom_id: buildLeaveButtonId(event.id),
+                },
+              ]
+            : []),
+        ]
+      : []),
+    {
+      type: 2 as const,
+      style: BUTTON_STYLE.LINK,
+      label: mitKnoepfen || !event.registrationEnabled ? 'Event ansehen' : 'Event ansehen & anmelden',
+      url: eventUrl(event),
+    },
+  ];
 
   return {
     ...(options.mentionRoleId ? { content: `<@&${options.mentionRoleId}>` } : {}),
     embeds: [buildEventEmbed(event, zahlen, kategorie)],
-    components: [
-      {
-        type: 1 as const,
-        components: [
-          {
-            type: 2 as const,
-            style: BUTTON_STYLE.LINK,
-            label: event.registrationEnabled ? 'Event ansehen & anmelden' : 'Event ansehen',
-            url: eventUrl(event),
-          },
-        ],
-      },
-    ],
+    components: [{ type: 1 as const, components: knoepfe }],
     // Erwaehnt wird nur die ausdruecklich freigegebene Rolle. Beim
     // Fortschreiben faellt sie weg - sonst pingt jede Aenderung erneut.
     allowedMentions: options.mentionRoleId

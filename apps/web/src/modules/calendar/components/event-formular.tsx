@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { Plus, Save, Trash2 } from 'lucide-react';
@@ -32,7 +33,7 @@ export interface EventFormularWerte {
   endAt: string;
   timezone: string;
   allDay: boolean;
-  locationKind: 'DISCORD' | 'ONLINE' | 'OFFLINE' | 'HYBRID';
+  locationKind: 'DISCORD' | 'REAL_LIFE';
   locationChannelId: string;
   locationVoiceId: string;
   locationUrl: string;
@@ -123,9 +124,9 @@ export function EventFormular({
     }
   };
 
-  const zeigtDiscord = werte.locationKind === 'DISCORD' || werte.locationKind === 'HYBRID';
-  const zeigtOnline = werte.locationKind === 'ONLINE' || werte.locationKind === 'HYBRID';
-  const zeigtVorOrt = werte.locationKind === 'OFFLINE' || werte.locationKind === 'HYBRID';
+  // Zwei Arten, und jede zeigt genau die Felder, die zu ihr gehoeren.
+  const zeigtDiscord = werte.locationKind === 'DISCORD';
+  const zeigtVorOrt = werte.locationKind === 'REAL_LIFE';
 
   const Auswahl = ({
     id,
@@ -251,10 +252,8 @@ export function EventFormular({
               }
               className="h-10 w-full rounded-lg border border-border bg-background px-3 text-sm"
             >
-              <option value="DISCORD">Discord</option>
-              <option value="ONLINE">Online</option>
-              <option value="OFFLINE">Vor Ort</option>
-              <option value="HYBRID">Hybrid</option>
+              <option value="DISCORD">Auf Discord</option>
+              <option value="REAL_LIFE">Im echten Leben</option>
             </select>
           </div>
 
@@ -277,15 +276,18 @@ export function EventFormular({
             </>
           ) : null}
 
-          {zeigtOnline ? (
+          {zeigtDiscord ? (
             <div className="space-y-1.5 sm:col-span-2">
-              <Label htmlFor="locationUrl">Adresse (https)</Label>
+              <Label htmlFor="locationUrl">Weiterführender Link (optional)</Label>
               <Input
                 id="locationUrl"
                 value={werte.locationUrl}
                 placeholder="https://..."
                 onChange={(event) => setze('locationUrl', event.target.value)}
               />
+              <p className="text-xs text-muted-foreground">
+                Etwa ein Turnierbaum oder ein Stream - der Termin bleibt auf Discord.
+              </p>
             </div>
           ) : null}
 
@@ -534,6 +536,22 @@ export function EventFormular({
                 onChange={(wert) => setze('mentionRoleId', wert)}
                 leerText="Niemanden erwähnen"
               />
+              {/*
+                Eine leere Auswahl sieht aus wie ein kaputtes Feld. Sie ist
+                aber ein Zustand mit einer Ursache: es wurde noch keine Rolle
+                zum Erwähnen freigegeben, und ohne Freigabe pingt der Kalender
+                bewusst niemanden. Das gehört hierhin, nicht in eine
+                Fehlermeldung nach dem Speichern.
+              */}
+              {rollen.length === 0 ? (
+                <p className="text-xs text-muted-foreground sm:col-span-2">
+                  Es ist noch keine Rolle zum Erwähnen freigegeben. Unter{' '}
+                  <Link href="/modules/calendar" className="underline">
+                    Modul-Einstellungen
+                  </Link>{' '}
+                  lässt sich festlegen, welche Rollen der Kalender pingen darf.
+                </p>
+              ) : null}
             </>
           ) : null}
 

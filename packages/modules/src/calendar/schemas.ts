@@ -119,7 +119,16 @@ export const eventInputSchema = z
     timezone: timezoneSchema,
     allDay: z.coerce.boolean().default(false),
 
-    locationKind: z.enum(['DISCORD', 'ONLINE', 'OFFLINE', 'HYBRID']).default('DISCORD'),
+    /**
+     * Zwei Arten, nicht vier.
+     *
+     * «Online» und «Hybrid» klangen nach einer Wahl, waren aber keine:
+     * «Online» hiess in der Praxis Discord, «Hybrid» hiess hinfahren. Wer
+     * das Formular ausfuellte, musste vier Moeglichkeiten abwaegen, um
+     * zwischen zwei zu entscheiden. Alte Zeilen behalten ihren Wert - siehe
+     * `ortsArt`.
+     */
+    locationKind: z.enum(['DISCORD', 'REAL_LIFE']).default('DISCORD'),
     locationChannelId: optionalSnowflakeSchema,
     locationVoiceId: optionalSnowflakeSchema,
     locationUrl: optionalUrl,
@@ -211,17 +220,7 @@ export const eventInputSchema = z
         }
       }
     }
-    if (input.locationKind === 'ONLINE' && !input.locationUrl) {
-      ctx.addIssue({
-        code: 'custom',
-        path: ['locationUrl'],
-        message: 'Bitte die Adresse des Online-Events angeben.',
-      });
-    }
-    if (
-      (input.locationKind === 'OFFLINE' || input.locationKind === 'HYBRID') &&
-      !input.locationName
-    ) {
+    if (input.locationKind === 'REAL_LIFE' && !input.locationName) {
       ctx.addIssue({
         code: 'custom',
         path: ['locationName'],
@@ -312,8 +311,25 @@ export const categoryInputSchema = z.object({
     .regex(/^#[0-9A-Fa-f]{6}$/u, 'Bitte eine Hex-Farbe wie #83060A angeben.')
     .default('#83060A'),
   icon: optionalText(40),
+  /**
+   * Vorgabe-Banner der Kategorie.
+   *
+   * Wiederkehrende Reihen haben ihr eigenes Bild. Es an jedem einzelnen
+   * Termin nachzutragen ist Arbeit, die niemand zwanzigmal richtig macht -
+   * und eine vergessene Zeile heisst nackte Ankuendigung.
+   */
+  defaultBannerUrl: optionalUrl,
   active: z.coerce.boolean().default(true),
   position: z.coerce.number().int().min(0).max(999).default(0),
+}).superRefine((input, ctx) => {
+  // Dieselbe Pruefung wie beim Banner eines Termins: eine Adresse, die
+  // Discord nicht laedt, faellt sonst erst im Kanal auf.
+  if (input.defaultBannerUrl) {
+    const problem = validateBannerUrl(input.defaultBannerUrl);
+    if (problem) {
+      ctx.addIssue({ code: 'custom', path: ['defaultBannerUrl'], message: problem });
+    }
+  }
 });
 
 export const categoryIdSchema = z.object({ categoryId: z.string().min(1) });

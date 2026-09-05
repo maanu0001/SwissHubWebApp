@@ -1,6 +1,6 @@
 import { AUDIT_ACTIONS, prisma, safeRecordAudit } from '@swisshub/database';
 import type { CalendarEvent, CalendarEventStatus, Prisma } from '@swisshub/database';
-import { resolveGuildId } from '@swisshub/discord';
+import { resolveGuildId, type DiscordGateway } from '@swisshub/discord';
 import { createLogger } from '@swisshub/logger';
 import { AppError, conflict, notFound, validationFailed } from '@swisshub/shared';
 import { getModuleSettings } from '../module-state';
@@ -362,6 +362,7 @@ export async function publishEvent(
   actor: CalendarActor,
   id: string,
   now = new Date(),
+  options: { gateway?: DiscordGateway } = {},
 ): Promise<CalendarEvent> {
   const event = await requireEvent(id);
   if (event.status !== 'DRAFT') {
@@ -396,6 +397,21 @@ export async function publishEvent(
       kategorie: aktualisiert.categoryId,
     },
     { guildId: aktualisiert.guildId, actorId: actor.discordId, entityId: id },
+  );
+
+  // Wer «Auf Discord ankündigen» angehakt hat, hat damit gesagt, was beim
+  // Veröffentlichen geschehen soll. Bisher geschah es nicht: das Häkchen
+  // stand da, der Termin ging live, und im Kanal blieb es still, bis jemand
+  // in der Verwaltung zusätzlich «Ankündigen» drückte. Wer das nicht wusste,
+  // hielt die Ankündigung für kaputt.
+  //
+  // `announceEvent` prüft selbst, ob angekündigt werden soll und ob es
+  // bereits geschehen ist, und wirft nicht: ein Discord-Ausfall darf eine
+  // Veröffentlichung nicht rückgängig machen. Der Weg über die Verwaltung
+  // bleibt für den Fall, dass es beim ersten Mal nicht geklappt hat.
+  const { announceEvent } = await import('./discord');
+  await announceEvent(id, { actor, ...(options.gateway ? { gateway: options.gateway } : {}) }).catch((error: unknown) =>
+    logger.warn('Ankündigung nach dem Veröffentlichen fehlgeschlagen', { eventId: id, error }),
   );
 
   logger.info('Event veröffentlicht', { eventId: id, status });

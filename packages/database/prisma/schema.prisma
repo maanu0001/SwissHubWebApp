@@ -4421,10 +4421,21 @@ enum CalendarEventStatus {
   CANCELLED
 }
 
+/// Wo ein Termin stattfindet.
+///
+/// Zwei Arten sind die Wahl, die es tatsaechlich zu treffen gibt: auf unserem
+/// Discord oder im echten Leben. `ONLINE` und `OFFLINE`/`HYBRID` stammen aus
+/// der ersten Fassung und werden nicht mehr vergeben; sie bleiben im Typ,
+/// damit alte Zeilen lesbar sind, falls eine je uebersehen wurde.
 enum CalendarLocationKind {
   DISCORD
+  REAL_LIFE
+
+  /// @deprecated Wird nicht mehr vergeben - siehe Migration `kalender_ort_uebernahme`.
   ONLINE
+  /// @deprecated Wird nicht mehr vergeben.
   OFFLINE
+  /// @deprecated Wird nicht mehr vergeben.
   HYBRID
 }
 
@@ -4450,16 +4461,20 @@ model CalendarCategory {
   guildId String
 
   /// Teil der Adresse und stabiler Bezug in Filtern.
-  slug        String
-  name        String
-  description String?
+  slug             String
+  name             String
+  description      String?
   /// Farbe als Hex (#RRGGBB) - dieselbe Schreibweise wie im Levelmodul.
-  color       String  @default("#83060A")
+  color            String  @default("#83060A")
   /// Lucide-Symbolname, wie in der Navigation.
-  icon        String?
-  active      Boolean @default(true)
+  icon             String?
+  /// Vorgabe-Banner der Kategorie. Wiederkehrende Reihen haben ihr eigenes
+  /// Bild; ohne diese Spalte war es an jedem einzelnen Termin nachzutragen.
+  /// Das Banner am Termin selbst hat weiterhin Vorrang.
+  defaultBannerUrl String?
+  active           Boolean @default(true)
   /// Anzeigereihenfolge in Auswahllisten.
-  position    Int     @default(0)
+  position         Int     @default(0)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

@@ -83,7 +83,10 @@ export default async function EventBearbeitenPage({
           endAt: alsEingabewert(event.endAt, event.timezone),
           timezone: event.timezone,
           allDay: event.allDay,
-          locationKind: event.locationKind,
+          // Alte Termine koennen noch «Online» oder «Hybrid» tragen. Das
+          // Formular kennt nur die zwei verbliebenen Arten - `ortsArt`
+          // ordnet den Altbestand ein, statt ihn ins Leere laufen zu lassen.
+          locationKind: calendar.ortsArt(event),
           locationChannelId: event.locationChannelId ?? '',
           locationVoiceId: event.locationVoiceId ?? '',
           locationUrl: event.locationUrl ?? '',

@@ -1,0 +1,13 @@
+-- Ein Termin ist entweder auf Discord oder im echten Leben.
+--
+-- «Online» und «Hybrid» waren dazwischen: sie klangen nach einer Wahl, waren
+-- aber keine - «Online» hiess in der Praxis Discord, und «Hybrid» hiess, dass
+-- man hinfährt und nebenbei ein Voice offen ist. Wer das Formular ausfüllte,
+-- musste vier Möglichkeiten gegeneinander abwägen, um zwischen zwei zu
+-- entscheiden.
+--
+-- Rein additiv: die alten Werte bleiben im Typ. Bestehende Zeilen bleiben
+-- lesbar, auch wenn die Übernahme im nächsten Schritt scheitern sollte. Ein
+-- eigener Schritt ist es, weil PostgreSQL einen neu hinzugefügten Enum-Wert
+-- erst nach dem Commit verwenden lässt.
+ALTER TYPE "CalendarLocationKind" ADD VALUE IF NOT EXISTS 'REAL_LIFE';

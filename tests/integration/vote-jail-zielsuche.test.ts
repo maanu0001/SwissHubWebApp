@@ -32,6 +32,9 @@ type State = ReturnType<typeof createFakeState>;
 
 const MEMBER_ROLE = '900000000000000008';
 const BOOSTER_ROLE = '900000000000000007';
+const MOD_ROLE = '900000000000000003';
+const SUPPORT_ROLE = '900000000000000004';
+const OWNER_ROLE = '900000000000000001';
 
 /**
  * Ein Premium-Mitglied.
@@ -63,6 +66,15 @@ beforeEach(() => {
   state.voteJails.length = 0;
   state.managedRoles.length = 0;
   state.rolePermissions.length = 0;
+  // So, wie ein eingerichteter Server aussieht: Team-Rollen tragen eine
+  // Moderationsstufe. Genau daran erkennt die Policy sie - bei einer
+  // Abstimmung ist es der einzige Schutz, denn die Rangfrage entscheidet dort
+  // bewusst nicht mehr.
+  state.managedRoles.push(
+    { discordRoleId: OWNER_ROLE, label: 'Serverleitung', isProtected: true, keepOnJail: false, moderationLevel: 100 },
+    { discordRoleId: MOD_ROLE, label: 'Moderator', isProtected: false, keepOnJail: false, moderationLevel: 50 },
+    { discordRoleId: SUPPORT_ROLE, label: 'Supporter', isProtected: false, keepOnJail: false, moderationLevel: 40 },
+  );
   state.moduleSettings.jail = {
     jailRoleId: '900000000000000006',
     voteJailEnabled: true,
@@ -97,6 +109,24 @@ describe('Vote-Jail-Zielsuche', () => {
     expect(await suche('a')).toEqual([]);
   });
 
+  it('findet auch ein Mitglied mit gleich hoher Rolle', async () => {
+    // Der eigentliche Grund, warum Vote Jail für Premium nicht funktionierte:
+    // die Moderation Policy verlangt beim Alleingang, dass der Handelnde über
+    // dem Ziel steht. Bei einer Abstimmung entscheidet aber niemand allein -
+    // und ein gewöhnliches Mitglied steht über niemandem.
+    const gleichrangig = {
+      ...PREMIUM,
+      discordId: '100000000000000004', // spammer99, nur @Member
+      username: 'spammer99',
+      roleIds: [MEMBER_ROLE],
+    };
+    const treffer = await jail.searchVoteJailTargets('roeschti', gleichrangig, {
+      gateway,
+      limit: 20,
+    });
+    expect(treffer.map((eintrag) => eintrag.discordId)).toEqual([ROESCHTI]);
+  });
+
   it('zeigt keine geschützten Ziele', async () => {
     // Alle auf einmal suchen: die Mock-Mitglieder tragen alle ein «e» im
     // Anzeigenamen oder Benutzernamen - ausser dem Bot.
@@ -105,11 +135,11 @@ describe('Vote-Jail-Zielsuche', () => {
     );
     const ids = alle.flat().map((eintrag) => eintrag.discordId);
 
-    // Moderator: höhere Discord-Rolle als Premium.
+    // Moderator: trägt eine Moderationsstufe.
     expect(ids).not.toContain(MODERATOR_ID);
-    // Owner-Rolle: ganz oben.
+    // Serverleitung: geschützte Rolle und höchste Stufe.
     expect(ids).not.toContain(OWNER_ID);
-    // Supporter: ebenfalls höher.
+    // Supporter: ebenfalls eine Stufe.
     expect(ids).not.toContain('100000000000000003');
     // Bots werden nicht moderiert.
     expect(ids).not.toContain(BOT_ID);

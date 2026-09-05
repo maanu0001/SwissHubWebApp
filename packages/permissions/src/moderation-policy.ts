@@ -26,8 +26,29 @@ export interface PolicyActor {
   moderationLevel: number;
 }
 
+/**
+ * Worum es sich handelt - und danach, welcher Massstab gilt.
+ *
+ * `UNILATERAL` ist der Normalfall: ein Mensch entscheidet allein. Dann muss er
+ * ueber dem Ziel stehen, sonst moderierte er nach oben.
+ *
+ * `COMMUNITY_VOTE` ist die Abstimmung. Dort entscheidet niemand allein - es
+ * braucht die eingestellte Zahl an Stimmen, und erst die loest die Massnahme
+ * aus. Die Rangfrage ist hier die falsche: ein gewoehnliches Mitglied steht
+ * ueber niemandem, und mit dieser Regel koennte es gegen niemanden eine
+ * Abstimmung starten. Genau das war der Fall - Vote Jail funktionierte fuer
+ * Premium nicht, weil das Ziel dieselbe Rolle trug.
+ *
+ * Alle *schuetzenden* Regeln gelten unveraendert: Server-Owner, Bots,
+ * geschuetzte Rollen, Mitglieder mit Moderationsstufe und die Rollenposition
+ * des Bots. Eine Abstimmung gegen die Moderation gibt es dadurch nicht.
+ */
+export type PolicyKind = 'UNILATERAL' | 'COMMUNITY_VOTE';
+
 export interface PolicyEvaluationInput {
   actor: PolicyActor;
+  /** Voreinstellung: `UNILATERAL`. */
+  kind?: PolicyKind;
   target: GuildMember | null;
   guildRoles: readonly GuildRole[];
   /** Rollen, deren Träger nicht moderiert werden dürfen. */
@@ -105,12 +126,20 @@ export function evaluateModerationPolicy(input: PolicyEvaluationInput): PolicyDe
     return { allowed: true };
   }
 
-  const actorPosition = highestRolePosition(actor.roleIds, guildRoles);
-  const isActorGuildOwner = input.guildOwnerId !== undefined && input.guildOwnerId === actor.discordId;
-  if (!isActorGuildOwner && targetPosition >= actorPosition) {
-    return deny('TARGET_HIGHER_OR_EQUAL_ROLE');
+  // Die Rangfrage nur beim Alleingang. Bei einer Abstimmung entscheidet die
+  // Gemeinschaft, nicht die Rollenposition des Antragstellers.
+  if ((input.kind ?? 'UNILATERAL') === 'UNILATERAL') {
+    const actorPosition = highestRolePosition(actor.roleIds, guildRoles);
+    const isActorGuildOwner =
+      input.guildOwnerId !== undefined && input.guildOwnerId === actor.discordId;
+    if (!isActorGuildOwner && targetPosition >= actorPosition) {
+      return deny('TARGET_HIGHER_OR_EQUAL_ROLE');
+    }
   }
 
+  // Diese Regel gilt immer. Sie schuetzt die Moderation - und zwar auch vor
+  // einer Abstimmung: wer eine Moderationsstufe traegt, laesst sich nicht
+  // von der Gemeinschaft wegvotieren.
   const targetLevel = moderationLevelOf(target.roleIds, moderationLevels);
   if (targetLevel > 0 && targetLevel >= actor.moderationLevel) {
     return deny('TARGET_HIGHER_MODERATION_LEVEL');

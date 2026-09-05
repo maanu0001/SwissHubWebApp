@@ -57,6 +57,42 @@ export async function loadRoleConfiguration(force = false): Promise<RoleConfigur
 }
 
 /**
+ * Die «Bezeichnung im Dashboard» einer Person.
+ *
+ * Im Berechtigungseditor traegt jede verwaltete Rolle neben ihrem
+ * Discord-Namen eine eigene Bezeichnung - eine Rolle kann auf Discord
+ * «Moderator» heissen und im Dashboard «Teamleitung». Genau diese Bezeichnung
+ * gehoert oben rechts ins Profil, und zwar aus derselben Konfiguration, die
+ * sie verwaltet: eine zweite Kopie am Benutzer liefe irgendwann auseinander.
+ *
+ * Traegt jemand mehrere verwaltete Rollen, gewinnt die mit der hoechsten
+ * Moderationsstufe - das ist die Rangfolge, die diese Anwendung ohnehin
+ * kennt. Bei Gleichstand entscheidet die Reihenfolge nicht der Zufall,
+ * sondern der Name, damit dieselbe Person nicht bei jedem Seitenaufruf eine
+ * andere Bezeichnung traegt.
+ *
+ * Gibt es keine verwaltete Rolle - oder ist keine benannt - bleibt es beim
+ * bisherigen Text. Eine leere Anzeige waere schlechter als eine ungenaue.
+ */
+export async function dashboardRoleLabel(roleIds: readonly string[]): Promise<string | null> {
+  if (roleIds.length === 0) {
+    return null;
+  }
+  const configuration = await loadRoleConfiguration();
+
+  const benannt = roleIds
+    .flatMap((roleId) => {
+      const label = configuration.roleLabels.get(roleId)?.trim();
+      return label
+        ? [{ label, stufe: configuration.moderationLevels.get(roleId) ?? 0 }]
+        : [];
+    })
+    .sort((a, b) => b.stufe - a.stufe || a.label.localeCompare(b.label));
+
+  return benannt[0]?.label ?? null;
+}
+
+/**
  * Legt beim ersten Start die Administratorrolle an, damit sich überhaupt
  * jemand anmelden und die restliche Konfiguration vornehmen kann.
  */

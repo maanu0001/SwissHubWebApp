@@ -909,6 +909,29 @@ registerModule({
       label: 'Level-System',
       description: 'XP, Level, Meilenstein-Rollen und XP-Spiele',
       permission: LEVEL_PERMISSIONS.view,
+      /**
+       * Wer nur die Rangliste sehen darf, kommt direkt dorthin.
+       *
+       * Ohne diesen Ausweich-Eintrag saehe ein gewoehnliches Mitglied mit
+       * `level.leaderboard.view` gar nichts: der Haupteintrag verlangt
+       * `level.view`, und der oeffnet die Uebersicht mit den Kennzahlen des
+       * Servers. Die Rangliste ist etwas anderes - sie ist oeffentlich
+       * gemeint, und dafuer braucht es keinen Zugang zur Uebersicht.
+       *
+       * Der Eintrag gewaehrt nichts. Er entscheidet nur, wohin er zeigt; die
+       * Seite dahinter prueft `level.leaderboard.view` weiterhin selbst, und
+       * Mitgliederliste, XP-Verwaltung und Einstellungen bleiben an ihren
+       * eigenen Berechtigungen.
+       */
+      alternatives: [
+        {
+          permission: LEVEL_PERMISSIONS.leaderboardView,
+          href: '/level/rangliste',
+          label: 'Rangliste',
+          description: 'Die XP-Rangliste des Servers',
+          icon: 'Trophy',
+        },
+      ],
       icon: 'TrendingUp',
       group: 'modules',
       order: 54,

@@ -13,6 +13,7 @@ import {
   readBotStatus,
   tickets as ticketsModule,
 } from '@swisshub/modules';
+import { dashboardRoleLabel } from '@swisshub/permissions';
 import { AppShell } from '@/components/layout/app-shell';
 import { csrfTokenFor, hasSetupAccess, requireMember } from '@/server/auth';
 import { ticketViewer } from '@/server/tickets';
@@ -97,6 +98,7 @@ export default async function AppLayout({
    * Darstellung - jede Seite und jede Aktion prüft weiterhin serverseitig.
    */
   const setupAccess = await hasSetupAccess();
+  const dashboardLabel = await dashboardRoleLabel(context.roleIds).catch(() => null);
   const navigationKeys = setupAccess
     ? [
         ...new Set([
@@ -161,7 +163,10 @@ export default async function AppLayout({
         displayName: context.user.displayName,
         username: context.user.username,
         avatarHash: context.user.avatarHash,
-        primaryRole: APP_ROLE_LABEL[context.user.appRole] ?? 'Mitglied',
+        // Die «Bezeichnung im Dashboard» aus dem Berechtigungsmodul - dort
+        // wird sie gepflegt, hier nur gelesen. Fehlt sie, bleibt es bei der
+        // groben Einordnung.
+        primaryRole: dashboardLabel ?? APP_ROLE_LABEL[context.user.appRole] ?? 'Mitglied',
         csrfToken: csrfTokenFor(context),
         guildId: guildId ?? '',
       }}

@@ -89,6 +89,9 @@ export async function searchVoteJailTargets(
     .filter(
       (mitglied) =>
         evaluateModerationPolicy({
+          // Derselbe Massstab wie beim Starten - sonst zeigte die Suche Ziele,
+          // die beim Klick abgewiesen wuerden.
+          kind: 'COMMUNITY_VOTE',
           actor: {
             discordId: actor.discordId,
             roleIds: actor.roleIds,

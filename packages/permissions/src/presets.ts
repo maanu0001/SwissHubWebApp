@@ -149,6 +149,13 @@ export const PERMISSION_PRESETS: PermissionPreset[] = [
       'music.session.stop',
       // Die eigene Levelkarte.
       'level.card.custom',
+      // Vote Jail: eine Abstimmung starten und mitstimmen. Ausdruecklich
+      // keine Moderationsbefugnis - der Jail entsteht erst, wenn genug
+      // Stimmen zusammenkommen, und die Schutzregeln fuer das Ziel gelten
+      // unveraendert. Ohne diesen Schluessel liess sich der Bereich zwar
+      // oeffnen, aber keine Abstimmung starten.
+      'jail.module.view',
+      'jail.vote.start',
     ],
     moderationLevel: 0,
   },
@@ -170,6 +177,8 @@ export const PERMISSION_PRESETS: PermissionPreset[] = [
       'music.session.start',
       'music.session.stop',
       'level.card.custom',
+      'jail.module.view',
+      'jail.vote.start',
     ],
     moderationLevel: 0,
   },

@@ -154,6 +154,9 @@ export async function startVoteJail(
   const target = await gateway.members.get(input.targetDiscordId);
 
   const decision = evaluateModerationPolicy({
+    // Eine Abstimmung, kein Alleingang: die Rollenposition des Antragstellers
+    // entscheidet nicht - die Schutzregeln fuer das Ziel gelten unveraendert.
+    kind: 'COMMUNITY_VOTE',
     actor: {
       discordId: actor.discordId,
       roleIds: actor.roleIds,

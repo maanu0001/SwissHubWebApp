@@ -56,17 +56,17 @@ Vorlagen ebenso wenig — die Maske zeigt nur, was jemand tun kann.
 
 ## 4. Die Vorgaben
 
-| Kennung | Text | Angeboten bei |
-| --- | --- | --- |
-| `spam` | Spam | allen |
-| `beleidigung` | Beleidigung | allen |
-| `provokation` | Provokation | allen |
-| `regelverstoss` | Regelverstoss | allen |
-| `unangemessenes-verhalten` | Unangemessenes Verhalten | allen |
-| `voice-verhalten` | Voice-Verhalten | allen |
-| `werbung` | Werbung | allen |
-| `unter-16` | Unter 16 | Bann, Kick, Jail |
-| `bot` | Bot | Bann, Kick, Jail |
+| Kennung                    | Text                     | Angeboten bei    |
+| -------------------------- | ------------------------ | ---------------- |
+| `spam`                     | Spam                     | allen            |
+| `beleidigung`              | Beleidigung              | allen            |
+| `provokation`              | Provokation              | allen            |
+| `regelverstoss`            | Regelverstoss            | allen            |
+| `unangemessenes-verhalten` | Unangemessenes Verhalten | allen            |
+| `voice-verhalten`          | Voice-Verhalten          | allen            |
+| `werbung`                  | Werbung                  | allen            |
+| `unter-16`                 | Unter 16                 | Bann, Kick, Jail |
+| `bot`                      | Bot                      | Bann, Kick, Jail |
 
 Die ersten sieben stammen aus dem Jail-Modul und stehen unverändert da — ein
 Server, der sie kennt, soll sie nicht verlieren.

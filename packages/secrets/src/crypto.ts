@@ -83,8 +83,7 @@ export function readMasterKey(source: NodeJS.ProcessEnv = process.env): Buffer |
   if (!passend) {
     throw new AppError('CONFIGURATION_MISSING', {
       internalMessage: `MASTER_ENCRYPTION_KEY ergibt ${kandidaten[0]?.length ?? 0} statt ${KEY_LENGTH} Bytes.`,
-      userMessage:
-        'MASTER_ENCRYPTION_KEY muss 32 Bytes ergeben - erzeugen mit `openssl rand -base64 32`.',
+      userMessage: 'MASTER_ENCRYPTION_KEY muss 32 Bytes ergeben - erzeugen mit `openssl rand -base64 32`.',
     });
   }
   return passend;
@@ -134,10 +133,7 @@ export function keyId(key: Buffer = requireMasterKey()): string {
  * moeglich. In einer Kennung kommt ein Nullbyte nicht vor.
  */
 function aad(address: SecretAddress): Buffer {
-  return Buffer.from(
-    [address.scope, address.guildId, address.provider, address.key].join('\u0000'),
-    'utf8',
-  );
+  return Buffer.from([address.scope, address.guildId, address.provider, address.key].join('\u0000'), 'utf8');
 }
 
 export function encryptSecret(klartext: string, address: SecretAddress): string {

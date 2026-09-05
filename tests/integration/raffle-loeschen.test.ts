@@ -146,7 +146,16 @@ describeWithDatabase('Vergangene Verlosungen löschen', () => {
 
   it.each([
     ['DRAFT', async () => (await R.createRaffle(ADMIN, draftInput())).id],
-    ['SCHEDULED', async () => (await R.publishRaffle(ADMIN, (await R.createRaffle(ADMIN, draftInput({ entryStartsAt: new Date(Date.now() + 3600_000) }))).id)).id],
+    [
+      'SCHEDULED',
+      async () =>
+        (
+          await R.publishRaffle(
+            ADMIN,
+            (await R.createRaffle(ADMIN, draftInput({ entryStartsAt: new Date(Date.now() + 3600_000) }))).id,
+          )
+        ).id,
+    ],
     ['ENTRY_OPEN', async () => (await mitTeilnahmen()).id],
   ])('verweigert das Löschen im Zustand %s', async (zustand, anlegen) => {
     const id = await anlegen();
@@ -156,9 +165,7 @@ describeWithDatabase('Vergangene Verlosungen löschen', () => {
     const angelegt = await prisma.xpRaffle.findUnique({ where: { id } });
     expect(angelegt!.status).toBe(zustand);
 
-    await expect(R.deleteRaffle(ADMIN, id, 'Aufräumen')).rejects.toThrow(
-      /abgeschlossene oder abgebrochene/u,
-    );
+    await expect(R.deleteRaffle(ADMIN, id, 'Aufräumen')).rejects.toThrow(/abgeschlossene oder abgebrochene/u);
     expect(await prisma.xpRaffle.findUnique({ where: { id } })).not.toBeNull();
   });
 
@@ -171,9 +178,7 @@ describeWithDatabase('Vergangene Verlosungen löschen', () => {
     const eine = await prisma.xpRaffleEntry.findFirst({ where: { raffleId: raffle.id } });
     await prisma.xpRaffleEntry.update({ where: { id: eine!.id }, data: { status: 'ACTIVE' } });
 
-    await expect(R.deleteRaffle(ADMIN, raffle.id, 'Aufräumen')).rejects.toThrow(
-      /nicht zurückgezahlte/u,
-    );
+    await expect(R.deleteRaffle(ADMIN, raffle.id, 'Aufräumen')).rejects.toThrow(/nicht zurückgezahlte/u);
     expect(await prisma.xpRaffle.findUnique({ where: { id: raffle.id } })).not.toBeNull();
   });
 
@@ -181,8 +186,9 @@ describeWithDatabase('Vergangene Verlosungen löschen', () => {
     // Dort ist ACTIVE der Normalfall: die Einsätze der nicht gezogenen
     // Teilnahmen sind verbraucht, genau darauf beruht das Spiel.
     const raffle = await abgeschlossen();
-    expect(await prisma.xpRaffleEntry.count({ where: { raffleId: raffle.id, status: 'ACTIVE' } }))
-      .toBeGreaterThan(0);
+    expect(
+      await prisma.xpRaffleEntry.count({ where: { raffleId: raffle.id, status: 'ACTIVE' } }),
+    ).toBeGreaterThan(0);
 
     await expect(R.deleteRaffle(ADMIN, raffle.id, 'Aufräumen')).resolves.toBeDefined();
   });

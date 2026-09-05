@@ -105,10 +105,7 @@ export default async function TalkDetailPage({
           <h2 className="text-sm font-semibold">Verlauf</h2>
           <ol className="divide-y divide-border/60 overflow-hidden rounded-xl border border-border">
             {ereignisse.map((ereignis) => (
-              <li
-                key={ereignis.id}
-                className="flex flex-wrap items-baseline gap-x-3 gap-y-1 px-4 py-2.5"
-              >
+              <li key={ereignis.id} className="flex flex-wrap items-baseline gap-x-3 gap-y-1 px-4 py-2.5">
                 <span className="w-36 shrink-0 text-xs text-muted-foreground">
                   {formatDateTime(ereignis.createdAt)}
                 </span>

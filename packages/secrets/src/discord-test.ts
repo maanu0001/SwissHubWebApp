@@ -62,7 +62,10 @@ export async function validateBotToken(token: string): Promise<TokenPruefung> {
     return { ok: false, fehler: 'Token ungültig - Discord hat die Anmeldung abgelehnt.' };
   }
   if (antwort.status === 429) {
-    return { ok: false, fehler: 'Discord drosselt gerade die Anfragen. Bitte in einer Minute erneut prüfen.' };
+    return {
+      ok: false,
+      fehler: 'Discord drosselt gerade die Anfragen. Bitte in einer Minute erneut prüfen.',
+    };
   }
   if (!antwort.ok) {
     logger.warn('Unerwartete Antwort bei der Tokenprüfung', { status: antwort.status });
@@ -132,7 +135,10 @@ export async function validateOAuthCredentials(
     return { ok: false, fehler: 'Client ID oder Client Secret stimmen nicht.' };
   }
   if (antwort.status === 429) {
-    return { ok: false, fehler: 'Discord drosselt gerade die Anfragen. Bitte in einer Minute erneut prüfen.' };
+    return {
+      ok: false,
+      fehler: 'Discord drosselt gerade die Anfragen. Bitte in einer Minute erneut prüfen.',
+    };
   }
   logger.warn('Unerwartete Antwort bei der OAuth-Prüfung', { status: antwort.status });
   return { ok: false, fehler: `Discord antwortete mit Status ${antwort.status}.` };

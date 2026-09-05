@@ -180,7 +180,10 @@ describeWithDatabase('Musik - im Titel springen', () => {
  * neu aufsetzt statt ihn zu verlassen.
  */
 const quelltext = (pfad: string): string =>
-  readFileSync(fileURLToPath(new URL(`../../apps/music-runtime/swisshub_music/${pfad}`, import.meta.url)), 'utf8');
+  readFileSync(
+    fileURLToPath(new URL(`../../apps/music-runtime/swisshub_music/${pfad}`, import.meta.url)),
+    'utf8',
+  );
 
 it('führt den Befehl in der Laufzeit unter demselben Namen aus', () => {
   const bot = quelltext('bot.py');

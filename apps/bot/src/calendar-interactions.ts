@@ -61,24 +61,23 @@ async function handleButton(
       return;
     }
 
-    const text =
-      aktion === 'JOIN' ? await melde(interaction, event) : await entmelde(interaction, event);
+    const text = aktion === 'JOIN' ? await melde(interaction, event) : await entmelde(interaction, event);
     await interaction.editReply({ content: text });
 
     // Die Ankündigung nachziehen, damit die Platzzahl im Kanal stimmt. Der
     // Aufruf sammelt: bei einem Ansturm wird einmal geschrieben, nicht
     // hundertmal.
-    await calendar.scheduleRefresh(eventId).catch((error: unknown) =>
-      log.warn('Ankündigung konnte nach Anmeldung nicht aktualisiert werden', { eventId, error }),
-    );
+    await calendar
+      .scheduleRefresh(eventId)
+      .catch((error: unknown) =>
+        log.warn('Ankündigung konnte nach Anmeldung nicht aktualisiert werden', { eventId, error }),
+      );
   } catch (error) {
     // Eine AppError trägt einen Text, der für die Person gedacht ist -
     // «Ausgebucht» oder «Frist abgelaufen». Alles andere ist ein Fehler von
     // uns und wird nicht im Wortlaut weitergereicht.
     const meldung =
-      error instanceof AppError
-        ? error.userMessage
-        : 'Das het nid klappet. Bitte probier s über d Website.';
+      error instanceof AppError ? error.userMessage : 'Das het nid klappet. Bitte probier s über d Website.';
     if (!(error instanceof AppError)) {
       log.error('Kalender-Knopf fehlgeschlagen', { error, eventId, aktion });
     }
@@ -96,9 +95,8 @@ async function melde(
     {
       discordId: interaction.user.id,
       username: interaction.user.username,
-      displayName: interaction.member && 'displayName' in interaction.member
-        ? interaction.member.displayName
-        : null,
+      displayName:
+        interaction.member && 'displayName' in interaction.member ? interaction.member.displayName : null,
     },
     event.id,
   );
@@ -111,10 +109,7 @@ async function melde(
     ].join('\n');
   }
 
-  return [
-    `Du bisch debii bi **${event.title}**.`,
-    calendar.eventUrl(event),
-  ].join('\n');
+  return [`Du bisch debii bi **${event.title}**.`, calendar.eventUrl(event)].join('\n');
 }
 
 async function entmelde(

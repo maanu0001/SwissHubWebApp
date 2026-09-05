@@ -74,10 +74,7 @@ describe('«Modul sehen» - Sidebar', () => {
   const alleRechte = [...BEKANNT];
 
   it('zeigt mit Schlüssel den Tab', () => {
-    const eintraege = buildNavigation(
-      ['music.module.view', 'music.view'],
-      new Set(['music']),
-    );
+    const eintraege = buildNavigation(['music.module.view', 'music.view'], new Set(['music']));
     expect(eintraege.some((eintrag) => eintrag.href === '/musik')).toBe(true);
   });
 
@@ -97,10 +94,7 @@ describe('«Modul sehen» - Sidebar', () => {
     const nurSehen = buildNavigation(['jail.module.view'], new Set(['jail']));
     expect(nurSehen).toHaveLength(0);
 
-    const mitEintrag = buildNavigation(
-      ['jail.module.view', 'jail.vote.start'],
-      new Set(['jail']),
-    );
+    const mitEintrag = buildNavigation(['jail.module.view', 'jail.vote.start'], new Set(['jail']));
     expect(mitEintrag.map((eintrag) => eintrag.href)).toEqual(['/vote-jail']);
   });
 
@@ -227,9 +221,7 @@ describe('«Modul sehen» - bestehende Rollen', () => {
   it('gibt der Vorlage «Premium» Musik und den Vote Jail, aber keine Moderation', () => {
     const rechte = resolvePreset(PERMISSION_PRESETS.find((v) => v.id === 'premium')!);
     const module = new Set(buildNavigation(rechte, ALLE_MODULE).map((e) => e.moduleId));
-    const seiten = new Set(
-      buildNavigation(rechte, ALLE_MODULE).map((eintrag) => eintrag.href),
-    );
+    const seiten = new Set(buildNavigation(rechte, ALLE_MODULE).map((eintrag) => eintrag.href));
     expect(module.has('music')).toBe(true);
 
     // Den Jail-Bereich sieht Premium, weil dort der Vote Jail beginnt - eine

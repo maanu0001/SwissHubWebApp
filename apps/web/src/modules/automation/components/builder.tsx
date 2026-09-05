@@ -288,9 +288,7 @@ export function Builder({
                 ))}
               </SelectContent>
             </Select>
-            {trigger ? (
-              <p className="text-xs text-muted-foreground">{trigger.description}</p>
-            ) : null}
+            {trigger ? <p className="text-xs text-muted-foreground">{trigger.description}</p> : null}
           </div>
 
           <div className="grid gap-4 lg:grid-cols-2">
@@ -496,9 +494,7 @@ export function Builder({
           Prüfen
         </Button>
         {!darfSpeichern ? (
-          <span className="text-xs text-muted-foreground">
-            Zum Ändern fehlt dir die nötige Berechtigung.
-          </span>
+          <span className="text-xs text-muted-foreground">Zum Ändern fehlt dir die nötige Berechtigung.</span>
         ) : null}
       </div>
     </div>
@@ -546,9 +542,7 @@ function SchrittKarte({
   onEntfernen: () => void;
 }): React.JSX.Element {
   const definition =
-    schritt.art === 'aktion'
-      ? bausteine.aktionen.find((eintrag) => eintrag.id === schritt.typ)
-      : undefined;
+    schritt.art === 'aktion' ? bausteine.aktionen.find((eintrag) => eintrag.id === schritt.typ) : undefined;
 
   const rechtFehlt =
     definition?.requiredPermission !== undefined &&
@@ -687,8 +681,8 @@ function SchrittKarte({
       {schritt.art === 'aktion' && !definition ? (
         <p className="flex items-center gap-2 text-sm text-destructive">
           <AlertTriangle className="size-4" aria-hidden="true" />
-          Die Aktion «{schritt.typ}» gibt es nicht mehr. Entferne den Schritt oder schalte das
-          zugehörige Modul wieder ein.
+          Die Aktion «{schritt.typ}» gibt es nicht mehr. Entferne den Schritt oder schalte das zugehörige
+          Modul wieder ein.
         </p>
       ) : null}
     </div>

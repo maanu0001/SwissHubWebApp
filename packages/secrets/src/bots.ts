@@ -194,9 +194,7 @@ export async function deleteBot(id: string, actorDiscordId?: string | null): Pro
     throw notFound('Diesen Bot gibt es nicht.');
   }
   if (istSystemBot(bot)) {
-    throw conflict(
-      'Der Systembot lässt sich nicht entfernen - er ist die SwissHub-Anwendung selbst.',
-    );
+    throw conflict('Der Systembot lässt sich nicht entfernen - er ist die SwissHub-Anwendung selbst.');
   }
   await deleteProvider(botProvider(id), { actorDiscordId });
   await prisma.integrationBot.delete({ where: { id } });
@@ -231,9 +229,7 @@ export async function rotateBotToken(
   if (istSystemBot(bot)) {
     // Sonst laege derselbe Token an zwei Stellen, und beim naechsten Wechsel
     // wuerde eine davon vergessen.
-    throw conflict(
-      'Das Token des Systembots wird unter Integrationen → Discord gepflegt, nicht hier.',
-    );
+    throw conflict('Das Token des Systembots wird unter Integrationen → Discord gepflegt, nicht hier.');
   }
 
   const pruefung = await validateBotToken(neuesToken);

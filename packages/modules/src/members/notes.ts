@@ -87,7 +87,10 @@ export async function listMemberNotes(
  * Text so, wie er geschrieben wurde, damit spaeter niemand raten muss, was
  * urspruenglich gemeint war.
  */
-function pruefeInhalt(rohText: string, rohKategorie: string | null | undefined): {
+function pruefeInhalt(
+  rohText: string,
+  rohKategorie: string | null | undefined,
+): {
   content: string;
   category: string | null;
 } {
@@ -230,11 +233,7 @@ export async function updateMemberNote(
 }
 
 /** Loescht eine Notiz. */
-export async function deleteMemberNote(
-  viewer: MemberViewer,
-  autor: NotizAutor,
-  id: string,
-): Promise<void> {
+export async function deleteMemberNote(viewer: MemberViewer, autor: NotizAutor, id: string): Promise<void> {
   if (!viewer.can(MEMBER_PERMISSIONS.notesDelete)) {
     throw new AppError('FORBIDDEN', { userMessage: 'Du darfst keine Notizen löschen.' });
   }

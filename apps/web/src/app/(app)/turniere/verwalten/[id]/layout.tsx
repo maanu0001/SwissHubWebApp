@@ -30,9 +30,7 @@ export default async function TurnierVerwaltungLayout({
   const context = await requireMember();
   const { tournament, zugriff } = await ladeTurnierMitZugriff(context, id);
 
-  const reiter: Array<{ href: string; label: string }> = [
-    { href: turnierHref(id), label: 'Leitstand' },
-  ];
+  const reiter: Array<{ href: string; label: string }> = [{ href: turnierHref(id), label: 'Leitstand' }];
   if (zugriff.registrationsView) {
     reiter.push({ href: turnierHref(id, 'anmeldungen'), label: 'Anmeldungen' });
   }

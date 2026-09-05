@@ -260,14 +260,11 @@ export async function getStats(viewer: TicketViewer): Promise<{
       .sort((a, b) => b.anzahl - a.anzahl),
     ersteAntwortMinuten: schnitt(
       mitAntwort.map(
-        (eintrag) =>
-          (eintrag.firstStaffResponseAt!.getTime() - eintrag.createdAt.getTime()) / 60_000,
+        (eintrag) => (eintrag.firstStaffResponseAt!.getTime() - eintrag.createdAt.getTime()) / 60_000,
       ),
     ),
     loesungsdauerStunden: schnitt(
-      geloest.map(
-        (eintrag) => (eintrag.closedAt!.getTime() - eintrag.createdAt.getTime()) / 3600_000,
-      ),
+      geloest.map((eintrag) => (eintrag.closedAt!.getTime() - eintrag.createdAt.getTime()) / 3600_000),
     ),
     bewertung:
       bewertungen._count._all > 0

@@ -22,9 +22,11 @@ const automationModul2 = automation;
 // Die Ereignisse der Module - `member.joined` und die übrigen - meldet
 // `@swisshub/modules` beim Import an. Ohne diesen Import kennt die Engine
 // kein einziges Ereignis, und jede Veröffentlichung würde abgewiesen.
-const { setModuleEnabled, setModuleSettings, automation: automationModul } = await import(
-  '@swisshub/modules'
-);
+const {
+  setModuleEnabled,
+  setModuleSettings,
+  automation: automationModul,
+} = await import('@swisshub/modules');
 
 const GILDE = '900000000000000900';
 const KANAL = '900000000000000901';
@@ -72,9 +74,7 @@ function attrappe() {
   return { gateway: gateway as never, gesendet, rollen };
 }
 
-async function legeAutomationAn(
-  patch: Partial<Parameters<typeof prisma.automation.create>[0]['data']> = {},
-) {
+async function legeAutomationAn(patch: Partial<Parameters<typeof prisma.automation.create>[0]['data']> = {}) {
   return prisma.automation.create({
     data: {
       guildId: GILDE,
@@ -301,7 +301,11 @@ describeWithDatabase('Automation Engine', () => {
         art: 'gruppe',
         verknuepfung: 'UND',
         kinder: [
-          { art: 'bedingung', typ: 'wert', config: { pfad: 'payload.kontoAlterTage', operator: 'lt', wert: '7' } },
+          {
+            art: 'bedingung',
+            typ: 'wert',
+            config: { pfad: 'payload.kontoAlterTage', operator: 'lt', wert: '7' },
+          },
         ],
       } as never,
     });
@@ -439,9 +443,7 @@ describeWithDatabase('Automation Engine', () => {
 
     const zurueck = await automation.holeVerwaisteZurueck();
     expect(zurueck).toBe(1);
-    expect((await prisma.automationJob.findUniqueOrThrow({ where: { id: job!.id } })).status).toBe(
-      'PENDING',
-    );
+    expect((await prisma.automationJob.findUniqueOrThrow({ where: { id: job!.id } })).status).toBe('PENDING');
   });
 
   it('verwirft geplante Läufe beim Ausschalten', async () => {
@@ -740,9 +742,7 @@ describeWithDatabase('Automation Engine', () => {
 
   it('lässt eine Systemautomation nicht bearbeiten oder löschen', async () => {
     const eintrag = await legeAutomationAn({ kind: 'SYSTEM', systemKey: 'test.system' });
-    await expect(
-      automation.archiviere(GILDE, eintrag.id, { discordId: MITGLIED }),
-    ).rejects.toThrow();
+    await expect(automation.archiviere(GILDE, eintrag.id, { discordId: MITGLIED })).rejects.toThrow();
   });
 
   /**
@@ -875,8 +875,20 @@ describeWithDatabase('Automation Engine', () => {
     await automation.verteileEreignisse({ gateway });
     const freigabe = await prisma.automationApproval.findFirstOrThrow();
 
-    const erste = await automation.entscheideFreigabe(GILDE, freigabe.id, true, { discordId: MITGLIED }, { gateway });
-    const zweite = await automation.entscheideFreigabe(GILDE, freigabe.id, true, { discordId: MITGLIED }, { gateway });
+    const erste = await automation.entscheideFreigabe(
+      GILDE,
+      freigabe.id,
+      true,
+      { discordId: MITGLIED },
+      { gateway },
+    );
+    const zweite = await automation.entscheideFreigabe(
+      GILDE,
+      freigabe.id,
+      true,
+      { discordId: MITGLIED },
+      { gateway },
+    );
 
     expect(erste.ok).toBe(true);
     expect(zweite.ok).toBe(false);

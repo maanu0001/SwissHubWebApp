@@ -58,7 +58,6 @@ export default async function AppLayout({
     ? await ticketsModule.countOpenTickets(ticketViewer(context)).catch(() => null)
     : null;
 
-
   /**
    * Zustand für die Hinweiskarte in der Seitenleiste.
    *
@@ -70,8 +69,7 @@ export default async function AppLayout({
     ? await premiumModule
         .getActiveSubscription(context.user.id)
         .then((abo) => ({
-          planName:
-            abo && premiumModule.grantsEntitlements(abo.status) ? `${abo.product.name} aktiv` : null,
+          planName: abo && premiumModule.grantsEntitlements(abo.status) ? `${abo.product.name} aktiv` : null,
         }))
         .catch(() => ({ planName: null }))
     : null;

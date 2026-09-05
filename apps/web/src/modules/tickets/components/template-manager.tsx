@@ -8,13 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input, Textarea } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ConfirmationDialog } from '@/components/shared/confirmation-dialog';
 import { EmptyState } from '@/components/shared/states';
 import {
@@ -235,9 +229,7 @@ function VorlageForm({
         <Textarea
           id="vorlage-text"
           value={form.content}
-          onChange={(ereignis) =>
-            setForm((vorher) => ({ ...vorher, content: ereignis.target.value }))
-          }
+          onChange={(ereignis) => setForm((vorher) => ({ ...vorher, content: ereignis.target.value }))}
           maxLength={MAX_LAENGE}
           rows={6}
           required

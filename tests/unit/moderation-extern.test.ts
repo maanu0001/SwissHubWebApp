@@ -84,9 +84,7 @@ describe('Zuordnung eines Audit-Eintrags', () => {
   });
 
   it('weist einen Eintrag anderen Typs ab', async () => {
-    const { gateway } = gatewayMit([
-      eintrag({ actionType: AUDIT_LOG_ACTIONS.MEMBER_BAN_REMOVE }),
-    ]);
+    const { gateway } = gatewayMit([eintrag({ actionType: AUDIT_LOG_ACTIONS.MEMBER_BAN_REMOVE })]);
     const befund = await moderation.findeAuditEintrag(suche, { gateway, warte: sofort });
 
     expect(befund.status).toBe('kein-treffer');
@@ -171,9 +169,7 @@ describe('Wenn das Audit Log nicht lesbar ist', () => {
 
   it('wirft nicht, sondern antwortet', async () => {
     const { gateway } = gatewayMit(new Error('Discord ist weg'));
-    await expect(
-      moderation.findeAuditEintrag(suche, { gateway, warte: sofort }),
-    ).resolves.toBeDefined();
+    await expect(moderation.findeAuditEintrag(suche, { gateway, warte: sofort })).resolves.toBeDefined();
   });
 });
 

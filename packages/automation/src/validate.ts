@@ -1,7 +1,13 @@
 import type { DiscordGateway } from '@swisshub/discord';
 import { sammleTypen, type ConditionNode } from './conditions';
 import { LIMITS, getEventDefinition } from './contract';
-import { getAction, getCondition, getTrigger, type ValidationEnvironment, type ValidationIssue } from './registry';
+import {
+  getAction,
+  getCondition,
+  getTrigger,
+  type ValidationEnvironment,
+  type ValidationIssue,
+} from './registry';
 import { stepsSchema, zaehleSchritte, type StepNode } from './steps';
 
 /**
@@ -234,10 +240,7 @@ async function pruefeSchritte(
  * vollständig prüfen. Ein Fehler daraus zu machen hiesse, dass niemand
  * einschalten kann, solange Discord hakt.
  */
-async function sicher(
-  pruefung: () => Promise<ValidationIssue[]>,
-  pfad: string,
-): Promise<ValidationIssue[]> {
+async function sicher(pruefung: () => Promise<ValidationIssue[]>, pfad: string): Promise<ValidationIssue[]> {
   try {
     const ergebnis = await pruefung();
     return ergebnis.map((problem) => ({ ...problem, path: problem.path ?? pfad }));

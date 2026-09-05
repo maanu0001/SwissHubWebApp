@@ -24,10 +24,7 @@ const log = createLogger('bot:automation');
  *    entscheidet die Bedingung in der Automation - nicht diese Datei. Wer
  *    hier filtert, nimmt eine Entscheidung vorweg, die dem Server gehört.
  */
-export function registerAutomationEvents(
-  client: Client,
-  guildIdAktiv: (candidate: string) => boolean,
-): void {
+export function registerAutomationEvents(client: Client, guildIdAktiv: (candidate: string) => boolean): void {
   const sicher = (was: string, arbeit: () => Promise<void>): void => {
     void arbeit().catch((error: unknown) => {
       log.warn('Automations-Ereignis nicht gemeldet', { was, error });
@@ -41,9 +38,7 @@ export function registerAutomationEvents(
       return;
     }
     sicher('Beitritt', async () => {
-      const alterTage = Math.floor(
-        (Date.now() - member.user.createdAt.getTime()) / (24 * 3600_000),
-      );
+      const alterTage = Math.floor((Date.now() - member.user.createdAt.getTime()) / (24 * 3600_000));
       await automation.meldeEreignis(
         'member.joined',
         {

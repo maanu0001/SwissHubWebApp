@@ -410,8 +410,9 @@ export async function publishEvent(
   // Veröffentlichung nicht rückgängig machen. Der Weg über die Verwaltung
   // bleibt für den Fall, dass es beim ersten Mal nicht geklappt hat.
   const { announceEvent } = await import('./discord');
-  await announceEvent(id, { actor, ...(options.gateway ? { gateway: options.gateway } : {}) }).catch((error: unknown) =>
-    logger.warn('Ankündigung nach dem Veröffentlichen fehlgeschlagen', { eventId: id, error }),
+  await announceEvent(id, { actor, ...(options.gateway ? { gateway: options.gateway } : {}) }).catch(
+    (error: unknown) =>
+      logger.warn('Ankündigung nach dem Veröffentlichen fehlgeschlagen', { eventId: id, error }),
   );
 
   logger.info('Event veröffentlicht', { eventId: id, status });
@@ -472,11 +473,7 @@ export interface DeleteSummary {
  * mit Angemeldeten laesst sich nicht loeschen; wer es beenden will, sagt es
  * ab, und die Angemeldeten erfahren davon.
  */
-export async function deleteEvent(
-  actor: CalendarActor,
-  id: string,
-  reason: string,
-): Promise<DeleteSummary> {
+export async function deleteEvent(actor: CalendarActor, id: string, reason: string): Promise<DeleteSummary> {
   const event = await requireEvent(id);
   if (event.status === 'SCHEDULED' || event.status === 'ONGOING') {
     const angemeldet = await prisma.calendarRegistration.count({
@@ -544,11 +541,7 @@ export async function duplicateEvent(
   // ein Community-Abend dauert beim naechsten Mal genauso lang.
   const dauer = vorlage.endAt ? vorlage.endAt.getTime() - vorlage.startAt.getTime() : null;
   const endAt =
-    options.endAt !== undefined
-      ? options.endAt
-      : dauer !== null
-        ? new Date(startAt.getTime() + dauer)
-        : null;
+    options.endAt !== undefined ? options.endAt : dauer !== null ? new Date(startAt.getTime() + dauer) : null;
 
   const kopie = await prisma.$transaction(async (tx) => {
     const angelegt = await tx.calendarEvent.create({

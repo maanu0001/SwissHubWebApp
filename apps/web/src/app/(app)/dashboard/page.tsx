@@ -69,8 +69,7 @@ export default async function DashboardPage(): Promise<React.JSX.Element> {
   const darfNutzen = (permission: string, moduleId: string): boolean =>
     can(context, permission) && moduleIds.has(moduleId);
 
-  const [data, moduleStatus, moduleIds, jailSettings, health, logoUrl, grundVorlagen] =
-    await Promise.all([
+  const [data, moduleStatus, moduleIds, jailSettings, health, logoUrl, grundVorlagen] = await Promise.all([
     loadDashboardData({ canViewJails, canViewAudit, canViewModeration }),
     listModuleStatus(),
     enabledModuleIds(),
@@ -88,12 +87,9 @@ export default async function DashboardPage(): Promise<React.JSX.Element> {
    * Abfrage aus, bleibt die Karte weg; das Dashboard soll deswegen nicht
    * scheitern.
    */
-  const kommendeEvents =
-    darfNutzen(calendar.CALENDAR_PERMISSIONS.view, calendar.CALENDAR_MODULE_ID)
-      ? await calendar
-          .listUpcoming(3, { viewerDiscordId: context.user.discordId })
-          .catch(() => [])
-      : [];
+  const kommendeEvents = darfNutzen(calendar.CALENDAR_PERMISSIONS.view, calendar.CALENDAR_MODULE_ID)
+    ? await calendar.listUpcoming(3, { viewerDiscordId: context.user.discordId }).catch(() => [])
+    : [];
 
   /**
    * Wie viele Verifikationen auf eine Entscheidung warten.
@@ -206,11 +202,7 @@ export default async function DashboardPage(): Promise<React.JSX.Element> {
           <StatCard
             label="Verifikationen offen"
             value={offeneVerifikationen}
-            hint={
-              offeneVerifikationen > 0
-                ? 'Warten auf eine Entscheidung'
-                : 'Nichts zu prüfen'
-            }
+            hint={offeneVerifikationen > 0 ? 'Warten auf eine Entscheidung' : 'Nichts zu prüfen'}
             icon={<ShieldCheck />}
             tone={offeneVerifikationen > 0 ? 'warning' : 'default'}
           />
@@ -291,9 +283,7 @@ export default async function DashboardPage(): Promise<React.JSX.Element> {
                   </span>
                   {event.registrationEnabled ? (
                     <span className="text-xs tabular-nums text-muted-foreground">
-                      {event.capacity > 0
-                        ? `${event.confirmed} / ${event.capacity}`
-                        : `${event.confirmed}`}{' '}
+                      {event.capacity > 0 ? `${event.confirmed} / ${event.capacity}` : `${event.confirmed}`}{' '}
                       Teilnehmer
                     </span>
                   ) : null}

@@ -393,9 +393,7 @@ export interface VorlagenAbweichung {
   fehlend: string[];
 }
 
-export function findPresetDrift(
-  permissions: readonly string[],
-): VorlagenAbweichung | null {
+export function findPresetDrift(permissions: readonly string[]): VorlagenAbweichung | null {
   if (permissions.length === 0) {
     return null;
   }

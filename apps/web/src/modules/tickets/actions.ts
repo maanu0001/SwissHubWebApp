@@ -116,13 +116,7 @@ export const changeStatusAction = defineAction(
     module: 'tickets',
     permission: tickets.TICKET_PERMISSIONS.supportChangeStatus,
     schema: ticketSchema.extend({
-      status: z.enum([
-        'OPEN',
-        'IN_PROGRESS',
-        'WAITING_FOR_USER',
-        'WAITING_FOR_STAFF',
-        'RESOLVED',
-      ]),
+      status: z.enum(['OPEN', 'IN_PROGRESS', 'WAITING_FOR_USER', 'WAITING_FOR_STAFF', 'RESOLVED']),
     }),
     rateLimit: 'ticketWrite',
   },
@@ -279,7 +273,10 @@ export const assignAction = defineAction(
     permission: tickets.TICKET_PERMISSIONS.supportAssign,
     schema: ticketSchema.extend({
       // `null` hebt die Zuweisung auf.
-      discordId: z.string().regex(/^\d{17,20}$/u).nullable(),
+      discordId: z
+        .string()
+        .regex(/^\d{17,20}$/u)
+        .nullable(),
       username: z.string().min(1).max(64).nullable(),
     }),
     rateLimit: 'ticketWrite',
@@ -292,9 +289,7 @@ export const assignAction = defineAction(
     }
     await tickets.assignTicket(
       ticket.id,
-      input.discordId && input.username
-        ? { discordId: input.discordId, username: input.username }
-        : null,
+      input.discordId && input.username ? { discordId: input.discordId, username: input.username } : null,
       actor(ctx),
     );
     revalidatePath(`/tickets/${ticket.id}`);
@@ -363,7 +358,10 @@ export const createTicketAction = defineAction(
       answers: z.array(z.string().max(4000)).max(10).default([]),
       // Im Namen eines Mitglieds eröffnen. Braucht eine eigene, kritische
       // Berechtigung - sonst legte jeder Tickets auf fremde Namen an.
-      forDiscordId: z.string().regex(/^\d{17,20}$/u).optional(),
+      forDiscordId: z
+        .string()
+        .regex(/^\d{17,20}$/u)
+        .optional(),
       forUsername: z.string().min(1).max(64).optional(),
     }),
     rateLimit: 'ticketCreate',
@@ -419,9 +417,7 @@ export const createTicketAction = defineAction(
       categoryId: kategorie.id,
       subject: input.subject,
       creatorDiscordId: fuerAndere ? input.forDiscordId! : ctx.user.discordId,
-      creatorUsername: fuerAndere
-        ? (input.forUsername ?? input.forDiscordId!)
-        : ctx.user.username,
+      creatorUsername: fuerAndere ? (input.forUsername ?? input.forDiscordId!) : ctx.user.username,
       formAnswers,
       // Ein Ticket, das die Verwaltung anlegt, sagt das auch - sonst sähe es
       // im Archiv aus, als hätte das Mitglied es selbst eröffnet.

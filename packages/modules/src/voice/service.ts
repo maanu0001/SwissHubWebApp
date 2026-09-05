@@ -1,11 +1,6 @@
 import { prisma } from '@swisshub/database';
 import type { TemporaryVoiceChannel, TemporaryVoiceSource, VoiceHubEventKind } from '@swisshub/database';
-import {
-  discord,
-  resolveGuildId,
-  type ChannelOverwrite,
-  type DiscordGateway,
-} from '@swisshub/discord';
+import { discord, resolveGuildId, type ChannelOverwrite, type DiscordGateway } from '@swisshub/discord';
 import { createLogger } from '@swisshub/logger';
 import { AppError } from '@swisshub/shared';
 import { besitzerVerwaltungsRechte } from './bot-rechte';
@@ -105,9 +100,7 @@ export interface CreateTemporaryVoiceInput {
  * je nach Laune der API hunderte Millisekunden, und solange haelt niemand eine
  * Sperre.
  */
-export async function createTemporaryVoice(
-  input: CreateTemporaryVoiceInput,
-): Promise<TemporaryVoiceChannel> {
+export async function createTemporaryVoice(input: CreateTemporaryVoiceInput): Promise<TemporaryVoiceChannel> {
   const namePruefung = pruefeName(input.name);
   const name = namePruefung.ok ? namePruefung.name : `${input.ownerUsername} Stübli`.slice(0, 100);
 
@@ -198,9 +191,7 @@ export async function createTemporaryVoice(
 
     // Die Reservierung wieder freigeben - sonst blockiert sie den naechsten
     // Versuch derselben Person auf Dauer.
-    await prisma.temporaryVoiceChannel
-      .delete({ where: { id: reservierung.id } })
-      .catch(() => undefined);
+    await prisma.temporaryVoiceChannel.delete({ where: { id: reservierung.id } }).catch(() => undefined);
 
     log.error('Sprachkanal konnte nicht erstellt werden', {
       error: error instanceof Error ? error.message : 'unbekannt',
@@ -283,19 +274,14 @@ async function baueStartAusnahmen(input: CreateTemporaryVoiceInput): Promise<Cha
 // --- Lesen -----------------------------------------------------------------
 
 /** Ein offener Talk anhand seiner Discord-Kennung. */
-export async function findeOffenenKanal(
-  discordChannelId: string,
-): Promise<TemporaryVoiceChannel | null> {
+export async function findeOffenenKanal(discordChannelId: string): Promise<TemporaryVoiceChannel | null> {
   return prisma.temporaryVoiceChannel.findFirst({
     where: { discordChannelId, closedAt: null },
   });
 }
 
 /** Ein offener Talk anhand der eigenen Kennung, auf die Guild geprueft. */
-export async function ladeOffenenKanal(
-  id: string,
-  guildId: string,
-): Promise<TemporaryVoiceChannel | null> {
+export async function ladeOffenenKanal(id: string, guildId: string): Promise<TemporaryVoiceChannel | null> {
   return prisma.temporaryVoiceChannel.findFirst({ where: { id, guildId, closedAt: null } });
 }
 

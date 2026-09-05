@@ -35,8 +35,8 @@ export default function CommunicationError({
       </span>
       <h2 className="mt-3 text-lg font-semibold">Der Bereich konnte nicht geladen werden</h2>
       <p className="mx-auto mt-1 max-w-md text-sm text-muted-foreground">
-        Bereits gesendete Nachrichten sind davon nicht betroffen. Versuche es erneut oder wechsle in
-        einen anderen Bereich.
+        Bereits gesendete Nachrichten sind davon nicht betroffen. Versuche es erneut oder wechsle in einen
+        anderen Bereich.
       </p>
       {error.digest ? (
         <p className="mt-2 text-xs text-muted-foreground">

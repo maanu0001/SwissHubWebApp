@@ -35,13 +35,10 @@ function betrachter(permissions: string[]): AuthContext {
   } as unknown as AuthContext;
 }
 
-const MITGLIED = betrachter(
-  resolvePreset(PERMISSION_PRESETS.find((preset) => preset.id === 'mitglied')!),
-);
+const MITGLIED = betrachter(resolvePreset(PERMISSION_PRESETS.find((preset) => preset.id === 'mitglied')!));
 const ADMIN = betrachter(['admin.full']);
 
-const labels = (sections: Array<{ label: string }>): string[] =>
-  sections.map((section) => section.label);
+const labels = (sections: Array<{ label: string }>): string[] => sections.map((section) => section.label);
 
 describe('Sichtbarkeit für ein gewöhnliches Mitglied', () => {
   it('zeigt im Voice Hub keine Einstellungen', () => {

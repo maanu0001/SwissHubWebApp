@@ -140,8 +140,7 @@ registerAction({
       return { status: 'NO_OP', detail: 'Es ist kein Meldekanal eingerichtet.' };
     }
 
-    const erwaehnung =
-      erwaehneRolle && settings.meldeRolleId ? `<@&${settings.meldeRolleId}> ` : '';
+    const erwaehnung = erwaehneRolle && settings.meldeRolleId ? `<@&${settings.meldeRolleId}> ` : '';
 
     await context.gateway.channels.send(settings.meldeKanalId, {
       ...(erwaehnung ? { content: erwaehnung.trim() } : {}),
@@ -156,9 +155,7 @@ registerAction({
       ],
       // Nur die eine, ausdrücklich gewählte Rolle darf pingen - sonst nichts.
       allowedMentions:
-        erwaehnung && settings.meldeRolleId
-          ? { parse: [], roles: [settings.meldeRolleId] }
-          : { parse: [] },
+        erwaehnung && settings.meldeRolleId ? { parse: [], roles: [settings.meldeRolleId] } : { parse: [] },
     });
 
     return { status: 'SUCCESS', detail: 'Meldung gesendet.' };

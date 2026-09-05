@@ -322,10 +322,7 @@ async function ladeTurniere(discordId: string): Promise<MemberTournamentView> {
  * sieht, *dass* ein Ticket existiert, heisst nicht, dass er es oeffnen darf -
  * der Nachrichtenverlauf haengt weiterhin an den Ticket-Berechtigungen.
  */
-async function ladeTickets(
-  viewer: MemberViewer,
-  discordId: string,
-): Promise<MemberTicketRow[]> {
+async function ladeTickets(viewer: MemberViewer, discordId: string): Promise<MemberTicketRow[]> {
   const { listTickets } = await import('../tickets/queries');
   const { rows } = await listTickets(
     { discordId: viewer.discordId, roleIds: viewer.roleIds, can: viewer.can },
@@ -445,9 +442,7 @@ export interface MemberCenterQuery {
  * antwortet gleich: sonst liesse sich an der Antwort ablesen, wer auf dem
  * Server ist.
  */
-export async function getMemberCenterProfile(
-  query: MemberCenterQuery,
-): Promise<MemberCenterProfile | null> {
+export async function getMemberCenterProfile(query: MemberCenterQuery): Promise<MemberCenterProfile | null> {
   const { viewer, targetDiscordId } = query;
   const gateway = query.gateway ?? defaultDiscord;
 
@@ -496,8 +491,7 @@ export async function getMemberCenterProfile(
   }
 
   // --- Erst fragen ------------------------------------------------------
-  const erlaubt = (section: MemberSection): boolean =>
-    darfSehen(viewer, section, targetDiscordId);
+  const erlaubt = (section: MemberSection): boolean => darfSehen(viewer, section, targetDiscordId);
 
   // --- Dann laden -------------------------------------------------------
   //
@@ -587,7 +581,18 @@ export async function getMemberCenterProfile(
   }
 
   profil.sichtbar = (
-    ['basic', 'roles', 'activity', 'level', 'spielersuche', 'tournaments', 'tickets', 'premium', 'moderation', 'notes'] as MemberSection[]
+    [
+      'basic',
+      'roles',
+      'activity',
+      'level',
+      'spielersuche',
+      'tournaments',
+      'tickets',
+      'premium',
+      'moderation',
+      'notes',
+    ] as MemberSection[]
   ).filter((section) => erlaubt(section));
 
   return profil;

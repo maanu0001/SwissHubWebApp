@@ -271,50 +271,52 @@ export function buildNavigation(
   enabledModuleIds: ReadonlySet<string>,
 ): NavigationEntry[] {
   const owned = new Set(permissionKeys);
-  return listModuleDefinitions()
-    .filter((definition) => definition.core || enabledModuleIds.has(definition.id))
-    // «Modul sehen» zuerst: fehlt der Schluessel, erscheint von diesem Modul
-    // nichts - unabhaengig davon, welche Aktionen jemand darin ausfuehren
-    // duerfte. Frueher genuegte irgendeine Berechtigung des Moduls, und der
-    // Eintrag entstand als Nebenwirkung einer Handlungsbefugnis. Sichtbarkeit
-    // ist jetzt eine eigene Entscheidung.
-    .flatMap((definition) => {
-      // «Modul sehen» zuerst - siehe oben. Ein Eintrag mit `baseline`
-      // ueberlebt das: er haengt an der Anmeldung und nicht an einer
-      // Zuteilung, und ein fehlendes «Modul sehen» ist genau so eine.
-      const sehen = moduleViewPermissionOf(definition);
-      const sichtbar = sehen === null || owned.has(sehen);
-      const eintraege = sichtbar
-        ? definition.navigation
-        : definition.navigation.filter((item) => item.baseline);
-      return eintraege.map((item) => ({ ...item, moduleId: definition.id }));
-    })
-    .flatMap((item) => {
-      if (item.baseline || owned.has(item.permission)) {
-        return [item];
-      }
+  return (
+    listModuleDefinitions()
+      .filter((definition) => definition.core || enabledModuleIds.has(definition.id))
+      // «Modul sehen» zuerst: fehlt der Schluessel, erscheint von diesem Modul
+      // nichts - unabhaengig davon, welche Aktionen jemand darin ausfuehren
+      // duerfte. Frueher genuegte irgendeine Berechtigung des Moduls, und der
+      // Eintrag entstand als Nebenwirkung einer Handlungsbefugnis. Sichtbarkeit
+      // ist jetzt eine eigene Entscheidung.
+      .flatMap((definition) => {
+        // «Modul sehen» zuerst - siehe oben. Ein Eintrag mit `baseline`
+        // ueberlebt das: er haengt an der Anmeldung und nicht an einer
+        // Zuteilung, und ein fehlendes «Modul sehen» ist genau so eine.
+        const sehen = moduleViewPermissionOf(definition);
+        const sichtbar = sehen === null || owned.has(sehen);
+        const eintraege = sichtbar
+          ? definition.navigation
+          : definition.navigation.filter((item) => item.baseline);
+        return eintraege.map((item) => ({ ...item, moduleId: definition.id }));
+      })
+      .flatMap((item) => {
+        if (item.baseline || owned.has(item.permission)) {
+          return [item];
+        }
 
-      // Hauptberechtigung fehlt: gibt es einen Weg, der zu dem passt, was
-      // diese Person tatsaechlich darf?
-      const ausweich = (item.alternatives ?? []).find((eintrag) => owned.has(eintrag.permission));
-      if (ausweich) {
-        return [
-          {
-            ...item,
-            href: ausweich.href,
-            label: ausweich.label,
-            description: ausweich.description ?? item.description,
-            icon: ausweich.icon ?? item.icon,
-            // Der Titel-Praefix bleibt der des Moduls: die Unterseiten
-            // gehoeren weiterhin dazu.
-            titlePrefix: item.titlePrefix ?? item.href,
-          },
-        ];
-      }
+        // Hauptberechtigung fehlt: gibt es einen Weg, der zu dem passt, was
+        // diese Person tatsaechlich darf?
+        const ausweich = (item.alternatives ?? []).find((eintrag) => owned.has(eintrag.permission));
+        if (ausweich) {
+          return [
+            {
+              ...item,
+              href: ausweich.href,
+              label: ausweich.label,
+              description: ausweich.description ?? item.description,
+              icon: ausweich.icon ?? item.icon,
+              // Der Titel-Praefix bleibt der des Moduls: die Unterseiten
+              // gehoeren weiterhin dazu.
+              titlePrefix: item.titlePrefix ?? item.href,
+            },
+          ];
+        }
 
-      return (item.altPermissions ?? []).some((permission) => owned.has(permission)) ? [item] : [];
-    })
-    .sort((a, b) => a.order - b.order);
+        return (item.altPermissions ?? []).some((permission) => owned.has(permission)) ? [item] : [];
+      })
+      .sort((a, b) => a.order - b.order)
+  );
 }
 
 /** Gruppiert Navigationseinträge für die Seitenleiste. */

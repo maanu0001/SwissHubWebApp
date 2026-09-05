@@ -30,9 +30,7 @@ export default async function EventBearbeitenPage({
   const { slug } = await params;
 
   if (!(await isModuleEnabled(calendar.CALENDAR_MODULE_ID))) {
-    return (
-      <ErrorState title="Modul deaktiviert" description="Der Community-Kalender ist deaktiviert." />
-    );
+    return <ErrorState title="Modul deaktiviert" description="Der Community-Kalender ist deaktiviert." />;
   }
 
   const event = await calendar.findEvent(slug);
@@ -82,11 +80,7 @@ export default async function EventBearbeitenPage({
             dort eine Einladung zu einer Handlung, die es nicht gibt.
           */
           event.status === 'DRAFT' && can(context, P.publish) ? (
-            <VeroeffentlichenKnopf
-              csrfToken={csrfTokenFor(context)}
-              eventId={event.id}
-              slug={event.slug}
-            />
+            <VeroeffentlichenKnopf csrfToken={csrfTokenFor(context)} eventId={event.id} slug={event.slug} />
           ) : null
         }
       />

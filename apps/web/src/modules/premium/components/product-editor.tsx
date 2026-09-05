@@ -5,7 +5,14 @@ import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { Loader2, Pencil } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
@@ -68,7 +75,10 @@ export function ProductEditor({
       name: wert.name.trim(),
       description: wert.description.trim(),
       priceMinor: rappen,
-      features: wert.merkmale.split('\n').map((z) => z.trim()).filter(Boolean),
+      features: wert.merkmale
+        .split('\n')
+        .map((z) => z.trim())
+        .filter(Boolean),
       entitlements: wert.entitlements as never,
       active: wert.active,
       sortOrder: wert.sortOrder,
@@ -97,9 +107,7 @@ export function ProductEditor({
       <DialogContent className="max-h-[90dvh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{product.name} bearbeiten</DialogTitle>
-          <DialogDescription>
-            Änderungen wirken sofort auf der öffentlichen Premium-Seite.
-          </DialogDescription>
+          <DialogDescription>Änderungen wirken sofort auf der öffentlichen Premium-Seite.</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
@@ -156,8 +164,8 @@ export function ProductEditor({
           <fieldset className="space-y-2">
             <legend className="text-sm font-medium">Ansprüche</legend>
             <p className="text-xs text-muted-foreground">
-              Bestimmen, was auf Discord vergeben wird. Eine feste Auswahl - Discord-Berechtigungen
-              lassen sich hier bewusst nicht frei eintragen.
+              Bestimmen, was auf Discord vergeben wird. Eine feste Auswahl - Discord-Berechtigungen lassen
+              sich hier bewusst nicht frei eintragen.
             </p>
             {ANSPRUECHE.map((anspruch) => (
               <label key={anspruch.wert} className="flex items-center gap-2 text-sm">

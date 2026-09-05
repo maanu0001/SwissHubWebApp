@@ -61,10 +61,7 @@ export async function buildActor(
   const roleIds = memberRoleIds(member);
   const isOwner = bootstrapConfig.ownerDiscordId === user.id;
   const configuration = await loadRoleConfiguration();
-  const resolution = resolvePermissions(
-    { discordId: user.id, roleIds, isOwner },
-    configuration.mappings,
-  );
+  const resolution = resolvePermissions({ discordId: user.id, roleIds, isOwner }, configuration.mappings);
 
   return {
     discordId: user.id,

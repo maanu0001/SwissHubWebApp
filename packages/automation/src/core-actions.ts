@@ -40,7 +40,10 @@ const nachrichtBasis = {
   inhalt: z.string().max(2000).optional(),
   titel: z.string().max(256).optional(),
   beschreibung: z.string().max(4000).optional(),
-  farbe: z.string().regex(/^#?[0-9a-fA-F]{6}$/u).optional(),
+  farbe: z
+    .string()
+    .regex(/^#?[0-9a-fA-F]{6}$/u)
+    .optional(),
 };
 
 function baueNutzlast(config: {
@@ -278,10 +281,7 @@ registerAction({
   },
 });
 
-async function pruefeRolle(
-  config: unknown,
-  rollenIds: ReadonlySet<string>,
-): Promise<ValidationIssue[]> {
+async function pruefeRolle(config: unknown, rollenIds: ReadonlySet<string>): Promise<ValidationIssue[]> {
   const geprueft = rollenAktionConfigSchema.safeParse(config);
   if (!geprueft.success) {
     return [{ severity: 'error', message: 'Es ist keine Rolle gewählt.' }];

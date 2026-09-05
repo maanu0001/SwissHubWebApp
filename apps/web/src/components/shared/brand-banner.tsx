@@ -29,9 +29,7 @@ export function BrandBanner({
       />
       <div className="relative flex items-center justify-between gap-6 px-6 py-6 sm:px-8">
         <div className="min-w-0">
-          <p className="truncate text-xl font-semibold tracking-tight sm:text-2xl">
-            {branding.banner.title}
-          </p>
+          <p className="truncate text-xl font-semibold tracking-tight sm:text-2xl">{branding.banner.title}</p>
           <p className="truncate text-sm text-muted-foreground">{branding.banner.subtitle}</p>
           {footnote ? <p className="mt-1 truncate text-xs text-muted-foreground/80">{footnote}</p> : null}
         </div>

@@ -12,10 +12,7 @@ export const dynamic = 'force-dynamic';
 /** Kategorien: wer zuständig ist, wo der Kanal entsteht, was gefragt wird. */
 export default async function TicketKategorienPage(): Promise<React.JSX.Element> {
   const context = await requirePagePermission(tickets.TICKET_PERMISSIONS.categoriesManage);
-  const [kategorien, optionen] = await Promise.all([
-    tickets.listCategories(),
-    loadDiscordOptions(),
-  ]);
+  const [kategorien, optionen] = await Promise.all([tickets.listCategories(), loadDiscordOptions()]);
 
   return (
     <>

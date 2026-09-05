@@ -45,8 +45,8 @@ export default async function MockCheckoutPage({
       <div className="space-y-1">
         <h1 className="text-2xl font-semibold">Testzahlung</h1>
         <p className="text-sm text-muted-foreground">
-          Der Mock-Zahlungsanbieter ist aktiv. Es fliesst kein Geld. In Production ist dieser
-          Anbieter nicht zugelassen - dort steht hier die Bezahlseite mit TWINT.
+          Der Mock-Zahlungsanbieter ist aktiv. Es fliesst kein Geld. In Production ist dieser Anbieter nicht
+          zugelassen - dort steht hier die Bezahlseite mit TWINT.
         </p>
       </div>
       <MockPayButton subscriptionId={abo} />

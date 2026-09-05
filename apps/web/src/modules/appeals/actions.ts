@@ -191,12 +191,7 @@ export const uebernimmAppealAction = defineAction(
     }
     assertFallSichtbar(ctx, appeal);
 
-    await appeals.weiseZu(
-      guildId,
-      input.appealId,
-      input.freigeben ? null : akteurVon(ctx),
-      akteurVon(ctx),
-    );
+    await appeals.weiseZu(guildId, input.appealId, input.freigeben ? null : akteurVon(ctx), akteurVon(ctx));
     revalidateAppeals();
     return { ok: true };
   },
@@ -209,7 +204,10 @@ export const weiseAppealZuAction = defineAction(
     permission: P.assign,
     schema: z.object({
       appealId: z.string().min(1),
-      zielDiscordId: z.string().regex(/^\d{17,20}$/u).nullable(),
+      zielDiscordId: z
+        .string()
+        .regex(/^\d{17,20}$/u)
+        .nullable(),
       zielUsername: z.string().max(64).nullable(),
     }),
     rateLimit: 'appealStaff',
@@ -453,9 +451,7 @@ export const lehneAppealAbAction = defineAction(
       publicDecision: input.publicDecision,
       internalDecision: input.internalDecision ?? null,
       erneutErlaubt: input.erneutErlaubt,
-      naechsteMoeglichkeitAm: input.naechsteMoeglichkeitAm
-        ? new Date(input.naechsteMoeglichkeitAm)
-        : null,
+      naechsteMoeglichkeitAm: input.naechsteMoeglichkeitAm ? new Date(input.naechsteMoeglichkeitAm) : null,
     });
 
     revalidateAppeals();

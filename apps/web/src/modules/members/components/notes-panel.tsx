@@ -146,9 +146,7 @@ export function NotesPanel({
                 {notiz.category ? <Badge variant="outline">{notiz.category}</Badge> : null}
                 <span>{notiz.author.username}</span>
                 <span aria-hidden="true">·</span>
-                <time dateTime={notiz.createdAt}>
-                  {new Date(notiz.createdAt).toLocaleString('de-CH')}
-                </time>
+                <time dateTime={notiz.createdAt}>{new Date(notiz.createdAt).toLocaleString('de-CH')}</time>
                 {notiz.editedAt ? <span>· bearbeitet</span> : null}
               </div>
 
@@ -182,12 +180,7 @@ export function NotesPanel({
                     <Button type="submit" size="sm" disabled={laeuft === notiz.id}>
                       Speichern
                     </Button>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => setBearbeitet(null)}
-                    >
+                    <Button type="button" size="sm" variant="ghost" onClick={() => setBearbeitet(null)}>
                       Abbrechen
                     </Button>
                   </div>
@@ -213,12 +206,7 @@ export function NotesPanel({
                     </Button>
                   ) : null}
                   {notiz.canDelete ? (
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => setLoeschen(notiz.id)}
-                    >
+                    <Button type="button" size="sm" variant="ghost" onClick={() => setLoeschen(notiz.id)}>
                       <Trash2 className="size-4" aria-hidden="true" />
                       Löschen
                     </Button>

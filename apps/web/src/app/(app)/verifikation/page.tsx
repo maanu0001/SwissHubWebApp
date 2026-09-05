@@ -113,10 +113,7 @@ export default async function VerifikationPage(): Promise<React.JSX.Element> {
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <Panel
-          title="7 Tage"
-          description="Quoten über die letzten sieben Tage."
-        >
+        <Panel title="7 Tage" description="Quoten über die letzten sieben Tage.">
           <dl className="space-y-2 text-sm">
             <div className="flex justify-between">
               <dt className="text-muted-foreground">Von der AI freigeschaltet</dt>
@@ -140,9 +137,7 @@ export default async function VerifikationPage(): Promise<React.JSX.Element> {
           </p>
         </Panel>
 
-        {can(context, P.settingsManage) ? (
-          <SetupPruefung csrfToken={csrfTokenFor(context)} />
-        ) : null}
+        {can(context, P.settingsManage) ? <SetupPruefung csrfToken={csrfTokenFor(context)} /> : null}
       </div>
 
       {can(context, P.historyView) ? (

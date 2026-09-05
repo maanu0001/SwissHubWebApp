@@ -17,8 +17,7 @@ const FRAGEN = [
   },
   {
     frage: 'Wie kann ich kündigen?',
-    antwort:
-      'Unter «Mein Abo» mit einem Klick. Es gibt keine Mindestlaufzeit und keine Kündigungsfrist.',
+    antwort: 'Unter «Mein Abo» mit einem Klick. Es gibt keine Mindestlaufzeit und keine Kündigungsfrist.',
   },
   {
     frage: 'Was passiert nach einer Kündigung?',

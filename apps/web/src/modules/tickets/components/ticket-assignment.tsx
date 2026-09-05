@@ -95,9 +95,7 @@ export function TicketAssignment({
               disabled={auswahl === null || laeuft !== null}
               onClick={() => void zuweisen(auswahl)}
             >
-              {laeuft === 'assign' ? (
-                <Loader2 className="animate-spin" aria-hidden="true" />
-              ) : null}
+              {laeuft === 'assign' ? <Loader2 className="animate-spin" aria-hidden="true" /> : null}
               Übergeben
             </Button>
             {zugewiesenAn ? (

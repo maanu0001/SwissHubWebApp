@@ -34,10 +34,7 @@ export default async function AktiveTurnierePage({
   return (
     <>
       <TournamentSectionNav sections={tournamentSections(context)} />
-      <PageHeader
-        title="Aktive Turniere"
-        description="Anmeldung, Check-in oder Spielbetrieb läuft."
-      />
+      <PageHeader title="Aktive Turniere" description="Anmeldung, Check-in oder Spielbetrieb läuft." />
       <TournamentFilters
         action="/turniere/aktiv"
         suche={suche.q}

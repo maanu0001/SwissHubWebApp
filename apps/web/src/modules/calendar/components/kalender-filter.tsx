@@ -97,11 +97,7 @@ export function KalenderFilter({
           >
             <ChevronLeft aria-hidden="true" />
           </Button>
-          <Button
-            variant="outline"
-            disabled={pending}
-            onClick={() => gehe({ anchor: null })}
-          >
+          <Button variant="outline" disabled={pending} onClick={() => gehe({ anchor: null })}>
             Heute
           </Button>
           <Button
@@ -208,9 +204,7 @@ export function KalenderFilter({
               key={kategorie.id}
               type="button"
               aria-pressed={query.categoryId === kategorie.id}
-              onClick={() =>
-                gehe({ categoryId: query.categoryId === kategorie.id ? null : kategorie.id })
-              }
+              onClick={() => gehe({ categoryId: query.categoryId === kategorie.id ? null : kategorie.id })}
               className={cn(
                 'inline-flex min-h-9 items-center gap-1.5 rounded-lg border px-3 text-sm transition-colors',
                 query.categoryId === kategorie.id

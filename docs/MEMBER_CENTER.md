@@ -24,15 +24,15 @@ Mitgliedsakte ─────►├─ Premium ........ Plan, Laufzeit (ohne Zah
 
 Es ist ein **Aggregator**. Es liest zusammen und besitzt nichts.
 
-| Daten | Eigentümer bleibt |
-| --- | --- |
-| Identität, Avatar, Rollen, Beitritt | Discord |
-| XP, Level, Rang | Level-Modul |
-| Tickets | Ticket-Modul |
-| Turnierteilnahmen | Turnier-Modul |
-| Abonnements | Premium-Modul |
-| Jail, Massnahmen | Jail / Moderation |
-| **Interne Notizen** | **Member Center** |
+| Daten                               | Eigentümer bleibt |
+| ----------------------------------- | ----------------- |
+| Identität, Avatar, Rollen, Beitritt | Discord           |
+| XP, Level, Rang                     | Level-Modul       |
+| Tickets                             | Ticket-Modul      |
+| Turnierteilnahmen                   | Turnier-Modul     |
+| Abonnements                         | Premium-Modul     |
+| Jail, Massnahmen                    | Jail / Moderation |
+| **Interne Notizen**                 | **Member Center** |
 
 Eine Kopie dieser Daten wäre eine zweite Wahrheit, die irgendwann von der
 ersten abweicht – und dann weiss niemand mehr, welche gilt. Deshalb gibt es
@@ -47,7 +47,7 @@ Das ist die eigentliche Sicherheitsentscheidung dieses Moduls.
 ```ts
 // So arbeitet der Aggregator:
 if (darfSehen(viewer, 'moderation', ziel)) {
-  aufgaben.push(ladeModeration(ziel));   // wird geladen
+  aufgaben.push(ladeModeration(ziel)); // wird geladen
 }
 // Kein `else`. Kein `null`. Der Schlüssel existiert einfach nicht.
 ```
@@ -57,7 +57,9 @@ Oberfläche weglassen:
 
 ```tsx
 const profil = await ladeAlles(id);
-{darfModeration && <Moderation />}   // ← das ist keine Sicherheit
+{
+  darfModeration && <Moderation />;
+} // ← das ist keine Sicherheit
 ```
 
 Das ist eine Kulisse. Die Daten wären trotzdem abgefragt, lägen in der Antwort
@@ -98,18 +100,18 @@ Sensible Bereiche sind dadurch **von sich aus gesperrt**.
 
 ### Die Abschnitte
 
-| Abschnitt | Bereiche | Anmerkung |
-| --- | --- | --- |
-| `basic` | own · all | |
-| `roles` | own · all | |
-| `activity` | own · all | |
-| `level` | own · all | |
-| `spielersuche` | own · all | |
-| `tournaments` | own · all | |
-| `tickets` | own · assigned · all | `assigned`, weil das Ticketmodul echte Zuständigkeit führt |
-| `premium` | own · all | ohne Zahlungsdaten |
-| `moderation` | **nur all** | siehe unten |
-| `notes` | **nur all** | siehe unten |
+| Abschnitt      | Bereiche             | Anmerkung                                                  |
+| -------------- | -------------------- | ---------------------------------------------------------- |
+| `basic`        | own · all            |                                                            |
+| `roles`        | own · all            |                                                            |
+| `activity`     | own · all            |                                                            |
+| `level`        | own · all            |                                                            |
+| `spielersuche` | own · all            |                                                            |
+| `tournaments`  | own · all            |                                                            |
+| `tickets`      | own · assigned · all | `assigned`, weil das Ticketmodul echte Zuständigkeit führt |
+| `premium`      | own · all            | ohne Zahlungsdaten                                         |
+| `moderation`   | **nur all**          | siehe unten                                                |
+| `notes`        | **nur all**          | siehe unten                                                |
 
 **Moderation kennt kein `own`.** Die eigene Moderationsakte einsehen zu dürfen
 klingt harmlos, verrät aber, was intern vermerkt ist, und beeinflusst, wie
@@ -122,17 +124,17 @@ symmetrisch aussieht, hätte niemandem geholfen.
 
 ### Aktionen
 
-| Handlung | Berechtigung |
-| --- | --- |
-| Rollen verwalten | `members.roles.manage` |
-| Notiz schreiben | `members.notes.create` |
-| Fremde Notiz ändern | `members.notes.edit` |
-| Notiz löschen | `members.notes.delete` |
-| XP ändern | `level.members.manage` ← **bestehend** |
-| Moderieren | `moderation.execute` ← **bestehend** |
+| Handlung            | Berechtigung                                   |
+| ------------------- | ---------------------------------------------- |
+| Rollen verwalten    | `members.roles.manage`                         |
+| Notiz schreiben     | `members.notes.create`                         |
+| Fremde Notiz ändern | `members.notes.edit`                           |
+| Notiz löschen       | `members.notes.delete`                         |
+| XP ändern           | `level.members.manage` ← **bestehend**         |
+| Moderieren          | `moderation.execute` ← **bestehend**           |
 | Jailen / freilassen | `jail.create` / `jail.release` ← **bestehend** |
-| Ticket für jemanden | `tickets.admin.createForUser` ← **bestehend** |
-| Premium verwalten | `premium.subscriptions.manage` ← **bestehend** |
+| Ticket für jemanden | `tickets.admin.createForUser` ← **bestehend**  |
+| Premium verwalten   | `premium.subscriptions.manage` ← **bestehend** |
 
 Für Handlungen, die es im System längst gibt, entstehen **keine neuen
 Schlüssel**. Ein zweiter Schlüssel für dieselbe Handlung wäre eine zweite
@@ -193,7 +195,7 @@ Premium-Verwaltung, keine Support-Sicht auf fremde Tickets. Ein Test hält das
 fest – die Vorlage landet auf einer Rolle, die jeder auf dem Server trägt.
 
 > **Beim Auflösen fällt nichts mehr stillschweigend weg.** Löst sich eine
-> Vorlage gegen *keine* bekannte Berechtigung auf, wirft `resolvePreset` –
+> Vorlage gegen _keine_ bekannte Berechtigung auf, wirft `resolvePreset` –
 > sonst hätte der Aufrufer der Rolle sämtliche Berechtigungen gelöscht und
 > keine neue vergeben. Ein weiterer Test prüft, dass jede Vorlage vollständig
 > auflöst; er hat dabei einen Altbestand gefunden: die Vorlage
@@ -253,7 +255,7 @@ das es anzeigt. Eine Notiz ist eine Einschätzung von Menschen über Menschen.
 - **Die eigene Notiz** darf ändern, wer Notizen schreiben darf. **Fremde** nur
   mit `members.notes.edit`. Wer etwas notiert hat, soll einen Tippfehler
   beheben können, ohne Rechte über die Notizen anderer zu bekommen.
-- **`editedAt`** wird nur gesetzt, wenn sich der *Text* geändert hat –
+- **`editedAt`** wird nur gesetzt, wenn sich der _Text_ geändert hat –
   Anheften ist keine Bearbeitung.
 - **Das Audit Log hält fest, dass** jemand etwas notiert hat, **nicht was**.
   Es ist für mehr Augen sichtbar als die Notiz selbst.
@@ -293,15 +295,15 @@ zurückkommt, bekommt keine zweite Akte.
 
 ## 10. Sicherheit
 
-| Angriff | Abwehr |
-| --- | --- |
-| **IDOR** – fremde ID in der Adresszeile | Bei `OWN` prüft der Server, ob Ziel = Betrachter. Getestet. |
+| Angriff                                 | Abwehr                                                                                                    |
+| --------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| **IDOR** – fremde ID in der Adresszeile | Bei `OWN` prüft der Server, ob Ziel = Betrachter. Getestet.                                               |
 | **Direkter Aufruf** einer Server Action | Jede Aktion geht durch `defineAction`: Session → Mitgliedschaft → CSRF → Rate Limit → Zod → Berechtigung. |
-| **Mass Assignment** | Zod-Schemata mit festen Feldern; kein Spread aus der Eingabe in Prisma. |
-| **Rechteausweitung** | Rollenhöhe des Betrachters + des Bots + gefährliche Rollen + keine Selbstvergabe. |
-| **Guild-übergreifender Zugriff** | Alle eigenen Abfragen sind auf `guildId` eingegrenzt. Getestet. |
-| **Notiz unter fremdem Namen** | Autor kommt aus der Sitzung. |
-| **Verbotene Daten in der Antwort** | Abschnitt wird gar nicht erst geladen. Getestet. |
+| **Mass Assignment**                     | Zod-Schemata mit festen Feldern; kein Spread aus der Eingabe in Prisma.                                   |
+| **Rechteausweitung**                    | Rollenhöhe des Betrachters + des Bots + gefährliche Rollen + keine Selbstvergabe.                         |
+| **Guild-übergreifender Zugriff**        | Alle eigenen Abfragen sind auf `guildId` eingegrenzt. Getestet.                                           |
+| **Notiz unter fremdem Namen**           | Autor kommt aus der Sitzung.                                                                              |
+| **Verbotene Daten in der Antwort**      | Abschnitt wird gar nicht erst geladen. Getestet.                                                          |
 
 Die Rollen kommen aus dem geprüften Sitzungskontext, nicht aus der Anfrage.
 Schreibende Aktionen laufen mit `freshness: 'critical'` – die Discord-Rollen
@@ -327,11 +329,11 @@ Sicherheitsspur.
 
 ## 12. Fehlersuche
 
-| Symptom | Ursache |
-| --- | --- |
-| «Mitglied wurde nicht gefunden», obwohl es existiert | Der Betrachter darf nicht einmal die Basisdaten sehen. Absicht – die Antwort verrät nicht, wer auf dem Server ist. |
-| Ein Reiter fehlt | Die zugehörige Berechtigung fehlt. `/server/permissions` → Rolle → Member Center. |
-| «Mein Profil» fehlt in der Navigation | Der Rolle fehlt `members.view.basic.own`. |
-| Jail-Verlauf verschwunden | Neu an `members.view.moderation.all`, `moderation.view` oder `jail.view` gebunden. Siehe Abschnitt 4. |
-| Rolle nicht vergebbar | Der Grund steht daneben: über der eigenen Rolle, über dem Bot, von Discord verwaltet oder mit Administrationsrechten. |
-| Ein Abschnitt sagt «Daten momentan nicht verfügbar» | Die Quelle antwortet nicht. Das Bot-Log nennt den Grund; die übrige Akte bleibt nutzbar. |
+| Symptom                                              | Ursache                                                                                                               |
+| ---------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| «Mitglied wurde nicht gefunden», obwohl es existiert | Der Betrachter darf nicht einmal die Basisdaten sehen. Absicht – die Antwort verrät nicht, wer auf dem Server ist.    |
+| Ein Reiter fehlt                                     | Die zugehörige Berechtigung fehlt. `/server/permissions` → Rolle → Member Center.                                     |
+| «Mein Profil» fehlt in der Navigation                | Der Rolle fehlt `members.view.basic.own`.                                                                             |
+| Jail-Verlauf verschwunden                            | Neu an `members.view.moderation.all`, `moderation.view` oder `jail.view` gebunden. Siehe Abschnitt 4.                 |
+| Rolle nicht vergebbar                                | Der Grund steht daneben: über der eigenen Rolle, über dem Bot, von Discord verwaltet oder mit Administrationsrechten. |
+| Ein Abschnitt sagt «Daten momentan nicht verfügbar»  | Die Quelle antwortet nicht. Das Bot-Log nennt den Grund; die übrige Akte bleibt nutzbar.                              |

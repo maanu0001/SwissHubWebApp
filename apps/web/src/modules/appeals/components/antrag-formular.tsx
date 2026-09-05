@@ -130,9 +130,7 @@ export function AntragFormular({
       } catch {
         // Nicht schlimm.
       }
-      toast.success(
-        antwort.data.neu ? 'Dein Antrag ist eingegangen.' : 'Dein Antrag lag bereits vor.',
-      );
+      toast.success(antwort.data.neu ? 'Dein Antrag ist eingegangen.' : 'Dein Antrag lag bereits vor.');
       router.push(`/entbannung/${antwort.data.id}`);
       router.refresh();
     } finally {
@@ -146,8 +144,8 @@ export function AntragFormular({
         <CardHeader>
           <CardTitle className="text-lg">Bitte prüfe deine Angaben</CardTitle>
           <CardDescription>
-            Nach dem Absenden lassen sich diese Antworten nicht mehr ändern. Ergänzen kannst du
-            später über den Nachrichtenbereich deines Antrags.
+            Nach dem Absenden lassen sich diese Antworten nicht mehr ändern. Ergänzen kannst du später über
+            den Nachrichtenbereich deines Antrags.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-5">
@@ -196,8 +194,8 @@ export function AntragFormular({
       <CardHeader>
         <CardTitle className="text-lg">Dein Antrag</CardTitle>
         <CardDescription>
-          Schreib in eigenen Worten - abgeschriebene Texte erkennt man. Was hier fehlt, können wir
-          später über die Nachrichten nachfragen.
+          Schreib in eigenen Worten - abgeschriebene Texte erkennt man. Was hier fehlt, können wir später über
+          die Nachrichten nachfragen.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
@@ -224,9 +222,7 @@ export function AntragFormular({
                   {wert.length} / {frage.max}
                 </span>
               </div>
-              {fehler[frage.key] ? (
-                <p className="text-xs text-destructive">{fehler[frage.key]}</p>
-              ) : null}
+              {fehler[frage.key] ? <p className="text-xs text-destructive">{fehler[frage.key]}</p> : null}
             </div>
           );
         })}

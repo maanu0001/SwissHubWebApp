@@ -74,17 +74,16 @@ describe('Seitentitel', () => {
     },
   );
 
-  it.each(
-    pages
-      .filter((file) => navByHref.has(routeOf(file)))
-      .map((file) => [routeOf(file), file] as const),
-  )('%s wiederholt den Titel aus der Navigation nicht', (route, file) => {
-    const source = readFileSync(file, 'utf8');
-    const entry = navByHref.get(route)!;
+  it.each(pages.filter((file) => navByHref.has(routeOf(file))).map((file) => [routeOf(file), file] as const))(
+    '%s wiederholt den Titel aus der Navigation nicht',
+    (route, file) => {
+      const source = readFileSync(file, 'utf8');
+      const entry = navByHref.get(route)!;
 
-    // Für diese Route liefert die Kopfzeile bereits Titel und Beschreibung.
-    expect(source, `${route}: Titel "${entry.label}" steht schon in der Kopfzeile`).not.toMatch(
-      /<PageHeader\b/,
-    );
-  });
+      // Für diese Route liefert die Kopfzeile bereits Titel und Beschreibung.
+      expect(source, `${route}: Titel "${entry.label}" steht schon in der Kopfzeile`).not.toMatch(
+        /<PageHeader\b/,
+      );
+    },
+  );
 });

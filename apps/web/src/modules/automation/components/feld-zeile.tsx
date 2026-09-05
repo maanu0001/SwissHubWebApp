@@ -86,9 +86,7 @@ export function FeldZeile({
             max={feld.max}
             step={feld.step ?? 1}
             value={typeof wert === 'number' ? wert : ''}
-            onChange={(event) =>
-              onChange(event.target.value === '' ? undefined : Number(event.target.value))
-            }
+            onChange={(event) => onChange(event.target.value === '' ? undefined : Number(event.target.value))}
             disabled={disabled}
           />
           {feld.unit ? <span className="text-sm text-muted-foreground">{feld.unit}</span> : null}
@@ -109,9 +107,7 @@ export function FeldZeile({
         <div className="flex items-center justify-between gap-4 rounded-md border border-border px-3 py-2">
           <div>
             <Label htmlFor={id}>{feld.label}</Label>
-            {feld.description ? (
-              <p className="text-xs text-muted-foreground">{feld.description}</p>
-            ) : null}
+            {feld.description ? <p className="text-xs text-muted-foreground">{feld.description}</p> : null}
           </div>
           <Switch
             id={id}
@@ -208,9 +204,7 @@ export function FeldZeile({
             min={feld.min ?? 1}
             max={feld.max}
             value={typeof wert === 'number' ? wert : ''}
-            onChange={(event) =>
-              onChange(event.target.value === '' ? undefined : Number(event.target.value))
-            }
+            onChange={(event) => onChange(event.target.value === '' ? undefined : Number(event.target.value))}
             disabled={disabled}
           />
           <span className="text-sm text-muted-foreground">{feld.unit ?? 'Sekunden'}</span>

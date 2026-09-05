@@ -81,17 +81,10 @@ export function ZielUeberKennung({
             size={32}
           />
           <span className="min-w-0 flex-1">
-            <span className="block truncate text-sm font-medium">
-              {value.displayName || value.username}
-            </span>
+            <span className="block truncate text-sm font-medium">{value.displayName || value.username}</span>
             <span className="block truncate text-xs text-muted-foreground">{value.discordId}</span>
           </span>
-          <Button
-            variant="ghost"
-            size="sm"
-            aria-label="Auswahl aufheben"
-            onClick={() => onChange(null)}
-          >
+          <Button variant="ghost" size="sm" aria-label="Auswahl aufheben" onClick={() => onChange(null)}>
             <X aria-hidden="true" />
           </Button>
         </div>
@@ -117,11 +110,7 @@ export function ZielUeberKennung({
           }}
         />
         <Button variant="outline" disabled={pending} onClick={() => void nachschlagen()}>
-          {pending ? (
-            <Loader2 className="animate-spin" aria-hidden="true" />
-          ) : (
-            <Search aria-hidden="true" />
-          )}
+          {pending ? <Loader2 className="animate-spin" aria-hidden="true" /> : <Search aria-hidden="true" />}
           Suchen
         </Button>
       </div>

@@ -36,9 +36,7 @@ export type MemberSuche = (eingabe: {
   csrfToken: string;
   query: string;
   limit?: number;
-}) => Promise<
-  { ok: true; data: SucheTreffer[] } | { ok: false; error: { message: string } }
->;
+}) => Promise<{ ok: true; data: SucheTreffer[] } | { ok: false; error: { message: string } }>;
 
 interface MemberPickerProps {
   csrfToken: string;

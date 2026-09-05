@@ -114,9 +114,7 @@ export type { ModerationAbilities, ModerationSection };
  * ein Feld, das danach frei bearbeitet wird. Welche Vorlage angeklickt wurde,
  * ist für die Akte ohne Belang - dort steht, was am Ende dastand.
  */
-export async function moderationReasonTemplates(
-  action: moderation.ModerationAction,
-): Promise<string[]> {
+export async function moderationReasonTemplates(action: moderation.ModerationAction): Promise<string[]> {
   const { getModuleSettings } = await import('@swisshub/modules');
   const settings = await getModuleSettings<moderation.ReasonTemplateQuelle>('moderation');
   return moderation.reasonTemplatesFor(action, settings).map((vorlage) => vorlage.reasonText);
@@ -128,9 +126,7 @@ export async function moderationReasonTemplates(
  * Ein Aufruf statt sechs: die Maske bekommt alles auf einmal, und wechselt
  * jemand dort die Massnahme, stehen die passenden Gründe schon da.
  */
-export async function alleReasonTemplates(): Promise<
-  Partial<Record<moderation.ModerationAction, string[]>>
-> {
+export async function alleReasonTemplates(): Promise<Partial<Record<moderation.ModerationAction, string[]>>> {
   const { getModuleSettings } = await import('@swisshub/modules');
   const settings = await getModuleSettings<moderation.ReasonTemplateQuelle>('moderation');
 

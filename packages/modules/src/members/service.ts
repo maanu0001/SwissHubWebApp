@@ -224,9 +224,7 @@ export async function listMembersPage(
     gefiltert = gefiltert.filter((member) => !member.isBot);
   }
   if (filter.roleId) {
-    gefiltert = gefiltert.filter((member) =>
-      member.roles.some((role) => role.id === filter.roleId),
-    );
+    gefiltert = gefiltert.filter((member) => member.roles.some((role) => role.id === filter.roleId));
   }
   if (filter.jailed === true) {
     gefiltert = gefiltert.filter((member) => member.activeJail !== null);

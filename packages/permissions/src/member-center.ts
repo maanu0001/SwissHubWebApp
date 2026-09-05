@@ -103,7 +103,13 @@ const sicht = (
   label: string,
   description: string,
   critical?: boolean,
-): PermissionDefinition => ({ key, label, description, module: 'members', ...(critical ? { critical } : {}) });
+): PermissionDefinition => ({
+  key,
+  label,
+  description,
+  module: 'members',
+  ...(critical ? { critical } : {}),
+});
 
 /**
  * Die Beschriftungen sind bewusst in der Sprache der Sache und nicht in der des
@@ -115,33 +121,17 @@ export const MEMBER_CENTER_PERMISSIONS: PermissionDefinition[] = [
     'Eigenes Basisprofil ansehen',
     'Das eigene Profil mit Name, Avatar, Beitritt und Discord-Konto öffnen.',
   ),
-  sicht(
-    MEMBER_PERMISSIONS.basicAll,
-    'Basisprofile aller ansehen',
-    'Das Basisprofil jedes Mitglieds öffnen.',
-  ),
+  sicht(MEMBER_PERMISSIONS.basicAll, 'Basisprofile aller ansehen', 'Das Basisprofil jedes Mitglieds öffnen.'),
   sicht(MEMBER_PERMISSIONS.rolesOwn, 'Eigene Rollen ansehen', 'Die eigenen Discord-Rollen sehen.'),
-  sicht(
-    MEMBER_PERMISSIONS.rolesAll,
-    'Rollen aller ansehen',
-    'Die Discord-Rollen jedes Mitglieds sehen.',
-  ),
+  sicht(MEMBER_PERMISSIONS.rolesAll, 'Rollen aller ansehen', 'Die Discord-Rollen jedes Mitglieds sehen.'),
   sicht(
     MEMBER_PERMISSIONS.activityOwn,
     'Eigene Aktivität ansehen',
     'Die eigene Aktivität der letzten Wochen sehen.',
   ),
-  sicht(
-    MEMBER_PERMISSIONS.activityAll,
-    'Aktivität aller ansehen',
-    'Die Aktivität jedes Mitglieds sehen.',
-  ),
+  sicht(MEMBER_PERMISSIONS.activityAll, 'Aktivität aller ansehen', 'Die Aktivität jedes Mitglieds sehen.'),
   sicht(MEMBER_PERMISSIONS.levelOwn, 'Eigenes Level ansehen', 'Eigenes Level, XP und Rang sehen.'),
-  sicht(
-    MEMBER_PERMISSIONS.levelAll,
-    'Level aller ansehen',
-    'Level, XP und Rang jedes Mitglieds sehen.',
-  ),
+  sicht(MEMBER_PERMISSIONS.levelAll, 'Level aller ansehen', 'Level, XP und Rang jedes Mitglieds sehen.'),
   sicht(
     MEMBER_PERMISSIONS.spielersucheOwn,
     'Eigene Spielersuchen ansehen',
@@ -221,10 +211,5 @@ export const MEMBER_CENTER_PERMISSIONS: PermissionDefinition[] = [
     'Notizen anderer bearbeiten. Die eigenen darf jeder bearbeiten, der Notizen schreiben darf.',
     true,
   ),
-  sicht(
-    MEMBER_PERMISSIONS.notesDelete,
-    'Notizen löschen',
-    'Interne Notizen löschen.',
-    true,
-  ),
+  sicht(MEMBER_PERMISSIONS.notesDelete, 'Notizen löschen', 'Interne Notizen löschen.', true),
 ];

@@ -153,9 +153,7 @@ async function behandleHubBeitritt(state: VoiceState): Promise<void> {
   }
 
   if (ergebnis.art === 'ERSTELLT') {
-    const settings = await getModuleSettings<voiceHub.VoiceHubSettings>(
-      voiceHub.VOICE_HUB_MODULE_ID,
-    );
+    const settings = await getModuleSettings<voiceHub.VoiceHubSettings>(voiceHub.VOICE_HUB_MODULE_ID);
     if (settings.controlPanelEnabled) {
       await voiceHub.posteBedienfeld(ergebnis.kanal);
     }
@@ -178,9 +176,7 @@ async function schonfrist(presetId: string | null): Promise<number> {
       return preset.deleteGraceSeconds;
     }
   }
-  const settings = await getModuleSettings<voiceHub.VoiceHubSettings>(
-    voiceHub.VOICE_HUB_MODULE_ID,
-  );
+  const settings = await getModuleSettings<voiceHub.VoiceHubSettings>(voiceHub.VOICE_HUB_MODULE_ID);
   return settings.defaultDeleteGraceSeconds;
 }
 
@@ -216,9 +212,7 @@ export async function recoverVoiceHub(guildId: string | null): Promise<void> {
 }
 
 async function stelleBedienfelderWiederHer(guildId: string): Promise<void> {
-  const settings = await getModuleSettings<voiceHub.VoiceHubSettings>(
-    voiceHub.VOICE_HUB_MODULE_ID,
-  );
+  const settings = await getModuleSettings<voiceHub.VoiceHubSettings>(voiceHub.VOICE_HUB_MODULE_ID);
   if (!settings.controlPanelEnabled) {
     return;
   }

@@ -156,9 +156,7 @@ export class YouTubeMusicProvider implements MusicProvider {
             ? Math.max(0, Math.trunc(e.durationSeconds))
             : 0,
         thumbnailUrl:
-          typeof e.thumbnailUrl === 'string' && e.thumbnailUrl.startsWith('https://')
-            ? e.thumbnailUrl
-            : null,
+          typeof e.thumbnailUrl === 'string' && e.thumbnailUrl.startsWith('https://') ? e.thumbnailUrl : null,
       });
     }
     return treffer;

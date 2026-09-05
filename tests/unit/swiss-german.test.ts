@@ -30,8 +30,6 @@ describe('Schreibweise', () => {
         }
       });
     }
-    expect(treffer, `ß gefunden - in der Schweiz wird "ss" geschrieben:\n${treffer.join('\n')}`).toEqual(
-      [],
-    );
+    expect(treffer, `ß gefunden - in der Schweiz wird "ss" geschrieben:\n${treffer.join('\n')}`).toEqual([]);
   });
 });

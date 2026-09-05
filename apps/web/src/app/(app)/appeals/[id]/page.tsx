@@ -323,9 +323,7 @@ export default async function AppealDetailPage({
               </div>
             ) : null}
             {appeal.nextEligibleAt ? (
-              <p className="text-muted-foreground">
-                Erneuter Antrag ab {datum(appeal.nextEligibleAt)}
-              </p>
+              <p className="text-muted-foreground">Erneuter Antrag ab {datum(appeal.nextEligibleAt)}</p>
             ) : null}
             {appeal.finalRejection ? (
               <p className="text-destructive">Endgültig abgelehnt - kein weiterer Antrag möglich.</p>

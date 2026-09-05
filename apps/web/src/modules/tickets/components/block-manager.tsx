@@ -89,12 +89,7 @@ export function BlockManager({
           void sperren_();
         }}
       >
-        <MemberPicker
-          csrfToken={csrfToken}
-          value={auswahl}
-          onChange={setAuswahl}
-          label="Mitglied sperren"
-        />
+        <MemberPicker csrfToken={csrfToken} value={auswahl} onChange={setAuswahl} label="Mitglied sperren" />
         <div className="grid gap-3 sm:grid-cols-[1fr_10rem]">
           <div className="space-y-1">
             <Label htmlFor="sperre-grund">Grund</Label>
@@ -148,10 +143,7 @@ export function BlockManager({
       ) : (
         <ul className="divide-y divide-border/60 overflow-hidden rounded-xl border border-border">
           {sperren.map((sperre) => (
-            <li
-              key={sperre.id}
-              className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3 sm:px-5"
-            >
+            <li key={sperre.id} className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3 sm:px-5">
               <DiscordAvatar
                 discordId={sperre.discordId}
                 name={sperre.username ?? sperre.discordId}
@@ -159,9 +151,7 @@ export function BlockManager({
                 className="shrink-0"
               />
               <span className="min-w-0 flex-1 basis-48">
-                <span className="block truncate font-medium">
-                  {sperre.username ?? sperre.discordId}
-                </span>
+                <span className="block truncate font-medium">{sperre.username ?? sperre.discordId}</span>
                 <span className="block truncate text-xs text-muted-foreground">
                   {sperre.reason} · seit {formatDateTime(sperre.createdAt)}
                   {sperre.expiresAt ? ` · bis ${formatDateTime(sperre.expiresAt)}` : ' · unbefristet'}

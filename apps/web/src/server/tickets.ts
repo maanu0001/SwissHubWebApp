@@ -101,8 +101,7 @@ export function ticketSections(context: AuthContext): TicketSection[] {
 /** Ist diese Person Support - entscheidet, welche Ansicht sie sieht. */
 export function istSupport(context: AuthContext): boolean {
   return (
-    can(context, tickets.TICKET_PERMISSIONS.supportView) ||
-    can(context, tickets.TICKET_PERMISSIONS.admin)
+    can(context, tickets.TICKET_PERMISSIONS.supportView) || can(context, tickets.TICKET_PERMISSIONS.admin)
   );
 }
 
@@ -181,11 +180,7 @@ export async function ladeTicketListe(
 }
 
 /** Adresse mit denselben Filtern, aber anderer Seitenzahl. */
-export function ticketListenHref(
-  basis: string,
-  suche: TicketListenSuche,
-  seite: number,
-): string {
+export function ticketListenHref(basis: string, suche: TicketListenSuche, seite: number): string {
   const parameter = new URLSearchParams();
   if (suche.q) {
     parameter.set('q', suche.q);

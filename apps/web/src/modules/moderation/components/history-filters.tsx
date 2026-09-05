@@ -37,9 +37,7 @@ export function HistoryFilters(props: HistoryFiltersProps): React.JSX.Element {
   const [von, setVon] = useState(props.von);
   const [bis, setBis] = useState(props.bis);
 
-  const aktiv = Boolean(
-    props.type || props.quelle || props.member || props.actor || props.von || props.bis,
-  );
+  const aktiv = Boolean(props.type || props.quelle || props.member || props.actor || props.von || props.bis);
 
   function anwenden(): void {
     const suche = new URLSearchParams();

@@ -63,9 +63,7 @@ function inTagen(von: Date, tage: number): Date {
  * sondern der Normalfall bei einem alten Bann oder einem Bann direkt auf
  * Discord.
  */
-export async function findeBannEintrag(
-  discordId: string,
-): Promise<ModerationAction | null> {
+export async function findeBannEintrag(discordId: string): Promise<ModerationAction | null> {
   const eintraege = await prisma.moderationAction.findMany({
     where: { targetDiscordId: discordId, type: { in: ['BAN', 'UNBAN'] }, status: 'COMPLETED' },
     orderBy: { createdAt: 'desc' },
@@ -276,8 +274,9 @@ export function baueSnapshot(
  * Der Grund bei Discord und das Datum - mehr nicht. Wer den Bann gesetzt hat
  * und was intern dazu vermerkt wurde, bleibt beim Team (§13, §22).
  */
-export function snapshotFuerAntragsteller(
-  snapshot: BanSnapshot,
-): { discordGrund: string | null; verhaengtAm: string | null } {
+export function snapshotFuerAntragsteller(snapshot: BanSnapshot): {
+  discordGrund: string | null;
+  verhaengtAm: string | null;
+} {
   return { discordGrund: snapshot.discordGrund, verhaengtAm: snapshot.verhaengtAm };
 }

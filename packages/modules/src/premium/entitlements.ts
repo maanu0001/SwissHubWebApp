@@ -71,7 +71,5 @@ export function hasEntitlement(
   subscription: { status: PremiumSubscriptionStatus; product: { entitlements: PremiumEntitlement[] } },
   entitlement: PremiumEntitlement,
 ): boolean {
-  return (
-    grantsEntitlements(subscription.status) && subscription.product.entitlements.includes(entitlement)
-  );
+  return grantsEntitlements(subscription.status) && subscription.product.entitlements.includes(entitlement);
 }

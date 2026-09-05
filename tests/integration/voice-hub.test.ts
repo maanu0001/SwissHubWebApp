@@ -13,16 +13,10 @@ useTestSchema('test_voice_hub');
  * Fremder mit einer Kanalkennung aus dem Browser nichts ausrichtet.
  */
 const { prisma } = await import('@swisshub/database');
-const { voice, voiceHub, setModuleEnabled, syncDiscord, writeModuleSettings } = await import(
-  '@swisshub/modules'
-);
-const {
-  setDiscordGateway,
-  createMockGateway,
-  resolveGuildId,
-  clearGuildIdCache,
-  DISCORD_PERMISSIONS,
-} = await import('@swisshub/discord');
+const { voice, voiceHub, setModuleEnabled, syncDiscord, writeModuleSettings } =
+  await import('@swisshub/modules');
+const { setDiscordGateway, createMockGateway, resolveGuildId, clearGuildIdCache, DISCORD_PERMISSIONS } =
+  await import('@swisshub/discord');
 type MockGateway = ReturnType<typeof createMockGateway>;
 
 /** Das Gateway dieses Durchlaufs - die Tests lesen ihm die Ausnahmen ab. */
@@ -312,9 +306,9 @@ describeWithDatabase('Voice Hub', () => {
 
     const fremd = kontext('900000000000002022', 'beat', EIGENE_RECHTE);
     // Dieselbe Meldung wie bei einem Talk, den es nicht gibt.
-    await expect(
-      voiceHub.ladeKanalMitZugriff(fremd.viewer, erstellt.kanal.id, GUILD),
-    ).rejects.toMatchObject({ code: 'NOT_FOUND' });
+    await expect(voiceHub.ladeKanalMitZugriff(fremd.viewer, erstellt.kanal.id, GUILD)).rejects.toMatchObject({
+      code: 'NOT_FOUND',
+    });
     await expect(
       voiceHub.ladeKanalMitZugriff(fremd.viewer, 'cmt0000000000000000000000', GUILD),
     ).rejects.toMatchObject({ code: 'NOT_FOUND' });
@@ -343,10 +337,7 @@ describeWithDatabase('Voice Hub', () => {
       throw new Error('Talk nicht erstellt');
     }
 
-    const admin = kontext('900000000000002042', 'mod', [
-      'voiceHub.admin.view',
-      'voiceHub.admin.manage',
-    ]);
+    const admin = kontext('900000000000002042', 'mod', ['voiceHub.admin.view', 'voiceHub.admin.manage']);
     const umbenannt = await voiceHub.renameTalk(admin, erstellt.kanal.id, 'Von der Leitung');
     expect(umbenannt.name).toBe('Von der Leitung');
     // Der Besitzer bleibt der Besitzer.
@@ -365,10 +356,7 @@ describeWithDatabase('Voice Hub', () => {
     const halb = kontext('900000000000002052', 'mod', ['voiceHub.admin.view']);
     await expect(voiceHub.deleteTalk(halb, erstellt.kanal.id)).rejects.toThrow();
 
-    const ganz = kontext('900000000000002053', 'mod2', [
-      'voiceHub.admin.view',
-      'voiceHub.admin.delete',
-    ]);
+    const ganz = kontext('900000000000002053', 'mod2', ['voiceHub.admin.view', 'voiceHub.admin.delete']);
     await voiceHub.deleteTalk(ganz, erstellt.kanal.id);
     const danach = await prisma.temporaryVoiceChannel.findUniqueOrThrow({
       where: { id: erstellt.kanal.id },
@@ -797,9 +785,7 @@ describeWithDatabase('Voice Hub', () => {
     expect(ausnahme, 'Der Besitzer hat gar keine Ausnahme').toBeDefined();
 
     const erlaubt = BigInt(ausnahme!.allow);
-    expect(erlaubt & DISCORD_PERMISSIONS.MANAGE_CHANNELS).toBe(
-      DISCORD_PERMISSIONS.MANAGE_CHANNELS,
-    );
+    expect(erlaubt & DISCORD_PERMISSIONS.MANAGE_CHANNELS).toBe(DISCORD_PERMISSIONS.MANAGE_CHANNELS);
     // «Berechtigungen verwalten» heisst auf Kanalebene MANAGE_ROLES.
     expect(erlaubt & DISCORD_PERMISSIONS.MANAGE_ROLES).toBe(DISCORD_PERMISSIONS.MANAGE_ROLES);
     // Es ist eine Kanalausnahme, kein Rollenrecht: Typ 1 = Mitglied.
@@ -980,9 +966,7 @@ describeWithDatabase('Voice Hub', () => {
         username: 'ben',
       }),
     ).rejects.toThrow();
-    await expect(
-      voiceHub.kickFromTalk(eigener, erstellt.kanal.id, '900000000000002504'),
-    ).rejects.toThrow();
+    await expect(voiceHub.kickFromTalk(eigener, erstellt.kanal.id, '900000000000002504')).rejects.toThrow();
     await expect(
       voiceHub.transferTalk(eigener, erstellt.kanal.id, {
         discordId: '900000000000002504',
@@ -1049,20 +1033,14 @@ describeWithDatabase('Voice Hub', () => {
     });
 
     await expect(
-      voiceHub.repairTalkPanel(
-        webKontext('900000000000002508', 'anna', EIGENE_RECHTE),
-        erstellt.kanal.id,
-      ),
+      voiceHub.repairTalkPanel(webKontext('900000000000002508', 'anna', EIGENE_RECHTE), erstellt.kanal.id),
     ).resolves.toBe(true);
   });
 
   it('unterscheidet Verwaltungsrechte von der Rolle im eigenen Talk', () => {
     const kanal = { ownerDiscordId: '900000000000002509' } as never;
 
-    const besitzer = voiceHub.getVoiceAccess(
-      viewer('900000000000002509', EIGENE_RECHTE),
-      kanal,
-    );
+    const besitzer = voiceHub.getVoiceAccess(viewer('900000000000002509', EIGENE_RECHTE), kanal);
     expect(besitzer.istBesitzer).toBe(true);
     expect(besitzer.istVerwaltung).toBe(false);
     expect(voiceHub.darfUeberWebApp(besitzer)).toBe(false);

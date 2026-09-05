@@ -8,11 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { EmptyState } from '@/components/shared/states';
-import {
-  deleteCategoryAction,
-  saveCategoryAction,
-  seedCategoriesAction,
-} from '@/modules/calendar/actions';
+import { deleteCategoryAction, saveCategoryAction, seedCategoriesAction } from '@/modules/calendar/actions';
 
 interface Kategorie {
   id?: string;
@@ -119,12 +115,7 @@ export function KategorienVerwaltung({
           <span className="text-sm text-muted-foreground">Aktiv</span>
         </label>
         <div className="flex gap-1">
-          <Button
-            size="sm"
-            disabled={pending}
-            onClick={() => void speichern(werte)}
-            aria-label="Speichern"
-          >
+          <Button size="sm" disabled={pending} onClick={() => void speichern(werte)} aria-label="Speichern">
             <Save aria-hidden="true" />
           </Button>
           {kategorie.id ? (

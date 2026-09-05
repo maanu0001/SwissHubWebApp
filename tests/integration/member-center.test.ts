@@ -13,9 +13,8 @@ useTestSchema('test_member_center');
  */
 const { prisma } = await import('@swisshub/database');
 const { members, setModuleEnabled, syncDiscord } = await import('@swisshub/modules');
-const { setDiscordGateway, createMockGateway, resolveGuildId, clearGuildIdCache } = await import(
-  '@swisshub/discord'
-);
+const { setDiscordGateway, createMockGateway, resolveGuildId, clearGuildIdCache } =
+  await import('@swisshub/discord');
 
 let GUILD = '';
 
@@ -190,10 +189,14 @@ describeWithDatabase('Member Center', () => {
 
   it('verweigert eine Notiz ohne Berechtigung', async () => {
     await expect(
-      members.createMemberNote(viewer(BEAT, ['members.view']), { discordId: BEAT, username: 'beat' }, {
-        targetDiscordId: ANNA,
-        content: 'Sollte nicht gehen',
-      }),
+      members.createMemberNote(
+        viewer(BEAT, ['members.view']),
+        { discordId: BEAT, username: 'beat' },
+        {
+          targetDiscordId: ANNA,
+          content: 'Sollte nicht gehen',
+        },
+      ),
     ).rejects.toThrow();
   });
 

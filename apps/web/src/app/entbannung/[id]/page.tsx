@@ -98,16 +98,11 @@ export default async function MeinAntragPage({
                     {laufend ? (
                       <Clock className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden="true" />
                     ) : (
-                      <CheckCircle2
-                        className="mt-0.5 size-4 shrink-0 text-emerald-500"
-                        aria-hidden="true"
-                      />
+                      <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-emerald-500" aria-hidden="true" />
                     )}
                     <div className="min-w-0 flex-1">
                       <p>{eintrag.label}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {eintrag.am.toLocaleString('de-CH')}
-                      </p>
+                      <p className="text-xs text-muted-foreground">{eintrag.am.toLocaleString('de-CH')}</p>
                     </div>
                   </li>
                 );

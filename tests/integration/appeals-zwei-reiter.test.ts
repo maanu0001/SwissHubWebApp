@@ -110,10 +110,7 @@ describeWithDatabase('Entbannungsanträge - zwei Reiter', () => {
     });
 
     expect(zeilen).toHaveLength(2);
-    expect(zeilen.map((zeile) => zeile.status).sort()).toEqual([
-      'SUBMITTED',
-      'WAITING_FOR_APPLICANT',
-    ]);
+    expect(zeilen.map((zeile) => zeile.status).sort()).toEqual(['SUBMITTED', 'WAITING_FOR_APPLICANT']);
   });
 
   it('listet unter «Entschieden» genau die beendeten Fälle', async () => {
@@ -220,10 +217,7 @@ describeWithDatabase('Entbannungsanträge - zwei Reiter', () => {
 });
 
 /** Und die Seite selbst zeigt wirklich nur zwei. */
-const seite = readFileSync(
-  join(process.cwd(), 'apps/web/src/app/(app)/appeals/page.tsx'),
-  'utf8',
-);
+const seite = readFileSync(join(process.cwd(), 'apps/web/src/app/(app)/appeals/page.tsx'), 'utf8');
 
 it('bietet in der Oberfläche genau zwei Reiter an', () => {
   const block = seite.slice(seite.indexOf('const ANSICHTEN'), seite.indexOf('type AnsichtKey'));

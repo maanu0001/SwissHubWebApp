@@ -3,14 +3,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { ArrowLeft, Bot, Lock, ShieldAlert, UserX } from 'lucide-react';
 import { can } from '@swisshub/auth';
-import {
-  getModuleSettings,
-  isModuleEnabled,
-  jail,
-  level,
-  members,
-  verification,
-} from '@swisshub/modules';
+import { getModuleSettings, isModuleEnabled, jail, level, members, verification } from '@swisshub/modules';
 import { formatDate, formatDateTime, snowflakeSchema } from '@swisshub/shared';
 import { Badge } from '@/components/ui/badge';
 import { buttonVariants } from '@/components/ui/button';
@@ -32,11 +25,7 @@ import { CustomCardPanel } from '@/modules/level/components/custom-card-panel';
 import { RemoveCustomCardButton } from '@/modules/level/components/remove-custom-card-button';
 import { csrfTokenFor, requireMember } from '@/server/auth';
 import { memberViewer } from '@/server/members';
-import {
-  alleReasonTemplates,
-  moderationAbilities,
-  moderationReasonTemplates,
-} from '@/server/moderation';
+import { alleReasonTemplates, moderationAbilities, moderationReasonTemplates } from '@/server/moderation';
 import { cn } from '@/lib/utils';
 
 export const metadata: Metadata = { title: 'Mitglied' };
@@ -438,9 +427,7 @@ export default async function MemberDetailPage({
                 fehler.has('appeals') ? (
                   nichtVerfuegbar
                 ) : (profil.appeals ?? []).length === 0 ? (
-                  <p className="text-sm text-muted-foreground">
-                    Keine Entbannungsanträge.
-                  </p>
+                  <p className="text-sm text-muted-foreground">Keine Entbannungsanträge.</p>
                 ) : (
                   <ul className="space-y-2">
                     {(profil.appeals ?? []).map((antrag) => (
@@ -454,13 +441,9 @@ export default async function MemberDetailPage({
                         >
                           {antrag.fallnummer}
                         </Link>
-                        <span className="min-w-0 flex-1 truncate text-muted-foreground">
-                          {antrag.status}
-                        </span>
+                        <span className="min-w-0 flex-1 truncate text-muted-foreground">{antrag.status}</span>
                         <span className="text-xs text-muted-foreground">
-                          {(antrag.entschiedenAm ?? antrag.eingereichtAm)?.toLocaleDateString(
-                            'de-CH',
-                          ) ?? '—'}
+                          {(antrag.entschiedenAm ?? antrag.eingereichtAm)?.toLocaleDateString('de-CH') ?? '—'}
                         </span>
                       </li>
                     ))}

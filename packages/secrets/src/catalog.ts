@@ -86,10 +86,7 @@ export const httpsOderLeer = z
   .string()
   .trim()
   .max(300)
-  .refine(
-    (wert) => wert === '' || /^https:\/\/[^\s]+$/u.test(wert),
-    'muss eine absolute https-Adresse sein',
-  );
+  .refine((wert) => wert === '' || /^https:\/\/[^\s]+$/u.test(wert), 'muss eine absolute https-Adresse sein');
 
 /**
  * Ein Geheimnis wird bewusst nicht getrimmt und nicht umgeformt.

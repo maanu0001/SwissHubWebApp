@@ -145,12 +145,7 @@ export function EventChip({ zeile }: { zeile: Zeile }): React.JSX.Element {
           {uhrzeit(zeile.startAt, zeile.timezone)}
         </span>
       ) : null}
-      <span
-        className={cn(
-          'truncate font-medium',
-          zeile.status === 'CANCELLED' && 'line-through',
-        )}
-      >
+      <span className={cn('truncate font-medium', zeile.status === 'CANCELLED' && 'line-through')}>
         {zeile.title}
       </span>
       {zeile.meine ? (
@@ -189,12 +184,7 @@ export function EventKarte({ zeile }: { zeile: Zeile }): React.JSX.Element {
       />
       <div className="min-w-0 flex-1 space-y-1">
         <div className="flex flex-wrap items-center gap-2">
-          <span
-            className={cn(
-              'font-medium',
-              zeile.status === 'CANCELLED' && 'line-through',
-            )}
-          >
+          <span className={cn('font-medium', zeile.status === 'CANCELLED' && 'line-through')}>
             {zeile.title}
           </span>
           {zeile.status !== 'SCHEDULED' ? <EventStatusBadge status={zeile.status} /> : null}

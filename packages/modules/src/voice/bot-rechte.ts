@@ -38,9 +38,7 @@ export function invalidiereBotRechte(): void {
   cache = null;
 }
 
-export async function besitzerVerwaltungsRechte(
-  gateway: DiscordGateway = defaultDiscord,
-): Promise<bigint> {
+export async function besitzerVerwaltungsRechte(gateway: DiscordGateway = defaultDiscord): Promise<bigint> {
   if (cache && cache.bis > Date.now()) {
     return cache.wert;
   }

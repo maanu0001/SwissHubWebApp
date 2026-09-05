@@ -79,12 +79,9 @@ export default async function TurnierVerlaufPage({
           <span className="w-36 shrink-0 text-xs text-muted-foreground">
             {formatDateTime(ereignis.createdAt)}
           </span>
-          <span className="min-w-0 flex-1 text-sm">
-            {EREIGNIS_TEXT[ereignis.kind] ?? ereignis.kind}
-          </span>
+          <span className="min-w-0 flex-1 text-sm">{EREIGNIS_TEXT[ereignis.kind] ?? ereignis.kind}</span>
           <span className="shrink-0 text-xs text-muted-foreground">
-            {ereignis.actorUsername ?? 'System'} ·{' '}
-            {QUELLE_TEXT[ereignis.actorSource] ?? ereignis.actorSource}
+            {ereignis.actorUsername ?? 'System'} · {QUELLE_TEXT[ereignis.actorSource] ?? ereignis.actorSource}
           </span>
         </li>
       ))}

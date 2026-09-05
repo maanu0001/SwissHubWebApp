@@ -60,9 +60,7 @@ export default async function AusfuehrungenPage({
               >
                 {lauf.automationName}
               </Link>
-              <span className="text-xs text-muted-foreground">
-                {lauf.eventType ?? lauf.trigger}
-              </span>
+              <span className="text-xs text-muted-foreground">{lauf.eventType ?? lauf.trigger}</span>
               <StatusText status={lauf.status} />
               <span className="text-xs tabular-nums text-muted-foreground">
                 {lauf.createdAt.toLocaleString('de-CH')}

@@ -2,13 +2,7 @@ import { prisma } from '@swisshub/database';
 import type { TemporaryVoiceChannel } from '@swisshub/database';
 import { resolveGuildId } from '@swisshub/discord';
 import { AppError } from '@swisshub/shared';
-import {
-  allowMember,
-  clearMemberAccess,
-  denyMember,
-  kickMember,
-  transferOwnership,
-} from '../voice/members';
+import { allowMember, clearMemberAccess, denyMember, kickMember, transferOwnership } from '../voice/members';
 import { deleteTemporaryVoice } from '../voice/lifecycle';
 import {
   renameTemporaryVoice,
@@ -17,12 +11,7 @@ import {
   type VoiceActor,
 } from '../voice/service';
 import { aktualisiereBedienfeld } from './control-panel';
-import {
-  assertVoiceRecht,
-  assertWebAppErlaubt,
-  ladeKanalMitZugriff,
-  type VoiceViewer,
-} from './access';
+import { assertVoiceRecht, assertWebAppErlaubt, ladeKanalMitZugriff, type VoiceViewer } from './access';
 
 /**
  * Die Aktionen eines Talks.
@@ -217,10 +206,7 @@ export async function deleteTalk(kontext: AktionsKontext, kanalId: string): Prom
  * Bedienfeld verloren hat, kann es nicht ueber das Bedienfeld zurueckholen.
  * Ohne diesen Weg bliebe ihm nur, den Talk zu schliessen und neu zu oeffnen.
  */
-export async function repairTalkPanel(
-  kontext: AktionsKontext,
-  kanalId: string,
-): Promise<boolean> {
+export async function repairTalkPanel(kontext: AktionsKontext, kanalId: string): Promise<boolean> {
   const { kanal, zugriff } = await lade(kontext, kanalId, false);
   assertVoiceRecht(zugriff, 'manage', 'Du kannst dieses Bedienfeld nicht erneuern.');
 

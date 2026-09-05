@@ -14,9 +14,8 @@ useTestSchema('test_modul_sehen');
  * `createMany({ skipDuplicates })` sind Datenbankeigenschaften.
  */
 const { prisma } = await import('@swisshub/database');
-const { backfillModuleViewPermissions, buildNavigation, listModuleDefinitions } = await import(
-  '@swisshub/modules'
-);
+const { backfillModuleViewPermissions, buildNavigation, listModuleDefinitions } =
+  await import('@swisshub/modules');
 
 const ADMIN = '900000000000001001';
 const MODERATOR = '900000000000001002';

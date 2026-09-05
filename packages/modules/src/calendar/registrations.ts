@@ -273,8 +273,7 @@ export async function unregister(
     // Nur ein frei gewordener bestaetigter Platz laesst jemanden nachruecken.
     // Wer von der Warteliste abspringt, gibt keinen Platz frei - dann muss
     // aber die Reihenfolge dahinter aufschliessen.
-    const nachgerueckt =
-      vorhanden.status === 'CONFIRMED' ? await rueckeNach(tx, eventId, now) : null;
+    const nachgerueckt = vorhanden.status === 'CONFIRMED' ? await rueckeNach(tx, eventId, now) : null;
     await nummeriereWarteliste(tx, eventId);
 
     return { registration: abgemeldet, nachgerueckt };
@@ -316,10 +315,7 @@ async function rueckeNach(
 }
 
 /** Luecken in der Warteliste schliessen, damit die Plaetze 1..n durchlaufen. */
-async function nummeriereWarteliste(
-  tx: Prisma.TransactionClient,
-  eventId: string,
-): Promise<void> {
+async function nummeriereWarteliste(tx: Prisma.TransactionClient, eventId: string): Promise<void> {
   const wartende = await tx.calendarRegistration.findMany({
     where: { eventId, status: 'WAITLIST' },
     orderBy: [{ waitlistPosition: 'asc' }, { registeredAt: 'asc' }],
@@ -362,8 +358,7 @@ export async function removeRegistration(
       where: { id: registrationId },
       data: { status: 'CANCELLED', cancelledAt: now, waitlistPosition: null },
     });
-    const nachgerueckt =
-      eintrag.status === 'CONFIRMED' ? await rueckeNach(tx, eintrag.eventId, now) : null;
+    const nachgerueckt = eintrag.status === 'CONFIRMED' ? await rueckeNach(tx, eintrag.eventId, now) : null;
     await nummeriereWarteliste(tx, eintrag.eventId);
     return { registration: abgemeldet, nachgerueckt };
   });
@@ -388,10 +383,7 @@ export async function removeRegistration(
  * sich erst abmelden muss. Der Aufruf ist idempotent: ist kein Platz frei,
  * geschieht nichts.
  */
-export async function fuelleFreiePlaetze(
-  eventId: string,
-  now = new Date(),
-): Promise<CalendarRegistration[]> {
+export async function fuelleFreiePlaetze(eventId: string, now = new Date()): Promise<CalendarRegistration[]> {
   return prisma.$transaction(async (tx) => {
     await tx.$queryRaw`SELECT id FROM "CalendarEvent" WHERE id = ${eventId} FOR UPDATE`;
     const nachgerueckt: CalendarRegistration[] = [];

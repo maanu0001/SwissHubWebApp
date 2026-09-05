@@ -44,9 +44,8 @@ export async function getPremiumOverview(): Promise<PremiumOverview> {
     mrrMinor: zahlend.reduce((summe, eintrag) => summe + eintrag.product.priceMinor, 0),
     premiumMembers: laufend.filter((eintrag) => hat(eintrag, 'PREMIUM_ROLE')).length,
     stuebliMembers: laufend.filter((eintrag) => hat(eintrag, 'PRIVATE_VOICE')).length,
-    bundleMembers: laufend.filter(
-      (eintrag) => hat(eintrag, 'PREMIUM_ROLE') && hat(eintrag, 'PRIVATE_VOICE'),
-    ).length,
+    bundleMembers: laufend.filter((eintrag) => hat(eintrag, 'PREMIUM_ROLE') && hat(eintrag, 'PRIVATE_VOICE'))
+      .length,
     failedPayments,
     cancellations: laufend.filter((eintrag) => eintrag.status === 'CANCEL_AT_PERIOD_END').length,
     syncErrors,
@@ -132,11 +131,10 @@ export async function listSubscriptions(query: SubscriptionQuery): Promise<Subsc
   return { rows, total, page: query.page, pageSize: query.pageSize };
 }
 
-export async function listPayments(options: {
-  userId?: string;
-  page: number;
-  pageSize: number;
-}): Promise<{ rows: Array<PremiumPayment & { productName: string | null; username: string | null }>; total: number }> {
+export async function listPayments(options: { userId?: string; page: number; pageSize: number }): Promise<{
+  rows: Array<PremiumPayment & { productName: string | null; username: string | null }>;
+  total: number;
+}> {
   const where = options.userId ? { userId: options.userId } : {};
   const [zahlungen, total] = await Promise.all([
     prisma.premiumPayment.findMany({

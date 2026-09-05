@@ -128,9 +128,7 @@ async function siebeZulaessige(
 
   const belegt = new Set<string>([
     ...gejailt.map((eintrag) => eintrag.activeKey).filter((key): key is string => key !== null),
-    ...laufendeAbstimmungen
-      .map((eintrag) => eintrag.activeKey)
-      .filter((key): key is string => key !== null),
+    ...laufendeAbstimmungen.map((eintrag) => eintrag.activeKey).filter((key): key is string => key !== null),
   ]);
 
   return kandidaten
@@ -173,11 +171,7 @@ async function siebeZulaessige(
  * nichts zurueck: eine leere Eingabe ist keine Anfrage nach der ganzen
  * Mitgliederliste.
  */
-async function ladeKandidaten(
-  query: string,
-  limit: number,
-  gateway: DiscordGateway,
-): Promise<GuildMember[]> {
+async function ladeKandidaten(query: string, limit: number, gateway: DiscordGateway): Promise<GuildMember[]> {
   if (isSnowflake(query)) {
     const mitglied = await gateway.members.get(query).catch(() => null);
     return mitglied ? [mitglied] : [];

@@ -73,10 +73,10 @@ sagt, was dadurch fehlt.
 Das zentrale Rechtesystem allein genügt hier nicht. Es wirken **zwei** Ebenen,
 und beide müssen zutreffen:
 
-| Ebene                        | Frage                                                            |
-| ---------------------------- | ---------------------------------------------------------------- |
-| Zentrale Berechtigung        | Darf diese Person überhaupt Support machen (`tickets.support.*`)? |
-| Kategorie-Zuständigkeit      | Trägt sie eine der Support-Rollen **dieser** Kategorie?          |
+| Ebene                   | Frage                                                             |
+| ----------------------- | ----------------------------------------------------------------- |
+| Zentrale Berechtigung   | Darf diese Person überhaupt Support machen (`tickets.support.*`)? |
+| Kategorie-Zuständigkeit | Trägt sie eine der Support-Rollen **dieser** Kategorie?           |
 
 Ohne die zweite Ebene wäre jede Support-Rolle faktisch eine Vollberechtigung:
 wer `tickets.support.view` hat, sähe auch Moderationsmeldungen.
@@ -96,13 +96,13 @@ diesen Weg nicht nimmt.
 
 ### Wer sieht was
 
-| Rolle                         | Sieht                                     | Interne Notizen |
-| ----------------------------- | ----------------------------------------- | --------------- |
-| Ersteller                     | sein eigenes Ticket                       | **nie**         |
-| Hinzugefügter Teilnehmer      | dieses eine Ticket                        | **nie**         |
-| Supporter (zuständig)         | Tickets seiner Kategorien                 | mit `notes.view` |
-| Supporter (nicht zuständig)   | nichts von dieser Kategorie               | –               |
-| `tickets.admin`               | alles                                     | mit `notes.view` |
+| Rolle                       | Sieht                       | Interne Notizen  |
+| --------------------------- | --------------------------- | ---------------- |
+| Ersteller                   | sein eigenes Ticket         | **nie**          |
+| Hinzugefügter Teilnehmer    | dieses eine Ticket          | **nie**          |
+| Supporter (zuständig)       | Tickets seiner Kategorien   | mit `notes.view` |
+| Supporter (nicht zuständig) | nichts von dieser Kategorie | –                |
+| `tickets.admin`             | alles                       | mit `notes.view` |
 
 Ein Ticket, das jemand nicht sehen darf, antwortet mit **derselben Meldung wie
 ein nicht vorhandenes** – sonst liesse sich an der Antwort ablesen, welche
@@ -148,12 +148,12 @@ dass er zu spät war.
 **Schliessen** löscht den Kanal nicht sofort, sondern schaltet ihn stumm.
 Wann gelöscht wird, entscheidet `closeBehaviour`:
 
-| Wert                  | Kanal wird gelöscht     |
-| --------------------- | ----------------------- |
-| `DELETE_IMMEDIATELY`  | beim nächsten Durchgang |
-| `KEEP_24H`            | nach 24 Stunden         |
-| `KEEP_7D`             | nach 7 Tagen            |
-| `KEEP_FOREVER`        | nie                     |
+| Wert                 | Kanal wird gelöscht     |
+| -------------------- | ----------------------- |
+| `DELETE_IMMEDIATELY` | beim nächsten Durchgang |
+| `KEEP_24H`           | nach 24 Stunden         |
+| `KEEP_7D`            | nach 7 Tagen            |
+| `KEEP_FOREVER`       | nie                     |
 
 Der Verlauf bleibt in jedem Fall vollständig erhalten – gelöscht wird nur der
 Discord-Kanal.
@@ -162,11 +162,11 @@ Discord-Kanal.
 
 ## 4. Support-Alltag
 
-| Bereich                    | Adresse                    | Berechtigung                 |
-| -------------------------- | -------------------------- | ---------------------------- |
-| Schlagwörter               | `/tickets/schlagwoerter`   | `tickets.support.manageTags` |
-| Antwortvorlagen            | `/tickets/vorlagen`        | `tickets.templates.manage`   |
-| Sperren                    | `/tickets/sperren`         | `tickets.block.manage`       |
+| Bereich         | Adresse                  | Berechtigung                 |
+| --------------- | ------------------------ | ---------------------------- |
+| Schlagwörter    | `/tickets/schlagwoerter` | `tickets.support.manageTags` |
+| Antwortvorlagen | `/tickets/vorlagen`      | `tickets.templates.manage`   |
+| Sperren         | `/tickets/sperren`       | `tickets.block.manage`       |
 
 **Zuweisen** übergibt ein Ticket an eine bestimmte Person
 (`tickets.support.assign`); **Übernehmen** ist der Sonderfall davon, in dem
@@ -202,10 +202,10 @@ selbst eröffnet.
 
 Zwei Fassungen, weil es zwei Publika gibt:
 
-| Fassung | Adresse                                          | Enthält          |
-| ------- | ------------------------------------------------ | ---------------- |
-| `USER`  | `/api/tickets/<id>/transcript`                   | ohne Notizen     |
-| `STAFF` | `/api/tickets/<id>/transcript?fassung=intern`    | vollständig      |
+| Fassung | Adresse                                       | Enthält      |
+| ------- | --------------------------------------------- | ------------ |
+| `USER`  | `/api/tickets/<id>/transcript`                | ohne Notizen |
+| `STAFF` | `/api/tickets/<id>/transcript?fassung=intern` | vollständig  |
 
 Die Trennung geschieht **beim Erzeugen**, nicht beim Anzeigen: eine Notiz, die
 in der Datei steht und nur ausgeblendet wird, ist zwei Tastendrücke von der
@@ -228,11 +228,11 @@ Ein Job im bestehenden Runner des Bots, alle fünf Minuten
 eingeschaltet ist – ein ausgeschaltetes Modul soll im Hintergrund nichts
 löschen.
 
-| Durchgang                | Wirkung                                                        |
-| ------------------------ | -------------------------------------------------------------- |
-| `runTicketReminders`     | erinnert bei `WAITING_FOR_USER` nach `reminderAfterDays`        |
-| `runTicketAutoClose`     | schliesst bei `WAITING_FOR_USER` nach `autoCloseAfterDays`      |
-| `runTicketMaintenance`   | fällige Kanäle entfernen, fehlende Kanäle und Panels erkennen, abgelaufene Transcripts löschen |
+| Durchgang              | Wirkung                                                                                        |
+| ---------------------- | ---------------------------------------------------------------------------------------------- |
+| `runTicketReminders`   | erinnert bei `WAITING_FOR_USER` nach `reminderAfterDays`                                       |
+| `runTicketAutoClose`   | schliesst bei `WAITING_FOR_USER` nach `autoCloseAfterDays`                                     |
+| `runTicketMaintenance` | fällige Kanäle entfernen, fehlende Kanäle und Panels erkennen, abgelaufene Transcripts löschen |
 
 Erinnert und geschlossen wird **nur**, was auf das Mitglied wartet. Ein Ticket,
 das auf den Support wartet, selbsttätig zu schliessen wäre kein Aufräumen,
@@ -243,12 +243,12 @@ ab.
 
 ## 7. Discord-Seite
 
-| Kennung                     | Wirkung                                        |
-| --------------------------- | ---------------------------------------------- |
-| `tickets:open:<categoryId>` | Knopf im Panel → Formular dieser Kategorie     |
-| `tickets:claim`             | Knopf im Ticket-Kanal → übernehmen             |
-| `tickets:close`             | Knopf im Ticket-Kanal → schliessen             |
-| `tickets:feedback:<1-5>`    | Sternknopf nach dem Schliessen → Bewertung     |
+| Kennung                     | Wirkung                                    |
+| --------------------------- | ------------------------------------------ |
+| `tickets:open:<categoryId>` | Knopf im Panel → Formular dieser Kategorie |
+| `tickets:claim`             | Knopf im Ticket-Kanal → übernehmen         |
+| `tickets:close`             | Knopf im Ticket-Kanal → schliessen         |
+| `tickets:feedback:<1-5>`    | Sternknopf nach dem Schliessen → Bewertung |
 
 Ein Panel trägt **einen Knopf je Kategorie**: das Mitglied wählt in einem
 Schritt statt in zweien, und der Bot weiss beim Klick bereits, worum es geht.
@@ -271,33 +271,33 @@ wirkungslos.
 
 ## 8. Berechtigungen
 
-| Schlüssel                        | Bedeutung                                     |
-| -------------------------------- | --------------------------------------------- |
-| `tickets.viewOwn`                | eigene Tickets sehen                          |
-| `tickets.create`                 | Ticket eröffnen                                |
-| `tickets.support.view`           | Tickets der zuständigen Kategorien sehen      |
-| `tickets.support.reply`          | antworten                                     |
-| `tickets.support.claim`          | übernehmen                                    |
-| `tickets.support.assign`         | zuweisen                                      |
-| `tickets.support.changeStatus`   | Status setzen                                 |
-| `tickets.support.changePriority` | Priorität setzen                              |
-| `tickets.support.addUser`        | Teilnehmer hinzufügen                         |
-| `tickets.support.removeUser`     | Teilnehmer entfernen                          |
-| `tickets.support.close`          | schliessen                                    |
-| `tickets.support.reopen`         | wieder öffnen                                 |
-| `tickets.support.manageTags`     | Schlagwörter anlegen und setzen               |
-| `tickets.templates.manage` ⚠     | Antwortvorlagen pflegen                       |
-| `tickets.admin.createForUser` ⚠  | Ticket im Namen eines Mitglieds eröffnen      |
-| `tickets.notes.view` ⚠           | interne Notizen lesen                         |
-| `tickets.notes.create`           | interne Notizen schreiben                     |
-| `tickets.archive.view`           | Archiv durchsuchen                            |
-| `tickets.transcript.view` ⚠      | fremde Verläufe herunterladen                 |
-| `tickets.categories.manage` ⚠    | Kategorien pflegen                            |
-| `tickets.panels.manage` ⚠        | Panels erstellen und veröffentlichen          |
-| `tickets.settings` ⚠            | Moduleinstellungen ändern                     |
-| `tickets.block.manage` ⚠         | Mitglieder vom Ticketsystem ausschliessen     |
-| `tickets.stats.view`             | Kennzahlen ansehen                            |
-| `tickets.admin` ⚠                | alle Tickets, unabhängig von der Kategorie    |
+| Schlüssel                        | Bedeutung                                  |
+| -------------------------------- | ------------------------------------------ |
+| `tickets.viewOwn`                | eigene Tickets sehen                       |
+| `tickets.create`                 | Ticket eröffnen                            |
+| `tickets.support.view`           | Tickets der zuständigen Kategorien sehen   |
+| `tickets.support.reply`          | antworten                                  |
+| `tickets.support.claim`          | übernehmen                                 |
+| `tickets.support.assign`         | zuweisen                                   |
+| `tickets.support.changeStatus`   | Status setzen                              |
+| `tickets.support.changePriority` | Priorität setzen                           |
+| `tickets.support.addUser`        | Teilnehmer hinzufügen                      |
+| `tickets.support.removeUser`     | Teilnehmer entfernen                       |
+| `tickets.support.close`          | schliessen                                 |
+| `tickets.support.reopen`         | wieder öffnen                              |
+| `tickets.support.manageTags`     | Schlagwörter anlegen und setzen            |
+| `tickets.templates.manage` ⚠     | Antwortvorlagen pflegen                    |
+| `tickets.admin.createForUser` ⚠  | Ticket im Namen eines Mitglieds eröffnen   |
+| `tickets.notes.view` ⚠           | interne Notizen lesen                      |
+| `tickets.notes.create`           | interne Notizen schreiben                  |
+| `tickets.archive.view`           | Archiv durchsuchen                         |
+| `tickets.transcript.view` ⚠      | fremde Verläufe herunterladen              |
+| `tickets.categories.manage` ⚠    | Kategorien pflegen                         |
+| `tickets.panels.manage` ⚠        | Panels erstellen und veröffentlichen       |
+| `tickets.settings` ⚠             | Moduleinstellungen ändern                  |
+| `tickets.block.manage` ⚠         | Mitglieder vom Ticketsystem ausschliessen  |
+| `tickets.stats.view`             | Kennzahlen ansehen                         |
+| `tickets.admin` ⚠                | alle Tickets, unabhängig von der Kategorie |
 
 ⚠ = als kritisch markiert; beim Zuteilen ausdrücklich hervorgehoben.
 
@@ -333,21 +333,21 @@ Nach dem Start:
 
 ## 10. Wo was liegt
 
-| Ort                                            | Inhalt                                       |
-| ---------------------------------------------- | -------------------------------------------- |
-| `packages/modules/src/tickets/access.ts`       | Zugriffsentscheidung – die einzige Stelle    |
-| `packages/modules/src/tickets/numbering.ts`    | rennsichere Nummernvergabe                   |
-| `packages/modules/src/tickets/service.ts`      | Eröffnen, übernehmen, zuweisen, Teilnehmer   |
-| `packages/modules/src/tickets/lifecycle.ts`    | Schliessen, wieder öffnen, aufräumen         |
-| `packages/modules/src/tickets/messages.ts`     | Antworten, Notizen, Spiegelung aus Discord   |
-| `packages/modules/src/tickets/transcript.ts`   | Verlauf als Datei, zwei Fassungen            |
-| `packages/modules/src/tickets/scheduler.ts`    | Erinnern, selbsttätig schliessen, abgleichen |
-| `packages/modules/src/tickets/panels.ts`       | Panel-Nachricht und Veröffentlichung         |
-| `packages/modules/src/tickets/support.ts`      | Schlagwörter, Vorlagen, Sperren, Bewertung   |
-| `apps/bot/src/ticket-interactions.ts`          | Panel-Knopf, Formular, Kanal-Knöpfe          |
-| `apps/bot/src/ticket-messages.ts`              | Nachrichten aus Ticket-Kanälen übernehmen    |
-| `apps/web/src/app/(app)/tickets/`              | Seiten                                       |
-| `apps/web/src/modules/tickets/`                | Server Actions und Komponenten               |
+| Ort                                          | Inhalt                                       |
+| -------------------------------------------- | -------------------------------------------- |
+| `packages/modules/src/tickets/access.ts`     | Zugriffsentscheidung – die einzige Stelle    |
+| `packages/modules/src/tickets/numbering.ts`  | rennsichere Nummernvergabe                   |
+| `packages/modules/src/tickets/service.ts`    | Eröffnen, übernehmen, zuweisen, Teilnehmer   |
+| `packages/modules/src/tickets/lifecycle.ts`  | Schliessen, wieder öffnen, aufräumen         |
+| `packages/modules/src/tickets/messages.ts`   | Antworten, Notizen, Spiegelung aus Discord   |
+| `packages/modules/src/tickets/transcript.ts` | Verlauf als Datei, zwei Fassungen            |
+| `packages/modules/src/tickets/scheduler.ts`  | Erinnern, selbsttätig schliessen, abgleichen |
+| `packages/modules/src/tickets/panels.ts`     | Panel-Nachricht und Veröffentlichung         |
+| `packages/modules/src/tickets/support.ts`    | Schlagwörter, Vorlagen, Sperren, Bewertung   |
+| `apps/bot/src/ticket-interactions.ts`        | Panel-Knopf, Formular, Kanal-Knöpfe          |
+| `apps/bot/src/ticket-messages.ts`            | Nachrichten aus Ticket-Kanälen übernehmen    |
+| `apps/web/src/app/(app)/tickets/`            | Seiten                                       |
+| `apps/web/src/modules/tickets/`              | Server Actions und Komponenten               |
 
 ---
 

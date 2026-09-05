@@ -147,9 +147,7 @@ export function TalkPanel({
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <Badge variant={talk.locked ? 'warning' : 'success'}>
-              {talk.locked ? 'Gesperrt' : 'Offen'}
-            </Badge>
+            <Badge variant={talk.locked ? 'warning' : 'success'}>{talk.locked ? 'Gesperrt' : 'Offen'}</Badge>
             <Badge variant={talk.hidden ? 'secondary' : 'outline'}>
               {talk.hidden ? 'Versteckt' : 'Sichtbar'}
             </Badge>
@@ -291,11 +289,7 @@ export function TalkPanel({
                   setLimit(Number.isFinite(zahl) ? zahl : 0);
                 }}
               />
-              <Button
-                type="submit"
-                variant="outline"
-                disabled={laeuft !== null || limit === talk.userLimit}
-              >
+              <Button type="submit" variant="outline" disabled={laeuft !== null || limit === talk.userLimit}>
                 {laeuft === 'limit' ? (
                   <Loader2 className="animate-spin" aria-hidden="true" />
                 ) : (
@@ -303,9 +297,7 @@ export function TalkPanel({
                 )}
               </Button>
             </div>
-            <p className="text-xs text-muted-foreground">
-              0 = unbegrenzt. Höchstens {talk.maxUserLimit}.
-            </p>
+            <p className="text-xs text-muted-foreground">0 = unbegrenzt. Höchstens {talk.maxUserLimit}.</p>
           </form>
         </div>
       ) : null}
@@ -377,12 +369,7 @@ export function TalkPanel({
       {darfMitglieder ? (
         <section className="space-y-3 rounded-2xl border border-border p-5">
           <h3 className="text-sm font-semibold">Zugriff</h3>
-          <MemberPicker
-            csrfToken={csrfToken}
-            value={auswahl}
-            onChange={setAuswahl}
-            label="Mitglied wählen"
-          />
+          <MemberPicker csrfToken={csrfToken} value={auswahl} onChange={setAuswahl} label="Mitglied wählen" />
           <div className="flex flex-wrap gap-2">
             <Button
               size="sm"
@@ -435,16 +422,11 @@ export function TalkPanel({
           {ausnahmen.length > 0 ? (
             <ul className="divide-y divide-border/60 overflow-hidden rounded-xl border border-border">
               {ausnahmen.map((eintrag) => (
-                <li
-                  key={eintrag.discordId}
-                  className="flex items-center gap-3 px-4 py-2.5 text-sm"
-                >
+                <li key={eintrag.discordId} className="flex items-center gap-3 px-4 py-2.5 text-sm">
                   <Badge variant={eintrag.kind === 'ALLOW' ? 'success' : 'destructive'}>
                     {eintrag.kind === 'ALLOW' ? 'Zugelassen' : 'Gesperrt'}
                   </Badge>
-                  <span className="min-w-0 flex-1 truncate">
-                    {eintrag.username ?? eintrag.discordId}
-                  </span>
+                  <span className="min-w-0 flex-1 truncate">{eintrag.username ?? eintrag.discordId}</span>
                   <Button
                     size="sm"
                     variant="ghost"

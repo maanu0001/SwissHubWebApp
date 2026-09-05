@@ -42,7 +42,9 @@ export function PricingCards({
             key={product.id}
             className={cn(
               'relative flex flex-col rounded-xl border bg-card p-6',
-              hervorgehoben ? 'border-primary/60 shadow-[0_0_40px_-24px_hsl(var(--primary-bright))]' : 'border-border',
+              hervorgehoben
+                ? 'border-primary/60 shadow-[0_0_40px_-24px_hsl(var(--primary-bright))]'
+                : 'border-border',
               aktuell && 'ring-1 ring-primary/40',
             )}
           >
@@ -81,20 +83,14 @@ export function PricingCards({
 
             <div className="mt-6">
               {aktuell ? (
-                <Link
-                  href="/premium/me"
-                  className={cn(buttonVariants({ variant: 'outline' }), 'w-full')}
-                >
+                <Link href="/premium/me" className={cn(buttonVariants({ variant: 'outline' }), 'w-full')}>
                   Abo verwalten
                 </Link>
               ) : currentSlug ? (
                 // Ein Wechsel setzt voraus, dass das laufende Abo endet - ein
                 // zweites entsteht nie. Der Knopf führt deshalb dorthin, wo das
                 // geht, statt in einen Checkout, der die Buchung ablehnen müsste.
-                <Link
-                  href="/premium/me"
-                  className={cn(buttonVariants({ variant: 'outline' }), 'w-full')}
-                >
+                <Link href="/premium/me" className={cn(buttonVariants({ variant: 'outline' }), 'w-full')}>
                   Wechsel über mein Abo
                 </Link>
               ) : (
@@ -104,10 +100,7 @@ export function PricingCards({
                       ? `/premium/checkout/${product.slug}`
                       : `/login?redirect=${encodeURIComponent(`/premium/checkout/${product.slug}`)}`
                   }
-                  className={cn(
-                    buttonVariants({ variant: hervorgehoben ? 'default' : 'outline' }),
-                    'w-full',
-                  )}
+                  className={cn(buttonVariants({ variant: hervorgehoben ? 'default' : 'outline' }), 'w-full')}
                 >
                   Jetzt abonnieren
                 </Link>

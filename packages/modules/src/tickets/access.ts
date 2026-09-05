@@ -62,8 +62,7 @@ export function istZustaendig(
   category: Pick<TicketCategory, 'supportRoleIds'> | null,
   standardRollen: string[],
 ): boolean {
-  const rollen =
-    category && category.supportRoleIds.length > 0 ? category.supportRoleIds : standardRollen;
+  const rollen = category && category.supportRoleIds.length > 0 ? category.supportRoleIds : standardRollen;
   if (rollen.length === 0) {
     return false;
   }
@@ -106,8 +105,7 @@ export async function getTicketAccess(
       view: true,
       reply: viewer.can(TICKET_PERMISSIONS.supportReply),
       manage:
-        viewer.can(TICKET_PERMISSIONS.supportChangeStatus) ||
-        viewer.can(TICKET_PERMISSIONS.supportAssign),
+        viewer.can(TICKET_PERMISSIONS.supportChangeStatus) || viewer.can(TICKET_PERMISSIONS.supportAssign),
       notes: viewer.can(TICKET_PERMISSIONS.notesView),
       close: viewer.can(TICKET_PERMISSIONS.supportClose),
       asStaff: true,
@@ -185,9 +183,7 @@ export async function zustaendigeKategorien(viewer: TicketViewer): Promise<{
  * Person auch einzeln oeffnen duerfte. Bewusst hier und nicht in jeder
  * Abfrage neu.
  */
-export async function ticketSichtbarkeitsFilter(
-  viewer: TicketViewer,
-): Promise<Record<string, unknown>> {
+export async function ticketSichtbarkeitsFilter(viewer: TicketViewer): Promise<Record<string, unknown>> {
   const { alle, categoryIds } = await zustaendigeKategorien(viewer);
   if (alle) {
     return {};

@@ -132,9 +132,7 @@ export interface SichtbarkeitsOptionen {
 }
 
 function statusFilter(options: SichtbarkeitsOptionen): CalendarEventStatus[] {
-  return options.includeDrafts
-    ? ['DRAFT', ...OEFFENTLICHE_STATUS]
-    : [...OEFFENTLICHE_STATUS];
+  return options.includeDrafts ? ['DRAFT', ...OEFFENTLICHE_STATUS] : [...OEFFENTLICHE_STATUS];
 }
 
 /** Der angezeigte Zeitraum, abgeleitet aus Ansicht und Ankerdatum. */
@@ -238,9 +236,7 @@ export async function listEventsInRange(
   // der Anmeldungen, nicht an einer Spalte.
   return query.withFreeSeats
     ? zeilen.filter(
-        (zeile) =>
-          zeile.registrationEnabled &&
-          (zeile.capacity === 0 || zeile.confirmed < zeile.capacity),
+        (zeile) => zeile.registrationEnabled && (zeile.capacity === 0 || zeile.confirmed < zeile.capacity),
       )
     : zeilen;
 }
@@ -313,9 +309,7 @@ export async function listForManagement(
     where: {
       guildId,
       ...(status === 'ALL' ? {} : { status }),
-      ...(options.search
-        ? { title: { contains: options.search, mode: 'insensitive' as const } }
-        : {}),
+      ...(options.search ? { title: { contains: options.search, mode: 'insensitive' as const } } : {}),
     },
     select: ZEILEN_AUSWAHL,
     orderBy: { startAt: 'desc' },
@@ -426,9 +420,7 @@ export async function kennzahlen(now = new Date()): Promise<KalenderKennzahlen> 
   const beliebtesteKategorien = kategorien
     .map((zeile) => {
       const eintrag = nachId.get(zeile.categoryId!);
-      return eintrag
-        ? { name: eintrag.name, color: eintrag.color, anzahl: zeile._count._all }
-        : null;
+      return eintrag ? { name: eintrag.name, color: eintrag.color, anzahl: zeile._count._all } : null;
     })
     .filter((eintrag): eintrag is { name: string; color: string; anzahl: number } => eintrag !== null)
     .sort((a, b) => b.anzahl - a.anzahl)

@@ -25,10 +25,7 @@ export default async function PremiumLayout({
 }: {
   children: React.ReactNode;
 }): Promise<React.JSX.Element> {
-  const [logoUrl, context] = await Promise.all([
-    brandingModule.currentLogoUrl(),
-    getOptionalAuthContext(),
-  ]);
+  const [logoUrl, context] = await Promise.all([brandingModule.currentLogoUrl(), getOptionalAuthContext()]);
 
   return (
     <div className="relative flex min-h-dvh flex-col">
@@ -46,10 +43,7 @@ export default async function PremiumLayout({
         <nav className="flex items-center gap-2">
           {context?.isMember ? (
             <>
-              <Link
-                href="/premium/me"
-                className={cn(buttonVariants({ variant: 'outline', size: 'sm' }))}
-              >
+              <Link href="/premium/me" className={cn(buttonVariants({ variant: 'outline', size: 'sm' }))}>
                 Mein Abo
               </Link>
               <Link href="/dashboard" className={cn(buttonVariants({ size: 'sm' }))}>

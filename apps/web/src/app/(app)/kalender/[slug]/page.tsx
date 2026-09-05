@@ -1,15 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import {
-  AlertTriangle,
-  CalendarDays,
-  Clock,
-  ExternalLink,
-  MapPin,
-  Pencil,
-  Users,
-} from 'lucide-react';
+import { AlertTriangle, CalendarDays, Clock, ExternalLink, MapPin, Pencil, Users } from 'lucide-react';
 import { can } from '@swisshub/auth';
 import { calendar, isModuleEnabled } from '@swisshub/modules';
 import { Badge } from '@/components/ui/badge';
@@ -21,18 +13,19 @@ import { Markdown } from '@/components/shared/markdown';
 import { StatCard } from '@/components/shared/stat-card';
 import { AnmeldeBereich } from '@/modules/calendar/components/anmelde-bereich';
 import { VeroeffentlichenKnopf } from '@/modules/calendar/components/veroeffentlichen-knopf';
-import { EventStatusBadge, KategorieBadge, datumLang, zeitspanne } from '@/modules/calendar/components/shared';
+import {
+  EventStatusBadge,
+  KategorieBadge,
+  datumLang,
+  zeitspanne,
+} from '@/modules/calendar/components/shared';
 import { csrfTokenFor, requirePagePermission } from '@/server/auth';
 
 export const dynamic = 'force-dynamic';
 
 const P = calendar.CALENDAR_PERMISSIONS;
 
-export async function generateMetadata({
-  params,
-}: {
-  params: Promise<{ slug: string }>;
-}): Promise<Metadata> {
+export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
   const event = await calendar.findEvent(slug).catch(() => null);
   return { title: event ? `${event.title} – Kalender` : 'Event' };
@@ -53,9 +46,7 @@ export default async function EventDetailPage({
   const { slug } = await params;
 
   if (!(await isModuleEnabled(calendar.CALENDAR_MODULE_ID))) {
-    return (
-      <ErrorState title="Modul deaktiviert" description="Der Community-Kalender ist deaktiviert." />
-    );
+    return <ErrorState title="Modul deaktiviert" description="Der Community-Kalender ist deaktiviert." />;
   }
 
   const event = await calendar.findEvent(slug);
@@ -64,8 +55,7 @@ export default async function EventDetailPage({
   }
 
   const zustaendig = calendar.istZustaendig(event, context.user.discordId);
-  const darfBearbeiten =
-    can(context, P.edit) || (can(context, P.manageOwn) && zustaendig);
+  const darfBearbeiten = can(context, P.edit) || (can(context, P.manageOwn) && zustaendig);
 
   // Ein Entwurf ist fuer gewoehnliche Mitglieder nicht vorhanden - nicht
   // «gesperrt». Wer ihn nicht verwalten darf, soll nicht einmal erfahren,
@@ -116,11 +106,7 @@ export default async function EventDetailPage({
               die nicht kannte, fand keinen.
             */}
             {event.status === 'DRAFT' && can(context, P.publish) ? (
-              <VeroeffentlichenKnopf
-                csrfToken={csrfTokenFor(context)}
-                eventId={event.id}
-                slug={event.slug}
-              />
+              <VeroeffentlichenKnopf csrfToken={csrfTokenFor(context)} eventId={event.id} slug={event.slug} />
             ) : null}
             {darfBearbeiten && event.status !== 'COMPLETED' && event.status !== 'CANCELLED' ? (
               <Button variant="outline" asChild>
@@ -187,8 +173,7 @@ export default async function EventDetailPage({
         <p className="flex items-start gap-2 rounded-lg border border-warning/40 bg-warning/10 p-3 text-sm">
           <AlertTriangle className="mt-0.5 size-4 shrink-0 text-warning" aria-hidden="true" />
           <span>
-            Die Discord-Ankündigung ist nicht mehr auffindbar. In der Verwaltung lässt sie sich
-            erneut senden.
+            Die Discord-Ankündigung ist nicht mehr auffindbar. In der Verwaltung lässt sie sich erneut senden.
           </span>
         </p>
       ) : null}
@@ -208,11 +193,7 @@ export default async function EventDetailPage({
         />
         <StatCard
           label="Ort"
-          value={
-            calendar.ortsArt(event) === 'DISCORD'
-              ? 'Discord'
-              : (event.locationName ?? 'Vor Ort')
-          }
+          value={calendar.ortsArt(event) === 'DISCORD' ? 'Discord' : (event.locationName ?? 'Vor Ort')}
           hint={event.locationAddress ?? undefined}
           icon={<MapPin aria-hidden="true" />}
         />
@@ -225,9 +206,7 @@ export default async function EventDetailPage({
                 : `${belegung.confirmed}`
               : '—'
           }
-          hint={
-            belegung.waitlist > 0 ? `${belegung.waitlist} auf der Warteliste` : 'Keine Warteliste'
-          }
+          hint={belegung.waitlist > 0 ? `${belegung.waitlist} auf der Warteliste` : 'Keine Warteliste'}
           icon={<Users aria-hidden="true" />}
         />
       </div>
@@ -290,11 +269,7 @@ export default async function EventDetailPage({
               darfTeilnehmen={can(context, P.participate)}
               gesperrtGrund={gesperrt}
               abmeldenGrund={calendar.abmeldungGesperrt(event)}
-              meine={
-                meine
-                  ? { status: meine.status, position: meine.waitlistPosition }
-                  : null
-              }
+              meine={meine ? { status: meine.status, position: meine.waitlistPosition } : null}
               belegung={{
                 confirmed: belegung.confirmed,
                 capacity: belegung.capacity,
@@ -348,9 +323,7 @@ export default async function EventDetailPage({
               {event.registrationClosesAt ? (
                 <div>
                   <dt className="text-muted-foreground">Anmeldeschluss</dt>
-                  <dd className="mt-0.5">
-                    {datumLang(event.registrationClosesAt, event.timezone)}
-                  </dd>
+                  <dd className="mt-0.5">{datumLang(event.registrationClosesAt, event.timezone)}</dd>
                 </div>
               ) : null}
             </dl>

@@ -82,7 +82,10 @@ export function PlayerControls({
     setReglerWert(volume);
   }, [volume]);
 
-  async function fuehreAus(name: string, aktion: () => Promise<{ ok: boolean; error?: { message: string } }>): Promise<void> {
+  async function fuehreAus(
+    name: string,
+    aktion: () => Promise<{ ok: boolean; error?: { message: string } }>,
+  ): Promise<void> {
     if (pending !== null) {
       return;
     }
@@ -141,9 +144,7 @@ export function PlayerControls({
           type="button"
           onClick={() =>
             void fuehreAus('play', () =>
-              isPaused
-                ? resumeAction({ csrfToken, sessionId })
-                : pauseAction({ csrfToken, sessionId }),
+              isPaused ? resumeAction({ csrfToken, sessionId }) : pauseAction({ csrfToken, sessionId }),
             )
           }
           disabled={gesperrt || !hatTitel}
@@ -223,9 +224,7 @@ export function PlayerControls({
             aria-valuetext={`${reglerWert} Prozent`}
             className="h-1.5 flex-1 cursor-pointer appearance-none rounded-full bg-border accent-primary disabled:cursor-not-allowed disabled:opacity-40"
           />
-          <span className="w-12 shrink-0 text-right tabular-nums text-muted-foreground">
-            {reglerWert} %
-          </span>
+          <span className="w-12 shrink-0 text-right tabular-nums text-muted-foreground">{reglerWert} %</span>
         </label>
 
         <button

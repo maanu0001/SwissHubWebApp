@@ -112,9 +112,7 @@ export function formatiereMassnahme(massnahme: ModerationAction): DiscordEmbed {
       massnahme.actorType === 'UNKNOWN'
         ? 'Unbekannt'
         : person(
-            massnahme.actorType === 'BOT'
-              ? `${massnahme.actorUsername} (Bot)`
-              : massnahme.actorUsername,
+            massnahme.actorType === 'BOT' ? `${massnahme.actorUsername} (Bot)` : massnahme.actorUsername,
             massnahme.actorDiscordId === 'unknown' ? null : massnahme.actorDiscordId,
           ),
     ),
@@ -330,26 +328,22 @@ function zusatzFelder(ereignis: DiscordEvent): DiscordEmbedField[] {
     ];
   }
 
-  if (
-    ereignis.type === EVENT_TYPES.MEMBER_ROLE_ADD ||
-    ereignis.type === EVENT_TYPES.MEMBER_ROLE_REMOVE
-  ) {
+  if (ereignis.type === EVENT_TYPES.MEMBER_ROLE_ADD || ereignis.type === EVENT_TYPES.MEMBER_ROLE_REMOVE) {
     // Rollen als Erwaehnung: sie sind im Log dieselbe Sache wie ein Kanal -
     // man will sehen, welche gemeint ist, und Discord faerbt sie ein.
     // Benachrichtigt wird auch hier niemand.
     const rollen = Array.isArray(daten.rollen) ? daten.rollen : [];
-    const verweise = rollen
-      .flatMap((eintrag) => {
-        if (typeof eintrag !== 'object' || eintrag === null) {
-          return [];
-        }
-        const datensatz = eintrag as { id?: unknown; name?: unknown };
-        const verweis = formatDiscordRoleReference(
-          typeof datensatz.id === 'string' ? datensatz.id : null,
-          typeof datensatz.name === 'string' ? datensatz.name : null,
-        );
-        return verweis ? [verweis] : [];
-      });
+    const verweise = rollen.flatMap((eintrag) => {
+      if (typeof eintrag !== 'object' || eintrag === null) {
+        return [];
+      }
+      const datensatz = eintrag as { id?: unknown; name?: unknown };
+      const verweis = formatDiscordRoleReference(
+        typeof datensatz.id === 'string' ? datensatz.id : null,
+        typeof datensatz.name === 'string' ? datensatz.name : null,
+      );
+      return verweis ? [verweis] : [];
+    });
     return feld('Rollen', verweise.length > 0 ? verweise.join(', ') : null, false);
   }
 

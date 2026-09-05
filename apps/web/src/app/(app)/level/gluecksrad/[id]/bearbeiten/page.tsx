@@ -71,10 +71,7 @@ export default async function EditRafflePage({
 
   return (
     <>
-      <PageHeader
-        title="Verlosung bearbeiten"
-        description={raffle.title}
-      />
+      <PageHeader title="Verlosung bearbeiten" description={raffle.title} />
       <LevelSectionNav sections={levelSections(context)} />
       <RaffleForm
         csrfToken={csrfToken}

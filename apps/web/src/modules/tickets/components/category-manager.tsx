@@ -6,10 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { EmptyState } from '@/components/shared/states';
-import type {
-  ChannelOption,
-  RoleOption,
-} from '@/modules/configuration/components/discord-option-types';
+import type { ChannelOption, RoleOption } from '@/modules/configuration/components/discord-option-types';
 import { CategoryEditor, LEERE_KATEGORIE, type KategorieWerte } from './category-editor';
 
 export interface KategorieZeile extends KategorieWerte {
@@ -68,9 +65,7 @@ export function CategoryManager({
                   {kategorie.supportRoleIds.length > 0
                     ? ` · ${kategorie.supportRoleIds.length} zuständige Rollen`
                     : ' · Standard-Support-Rollen'}
-                  {kategorie.formFields.length > 0
-                    ? ` · ${kategorie.formFields.length} Fragen`
-                    : ''}
+                  {kategorie.formFields.length > 0 ? ` · ${kategorie.formFields.length} Fragen` : ''}
                 </span>
               </span>
               <span className="flex shrink-0 items-center gap-2">
@@ -91,9 +86,7 @@ export function CategoryManager({
       <Dialog open={offen !== null} onOpenChange={(naechste) => (naechste ? undefined : setOffen(null))}>
         <DialogContent className="max-h-[85vh] max-w-2xl overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>
-              {offen?.categoryId ? 'Kategorie bearbeiten' : 'Neue Kategorie'}
-            </DialogTitle>
+            <DialogTitle>{offen?.categoryId ? 'Kategorie bearbeiten' : 'Neue Kategorie'}</DialogTitle>
           </DialogHeader>
           {offen ? (
             <CategoryEditor
@@ -102,8 +95,7 @@ export function CategoryManager({
               roles={roles}
               channels={channels}
               ticketAnzahl={
-                kategorien.find((eintrag) => eintrag.categoryId === offen.categoryId)?.ticketCount ??
-                0
+                kategorien.find((eintrag) => eintrag.categoryId === offen.categoryId)?.ticketCount ?? 0
               }
               onFertig={() => setOffen(null)}
             />

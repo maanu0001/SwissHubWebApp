@@ -98,10 +98,7 @@ export function VerwaltungsTabelle({
               className="flex flex-wrap items-center gap-3 rounded-xl border border-border bg-card p-3"
             >
               <div className="min-w-0 flex-1">
-                <Link
-                  href={`/kalender/${zeile.slug}`}
-                  className="font-medium hover:underline"
-                >
+                <Link href={`/kalender/${zeile.slug}`} className="font-medium hover:underline">
                   {zeile.title}
                 </Link>
                 <p className="text-xs text-muted-foreground">{zeit(zeile)}</p>
@@ -112,9 +109,7 @@ export function VerwaltungsTabelle({
               {zeile.registrationEnabled ? (
                 <span className="inline-flex items-center gap-1.5 text-xs tabular-nums text-muted-foreground">
                   <Users className="size-3.5" aria-hidden="true" />
-                  {zeile.capacity > 0
-                    ? `${zeile.confirmed}/${zeile.capacity}`
-                    : zeile.confirmed}
+                  {zeile.capacity > 0 ? `${zeile.confirmed}/${zeile.capacity}` : zeile.confirmed}
                   {zeile.waitlist > 0 ? ` (+${zeile.waitlist})` : ''}
                 </span>
               ) : null}
@@ -122,7 +117,10 @@ export function VerwaltungsTabelle({
               <div className="flex flex-wrap gap-1">
                 {zeile.status !== 'COMPLETED' && zeile.status !== 'CANCELLED' ? (
                   <Button variant="outline" size="sm" asChild>
-                    <Link href={`/kalender/${zeile.slug}/bearbeiten`} aria-label={`${zeile.title} bearbeiten`}>
+                    <Link
+                      href={`/kalender/${zeile.slug}/bearbeiten`}
+                      aria-label={`${zeile.title} bearbeiten`}
+                    >
                       <Pencil aria-hidden="true" />
                     </Link>
                   </Button>

@@ -10,7 +10,12 @@ import { Panel } from '@/components/shared/panel';
 import { EmptyState } from '@/components/shared/states';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { csrfTokenFor, requirePagePermission } from '@/server/auth';
-import { alleReasonTemplates, moderationAbilities, moderationOverviewScope, moderationSections } from '@/server/moderation';
+import {
+  alleReasonTemplates,
+  moderationAbilities,
+  moderationOverviewScope,
+  moderationSections,
+} from '@/server/moderation';
 import { ModerationSectionNav } from '@/modules/moderation/components/section-nav';
 import { ModerationDialog } from '@/modules/moderation/components/moderation-dialog';
 import { ActionTypeBadge } from '@/modules/moderation/components/action-type-badge';
@@ -59,11 +64,7 @@ export default async function ModerationPage(): Promise<React.JSX.Element> {
           Massnahmen des Servers - Jail, Bann, Kick und Timeout in einer Akte.
         </p>
         {abilities.any ? (
-          <ModerationDialog
-            csrfToken={csrfToken}
-            abilities={abilities}
-            grundVorlagen={grundVorlagen}
-          />
+          <ModerationDialog csrfToken={csrfToken} abilities={abilities} grundVorlagen={grundVorlagen} />
         ) : null}
       </div>
 

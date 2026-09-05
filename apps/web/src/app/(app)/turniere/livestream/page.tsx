@@ -7,10 +7,7 @@ import { tournaments } from '@swisshub/modules';
 import { PageHeader } from '@/components/shared/page-header';
 import { EmptyState } from '@/components/shared/states';
 import { TournamentSectionNav } from '@/modules/tournaments/components/section-nav';
-import {
-  MatchStatusBadge,
-  StreamStatusBadge,
-} from '@/modules/tournaments/components/tournament-badges';
+import { MatchStatusBadge, StreamStatusBadge } from '@/modules/tournaments/components/tournament-badges';
 import { requirePagePermission } from '@/server/auth';
 import { sichtbareTurnierIds, tournamentSections } from '@/server/tournaments';
 

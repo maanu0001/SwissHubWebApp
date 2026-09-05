@@ -86,10 +86,8 @@ export function EventFormular({
   const [werte, setWerte] = useState(initial);
   const [pending, setPending] = useState(false);
 
-  const setze = <K extends keyof EventFormularWerte>(
-    schluessel: K,
-    wert: EventFormularWerte[K],
-  ): void => setWerte((alt) => ({ ...alt, [schluessel]: wert }));
+  const setze = <K extends keyof EventFormularWerte>(schluessel: K, wert: EventFormularWerte[K]): void =>
+    setWerte((alt) => ({ ...alt, [schluessel]: wert }));
 
   const speichern = async (): Promise<void> => {
     setPending(true);

@@ -37,14 +37,29 @@ export const musicSettingsSchema = z.object({
   /** Legacy `roles.worker_only_role_id` - bekommt ausschliesslich Worker. */
   workerOnlyRoleId: z.string().nullable().default(null),
   /** Legacy `behavior.idle_disconnect_seconds`. */
-  idleDisconnectSeconds: z.number().int().min(30).max(24 * 3600).default(600),
+  idleDisconnectSeconds: z
+    .number()
+    .int()
+    .min(30)
+    .max(24 * 3600)
+    .default(600),
   /** Legacy `behavior.alone_disconnect_seconds`. */
-  aloneDisconnectSeconds: z.number().int().min(15).max(24 * 3600).default(120),
+  aloneDisconnectSeconds: z
+    .number()
+    .int()
+    .min(15)
+    .max(24 * 3600)
+    .default(120),
   defaultVolume: z.number().int().min(0).max(150).default(50),
   maxVolume: z.number().int().min(1).max(150).default(150),
   queueLimit: z.number().int().min(1).max(1000).default(100),
   /** 0 = keine Begrenzung. Verhindert zehnstuendige Videos in der Queue. */
-  maxTrackSeconds: z.number().int().min(0).max(24 * 3600).default(0),
+  maxTrackSeconds: z
+    .number()
+    .int()
+    .min(0)
+    .max(24 * 3600)
+    .default(0),
   searchResultLimit: z.number().int().min(1).max(10).default(5),
   /**
    * Darf der Controller normale Sessions uebernehmen?
@@ -180,8 +195,8 @@ async function musicHealthChecks(context: ModuleHealthContext): Promise<ModuleHe
       label: 'Musik-Bots',
       status: 'error',
       detail:
-        'Kein Bot vorhanden. Die Voice-Laufzeit, die sich hier anmeldet, ist noch nicht ausgeliefert - '
-        + 'bis dahin lässt sich keine Musik abspielen.',
+        'Kein Bot vorhanden. Die Voice-Laufzeit, die sich hier anmeldet, ist noch nicht ausgeliefert - ' +
+        'bis dahin lässt sich keine Musik abspielen.',
     });
   } else {
     const online = bots.filter(

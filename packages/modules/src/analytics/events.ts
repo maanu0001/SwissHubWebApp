@@ -35,7 +35,6 @@ import { EVENT_TYPES, type EventType } from './event-types';
 
 export { EVENT_TYPES, type EventType };
 
-
 /** Wie lang ein gespeicherter Nachrichtentext hoechstens wird. */
 const MAX_CONTENT = 4000;
 

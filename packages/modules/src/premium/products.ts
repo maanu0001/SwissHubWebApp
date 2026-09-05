@@ -118,5 +118,7 @@ export async function getProductBySlug(slug: string): Promise<PremiumProduct | n
 
 /** Die Merkmale eines Angebots als Liste - `features` ist ein JSON-Feld. */
 export function productFeatures(product: Pick<PremiumProduct, 'features'>): string[] {
-  return Array.isArray(product.features) ? product.features.filter((f): f is string => typeof f === 'string') : [];
+  return Array.isArray(product.features)
+    ? product.features.filter((f): f is string => typeof f === 'string')
+    : [];
 }

@@ -75,10 +75,9 @@ export function AutomationListe({
       }
       if (an && !antwort.data.eingeschaltet) {
         const fehler = antwort.data.probleme.filter((problem) => problem.severity === 'error');
-        toast.error(
-          fehler[0]?.message ?? 'So lässt sie sich nicht einschalten.',
-          { description: fehler.length > 1 ? `und ${fehler.length - 1} weitere` : undefined },
-        );
+        toast.error(fehler[0]?.message ?? 'So lässt sie sich nicht einschalten.', {
+          description: fehler.length > 1 ? `und ${fehler.length - 1} weitere` : undefined,
+        });
         return;
       }
       toast.success(an ? 'Eingeschaltet.' : 'Ausgeschaltet.');

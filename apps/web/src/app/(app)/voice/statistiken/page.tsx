@@ -49,11 +49,7 @@ export default async function VoiceStatistikenPage(): Promise<React.JSX.Element>
         />
         <StatCard
           label="Ø Dauer"
-          value={
-            stats.durchschnittsdauerMinuten === null
-              ? '–'
-              : `${stats.durchschnittsdauerMinuten} Min.`
-          }
+          value={stats.durchschnittsdauerMinuten === null ? '–' : `${stats.durchschnittsdauerMinuten} Min.`}
           hint={
             stats.durchschnittTeilnehmer === null
               ? 'Noch kein Talk beendet'
@@ -71,9 +67,7 @@ export default async function VoiceStatistikenPage(): Promise<React.JSX.Element>
           <ol className="divide-y divide-border/60 overflow-hidden rounded-xl border border-border">
             {stats.beliebtesteHubs.map((hub, index) => (
               <li key={hub.name} className="flex items-center gap-3 px-4 py-2.5 text-sm">
-                <span className="w-6 shrink-0 font-mono text-xs text-muted-foreground">
-                  {index + 1}
-                </span>
+                <span className="w-6 shrink-0 font-mono text-xs text-muted-foreground">{index + 1}</span>
                 <span className="min-w-0 flex-1 truncate">{hub.name}</span>
                 <span className="shrink-0 tabular-nums text-muted-foreground">
                   {hub.anzahl} {hub.anzahl === 1 ? 'Talk' : 'Talks'}

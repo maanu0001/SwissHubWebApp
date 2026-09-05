@@ -96,7 +96,10 @@ export default async function SearchHistoryPage({
             key: 'game',
             header: 'Spiel',
             render: (match: HistoryRow) => (
-              <Link href={`/spielersuche/${match.id}`} className="inline-flex min-h-6 items-center font-medium hover:underline">
+              <Link
+                href={`/spielersuche/${match.id}`}
+                className="inline-flex min-h-6 items-center font-medium hover:underline"
+              >
                 {match.gameName}
               </Link>
             ),

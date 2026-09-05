@@ -12,7 +12,11 @@ const SCHRITTE = [
   { icon: LogIn, titel: 'Mit Discord anmelden', text: 'Dein bestehendes SwissHub-Konto genügt.' },
   { icon: MousePointerClick, titel: 'Premium auswählen', text: 'Drei Angebote, monatlich kündbar.' },
   { icon: CreditCard, titel: 'Mit TWINT bezahlen', text: 'Die Zahlung läuft über unseren Zahlungsanbieter.' },
-  { icon: Sparkles, titel: 'Vorteile erhalten', text: 'Rolle und Stübli erscheinen automatisch auf Discord.' },
+  {
+    icon: Sparkles,
+    titel: 'Vorteile erhalten',
+    text: 'Rolle und Stübli erscheinen automatisch auf Discord.',
+  },
 ] as const;
 
 /**
@@ -33,10 +37,7 @@ export default async function PremiumPage(): Promise<React.JSX.Element> {
     );
   }
 
-  const [produkte, context] = await Promise.all([
-    premium.listActiveProducts(),
-    getOptionalAuthContext(),
-  ]);
+  const [produkte, context] = await Promise.all([premium.listActiveProducts(), getOptionalAuthContext()]);
 
   const laufendes = context?.user
     ? await premium.getActiveSubscription(context.user.id).catch(() => null)
@@ -54,10 +55,7 @@ export default async function PremiumPage(): Promise<React.JSX.Element> {
       </section>
 
       {produkte.length === 0 ? (
-        <EmptyState
-          title="Noch keine Angebote"
-          description="Die Angebote werden gerade eingerichtet."
-        />
+        <EmptyState title="Noch keine Angebote" description="Die Angebote werden gerade eingerichtet." />
       ) : (
         <PricingCards
           products={produkte}

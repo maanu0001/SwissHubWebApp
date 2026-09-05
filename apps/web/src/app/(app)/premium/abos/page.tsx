@@ -89,14 +89,30 @@ export default async function PremiumSubscriptionsPage({
             <caption className="sr-only">Premium-Abonnements</caption>
             <thead>
               <tr className="border-b border-border/70 text-left text-xs uppercase tracking-[0.12em] text-muted-foreground">
-                <th scope="col" className="px-5 py-3 font-semibold">Mitglied</th>
-                <th scope="col" className="px-5 py-3 font-semibold">Angebot</th>
-                <th scope="col" className="px-5 py-3 font-semibold">Preis</th>
-                <th scope="col" className="px-5 py-3 font-semibold">Status</th>
-                <th scope="col" className="px-5 py-3 font-semibold">Beginn</th>
-                <th scope="col" className="px-5 py-3 font-semibold">Nächste Zahlung</th>
-                <th scope="col" className="px-5 py-3 font-semibold">Discord</th>
-                <th scope="col" className="px-5 py-3 font-semibold">Stübli</th>
+                <th scope="col" className="px-5 py-3 font-semibold">
+                  Mitglied
+                </th>
+                <th scope="col" className="px-5 py-3 font-semibold">
+                  Angebot
+                </th>
+                <th scope="col" className="px-5 py-3 font-semibold">
+                  Preis
+                </th>
+                <th scope="col" className="px-5 py-3 font-semibold">
+                  Status
+                </th>
+                <th scope="col" className="px-5 py-3 font-semibold">
+                  Beginn
+                </th>
+                <th scope="col" className="px-5 py-3 font-semibold">
+                  Nächste Zahlung
+                </th>
+                <th scope="col" className="px-5 py-3 font-semibold">
+                  Discord
+                </th>
+                <th scope="col" className="px-5 py-3 font-semibold">
+                  Stübli
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -117,9 +133,7 @@ export default async function PremiumSubscriptionsPage({
                     </Link>
                   </td>
                   <td className="px-5 py-3">{row.subscription.product.name}</td>
-                  <td className="px-5 py-3 tabular-nums">
-                    {formatChf(row.subscription.product.priceMinor)}
-                  </td>
+                  <td className="px-5 py-3 tabular-nums">{formatChf(row.subscription.product.priceMinor)}</td>
                   <td className="px-5 py-3">
                     <Badge
                       variant={

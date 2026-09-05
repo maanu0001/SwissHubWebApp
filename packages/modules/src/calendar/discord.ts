@@ -30,8 +30,7 @@ const logger = createLogger('calendar:discord');
  * Turnieren; ein eigener Discord-Zugang existiert nicht.
  */
 
-export const eventUrl = (event: Pick<CalendarEvent, 'slug'>): string =>
-  appUrl(`/kalender/${event.slug}`);
+export const eventUrl = (event: Pick<CalendarEvent, 'slug'>): string => appUrl(`/kalender/${event.slug}`);
 
 const STATUS_PRAEFIX: Partial<Record<CalendarEvent['status'], string>> = {
   CANCELLED: 'ABGESAGT — ',
@@ -280,9 +279,8 @@ async function payload(
           {
             type: 2 as const,
             style: BUTTON_STYLE.PRIMARY,
-            label: zahlen.capacity > 0 && zahlen.confirmed >= zahlen.capacity
-              ? 'Auf die Warteliste'
-              : 'Anmelden',
+            label:
+              zahlen.capacity > 0 && zahlen.confirmed >= zahlen.capacity ? 'Auf die Warteliste' : 'Anmelden',
             custom_id: buildJoinButtonId(event.id),
           },
           ...(event.allowSelfCancel
@@ -424,11 +422,7 @@ export async function refreshAnnouncement(
     return false;
   }
   try {
-    await gateway.channels.edit(
-      event.announcementChannelId,
-      event.discordMessageId,
-      await payload(event),
-    );
+    await gateway.channels.edit(event.announcementChannelId, event.discordMessageId, await payload(event));
     if (event.discordMessageMissing) {
       await prisma.calendarEvent.update({
         where: { id: eventId },
@@ -483,10 +477,7 @@ export async function notifyParticipants(
   }
 
   const { datum, zeit } = formatiereZeit(event);
-  const kopf =
-    kind === 'CANCELLED'
-      ? `**Abgesagt: ${event.title}**`
-      : `**Änderung: ${event.title}**`;
+  const kopf = kind === 'CANCELLED' ? `**Abgesagt: ${event.title}**` : `**Änderung: ${event.title}**`;
   const rumpf =
     kind === 'CANCELLED'
       ? (event.cancelReason ?? 'Das Event findet nicht statt.')

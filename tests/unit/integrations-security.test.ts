@@ -77,7 +77,7 @@ describe('Integrationen: keine Geheimnisse im Browser', () => {
     // Sonst bietet der Browser an, ein Bot-Token im Passwortspeicher
     // abzulegen oder es in ein fremdes Formular einzusetzen (§68).
     const feld = lies('apps/web/src/modules/integrations/components/secret-feld.tsx');
-    expect(feld).toContain("autoComplete=\"off\"");
+    expect(feld).toContain('autoComplete="off"');
     expect(feld).toMatch(/type=\{feld\.secret \? 'password' : 'text'\}/u);
 
     const bots = lies('apps/web/src/modules/integrations/components/bot-liste.tsx');
@@ -114,9 +114,7 @@ describe('Integrationen: Berechtigungen', () => {
     const bloecke = ACTIONS.split(/export const \w+Action = defineAction\(/u).slice(1);
     for (const block of bloecke) {
       const kopf = block.slice(0, block.indexOf('},'));
-      expect(kopf, `Aktion ohne freshness: ${kopf.slice(0, 120)}`).toContain(
-        "freshness: 'critical'",
-      );
+      expect(kopf, `Aktion ohne freshness: ${kopf.slice(0, 120)}`).toContain("freshness: 'critical'");
     }
   });
 
@@ -223,9 +221,7 @@ describe('Integrationskatalog', () => {
   it('behandelt die Client ID ausdrücklich nicht als Geheimnis', () => {
     // Sie steht in jeder Einladungs-URL. Sie zu verstecken hülfe niemandem
     // und machte die Fehlersuche schwerer.
-    expect(getIntegration('discord')?.fields.find((feld) => feld.key === 'clientId')?.secret).toBe(
-      false,
-    );
+    expect(getIntegration('discord')?.fields.find((feld) => feld.key === 'clientId')?.secret).toBe(false);
   });
 
   it('sucht den AI-Schlüssel je Anbieter in der passenden Variablen', () => {
@@ -241,10 +237,9 @@ describe('Integrationskatalog', () => {
     // sie vorher lahmzulegen (§39).
     for (const integration of INTEGRATIONS) {
       for (const feld of integration.fields.filter((eintrag) => eintrag.required)) {
-        expect(
-          envKeysFor(integration.id, feld.key).length,
-          `${integration.id}.${feld.key}`,
-        ).toBeGreaterThan(0);
+        expect(envKeysFor(integration.id, feld.key).length, `${integration.id}.${feld.key}`).toBeGreaterThan(
+          0,
+        );
       }
     }
   });

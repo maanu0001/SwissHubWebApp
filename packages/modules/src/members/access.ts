@@ -111,11 +111,7 @@ export function sectionScope(viewer: MemberViewer, section: MemberSection): Memb
  * ausrichtet: bei `OWN` muss das Ziel der Betrachter selbst sein, und das
  * prueft der Server, nicht der Browser.
  */
-export function darfSehen(
-  viewer: MemberViewer,
-  section: MemberSection,
-  targetDiscordId: string,
-): boolean {
+export function darfSehen(viewer: MemberViewer, section: MemberSection, targetDiscordId: string): boolean {
   const scope = sectionScope(viewer, section);
   if (scope === 'NONE') {
     return false;

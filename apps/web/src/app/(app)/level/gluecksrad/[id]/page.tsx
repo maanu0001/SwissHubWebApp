@@ -83,9 +83,7 @@ export default async function RaffleDetailPage({
 
       <div className="flex flex-wrap items-center gap-3">
         <RaffleStatusBadge status={raffle.status} />
-        <Badge variant="outline">
-          {raffle.entryModel === 'FIXED' ? 'Festbetrag' : 'Anteilsmodell'}
-        </Badge>
+        <Badge variant="outline">{raffle.entryModel === 'FIXED' ? 'Festbetrag' : 'Anteilsmodell'}</Badge>
         <span className="text-sm text-muted-foreground">{describeEntryModel(raffle)}</span>
       </div>
 
@@ -93,8 +91,8 @@ export default async function RaffleDetailPage({
         <p className="flex items-start gap-2 rounded-lg border border-warning/40 bg-warning/10 p-3 text-sm">
           <AlertTriangle className="mt-0.5 size-4 shrink-0 text-warning" aria-hidden="true" />
           <span>
-            Die Discord-Nachricht wurde gelöscht oder ist nicht mehr erreichbar. Über
-            „Neu veröffentlichen“ lässt sich die Ankündigung erneut senden.
+            Die Discord-Nachricht wurde gelöscht oder ist nicht mehr erreichbar. Über „Neu veröffentlichen“
+            lässt sich die Ankündigung erneut senden.
           </span>
         </p>
       ) : null}
@@ -115,11 +113,24 @@ export default async function RaffleDetailPage({
         <StatCard
           label="Teilnehmende"
           value={formatNumber(activeCount)}
-          hint={raffle.maximumParticipants ? `von höchstens ${formatNumber(raffle.maximumParticipants)}` : 'unbegrenzt'}
+          hint={
+            raffle.maximumParticipants
+              ? `von höchstens ${formatNumber(raffle.maximumParticipants)}`
+              : 'unbegrenzt'
+          }
           icon={<Users aria-hidden="true" />}
         />
-        <StatCard label="XP im Topf" value={formatXp(potXp)} hint="Summe aller Einsätze" icon={<Trophy aria-hidden="true" />} />
-        <StatCard label="Teilnahme bis" value={formatDateTime(raffle.entryEndsAt)} hint={`Start: ${formatDateTime(raffle.entryStartsAt)}`} />
+        <StatCard
+          label="XP im Topf"
+          value={formatXp(potXp)}
+          hint="Summe aller Einsätze"
+          icon={<Trophy aria-hidden="true" />}
+        />
+        <StatCard
+          label="Teilnahme bis"
+          value={formatDateTime(raffle.entryEndsAt)}
+          hint={`Start: ${formatDateTime(raffle.entryStartsAt)}`}
+        />
         <StatCard
           label="Auslosung"
           value={formatDateTime(raffle.drawScheduledAt)}
@@ -140,8 +151,7 @@ export default async function RaffleDetailPage({
                 {winner.displayName ?? winner.username ?? winner.discordId}
               </p>
               <p className="text-sm text-muted-foreground">
-                Einsatz {formatXp(winner.entryXp)} · Ziehung {draw.version} ·{' '}
-                {formatDateTime(draw.createdAt)}
+                Einsatz {formatXp(winner.entryXp)} · Ziehung {draw.version} · {formatDateTime(draw.createdAt)}
               </p>
               {raffle.status === 'WINNER_PENDING' ? (
                 <p className="mt-1 text-xs text-amber-500">

@@ -129,7 +129,10 @@ export class StripeProvider implements PaymentProvider {
  * Beide Wege werden gelesen, damit ein Versionswechsel bei Stripe nicht zu
  * einem Abonnement ohne Laufzeit fuehrt.
  */
-function readPeriod(subscription: Stripe.Subscription, feld: 'current_period_start' | 'current_period_end'): number | null {
+function readPeriod(
+  subscription: Stripe.Subscription,
+  feld: 'current_period_start' | 'current_period_end',
+): number | null {
   const direkt = (subscription as unknown as Record<string, unknown>)[feld];
   if (typeof direkt === 'number') {
     return direkt;
@@ -210,15 +213,15 @@ function uebersetze(event: Stripe.Event): ProviderEvent {
     return {
       ...basis,
       providerSubscriptionId: typeof subscriptionId === 'string' ? subscriptionId : null,
-      providerPaymentId: typeof zahlung === 'string' ? zahlung : (invoice.id as string | null) ?? null,
+      providerPaymentId: typeof zahlung === 'string' ? zahlung : ((invoice.id as string | null) ?? null),
       amountMinor: typeof invoice.amount_paid === 'number' ? invoice.amount_paid : null,
       currency: typeof invoice.currency === 'string' ? invoice.currency.toUpperCase() : null,
       periodStart: sekundenZuDatum(invoice.period_start as number | undefined),
       periodEnd: sekundenZuDatum(invoice.period_end as number | undefined),
       failureReason:
         event.type === 'invoice.payment_failed'
-          ? ((invoice.last_finalization_error as Record<string, unknown> | undefined)?.message as string) ??
-            'Zahlung fehlgeschlagen'
+          ? (((invoice.last_finalization_error as Record<string, unknown> | undefined)?.message as string) ??
+            'Zahlung fehlgeschlagen')
           : null,
     };
   }

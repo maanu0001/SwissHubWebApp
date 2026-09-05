@@ -88,10 +88,10 @@ export default async function DiscordIntegrationPage(): Promise<React.JSX.Elemen
           </div>
         </dl>
         <p className="mt-4 text-xs text-muted-foreground">
-          Die Redirect URI ergibt sich aus <code className="font-mono">NEXT_PUBLIC_APP_URL</code> und
-          ist bewusst nicht hier einstellbar: sie muss mit der Adresse übereinstimmen, unter der die
-          WebApp tatsächlich erreichbar ist, und diese kennt nur der Betrieb. Sie gehört im Discord
-          Developer Portal unter OAuth2 → Redirects eingetragen.
+          Die Redirect URI ergibt sich aus <code className="font-mono">NEXT_PUBLIC_APP_URL</code> und ist
+          bewusst nicht hier einstellbar: sie muss mit der Adresse übereinstimmen, unter der die WebApp
+          tatsächlich erreichbar ist, und diese kennt nur der Betrieb. Sie gehört im Discord Developer Portal
+          unter OAuth2 → Redirects eingetragen.
         </p>
       </Panel>
     </>

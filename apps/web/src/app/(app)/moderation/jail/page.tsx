@@ -188,7 +188,10 @@ export default async function JailPage({ searchParams }: JailPageProps): Promise
             canRelease={canRelease}
           />
         ) : (
-          <Link href={`/moderation/jail/${entry.id}`} className={cn(buttonVariants({ variant: 'ghost', size: 'sm' }))}>
+          <Link
+            href={`/moderation/jail/${entry.id}`}
+            className={cn(buttonVariants({ variant: 'ghost', size: 'sm' }))}
+          >
             Details
           </Link>
         ),

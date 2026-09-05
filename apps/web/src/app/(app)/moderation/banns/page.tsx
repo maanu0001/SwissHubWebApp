@@ -53,8 +53,8 @@ export default async function ModerationBannsPage(): Promise<React.JSX.Element> 
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm text-muted-foreground">
-          Die Bannliste stammt direkt von Discord. Banns aus dem Discord-Client stehen ebenfalls hier -
-          ohne Eintrag in unserer Akte.
+          Die Bannliste stammt direkt von Discord. Banns aus dem Discord-Client stehen ebenfalls hier - ohne
+          Eintrag in unserer Akte.
         </p>
         {abilities.ban ? (
           <ModerationDialog
@@ -99,11 +99,7 @@ export default async function ModerationBannsPage(): Promise<React.JSX.Element> 
                     key: 'actions',
                     header: '',
                     render: (row: BannZeile) => (
-                      <UnbanButton
-                        csrfToken={csrfToken}
-                        discordId={row.discordId}
-                        username={row.username}
-                      />
+                      <UnbanButton csrfToken={csrfToken} discordId={row.discordId} username={row.username} />
                     ),
                   },
                 ]

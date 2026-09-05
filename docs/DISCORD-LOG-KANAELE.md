@@ -34,10 +34,10 @@ das nicht stattgefunden hat.
 
 Stattdessen genau zwei Stellen:
 
-| Anknüpfpunkt | Datei | speist |
-|---|---|---|
-| `meldeMassnahme()` | `packages/modules/src/moderation/events.ts` | `MODERATION` |
-| `recordEvent()` | `packages/modules/src/analytics/events.ts` | `MESSAGES`, `VOICE`, `MEMBERS`, `ADMIN` |
+| Anknüpfpunkt       | Datei                                       | speist                                  |
+| ------------------ | ------------------------------------------- | --------------------------------------- |
+| `meldeMassnahme()` | `packages/modules/src/moderation/events.ts` | `MODERATION`                            |
+| `recordEvent()`    | `packages/modules/src/analytics/events.ts`  | `MESSAGES`, `VOICE`, `MEMBERS`, `ADMIN` |
 
 Beide schrieben ihren Logeintrag ohnehin schon. Sie melden ihn jetzt zusätzlich
 weiter — und tun das für **alle** Quellen gleichermassen: eine Massnahme aus
@@ -50,13 +50,13 @@ Fünf, und jede hat eine tatsächliche Quelle im System. Eine Kategorie ohne
 Quelle wäre ein Auswahlfeld, das nie etwas sendet — schlimmer als ein
 fehlendes Feld, weil jemand darauf vertraut.
 
-| Kategorie | Quelle | Beispiele |
-|---|---|---|
-| `MODERATION` | `ModerationAction` | Bann, Kick, Timeout, Aufhebung |
-| `MESSAGES` | `DiscordEvent` / MESSAGE | gelöscht, bearbeitet |
-| `VOICE` | `DiscordEvent` / VOICE | beigetreten, verlassen, gewechselt |
-| `MEMBERS` | `DiscordEvent` / MEMBER | Beitritt, Austritt, Rollen, Spitzname |
-| `ADMIN` | `DiscordEvent` / ROLE, CHANNEL, SERVER | Kanal gelöscht, Rolle bearbeitet |
+| Kategorie    | Quelle                                 | Beispiele                             |
+| ------------ | -------------------------------------- | ------------------------------------- |
+| `MODERATION` | `ModerationAction`                     | Bann, Kick, Timeout, Aufhebung        |
+| `MESSAGES`   | `DiscordEvent` / MESSAGE               | gelöscht, bearbeitet                  |
+| `VOICE`      | `DiscordEvent` / VOICE                 | beigetreten, verlassen, gewechselt    |
+| `MEMBERS`    | `DiscordEvent` / MEMBER                | Beitritt, Austritt, Rollen, Spitzname |
+| `ADMIN`      | `DiscordEvent` / ROLE, CHANNEL, SERVER | Kanal gelöscht, Rolle bearbeitet      |
 
 **Verifikation und Tickets fehlen bewusst.** Ihre Spuren liegen im Audit Log
 und — wenn die Automation Engine läuft — als Automationsereignis. Einen von
@@ -143,11 +143,11 @@ vornherein nicht funktioniert, gehört nicht in die Datenbank.
 
 Benötigte Bot-Rechte im Zielkanal — genau drei:
 
-| Recht | warum |
-|---|---|
-| `VIEW_CHANNEL` | sonst existiert der Kanal für den Bot nicht |
-| `SEND_MESSAGES` | das eigentliche Anliegen |
-| `EMBED_LINKS` | ohne dieses Recht käme eine leere Nachricht an |
+| Recht           | warum                                          |
+| --------------- | ---------------------------------------------- |
+| `VIEW_CHANNEL`  | sonst existiert der Kanal für den Bot nicht    |
+| `SEND_MESSAGES` | das eigentliche Anliegen                       |
+| `EMBED_LINKS`   | ohne dieses Recht käme eine leere Nachricht an |
 
 `ATTACH_FILES` steht bewusst nicht dabei: kein Formatter hängt etwas an. Ein
 Recht zu verlangen, das nie gebraucht wird, ist keine Vorsicht.
@@ -230,11 +230,11 @@ Formatter zu überführen.
 
 ## 13. Berechtigungen
 
-| Berechtigung | erlaubt |
-|---|---|
-| `logs.discord.view` | ansehen, wohin Logs gehen |
+| Berechtigung          | erlaubt                            |
+| --------------------- | ---------------------------------- |
+| `logs.discord.view`   | ansehen, wohin Logs gehen          |
 | `logs.discord.manage` | Kategorien zuweisen und abschalten |
-| `logs.discord.test` | Testnachricht senden |
+| `logs.discord.test`   | Testnachricht senden               |
 
 Eigener Namensraum statt `analytics.*`: die Kategorien reichen über das
 Analytics-Modul hinaus — Moderation gibt es auch, wenn das Protokoll der

@@ -414,9 +414,7 @@ export async function verify(
 
   await safeRecordAudit({
     action:
-      von.by === 'AI'
-        ? AUDIT_ACTIONS.VERIFICATION_AI_VERIFIED
-        : AUDIT_ACTIONS.VERIFICATION_HUMAN_VERIFIED,
+      von.by === 'AI' ? AUDIT_ACTIONS.VERIFICATION_AI_VERIFIED : AUDIT_ACTIONS.VERIFICATION_HUMAN_VERIFIED,
     module: VERIFICATION_MODULE_ID,
     actorDiscordId: von.discordId ?? 'system',
     actorUsername: von.username ?? (von.by === 'AI' ? 'AI-Prüfung' : 'Unbekannt'),
@@ -427,9 +425,7 @@ export async function verify(
       requestId,
       by: von.by,
       quelle: von.source ?? null,
-      ...(von.by === 'AI'
-        ? { confidence: vorher.aiConfidence, reasonCode: vorher.aiReasonCode }
-        : {}),
+      ...(von.by === 'AI' ? { confidence: vorher.aiConfidence, reasonCode: vorher.aiReasonCode } : {}),
     },
   });
 
@@ -464,10 +460,7 @@ export async function verify(
  * Kein Urteil und keine Sanktion - nur die Feststellung, dass es nichts mehr
  * zu pruefen gibt.
  */
-export async function markLeft(
-  guildId: string,
-  discordId: string,
-): Promise<VerificationRequest | null> {
+export async function markLeft(guildId: string, discordId: string): Promise<VerificationRequest | null> {
   const offen = await offenerVorgang(guildId, discordId);
   if (!offen) {
     return null;

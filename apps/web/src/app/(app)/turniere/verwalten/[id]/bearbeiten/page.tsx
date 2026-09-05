@@ -2,10 +2,7 @@ import type { Metadata } from 'next';
 import { prisma } from '@swisshub/database';
 import { spielersuche } from '@swisshub/modules';
 import { AppError } from '@swisshub/shared';
-import {
-  CustomFieldsAdmin,
-  type FeldArt,
-} from '@/modules/tournaments/components/custom-fields-admin';
+import { CustomFieldsAdmin, type FeldArt } from '@/modules/tournaments/components/custom-fields-admin';
 import { TournamentForm } from '@/modules/tournaments/components/tournament-form';
 import { fuerZeitfeld } from '@/modules/tournaments/zeitfeld';
 import { csrfTokenFor, requireMember } from '@/server/auth';
@@ -50,64 +47,64 @@ export default async function TurnierBearbeitenPage({
 
   return (
     <div className="space-y-8">
-    <TournamentForm
-      csrfToken={csrfTokenFor(context)}
-      tournamentId={id}
-      spiele={spiele.map((spiel) => ({ id: spiel.id, name: spiel.name }))}
-      roles={optionen.roles}
-      channels={optionen.channels}
-      werte={{
-        name: turnier.name,
-        slug: turnier.slug,
-        gameName: turnier.gameName,
-        gameId: turnier.gameId,
-        description: turnier.description ?? '',
-        rules: turnier.rules ?? '',
-        mode: turnier.mode,
-        access: turnier.access,
-        format: turnier.format,
-        seeding: turnier.seeding,
-        minTeamSize: turnier.minTeamSize,
-        maxTeamSize: turnier.maxTeamSize,
-        maxSubstitutes: turnier.maxSubstitutes,
-        maxParticipants: turnier.maxParticipants,
-        minParticipants: turnier.minParticipants,
-        registrationOpensAt: fuerZeitfeld(turnier.registrationOpensAt),
-        registrationClosesAt: fuerZeitfeld(turnier.registrationClosesAt),
-        checkinOpensAt: fuerZeitfeld(turnier.checkinOpensAt),
-        checkinClosesAt: fuerZeitfeld(turnier.checkinClosesAt),
-        rosterLockAt: fuerZeitfeld(turnier.rosterLockAt),
-        startsAt: fuerZeitfeld(turnier.startsAt),
-        estimatedEndAt: fuerZeitfeld(turnier.estimatedEndAt),
-        checkinRequired: turnier.checkinRequired,
-        autoRemoveMissedCheckin: turnier.autoRemoveMissedCheckin,
-        groupCount: turnier.groupCount,
-        advancePerGroup: turnier.advancePerGroup,
-        swissRounds: turnier.swissRounds,
-        pointsPerWin: turnier.pointsPerWin,
-        pointsPerDraw: turnier.pointsPerDraw,
-        pointsPerLoss: turnier.pointsPerLoss,
-        tiebreakers: turnier.tiebreakers,
-        defaultBestOf: turnier.defaultBestOf,
-        mapPool: turnier.mapPool.join(', '),
-        serverRegion: turnier.serverRegion ?? '',
-        bannerUrl: turnier.bannerUrl ?? '',
-        logoUrl: turnier.logoUrl ?? '',
-        announcementChannelId: turnier.announcementChannelId ?? '',
-        matchCategoryId: turnier.matchCategoryId ?? '',
-        staffCategoryId: turnier.staffCategoryId ?? '',
-        streamChannelId: turnier.streamChannelId ?? '',
-        pingRoleIds: turnier.pingRoleIds,
-        matchChannelRetentionHours: turnier.matchChannelRetentionHours,
-        createMatchChannels: turnier.createMatchChannels,
-        twitchUrl: turnier.twitchUrl ?? '',
-        youtubeUrl: turnier.youtubeUrl ?? '',
-        streamUrl: turnier.streamUrl ?? '',
-        requiredRoleId: turnier.requiredRoleId ?? '',
-        minLevel: turnier.minLevel,
-        requiresPremium: turnier.requiresPremium,
-      }}
-    />
+      <TournamentForm
+        csrfToken={csrfTokenFor(context)}
+        tournamentId={id}
+        spiele={spiele.map((spiel) => ({ id: spiel.id, name: spiel.name }))}
+        roles={optionen.roles}
+        channels={optionen.channels}
+        werte={{
+          name: turnier.name,
+          slug: turnier.slug,
+          gameName: turnier.gameName,
+          gameId: turnier.gameId,
+          description: turnier.description ?? '',
+          rules: turnier.rules ?? '',
+          mode: turnier.mode,
+          access: turnier.access,
+          format: turnier.format,
+          seeding: turnier.seeding,
+          minTeamSize: turnier.minTeamSize,
+          maxTeamSize: turnier.maxTeamSize,
+          maxSubstitutes: turnier.maxSubstitutes,
+          maxParticipants: turnier.maxParticipants,
+          minParticipants: turnier.minParticipants,
+          registrationOpensAt: fuerZeitfeld(turnier.registrationOpensAt),
+          registrationClosesAt: fuerZeitfeld(turnier.registrationClosesAt),
+          checkinOpensAt: fuerZeitfeld(turnier.checkinOpensAt),
+          checkinClosesAt: fuerZeitfeld(turnier.checkinClosesAt),
+          rosterLockAt: fuerZeitfeld(turnier.rosterLockAt),
+          startsAt: fuerZeitfeld(turnier.startsAt),
+          estimatedEndAt: fuerZeitfeld(turnier.estimatedEndAt),
+          checkinRequired: turnier.checkinRequired,
+          autoRemoveMissedCheckin: turnier.autoRemoveMissedCheckin,
+          groupCount: turnier.groupCount,
+          advancePerGroup: turnier.advancePerGroup,
+          swissRounds: turnier.swissRounds,
+          pointsPerWin: turnier.pointsPerWin,
+          pointsPerDraw: turnier.pointsPerDraw,
+          pointsPerLoss: turnier.pointsPerLoss,
+          tiebreakers: turnier.tiebreakers,
+          defaultBestOf: turnier.defaultBestOf,
+          mapPool: turnier.mapPool.join(', '),
+          serverRegion: turnier.serverRegion ?? '',
+          bannerUrl: turnier.bannerUrl ?? '',
+          logoUrl: turnier.logoUrl ?? '',
+          announcementChannelId: turnier.announcementChannelId ?? '',
+          matchCategoryId: turnier.matchCategoryId ?? '',
+          staffCategoryId: turnier.staffCategoryId ?? '',
+          streamChannelId: turnier.streamChannelId ?? '',
+          pingRoleIds: turnier.pingRoleIds,
+          matchChannelRetentionHours: turnier.matchChannelRetentionHours,
+          createMatchChannels: turnier.createMatchChannels,
+          twitchUrl: turnier.twitchUrl ?? '',
+          youtubeUrl: turnier.youtubeUrl ?? '',
+          streamUrl: turnier.streamUrl ?? '',
+          requiredRoleId: turnier.requiredRoleId ?? '',
+          minLevel: turnier.minLevel,
+          requiresPremium: turnier.requiresPremium,
+        }}
+      />
 
       <CustomFieldsAdmin
         tournamentId={id}

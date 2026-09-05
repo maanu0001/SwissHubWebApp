@@ -108,9 +108,7 @@ describeWithDatabase('Massnahmen aus Discord', () => {
   // --- Erkennung -----------------------------------------------------------
 
   it('erfasst einen direkt in Discord verhängten Bann', async () => {
-    const ergebnis = await erfasse({ art: 'BAN' }, [
-      eintrag({ reason: 'Spam nach mehrfacher Verwarnung' }),
-    ]);
+    const ergebnis = await erfasse({ art: 'BAN' }, [eintrag({ reason: 'Spam nach mehrfacher Verwarnung' })]);
 
     expect(ergebnis.ergebnis).toBe('erfasst');
     const zeile = await prisma.moderationAction.findFirst({ where: { type: 'BAN' } });
@@ -165,9 +163,7 @@ describeWithDatabase('Massnahmen aus Discord', () => {
     expect(ergebnis.ergebnis).toBe('erfasst');
     const zeile = await prisma.moderationAction.findFirst({ where: { type: 'TIMEOUT_REMOVE' } });
     expect(zeile?.expiresAt).toBeNull();
-    expect((zeile?.metadata as Record<string, unknown>).previousTimeoutUntil).toBe(
-      vorher.toISOString(),
-    );
+    expect((zeile?.metadata as Record<string, unknown>).previousTimeoutUntil).toBe(vorher.toISOString());
   });
 
   it('erfasst eine geänderte Timeout-Frist als eigene Massnahme', async () => {
@@ -241,9 +237,7 @@ describeWithDatabase('Massnahmen aus Discord', () => {
   // --- Andere Bots ---------------------------------------------------------
 
   it('erfasst den Bann eines fremden Bots mit ihm als Handelndem', async () => {
-    await erfasse({ art: 'BAN' }, [
-      eintrag({ userId: ANDERER_BOT, username: 'AutoMod', bot: true }),
-    ]);
+    await erfasse({ art: 'BAN' }, [eintrag({ userId: ANDERER_BOT, username: 'AutoMod', bot: true })]);
 
     const zeile = await prisma.moderationAction.findFirst({ where: { type: 'BAN' } });
     expect(zeile?.actorType).toBe('BOT');
@@ -556,9 +550,7 @@ describeWithDatabase('Massnahmen aus Discord', () => {
   /** Ein extern gesetzter Timeout läuft - die Übersicht muss ihn kennen. */
   it('zählt einen extern gesetzten Timeout zu den laufenden', async () => {
     const bis = new Date(Date.now() + 3_600_000);
-    await erfasse({ art: 'TIMEOUT', bis }, [
-      eintrag({ actionType: AUDIT_LOG_ACTIONS.MEMBER_UPDATE }),
-    ]);
+    await erfasse({ art: 'TIMEOUT', bis }, [eintrag({ actionType: AUDIT_LOG_ACTIONS.MEMBER_UPDATE })]);
 
     const laufend = await moderation.aktiveTimeouts();
     expect(laufend).toHaveLength(1);

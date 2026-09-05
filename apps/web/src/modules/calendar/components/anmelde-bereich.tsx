@@ -89,9 +89,7 @@ export function AnmeldeBereich({
   };
 
   const plaetze =
-    belegung.capacity > 0
-      ? `${belegung.confirmed} / ${belegung.capacity}`
-      : `${belegung.confirmed}`;
+    belegung.capacity > 0 ? `${belegung.confirmed} / ${belegung.capacity}` : `${belegung.confirmed}`;
 
   return (
     <div className="space-y-4 rounded-xl border border-border bg-card p-4">
@@ -101,9 +99,7 @@ export function AnmeldeBereich({
       </div>
 
       {belegung.waitlist > 0 ? (
-        <p className="text-xs text-muted-foreground">
-          {belegung.waitlist} Person(en) auf der Warteliste.
-        </p>
+        <p className="text-xs text-muted-foreground">{belegung.waitlist} Person(en) auf der Warteliste.</p>
       ) : null}
 
       {meine ? (
@@ -206,9 +202,7 @@ export function AnmeldeBereich({
                       }
                     />
                   )}
-                  {frage.hint ? (
-                    <p className="text-xs text-muted-foreground">{frage.hint}</p>
-                  ) : null}
+                  {frage.hint ? <p className="text-xs text-muted-foreground">{frage.hint}</p> : null}
                 </div>
               ))}
             </div>
@@ -221,8 +215,7 @@ export function AnmeldeBereich({
 
           {belegung.full ? (
             <p className="text-xs text-muted-foreground">
-              Das Event ist voll. Wird ein Platz frei, rückt die erste Person der Warteliste
-              automatisch nach.
+              Das Event ist voll. Wird ein Platz frei, rückt die erste Person der Warteliste automatisch nach.
             </p>
           ) : null}
         </>

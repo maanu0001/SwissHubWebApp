@@ -122,9 +122,8 @@ describe('Eröffnungsnachricht', () => {
   it('trägt die Knöpfe, die der Bot beim Klick wiedererkennt', () => {
     const nachricht = tickets.eroeffnungsNachricht({ ...basis, pingSupport: false });
     const kennungen =
-      nachricht.components?.[0]?.components.map((knopf) =>
-        'custom_id' in knopf ? knopf.custom_id : null,
-      ) ?? [];
+      nachricht.components?.[0]?.components.map((knopf) => ('custom_id' in knopf ? knopf.custom_id : null)) ??
+      [];
     expect(kennungen).toEqual([tickets.TICKET_BUTTON.claim, tickets.TICKET_BUTTON.close]);
   });
 });

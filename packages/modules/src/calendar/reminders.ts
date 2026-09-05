@@ -105,9 +105,7 @@ export async function runReminderTick(
     }
 
     const kanal =
-      erinnerung.channelId ??
-      event.announcementChannelId ??
-      settings.defaultAnnouncementChannelId;
+      erinnerung.channelId ?? event.announcementChannelId ?? settings.defaultAnnouncementChannelId;
     if (!kanal) {
       await prisma.calendarReminder.update({
         where: { id: erinnerung.id },
@@ -217,9 +215,7 @@ async function sendeErinnerung(
     allowedMentions: {
       parse: [] as never[],
       ...(rolle ? { roles: [rolle] } : {}),
-      ...(teilnehmer.length > 0
-        ? { users: teilnehmer.map((eintrag) => eintrag.discordId) }
-        : {}),
+      ...(teilnehmer.length > 0 ? { users: teilnehmer.map((eintrag) => eintrag.discordId) } : {}),
     },
   });
   return nachricht.id;

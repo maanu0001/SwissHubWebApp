@@ -361,8 +361,7 @@ export function ModerationDialog({
                     </SelectContent>
                   </Select>
                   <p className="text-xs text-muted-foreground">
-                    Feinere Abstufungen und eigene Dauern gibt es im Jail-Bereich. Der Grund bleibt
-                    intern.
+                    Feinere Abstufungen und eigene Dauern gibt es im Jail-Bereich. Der Grund bleibt intern.
                   </p>
                 </div>
               ) : null}

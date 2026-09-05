@@ -37,9 +37,7 @@ export function buildButtonId(art: 'approve' | 'reject', requestId: string): str
  * Sie ist ein Hinweis, keine Vollmacht: was daraus folgt, entscheidet
  * ausschliesslich die serverseitige Pruefung im Bot.
  */
-export function parseButtonId(
-  customId: string,
-): { art: 'approve' | 'reject'; requestId: string } | null {
+export function parseButtonId(customId: string): { art: 'approve' | 'reject'; requestId: string } | null {
   for (const [praefix, art] of [
     [`${VERIFY_BUTTON}:`, 'approve'],
     [`${REJECT_BUTTON}:`, 'reject'],

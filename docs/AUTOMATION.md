@@ -55,19 +55,19 @@ apps/web, apps/bot        Oberfläche und Takt
 
 Steht im Kern je ein `switch` über Modulnamen, ist etwas falsch gelaufen.
 
-| Baustein | Wofür |
-| --- | --- |
-| `contract.ts` | Ereignisvertrag, Registry der Ereignisse, harte Grenzen |
-| `registry.ts` | Trigger, Bedingungen, Aktionen - alles anmeldbar |
-| `bus.ts` | Veröffentlichen, holen, beanspruchen, aufräumen |
-| `scheduler.ts` | Die Job-Tabelle: Zeitpläne, Wartezeiten, Wiederholungen |
-| `executor.ts` | Ein Lauf: Bedingungen, Schritte, Stellung, Freigaben |
-| `dispatcher.ts` | Ereignis → passende Automationen; die drei Takte |
-| `limits.ts` | Rate, Gleichzeitigkeit, Schleifenschutz |
-| `context.ts` | Platzhalter - und was sie erreichen dürfen |
-| `webhook.ts` | Ausgehende Aufrufe mit Schutz vor dem inneren Netz |
-| `validate.ts` | Die Prüfung vor dem Einschalten |
-| `store.ts` / `runs.ts` | Automationen und ihr Verlauf |
+| Baustein               | Wofür                                                   |
+| ---------------------- | ------------------------------------------------------- |
+| `contract.ts`          | Ereignisvertrag, Registry der Ereignisse, harte Grenzen |
+| `registry.ts`          | Trigger, Bedingungen, Aktionen - alles anmeldbar        |
+| `bus.ts`               | Veröffentlichen, holen, beanspruchen, aufräumen         |
+| `scheduler.ts`         | Die Job-Tabelle: Zeitpläne, Wartezeiten, Wiederholungen |
+| `executor.ts`          | Ein Lauf: Bedingungen, Schritte, Stellung, Freigaben    |
+| `dispatcher.ts`        | Ereignis → passende Automationen; die drei Takte        |
+| `limits.ts`            | Rate, Gleichzeitigkeit, Schleifenschutz                 |
+| `context.ts`           | Platzhalter - und was sie erreichen dürfen              |
+| `webhook.ts`           | Ausgehende Aufrufe mit Schutz vor dem inneren Netz      |
+| `validate.ts`          | Die Prüfung vor dem Einschalten                         |
+| `store.ts` / `runs.ts` | Automationen und ihr Verlauf                            |
 
 ---
 
@@ -101,12 +101,12 @@ UPDATE ... SET ... WHERE id = ? AND <noch-nicht-Bedingung>
 
 Wer null Zeilen ändert, war zu spät und lässt die Finger davon.
 
-| Was | Die Bedingung |
-| --- | --- |
-| Ereignis verteilen | `processedAt IS NULL` |
-| Job beanspruchen | `status = 'PENDING'` |
-| Wartenden Lauf fortsetzen | `status = 'WAITING'` |
-| Freigabe entscheiden | `status = 'PENDING'` |
+| Was                       | Die Bedingung         |
+| ------------------------- | --------------------- |
+| Ereignis verteilen        | `processedAt IS NULL` |
+| Job beanspruchen          | `status = 'PENDING'`  |
+| Wartenden Lauf fortsetzen | `status = 'WAITING'`  |
+| Freigabe entscheiden      | `status = 'PENDING'`  |
 
 Dazu ein eindeutiger Index auf `AutomationRun.idempotencyKey`: dasselbe
 Ereignis erzeugt für dieselbe Automation genau einen Lauf, auch wenn Discord es
@@ -178,24 +178,24 @@ Sicherheitstest verlangt genau das.
 
 Fein geschnitten, weil die Unterschiede zählen:
 
-| Berechtigung | Was sie erlaubt |
-| --- | --- |
-| `automations.view` | Übersicht, Vorlagen, Zustand |
-| `automations.create` | Entwürfe anlegen |
-| `automations.edit` | Auslöser, Bedingungen, Schritte ändern |
-| `automations.delete` | Archivieren |
-| `automations.enable` | **Ein- und Ausschalten** |
-| `automations.execute` | Von Hand starten, Probelauf |
-| `automations.history.view` | Verlauf und Fehler |
-| `automations.approve` | Angehaltene Aktionen freigeben |
-| `automations.system.manage` | Systemautomationen |
-| `automations.webhooks.manage` | Nach aussen senden |
+| Berechtigung                  | Was sie erlaubt                        |
+| ----------------------------- | -------------------------------------- |
+| `automations.view`            | Übersicht, Vorlagen, Zustand           |
+| `automations.create`          | Entwürfe anlegen                       |
+| `automations.edit`            | Auslöser, Bedingungen, Schritte ändern |
+| `automations.delete`          | Archivieren                            |
+| `automations.enable`          | **Ein- und Ausschalten**               |
+| `automations.execute`         | Von Hand starten, Probelauf            |
+| `automations.history.view`    | Verlauf und Fehler                     |
+| `automations.approve`         | Angehaltene Aktionen freigeben         |
+| `automations.system.manage`   | Systemautomationen                     |
+| `automations.webhooks.manage` | Nach aussen senden                     |
 
 Wer eine Automation **anlegen** darf, darf sie damit noch nicht
 **einschalten**: erst das Einschalten macht aus einem Entwurf etwas, das nachts
 von selbst Rollen vergibt.
 
-Dazu kommt eine Prüfung, die sich aus dem *Inhalt* ergibt: eine Aktion darf
+Dazu kommt eine Prüfung, die sich aus dem _Inhalt_ ergibt: eine Aktion darf
 eine eigene Berechtigung verlangen. `level.xp` verlangt `level.members.manage` -
 dieselbe wie der Griff von Hand. Ohne diese Prüfung wäre die Engine ein Weg,
 jede Berechtigung des Systems zu umgehen. Sie greift an drei Stellen: beim
@@ -239,7 +239,7 @@ Servers heraus. Deshalb, der Reihe nach:
    ein Geheimnis in eine Automation zu schreiben.
 3. **Namen werden aufgelöst und jede Adresse geprüft.** `intern.example.com`
    kann auf `10.0.0.5` zeigen; nur die aufgelöste Adresse verrät das. Zeigt
-   *eine* der Adressen nach innen, wird abgelehnt.
+   _eine_ der Adressen nach innen, wird abgelehnt.
 4. **Keine Weiterleitungen** - sonst wäre Schritt 3 wertlos.
 5. **Frist** (10 s) und **Grössengrenze** (2 000 Zeichen der Antwort).
 
@@ -313,11 +313,11 @@ wird beim dritten Mal nicht anders und kostet nur.
 
 Stündlich, mit den Fristen aus den Moduleinstellungen:
 
-| Was | Vorgabe | Ausnahme |
-| --- | --- | --- |
-| Läufe | 30 Tage | wartende, auf Freigabe hoffende und gescheiterte bleiben |
-| Ereignisse | 7 Tage | nur verarbeitete |
-| Jobs | 7 Tage | nur erledigte und tote |
+| Was        | Vorgabe | Ausnahme                                                 |
+| ---------- | ------- | -------------------------------------------------------- |
+| Läufe      | 30 Tage | wartende, auf Freigabe hoffende und gescheiterte bleiben |
+| Ereignisse | 7 Tage  | nur verarbeitete                                         |
+| Jobs       | 7 Tage  | nur erledigte und tote                                   |
 
 Ein Lauf, der seit acht Tagen auf einen Menschen wartet, verschwände sonst
 genau dann, wenn dieser Mensch aus den Ferien zurückkommt.
@@ -328,12 +328,12 @@ genau dann, wenn dieser Mensch aus den Ferien zurückkommt.
 
 Vier Jobs in `apps/bot/src/jobs.ts`, überlappungsfrei wie alle anderen:
 
-| Job | Abstand | Wofür |
-| --- | --- | --- |
-| `automation-dispatch` | 5 s | offene Ereignisse verteilen |
-| `automation-jobs` | 10 s | fällige Wecker; zuerst verwaiste zurückholen |
-| `automation-schedule` | 5 min | kommende Termine sichern |
-| `automation-retention` | 60 min | aufräumen |
+| Job                    | Abstand | Wofür                                        |
+| ---------------------- | ------- | -------------------------------------------- |
+| `automation-dispatch`  | 5 s     | offene Ereignisse verteilen                  |
+| `automation-jobs`      | 10 s    | fällige Wecker; zuerst verwaiste zurückholen |
+| `automation-schedule`  | 5 min   | kommende Termine sichern                     |
+| `automation-retention` | 60 min  | aufräumen                                    |
 
 Der Zustand steht unter **System → Gesundheit**: offene, beanspruchte und tote
 Aufgaben sowie die Verzögerung der ältesten fälligen. Die Verzögerung ist die
@@ -352,7 +352,7 @@ In `packages/modules/src/automation/events.ts`:
 
 ```ts
 registerEvent({
-  type: 'turnier.gestartet',          // <modul>.<sache>, klein, mit Punkten
+  type: 'turnier.gestartet', // <modul>.<sache>, klein, mit Punkten
   label: 'Turnier hat begonnen',
   description: 'Ein Turnier ist in die erste Runde gegangen.',
   module: 'tournaments',
@@ -404,7 +404,7 @@ registerAction({
   label: 'Turnier ankündigen',
   description: 'Schreibt die Ankündigung in den Turnierkanal.',
   group: 'Turniere',
-  requiredPermission: 'tournaments.manage',   // dieselbe wie von Hand
+  requiredPermission: 'tournaments.manage', // dieselbe wie von Hand
   configSchema: z.object({ tournamentId: z.string() }),
   fields: [{ key: 'tournamentId', label: 'Turnier', type: 'text', required: true }],
   async execute(config, context) {
@@ -412,10 +412,10 @@ registerAction({
     return { status: 'SUCCESS', detail: 'Angekündigt.' };
   },
   async preview(config) {
-    return 'Würde das Turnier ankündigen.';   // für den Probelauf
+    return 'Würde das Turnier ankündigen.'; // für den Probelauf
   },
   async validate(config, umgebung) {
-    return [];                                 // vor dem Einschalten
+    return []; // vor dem Einschalten
   },
 });
 ```
@@ -428,7 +428,7 @@ Vier Dinge, die eine Aktion einhalten muss:
 - **`requiredPermission`**, wenn dieselbe Wirkung von Hand eine Berechtigung
   verlangt.
 - **`preview`**, sonst steht im Probelauf nur der Name der Aktion und die
-  eigentliche Frage bleibt unbeantwortet: *was genau* würde geschehen.
+  eigentliche Frage bleibt unbeantwortet: _was genau_ würde geschehen.
 - **`requiresApproval: true`**, wenn sie sich nicht zurücknehmen lässt.
 
 Der Builder zeigt die neue Aktion, sobald sie angemeldet ist. Keine Datei in
@@ -440,15 +440,15 @@ Der Builder zeigt die neue Aktion, sobald sie angemeldet ist. Keine Datei in
 
 Sieben Tabellen, alle additiv hinzugekommen:
 
-| Tabelle | Wofür |
-| --- | --- |
-| `AutomationEvent` | die Ausgangstabelle - was geschehen ist |
-| `Automation` | die Automation selbst |
-| `AutomationVersion` | die Fassungen |
-| `AutomationRun` | ein Lauf: Stellung, Kontext, Ausgang |
-| `AutomationStepRun` | jeder Schritt mit seinem Ergebnis |
-| `AutomationJob` | die Wecker |
-| `AutomationApproval` | angehaltene Aktionen |
+| Tabelle              | Wofür                                   |
+| -------------------- | --------------------------------------- |
+| `AutomationEvent`    | die Ausgangstabelle - was geschehen ist |
+| `Automation`         | die Automation selbst                   |
+| `AutomationVersion`  | die Fassungen                           |
+| `AutomationRun`      | ein Lauf: Stellung, Kontext, Ausgang    |
+| `AutomationStepRun`  | jeder Schritt mit seinem Ergebnis       |
+| `AutomationJob`      | die Wecker                              |
+| `AutomationApproval` | angehaltene Aktionen                    |
 
 Migrationen: `20260828223009_automation_engine` (36 CREATE, kein DROP) und
 `20260828234500_automation_concurrency_key` (zwei nullbare Spalten). Keine
@@ -472,11 +472,11 @@ bestehende Zeile wird verändert.
 
 ## 18. Fehlersuche
 
-| Symptom | Wo nachsehen |
-| --- | --- |
-| Automation läuft nicht | Ist sie eingeschaltet? Prüfen im Builder |
-| Läuft, tut aber nichts | Verlauf: `SKIPPED` heisst, die Bedingungen trafen nicht zu |
-| Alles wartet | System → Gesundheit: Verzögerung des Zeitplaners |
-| Schritt scheitert immer | Automationen → Fehler; die Meldung nennt den Grund |
-| Wait kehrt nicht zurück | `AutomationJob` mit `kind = 'RESUME'` und `status` |
-| Nichts kommt an | Läuft der Bot? Der Verteiler ist ein Bot-Job |
+| Symptom                 | Wo nachsehen                                               |
+| ----------------------- | ---------------------------------------------------------- |
+| Automation läuft nicht  | Ist sie eingeschaltet? Prüfen im Builder                   |
+| Läuft, tut aber nichts  | Verlauf: `SKIPPED` heisst, die Bedingungen trafen nicht zu |
+| Alles wartet            | System → Gesundheit: Verzögerung des Zeitplaners           |
+| Schritt scheitert immer | Automationen → Fehler; die Meldung nennt den Grund         |
+| Wait kehrt nicht zurück | `AutomationJob` mit `kind = 'RESUME'` und `status`         |
+| Nichts kommt an         | Läuft der Bot? Der Verteiler ist ein Bot-Job               |

@@ -89,9 +89,7 @@ export function ProductComparison(): React.JSX.Element {
                   ) : (
                     <Minus className="size-4 shrink-0 text-muted-foreground/60" aria-hidden="true" />
                   )}
-                  <span className={merkmal[spalte.key] ? '' : 'text-muted-foreground'}>
-                    {merkmal.label}
-                  </span>
+                  <span className={merkmal[spalte.key] ? '' : 'text-muted-foreground'}>{merkmal.label}</span>
                 </li>
               ))}
             </ul>

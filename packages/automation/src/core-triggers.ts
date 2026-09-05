@@ -86,7 +86,12 @@ export const scheduleTriggerConfigSchema = z
   .object({
     modus: z.enum(ZEITPLAN_MODI),
     /** Nur bei `INTERVALL`. Fünf Minuten ist die kleinste sinnvolle Einheit. */
-    intervallMinuten: z.number().int().min(5).max(60 * 24 * 30).optional(),
+    intervallMinuten: z
+      .number()
+      .int()
+      .min(5)
+      .max(60 * 24 * 30)
+      .optional(),
     /** `HH:MM` in der gewählten Zeitzone. */
     zeit: z
       .string()
@@ -100,13 +105,21 @@ export const scheduleTriggerConfigSchema = z
   })
   .superRefine((wert, ctx) => {
     if (wert.modus === 'INTERVALL' && !wert.intervallMinuten) {
-      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Ein Intervall fehlt.', path: ['intervallMinuten'] });
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Ein Intervall fehlt.',
+        path: ['intervallMinuten'],
+      });
     }
     if (wert.modus !== 'INTERVALL' && !wert.zeit) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Eine Uhrzeit fehlt.', path: ['zeit'] });
     }
     if (wert.modus === 'WOECHENTLICH' && (wert.wochentage ?? []).length === 0) {
-      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Es ist kein Wochentag gewählt.', path: ['wochentage'] });
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Es ist kein Wochentag gewählt.',
+        path: ['wochentage'],
+      });
     }
     if (wert.modus === 'MONATLICH' && !wert.monatstag) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Ein Monatstag fehlt.', path: ['monatstag'] });
@@ -141,10 +154,17 @@ export function naechsterTermin(config: ScheduleTriggerConfig, von: Date): Date 
   const minute = Number(minuteRoh);
 
   if (config.modus === 'TAEGLICH') {
-    return naechsterPassender(von, zone, 60, (teile) => {
-      void teile;
-      return true;
-    }, stunde, minute);
+    return naechsterPassender(
+      von,
+      zone,
+      60,
+      (teile) => {
+        void teile;
+        return true;
+      },
+      stunde,
+      minute,
+    );
   }
 
   if (config.modus === 'WOECHENTLICH') {

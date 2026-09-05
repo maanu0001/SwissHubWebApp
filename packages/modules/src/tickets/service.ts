@@ -80,10 +80,28 @@ export function buildChannelName(
   // geschrieben - eine Ausnahme im Waechter waere der schlechtere Tausch.
   const ESZETT = '\u00DF';
   const UMSCHRIFT: Record<string, string> = {
-    ä: 'ae', ö: 'oe', ü: 'ue', [ESZETT]: 'ss',
-    à: 'a', á: 'a', â: 'a', è: 'e', é: 'e', ê: 'e', ë: 'e',
-    ì: 'i', í: 'i', î: 'i', ò: 'o', ó: 'o', ô: 'o',
-    ù: 'u', ú: 'u', û: 'u', ç: 'c', ñ: 'n',
+    ä: 'ae',
+    ö: 'oe',
+    ü: 'ue',
+    [ESZETT]: 'ss',
+    à: 'a',
+    á: 'a',
+    â: 'a',
+    è: 'e',
+    é: 'e',
+    ê: 'e',
+    ë: 'e',
+    ì: 'i',
+    í: 'i',
+    î: 'i',
+    ò: 'o',
+    ó: 'o',
+    ô: 'o',
+    ù: 'u',
+    ú: 'u',
+    û: 'u',
+    ç: 'c',
+    ñ: 'n',
   };
 
   const sauber = (text: string): string =>
@@ -256,7 +274,14 @@ export async function createTicket(input: CreateTicketInput): Promise<Ticket> {
 /** Legt den Discord-Kanal mit den richtigen Rechten an. */
 async function erstelleKanal(
   ticket: Ticket,
-  kategorie: { id: string; name: string; discordCategoryId: string | null; overflowCategoryId: string | null; supportRoleIds: string[]; channelNameTemplate: string },
+  kategorie: {
+    id: string;
+    name: string;
+    discordCategoryId: string | null;
+    overflowCategoryId: string | null;
+    supportRoleIds: string[];
+    channelNameTemplate: string;
+  },
   settings: TicketSettings,
 ) {
   const guildId = await resolveGuildId();
@@ -282,8 +307,7 @@ async function erstelleKanal(
   );
   if (!ziel) {
     throw new AppError('CONFLICT', {
-      userMessage:
-        'Die Ticket-Kategorien auf Discord sind voll. Bitte eine Ausweich-Kategorie einrichten.',
+      userMessage: 'Die Ticket-Kategorien auf Discord sind voll. Bitte eine Ausweich-Kategorie einrichten.',
     });
   }
 

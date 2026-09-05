@@ -1,9 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  baueKanalName,
-  pruefeName,
-  saeubere,
-} from '../../packages/modules/src/voice/naming';
+import { baueKanalName, pruefeName, saeubere } from '../../packages/modules/src/voice/naming';
 import {
   besitzerRechte,
   everyoneAusnahme,
@@ -24,9 +20,7 @@ import { DISCORD_PERMISSIONS } from '@swisshub/discord';
 
 describe('Kanalnamen', () => {
   it('setzt die Platzhalter ein', () => {
-    expect(baueKanalName("🔊 {username}'s Talk", { username: 'manuel' })).toBe(
-      "🔊 manuel's Talk",
-    );
+    expect(baueKanalName("🔊 {username}'s Talk", { username: 'manuel' })).toBe("🔊 manuel's Talk");
     expect(baueKanalName('👥 {displayName} & Co', { username: 'm', displayName: 'Manuel' })).toBe(
       '👥 Manuel & Co',
     );
@@ -105,9 +99,7 @@ describe('Rechte im Talk', () => {
     // Recht vergibt, das der Bot nicht hat. Lieber ein Talk ohne
     // Zusatzrechte als gar keiner.
     const nurKanaele = besitzerRechte(true, DISCORD_PERMISSIONS.MANAGE_CHANNELS);
-    expect(nurKanaele & DISCORD_PERMISSIONS.MANAGE_CHANNELS).toBe(
-      DISCORD_PERMISSIONS.MANAGE_CHANNELS,
-    );
+    expect(nurKanaele & DISCORD_PERMISSIONS.MANAGE_CHANNELS).toBe(DISCORD_PERMISSIONS.MANAGE_CHANNELS);
     expect(nurKanaele & DISCORD_PERMISSIONS.MANAGE_ROLES).toBe(0n);
 
     // Gar nichts: der Talk entsteht trotzdem, mit den Teilnehmerrechten.
@@ -132,12 +124,8 @@ describe('Rechte im Talk', () => {
     const versteckt = everyoneAusnahme('1', { locked: false, hidden: true });
     expect(versteckt).not.toBeNull();
     // Versteckt: gar nicht zu sehen - und damit auch nicht zu betreten.
-    expect((versteckt?.deny ?? 0n) & DISCORD_PERMISSIONS.VIEW_CHANNEL).toBe(
-      DISCORD_PERMISSIONS.VIEW_CHANNEL,
-    );
-    expect((versteckt?.deny ?? 0n) & DISCORD_PERMISSIONS.CONNECT).toBe(
-      DISCORD_PERMISSIONS.CONNECT,
-    );
+    expect((versteckt?.deny ?? 0n) & DISCORD_PERMISSIONS.VIEW_CHANNEL).toBe(DISCORD_PERMISSIONS.VIEW_CHANNEL);
+    expect((versteckt?.deny ?? 0n) & DISCORD_PERMISSIONS.CONNECT).toBe(DISCORD_PERMISSIONS.CONNECT);
   });
 
   it('entfernt die Ausnahme, wenn weder gesperrt noch versteckt', () => {

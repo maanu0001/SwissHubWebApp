@@ -200,8 +200,7 @@ async function voiceHubHealthChecks(context: ModuleHealthContext): Promise<Modul
   const { loadRoleConfiguration } = await import('@swisshub/permissions');
   const rollen = await loadRoleConfiguration().catch(() => null);
   const darfNutzen =
-    rollen?.mappings.some((zuordnung) => zuordnung.permission === VOICE_HUB_PERMISSIONS.use) ??
-    false;
+    rollen?.mappings.some((zuordnung) => zuordnung.permission === VOICE_HUB_PERMISSIONS.use) ?? false;
   checks.push(
     darfNutzen
       ? { label: 'Talk erstellen', status: 'ok', detail: 'Mindestens eine Rolle darf es.' }

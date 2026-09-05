@@ -40,9 +40,7 @@ export interface PublishErgebnis {
  * werden, weil die Automation Engine gerade nicht erreichbar ist. Was hier
  * schiefgeht, landet im Protokoll und sonst nirgends.
  */
-export async function publish<TPayload>(
-  eingabe: PublishInput<TPayload>,
-): Promise<PublishErgebnis> {
+export async function publish<TPayload>(eingabe: PublishInput<TPayload>): Promise<PublishErgebnis> {
   const eventId = randomUUID();
 
   try {

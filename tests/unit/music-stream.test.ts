@@ -2,10 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-const QUELLE = readFileSync(
-  join(process.cwd(), 'apps/web/src/app/api/music/stream/route.ts'),
-  'utf8',
-);
+const QUELLE = readFileSync(join(process.cwd(), 'apps/web/src/app/api/music/stream/route.ts'), 'utf8');
 
 /**
  * Der Live-Strom ist eine offene Verbindung mit Datenbankzugriff - genau die

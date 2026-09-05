@@ -24,14 +24,7 @@
  */
 
 /** Die Massnahmen, die ein eigenes Grundfeld haben. */
-export const MODERATION_ACTIONS = [
-  'BAN',
-  'KICK',
-  'TIMEOUT',
-  'TIMEOUT_REMOVE',
-  'JAIL',
-  'NOTE',
-] as const;
+export const MODERATION_ACTIONS = ['BAN', 'KICK', 'TIMEOUT', 'TIMEOUT_REMOVE', 'JAIL', 'NOTE'] as const;
 
 export type ModerationAction = (typeof MODERATION_ACTIONS)[number];
 

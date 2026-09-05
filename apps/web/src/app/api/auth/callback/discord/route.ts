@@ -116,10 +116,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     // doch nach aussen fuehrt.
     const gemerkt = request.cookies.get(COOKIE.oauthRedirect)?.value ?? null;
     const ziel =
-      gemerkt &&
-      gemerkt.startsWith('/') &&
-      !gemerkt.startsWith('//') &&
-      !gemerkt.includes('\\')
+      gemerkt && gemerkt.startsWith('/') && !gemerkt.startsWith('//') && !gemerkt.includes('\\')
         ? gemerkt
         : '/dashboard';
 

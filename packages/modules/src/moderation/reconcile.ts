@@ -1,9 +1,5 @@
 import { prisma } from '@swisshub/database';
-import {
-  discord as defaultDiscord,
-  type AuditLogEntry,
-  type DiscordGateway,
-} from '@swisshub/discord';
+import { discord as defaultDiscord, type AuditLogEntry, type DiscordGateway } from '@swisshub/discord';
 import { createLogger } from '@swisshub/logger';
 import { AUDIT_LOG_ACTIONS } from './audit-lookup';
 import { erfasseAusAuditEintrag, type ExternerVorgang } from './extern';

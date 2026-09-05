@@ -23,8 +23,7 @@ const OHNE_EIGENE: moderation.ReasonTemplateQuelle = { reasonTemplates: '' };
 const texte = (
   action: moderation.ModerationAction,
   quelle: moderation.ReasonTemplateQuelle = OHNE_EIGENE,
-): string[] =>
-  reasonTemplatesFor(action, quelle).map((vorlage) => vorlage.reasonText);
+): string[] => reasonTemplatesFor(action, quelle).map((vorlage) => vorlage.reasonText);
 
 describe('Jede Massnahme bekommt Vorlagen', () => {
   it('bietet für jede Massnahme mit Grundfeld etwas an', () => {
@@ -145,26 +144,17 @@ describe('Eine Vorlage ist ein Text und sonst nichts', () => {
   it('trägt keine Sonderbedeutung', () => {
     // Aus «Bot» folgt keine Sonderbehandlung irgendwo im System - sonst wäre
     // aus einer Textvorlage eine versteckte Geschäftsregel geworden.
-    const quelltext = readFileSync(
-      join(process.cwd(), 'packages/modules/src/moderation/reasons.ts'),
-      'utf8',
-    );
+    const quelltext = readFileSync(join(process.cwd(), 'packages/modules/src/moderation/reasons.ts'), 'utf8');
     expect(quelltext).not.toMatch(/if\s*\(\s*reason/u);
 
-    const dienst = readFileSync(
-      join(process.cwd(), 'packages/modules/src/moderation/service.ts'),
-      'utf8',
-    );
+    const dienst = readFileSync(join(process.cwd(), 'packages/modules/src/moderation/service.ts'), 'utf8');
     for (const vorlage of ['Unter 16', "'Bot'"]) {
       expect(dienst, vorlage).not.toContain(vorlage);
     }
   });
 
   it('kennt keine fest eingetragene Rollen- oder Guild-Kennung', () => {
-    const quelltext = readFileSync(
-      join(process.cwd(), 'packages/modules/src/moderation/reasons.ts'),
-      'utf8',
-    );
+    const quelltext = readFileSync(join(process.cwd(), 'packages/modules/src/moderation/reasons.ts'), 'utf8');
     expect(quelltext).not.toMatch(/\d{17,20}/u);
   });
 });

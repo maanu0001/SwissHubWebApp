@@ -34,15 +34,11 @@ export default async function KalenderVerwaltungPage({
   const params = await searchParams;
 
   if (!(await isModuleEnabled(calendar.CALENDAR_MODULE_ID))) {
-    return (
-      <ErrorState title="Modul deaktiviert" description="Der Community-Kalender ist deaktiviert." />
-    );
+    return <ErrorState title="Modul deaktiviert" description="Der Community-Kalender ist deaktiviert." />;
   }
 
   const roh = Array.isArray(params.tab) ? params.tab[0] : params.tab;
-  const tab = TABS.some((eintrag) => eintrag.id === roh)
-    ? (roh as (typeof TABS)[number]['id'])
-    : 'SCHEDULED';
+  const tab = TABS.some((eintrag) => eintrag.id === roh) ? (roh as (typeof TABS)[number]['id']) : 'SCHEDULED';
 
   const [zeilen, zahlen] = await Promise.all([
     calendar.listForManagement(tab),
@@ -136,9 +132,7 @@ export default async function KalenderVerwaltungPage({
                         >
                           {eintrag.title}
                         </Link>
-                        <span className="tabular-nums text-muted-foreground">
-                          {eintrag.teilnehmer}
-                        </span>
+                        <span className="tabular-nums text-muted-foreground">{eintrag.teilnehmer}</span>
                       </li>
                     ))}
                   </ul>
@@ -198,8 +192,8 @@ export default async function KalenderVerwaltungPage({
       {tab === 'CANCELLED' ? (
         <p className="flex items-center gap-2 text-xs text-muted-foreground">
           <CalendarX className="size-3.5" aria-hidden="true" />
-          Abgesagte Events bleiben erhalten - so sehen Angemeldete, dass der Abend nicht
-          stattfindet, statt ihn spurlos zu vermissen.
+          Abgesagte Events bleiben erhalten - so sehen Angemeldete, dass der Abend nicht stattfindet, statt
+          ihn spurlos zu vermissen.
         </p>
       ) : null}
     </>

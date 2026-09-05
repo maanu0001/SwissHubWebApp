@@ -283,9 +283,7 @@ function assertSafeFileName(fileName: string): LogoFormat {
   // Der Namensraum steht in `UPLOAD_KINDS`; die Pruefung leitet sich davon
   // ab, damit ein neuer Namensraum nicht an zwei Stellen nachgetragen werden
   // muss - und die zweite dann vergessen wird.
-  const match = new RegExp(`^(${UPLOAD_KINDS.join('|')})-[0-9a-f]{32}\\.(png|jpg|webp)$`, 'u').exec(
-    fileName,
-  );
+  const match = new RegExp(`^(${UPLOAD_KINDS.join('|')})-[0-9a-f]{32}\\.(png|jpg|webp)$`, 'u').exec(fileName);
   if (!match) {
     throw new AppError('VALIDATION_FAILED', { userMessage: 'Ungültiger Dateiname.' });
   }

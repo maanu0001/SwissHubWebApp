@@ -462,9 +462,8 @@ export function RaffleForm({
             <span className="space-y-1">
               <span className="block text-sm font-medium">Auslosung automatisch starten</span>
               <span className="block text-xs text-muted-foreground">
-                Aus: du startest die Ziehung selbst, wenn Publikum da ist - dann braucht es keinen
-                Zeitpunkt. Ein: das System zieht zur eingetragenen Zeit, sobald die Teilnahme
-                geschlossen ist.
+                Aus: du startest die Ziehung selbst, wenn Publikum da ist - dann braucht es keinen Zeitpunkt.
+                Ein: das System zieht zur eingetragenen Zeit, sobald die Teilnahme geschlossen ist.
               </span>
             </span>
           </label>

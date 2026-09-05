@@ -28,10 +28,7 @@ export function PremiumSectionNav({ sections }: { sections: PremiumSection[] }):
   const pathname = usePathname();
 
   return (
-    <nav
-      aria-label="Premium"
-      className="flex flex-wrap gap-1 rounded-lg border border-border bg-card/60 p-1"
-    >
+    <nav aria-label="Premium" className="flex flex-wrap gap-1 rounded-lg border border-border bg-card/60 p-1">
       {sections.map((section) => {
         const active = pathname === section.href;
         const Icon = ICONS[section.icon];

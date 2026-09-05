@@ -34,10 +34,7 @@ export default async function TurnierArchivPage({
   return (
     <>
       <TournamentSectionNav sections={tournamentSections(context)} />
-      <PageHeader
-        title="Archiv"
-        description="Abgeschlossene, abgesagte und archivierte Turniere."
-      />
+      <PageHeader title="Archiv" description="Abgeschlossene, abgesagte und archivierte Turniere." />
       <TournamentFilters
         action="/turniere/archiv"
         suche={suche.q}

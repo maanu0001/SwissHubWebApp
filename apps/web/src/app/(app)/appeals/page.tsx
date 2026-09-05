@@ -79,8 +79,7 @@ export default async function AppealsPage({
     );
   }
 
-  const ansicht: AnsichtKey =
-    ansichtRoh && ansichtRoh in ANSICHTEN ? (ansichtRoh as AnsichtKey) : 'offen';
+  const ansicht: AnsichtKey = ansichtRoh && ansichtRoh in ANSICHTEN ? (ansichtRoh as AnsichtKey) : 'offen';
   const guildId = await resolveGuildId();
 
   /**
@@ -155,12 +154,7 @@ export default async function AppealsPage({
       <Panel title="Anträge" description="Die neuesten zuerst, dringende oben.">
         <div className="mb-4 flex flex-wrap gap-1.5">
           {(Object.keys(ANSICHTEN) as AnsichtKey[]).map((key) => (
-            <Button
-              key={key}
-              variant={key === ansicht ? 'default' : 'outline'}
-              size="sm"
-              asChild
-            >
+            <Button key={key} variant={key === ansicht ? 'default' : 'outline'} size="sm" asChild>
               <Link href={link(key)}>
                 {ANSICHTEN[key].label}
                 <span className="ml-1.5 tabular-nums opacity-70">{reiterZahlen[key]}</span>

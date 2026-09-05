@@ -26,9 +26,8 @@ vi.mock('@swisshub/database', async () => {
 
 const { jail } = await import('@swisshub/modules');
 const { createMockGateway, setDiscordGateway } = await import('@swisshub/discord');
-const { invalidateRoleConfiguration, PERMISSION_PRESETS, resolvePreset } = await import(
-  '@swisshub/permissions'
-);
+const { invalidateRoleConfiguration, PERMISSION_PRESETS, resolvePreset } =
+  await import('@swisshub/permissions');
 
 type State = ReturnType<typeof createFakeState>;
 
@@ -73,9 +72,27 @@ beforeEach(() => {
   // Abstimmung ist es der einzige Schutz, denn die Rangfrage entscheidet dort
   // bewusst nicht mehr.
   state.managedRoles.push(
-    { discordRoleId: OWNER_ROLE, label: 'Serverleitung', isProtected: true, keepOnJail: false, moderationLevel: 100 },
-    { discordRoleId: MOD_ROLE, label: 'Moderator', isProtected: false, keepOnJail: false, moderationLevel: 50 },
-    { discordRoleId: SUPPORT_ROLE, label: 'Supporter', isProtected: false, keepOnJail: false, moderationLevel: 40 },
+    {
+      discordRoleId: OWNER_ROLE,
+      label: 'Serverleitung',
+      isProtected: true,
+      keepOnJail: false,
+      moderationLevel: 100,
+    },
+    {
+      discordRoleId: MOD_ROLE,
+      label: 'Moderator',
+      isProtected: false,
+      keepOnJail: false,
+      moderationLevel: 50,
+    },
+    {
+      discordRoleId: SUPPORT_ROLE,
+      label: 'Supporter',
+      isProtected: false,
+      keepOnJail: false,
+      moderationLevel: 40,
+    },
   );
   state.moduleSettings.jail = {
     jailRoleId: '900000000000000006',
@@ -90,8 +107,7 @@ beforeEach(() => {
   setDiscordGateway(gateway);
 });
 
-const suche = (query: string) =>
-  jail.searchVoteJailTargets(query, PREMIUM, { gateway, limit: 20 });
+const suche = (query: string) => jail.searchVoteJailTargets(query, PREMIUM, { gateway, limit: 20 });
 
 describe('Vote-Jail-Zielsuche', () => {
   it('findet ein zulässiges Mitglied', async () => {
@@ -132,9 +148,7 @@ describe('Vote-Jail-Zielsuche', () => {
   it('zeigt keine geschützten Ziele', async () => {
     // Alle auf einmal suchen: die Mock-Mitglieder tragen alle ein «e» im
     // Anzeigenamen oder Benutzernamen - ausser dem Bot.
-    const alle = await Promise.all(
-      ['Nina', 'Manuel', 'Lars', 'SwissHub'].map((name) => suche(name)),
-    );
+    const alle = await Promise.all(['Nina', 'Manuel', 'Lars', 'SwissHub'].map((name) => suche(name)));
     const ids = alle.flat().map((eintrag) => eintrag.discordId);
 
     // Moderator: trägt eine Moderationsstufe.
@@ -179,12 +193,7 @@ describe('Vote-Jail-Zielsuche', () => {
     // Kein Rollen-, Beitritts- oder Moderationsdatum: was hier nicht steht,
     // laesst sich ueber diesen Weg auch nicht abfragen.
     const [treffer] = await suche('spammer');
-    expect(Object.keys(treffer!).sort()).toEqual([
-      'avatarHash',
-      'discordId',
-      'displayName',
-      'username',
-    ]);
+    expect(Object.keys(treffer!).sort()).toEqual(['avatarHash', 'discordId', 'displayName', 'username']);
   });
 });
 
@@ -222,20 +231,12 @@ describe('Ein Ziel über seine Kennung', () => {
     const treffer = await jail.resolveVoteJailTarget(SPAMMER, PREMIUM, { gateway });
 
     expect(treffer).not.toBeInstanceOf(Array);
-    expect(Object.keys(treffer!).sort()).toEqual([
-      'avatarHash',
-      'discordId',
-      'displayName',
-      'username',
-    ]);
+    expect(Object.keys(treffer!).sort()).toEqual(['avatarHash', 'discordId', 'displayName', 'username']);
   });
 });
 
 describe('Wer nach Namen suchen darf', () => {
-  const quelle = readFileSync(
-    join(process.cwd(), 'apps/web/src/modules/jail/actions.ts'),
-    'utf8',
-  );
+  const quelle = readFileSync(join(process.cwd(), 'apps/web/src/modules/jail/actions.ts'), 'utf8');
   const abschnitt = (von: string, bis: string): string =>
     quelle.slice(quelle.indexOf(von), quelle.indexOf(bis));
 
@@ -268,10 +269,7 @@ describe('Wer nach Namen suchen darf', () => {
   });
 
   it('lässt die allgemeine Mitgliedersuche unverändert geschützt', () => {
-    const mitglieder = readFileSync(
-      join(process.cwd(), 'apps/web/src/modules/members/actions.ts'),
-      'utf8',
-    );
+    const mitglieder = readFileSync(join(process.cwd(), 'apps/web/src/modules/members/actions.ts'), 'utf8');
     const suche = mitglieder.slice(
       mitglieder.indexOf('searchMembersAction'),
       mitglieder.indexOf('// --- Rollen'),
@@ -303,10 +301,7 @@ describe('Was Premium dadurch nicht bekommt', () => {
   });
 
   it('sieht im Dialog keine Namenssuche', () => {
-    const seite = readFileSync(
-      join(process.cwd(), 'apps/web/src/app/(app)/vote-jail/page.tsx'),
-      'utf8',
-    );
+    const seite = readFileSync(join(process.cwd(), 'apps/web/src/app/(app)/vote-jail/page.tsx'), 'utf8');
     const dialog = readFileSync(
       join(process.cwd(), 'apps/web/src/modules/jail/components/start-vote-jail-dialog.tsx'),
       'utf8',
@@ -329,10 +324,7 @@ describe('Was Premium dadurch nicht bekommt', () => {
 });
 
 describe('Der Weg über Discord bleibt bestehen', () => {
-  const befehle = readFileSync(
-    join(process.cwd(), 'apps/bot/src/commands/jail-commands.ts'),
-    'utf8',
-  );
+  const befehle = readFileSync(join(process.cwd(), 'apps/bot/src/commands/jail-commands.ts'), 'utf8');
 
   it('nimmt das Ziel aus Discords eigenem Auswahldialog', () => {
     // Kein Suchendpunkt von uns: die Person wählt jemanden, den sie auf

@@ -91,17 +91,13 @@ export default async function CheckoutPage({
         </dl>
 
         <div className="mt-5">
-          <CheckoutButton
-            slug={produkt.slug}
-            csrfToken={csrfTokenFor(context)}
-            label="Weiter zur Zahlung"
-          />
+          <CheckoutButton slug={produkt.slug} csrfToken={csrfTokenFor(context)} label="Weiter zur Zahlung" />
         </div>
 
         <p className="mt-4 flex items-start gap-2 text-xs text-muted-foreground">
           <ShieldCheck className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
-          Die Zahlung läuft über unseren Zahlungsanbieter. Deine Vorteile werden erst freigeschaltet,
-          wenn dieser die Zahlung bestätigt hat.
+          Die Zahlung läuft über unseren Zahlungsanbieter. Deine Vorteile werden erst freigeschaltet, wenn
+          dieser die Zahlung bestätigt hat.
         </p>
       </div>
     </div>

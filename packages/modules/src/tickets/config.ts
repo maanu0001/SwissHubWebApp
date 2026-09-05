@@ -210,9 +210,7 @@ async function ticketHealthChecks(context: ModuleHealthContext): Promise<ModuleH
       fixHref: `/modules/${TICKETS_MODULE_ID}`,
     });
   } else {
-    const kategorie = context.channels.find(
-      (eintrag) => eintrag.id === settings.defaultDiscordCategoryId,
-    );
+    const kategorie = context.channels.find((eintrag) => eintrag.id === settings.defaultDiscordCategoryId);
     checks.push(
       kategorie
         ? { label: 'Discord-Kategorie', status: 'ok', detail: kategorie.name }
@@ -322,37 +320,175 @@ export const ticketsModule: ModuleDefinition = registerModule({
   ],
   healthChecks: ticketHealthChecks,
   permissions: [
-    { key: TICKET_PERMISSIONS.viewOwn, label: 'Eigene Tickets ansehen', description: 'Die selbst eröffneten Tickets einsehen.', module: TICKETS_MODULE_ID },
-    { key: TICKET_PERMISSIONS.create, label: 'Ticket eröffnen', description: 'Ein neues Ticket erstellen.', module: TICKETS_MODULE_ID },
-    { key: TICKET_PERMISSIONS.view, label: 'Ticket-Bereich ansehen', description: 'Den Ticket-Bereich im Dashboard öffnen.', module: TICKETS_MODULE_ID },
+    {
+      key: TICKET_PERMISSIONS.viewOwn,
+      label: 'Eigene Tickets ansehen',
+      description: 'Die selbst eröffneten Tickets einsehen.',
+      module: TICKETS_MODULE_ID,
+    },
+    {
+      key: TICKET_PERMISSIONS.create,
+      label: 'Ticket eröffnen',
+      description: 'Ein neues Ticket erstellen.',
+      module: TICKETS_MODULE_ID,
+    },
+    {
+      key: TICKET_PERMISSIONS.view,
+      label: 'Ticket-Bereich ansehen',
+      description: 'Den Ticket-Bereich im Dashboard öffnen.',
+      module: TICKETS_MODULE_ID,
+    },
 
-    { key: TICKET_PERMISSIONS.supportView, label: 'Tickets bearbeiten (ansehen)', description: 'Tickets der eigenen zuständigen Kategorien einsehen.', module: TICKETS_MODULE_ID },
-    { key: TICKET_PERMISSIONS.supportReply, label: 'Auf Tickets antworten', description: 'Als Bot in den Ticket-Kanal schreiben.', module: TICKETS_MODULE_ID },
-    { key: TICKET_PERMISSIONS.supportClaim, label: 'Tickets übernehmen', description: 'Ein unzugewiesenes Ticket selbst übernehmen.', module: TICKETS_MODULE_ID },
-    { key: TICKET_PERMISSIONS.supportAssign, label: 'Tickets zuweisen', description: 'Ein Ticket einer anderen Person zuweisen.', module: TICKETS_MODULE_ID },
-    { key: TICKET_PERMISSIONS.supportChangeStatus, label: 'Status ändern', description: 'Den Bearbeitungsstand setzen.', module: TICKETS_MODULE_ID },
-    { key: TICKET_PERMISSIONS.supportChangePriority, label: 'Priorität ändern', description: 'Die Dringlichkeit setzen.', module: TICKETS_MODULE_ID },
-    { key: TICKET_PERMISSIONS.supportManageTags, label: 'Schlagwörter setzen', description: 'Tickets mit Schlagwörtern versehen.', module: TICKETS_MODULE_ID },
-    { key: TICKET_PERMISSIONS.supportAddUser, label: 'Teilnehmer hinzufügen', description: 'Weitere Mitglieder in ein Ticket holen.', module: TICKETS_MODULE_ID },
-    { key: TICKET_PERMISSIONS.supportRemoveUser, label: 'Teilnehmer entfernen', description: 'Hinzugefügte Mitglieder wieder entfernen.', module: TICKETS_MODULE_ID },
-    { key: TICKET_PERMISSIONS.supportClose, label: 'Tickets schliessen', description: 'Ein Ticket abschliessen.', module: TICKETS_MODULE_ID },
-    { key: TICKET_PERMISSIONS.supportReopen, label: 'Tickets wieder öffnen', description: 'Ein geschlossenes Ticket erneut öffnen.', module: TICKETS_MODULE_ID },
+    {
+      key: TICKET_PERMISSIONS.supportView,
+      label: 'Tickets bearbeiten (ansehen)',
+      description: 'Tickets der eigenen zuständigen Kategorien einsehen.',
+      module: TICKETS_MODULE_ID,
+    },
+    {
+      key: TICKET_PERMISSIONS.supportReply,
+      label: 'Auf Tickets antworten',
+      description: 'Als Bot in den Ticket-Kanal schreiben.',
+      module: TICKETS_MODULE_ID,
+    },
+    {
+      key: TICKET_PERMISSIONS.supportClaim,
+      label: 'Tickets übernehmen',
+      description: 'Ein unzugewiesenes Ticket selbst übernehmen.',
+      module: TICKETS_MODULE_ID,
+    },
+    {
+      key: TICKET_PERMISSIONS.supportAssign,
+      label: 'Tickets zuweisen',
+      description: 'Ein Ticket einer anderen Person zuweisen.',
+      module: TICKETS_MODULE_ID,
+    },
+    {
+      key: TICKET_PERMISSIONS.supportChangeStatus,
+      label: 'Status ändern',
+      description: 'Den Bearbeitungsstand setzen.',
+      module: TICKETS_MODULE_ID,
+    },
+    {
+      key: TICKET_PERMISSIONS.supportChangePriority,
+      label: 'Priorität ändern',
+      description: 'Die Dringlichkeit setzen.',
+      module: TICKETS_MODULE_ID,
+    },
+    {
+      key: TICKET_PERMISSIONS.supportManageTags,
+      label: 'Schlagwörter setzen',
+      description: 'Tickets mit Schlagwörtern versehen.',
+      module: TICKETS_MODULE_ID,
+    },
+    {
+      key: TICKET_PERMISSIONS.supportAddUser,
+      label: 'Teilnehmer hinzufügen',
+      description: 'Weitere Mitglieder in ein Ticket holen.',
+      module: TICKETS_MODULE_ID,
+    },
+    {
+      key: TICKET_PERMISSIONS.supportRemoveUser,
+      label: 'Teilnehmer entfernen',
+      description: 'Hinzugefügte Mitglieder wieder entfernen.',
+      module: TICKETS_MODULE_ID,
+    },
+    {
+      key: TICKET_PERMISSIONS.supportClose,
+      label: 'Tickets schliessen',
+      description: 'Ein Ticket abschliessen.',
+      module: TICKETS_MODULE_ID,
+    },
+    {
+      key: TICKET_PERMISSIONS.supportReopen,
+      label: 'Tickets wieder öffnen',
+      description: 'Ein geschlossenes Ticket erneut öffnen.',
+      module: TICKETS_MODULE_ID,
+    },
 
-    { key: TICKET_PERMISSIONS.notesView, label: 'Interne Notizen lesen', description: 'Notizen sehen, die nie auf Discord erscheinen.', module: TICKETS_MODULE_ID, critical: true },
-    { key: TICKET_PERMISSIONS.notesCreate, label: 'Interne Notizen schreiben', description: 'Notizen für das Team hinterlegen.', module: TICKETS_MODULE_ID },
+    {
+      key: TICKET_PERMISSIONS.notesView,
+      label: 'Interne Notizen lesen',
+      description: 'Notizen sehen, die nie auf Discord erscheinen.',
+      module: TICKETS_MODULE_ID,
+      critical: true,
+    },
+    {
+      key: TICKET_PERMISSIONS.notesCreate,
+      label: 'Interne Notizen schreiben',
+      description: 'Notizen für das Team hinterlegen.',
+      module: TICKETS_MODULE_ID,
+    },
 
-    { key: TICKET_PERMISSIONS.archiveView, label: 'Archiv ansehen', description: 'Geschlossene Tickets durchsuchen.', module: TICKETS_MODULE_ID },
-    { key: TICKET_PERMISSIONS.transcriptView, label: 'Transcripts herunterladen', description: 'Gesprächsverläufe abrufen.', module: TICKETS_MODULE_ID, critical: true },
+    {
+      key: TICKET_PERMISSIONS.archiveView,
+      label: 'Archiv ansehen',
+      description: 'Geschlossene Tickets durchsuchen.',
+      module: TICKETS_MODULE_ID,
+    },
+    {
+      key: TICKET_PERMISSIONS.transcriptView,
+      label: 'Transcripts herunterladen',
+      description: 'Gesprächsverläufe abrufen.',
+      module: TICKETS_MODULE_ID,
+      critical: true,
+    },
 
-    { key: TICKET_PERMISSIONS.categoriesManage, label: 'Kategorien verwalten', description: 'Ticket-Kategorien und ihre Formulare pflegen.', module: TICKETS_MODULE_ID, critical: true },
-    { key: TICKET_PERMISSIONS.panelsManage, label: 'Panels verwalten', description: 'Ticket-Panels erstellen und veröffentlichen.', module: TICKETS_MODULE_ID, critical: true },
-    { key: TICKET_PERMISSIONS.templatesManage, label: 'Antwortvorlagen verwalten', description: 'Vorlagen für wiederkehrende Antworten pflegen.', module: TICKETS_MODULE_ID },
-    { key: TICKET_PERMISSIONS.settingsManage, label: 'Ticket-Einstellungen ändern', description: 'Kategorien, Grenzen und Verhalten festlegen.', module: TICKETS_MODULE_ID, critical: true },
-    { key: TICKET_PERMISSIONS.blockManage, label: 'Sperren verwalten', description: 'Mitglieder vom Ticketsystem ausschliessen.', module: TICKETS_MODULE_ID, critical: true },
-    { key: TICKET_PERMISSIONS.statsView, label: 'Statistiken ansehen', description: 'Kennzahlen zum Support einsehen.', module: TICKETS_MODULE_ID },
+    {
+      key: TICKET_PERMISSIONS.categoriesManage,
+      label: 'Kategorien verwalten',
+      description: 'Ticket-Kategorien und ihre Formulare pflegen.',
+      module: TICKETS_MODULE_ID,
+      critical: true,
+    },
+    {
+      key: TICKET_PERMISSIONS.panelsManage,
+      label: 'Panels verwalten',
+      description: 'Ticket-Panels erstellen und veröffentlichen.',
+      module: TICKETS_MODULE_ID,
+      critical: true,
+    },
+    {
+      key: TICKET_PERMISSIONS.templatesManage,
+      label: 'Antwortvorlagen verwalten',
+      description: 'Vorlagen für wiederkehrende Antworten pflegen.',
+      module: TICKETS_MODULE_ID,
+    },
+    {
+      key: TICKET_PERMISSIONS.settingsManage,
+      label: 'Ticket-Einstellungen ändern',
+      description: 'Kategorien, Grenzen und Verhalten festlegen.',
+      module: TICKETS_MODULE_ID,
+      critical: true,
+    },
+    {
+      key: TICKET_PERMISSIONS.blockManage,
+      label: 'Sperren verwalten',
+      description: 'Mitglieder vom Ticketsystem ausschliessen.',
+      module: TICKETS_MODULE_ID,
+      critical: true,
+    },
+    {
+      key: TICKET_PERMISSIONS.statsView,
+      label: 'Statistiken ansehen',
+      description: 'Kennzahlen zum Support einsehen.',
+      module: TICKETS_MODULE_ID,
+    },
 
-    { key: TICKET_PERMISSIONS.createForUser, label: 'Ticket für andere eröffnen', description: 'Im Namen eines Mitglieds ein Ticket anlegen.', module: TICKETS_MODULE_ID, critical: true },
-    { key: TICKET_PERMISSIONS.admin, label: 'Tickets vollständig verwalten', description: 'Alle Tickets sehen und bearbeiten, unabhängig von der Kategorie.', module: TICKETS_MODULE_ID, critical: true },
+    {
+      key: TICKET_PERMISSIONS.createForUser,
+      label: 'Ticket für andere eröffnen',
+      description: 'Im Namen eines Mitglieds ein Ticket anlegen.',
+      module: TICKETS_MODULE_ID,
+      critical: true,
+    },
+    {
+      key: TICKET_PERMISSIONS.admin,
+      label: 'Tickets vollständig verwalten',
+      description: 'Alle Tickets sehen und bearbeiten, unabhängig von der Kategorie.',
+      module: TICKETS_MODULE_ID,
+      critical: true,
+    },
   ],
   navigation: [
     {

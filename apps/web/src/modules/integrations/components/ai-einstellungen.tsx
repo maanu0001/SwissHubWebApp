@@ -88,9 +88,7 @@ export function AiEinstellungen({
             className="h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm"
             value={form.provider}
             disabled={!darfAendern || pending}
-            onChange={(event) =>
-              setForm({ ...form, provider: event.target.value as 'anthropic' | 'openai' })
-            }
+            onChange={(event) => setForm({ ...form, provider: event.target.value as 'anthropic' | 'openai' })}
           >
             <option value="anthropic">Anthropic (Claude)</option>
             <option value="openai">OpenAI</option>

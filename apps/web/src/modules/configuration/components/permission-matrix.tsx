@@ -336,11 +336,11 @@ export function PermissionMatrix({
                 <p className="flex items-start gap-2 rounded-md border border-warning/40 bg-warning/10 px-2.5 py-2 text-xs text-warning">
                   <AlertTriangle className="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
                   <span>
-                    Diese Rolle stammt aus der Vorlage «{abweichung.presetLabel}». Die Vorlage hat
-                    inzwischen {abweichung.fehlend.length}{' '}
+                    Diese Rolle stammt aus der Vorlage «{abweichung.presetLabel}». Die Vorlage hat inzwischen{' '}
+                    {abweichung.fehlend.length}{' '}
                     {abweichung.fehlend.length === 1 ? 'Berechtigung' : 'Berechtigungen'} mehr:{' '}
-                    <span className="font-mono">{abweichung.fehlend.join(', ')}</span>. Erneutes
-                    Anwenden trägt sie nach.
+                    <span className="font-mono">{abweichung.fehlend.join(', ')}</span>. Erneutes Anwenden
+                    trägt sie nach.
                   </span>
                 </p>
               ) : null}

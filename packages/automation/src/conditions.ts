@@ -67,11 +67,7 @@ export const OPERATOR_LABEL: Record<Vergleichsoperator, string> = {
  * JavaScript falsch, und genau solche stillen Fehler soll eine Bedingung
  * nicht haben. Zahlen werden als Zahlen verglichen, Texte als Texte.
  */
-export function vergleiche(
-  links: unknown,
-  operator: Vergleichsoperator,
-  rechts: unknown,
-): boolean {
+export function vergleiche(links: unknown, operator: Vergleichsoperator, rechts: unknown): boolean {
   switch (operator) {
     case 'exists':
       return links !== undefined && links !== null && links !== '';

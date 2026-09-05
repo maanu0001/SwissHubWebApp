@@ -50,10 +50,16 @@ function attrappe(options: { scheitern?: boolean; startrollen?: string[] } = {})
         gesetzt.push({ discordId, roleIds });
       }),
     },
-    channels: { send: vi.fn(async () => ({ id: 'm-1', channelId: 'c-1' })), edit: vi.fn(async () => undefined) },
+    channels: {
+      send: vi.fn(async () => ({ id: 'm-1', channelId: 'c-1' })),
+      edit: vi.fn(async () => undefined),
+    },
     roles: { list: vi.fn(async () => []) },
     guild: { get: vi.fn(async () => ({ id: GUILD, name: 'SwissHub', ownerId: '9' })) },
-    bot: { identity: vi.fn(async () => ({ discordId: 'bot', username: 'Bot' })), highestRolePosition: vi.fn(async () => 100) },
+    bot: {
+      identity: vi.fn(async () => ({ discordId: 'bot', username: 'Bot' })),
+      highestRolePosition: vi.fn(async () => 100),
+    },
   };
   return { gateway, gesetzt };
 }

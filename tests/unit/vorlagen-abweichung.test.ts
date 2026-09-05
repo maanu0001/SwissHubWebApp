@@ -70,9 +70,7 @@ describe('Eine Rolle, die hinter ihrer Vorlage zurückliegt', () => {
     const abweichung = findPresetDrift(alterStand);
 
     expect(abweichung?.preset.id).toBe('premium');
-    expect(abweichung?.fehlend).toEqual(
-      expect.arrayContaining(['jail.vote.start', 'jail.module.view']),
-    );
+    expect(abweichung?.fehlend).toEqual(expect.arrayContaining(['jail.vote.start', 'jail.module.view']));
   });
 
   it('meldet nichts, wenn die Rolle vollständig ist', () => {
@@ -101,9 +99,7 @@ describe('Eine Rolle, die hinter ihrer Vorlage zurückliegt', () => {
     const prestige = PERMISSION_PRESETS.find((preset) => preset.id === 'prestige')!;
     expect(resolvePreset(prestige).slice().sort()).toEqual(resolvePreset(premium).slice().sort());
 
-    const abweichung = findPresetDrift(
-      resolvePreset(premium).filter((recht) => recht !== 'jail.vote.start'),
-    );
+    const abweichung = findPresetDrift(resolvePreset(premium).filter((recht) => recht !== 'jail.vote.start'));
 
     expect(abweichung?.fehlend).toEqual(['jail.vote.start']);
   });

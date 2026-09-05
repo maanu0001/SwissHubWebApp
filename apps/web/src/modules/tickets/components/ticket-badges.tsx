@@ -47,11 +47,7 @@ const PRIORITAET_VARIANTE: Record<string, Variante> = {
  * und wer sie nicht unterscheiden kann, saehe sonst nur graue Punkte.
  */
 export function StatusBadge({ status }: { status: string }): React.JSX.Element {
-  return (
-    <Badge variant={STATUS_VARIANTE[status] ?? 'secondary'}>
-      {STATUS_LABEL[status] ?? status}
-    </Badge>
-  );
+  return <Badge variant={STATUS_VARIANTE[status] ?? 'secondary'}>{STATUS_LABEL[status] ?? status}</Badge>;
 }
 
 export function PriorityBadge({ priority }: { priority: string }): React.JSX.Element {

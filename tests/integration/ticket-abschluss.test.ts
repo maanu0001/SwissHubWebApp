@@ -19,12 +19,9 @@ process.env.SWISSHUB_UPLOAD_DIR = await mkdtemp(join(tmpdir(), 'swisshub-abschlu
  * auslöst.
  */
 const { prisma } = await import('@swisshub/database');
-const { tickets, setModuleEnabled, syncDiscord, writeModuleSettings } = await import(
-  '@swisshub/modules'
-);
-const { createMockGateway, setDiscordGateway, resolveGuildId, clearGuildIdCache } = await import(
-  '@swisshub/discord'
-);
+const { tickets, setModuleEnabled, syncDiscord, writeModuleSettings } = await import('@swisshub/modules');
+const { createMockGateway, setDiscordGateway, resolveGuildId, clearGuildIdCache } =
+  await import('@swisshub/discord');
 
 let GUILD = '';
 const ADMIN = { discordId: '100000000000000010', username: 'verwaltung' };
@@ -34,8 +31,7 @@ const KATEGORIE_KANAL = '700000000000000010';
 const ERSTELLER = '900000000000002001';
 const SUPPORTER = '900000000000002002';
 
-const actor = (discordId: string, username: string) =>
-  ({ discordId, username, source: 'WEBAPP' as const });
+const actor = (discordId: string, username: string) => ({ discordId, username, source: 'WEBAPP' as const });
 
 /**
  * Ein Discord-Zugang, der mitschreibt.
@@ -197,9 +193,7 @@ describeWithDatabase('Ticket schliessen und antworten', () => {
   });
 
   it('zählt ein geschlossenes Ticket nicht mehr als offen', async () => {
-    const betrachter = viewer(SUPPORTER, [SUPPORT_ROLE], [
-      tickets.TICKET_PERMISSIONS.admin,
-    ]);
+    const betrachter = viewer(SUPPORTER, [SUPPORT_ROLE], [tickets.TICKET_PERMISSIONS.admin]);
 
     const eins = await ticket();
     expect(await tickets.countOpenTickets(betrachter)).toBe(1);
@@ -209,9 +203,7 @@ describeWithDatabase('Ticket schliessen und antworten', () => {
   });
 
   it('zählt ein wieder geöffnetes Ticket erneut', async () => {
-    const betrachter = viewer(SUPPORTER, [SUPPORT_ROLE], [
-      tickets.TICKET_PERMISSIONS.admin,
-    ]);
+    const betrachter = viewer(SUPPORTER, [SUPPORT_ROLE], [tickets.TICKET_PERMISSIONS.admin]);
 
     const eins = await ticket();
     await tickets.closeTicket(eins.id, null, actor(SUPPORTER, 'nina'));
@@ -293,7 +285,11 @@ describeWithDatabase('Ticket schliessen und antworten', () => {
     discord.gesendet.length = 0;
 
     await tickets.claimTicket(offen.id, actor(SUPPORTER, 'nina'));
-    await tickets.assignTicket(offen.id, { discordId: SUPPORTER, username: 'nina' }, actor(SUPPORTER, 'nina'));
+    await tickets.assignTicket(
+      offen.id,
+      { discordId: SUPPORTER, username: 'nina' },
+      actor(SUPPORTER, 'nina'),
+    );
     await tickets.changeStatus(offen.id, 'IN_PROGRESS', actor(SUPPORTER, 'nina'));
     await tickets.changePriority(offen.id, 'HIGH', actor(SUPPORTER, 'nina'));
 
@@ -482,9 +478,7 @@ describeWithDatabase('Ticket schliessen und antworten', () => {
       data: { channelPurgeAt: null, closedAt: new Date(Date.now() - 3600_000) },
     });
 
-    const nachgetragen = await tickets.scheduleOrphanedChannels(
-      tickets.KANAL_LOESCHVERZOEGERUNG_MS,
-    );
+    const nachgetragen = await tickets.scheduleOrphanedChannels(tickets.KANAL_LOESCHVERZOEGERUNG_MS);
 
     expect(nachgetragen).toBe(1);
     const danach = await prisma.ticket.findUniqueOrThrow({ where: { id: offen.id } });

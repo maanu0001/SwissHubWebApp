@@ -196,7 +196,9 @@ describeWithDatabase('Integrationen: Zugangsdaten', () => {
     await secrets.refreshIntegrationRuntime({ force: true });
 
     // Ein anderer Prozess schreibt: die Revision steigt.
-    await secrets.setSecret('ai', 'apiKey', 'kein-echter-schluessel-von-woanders-1234', { actorDiscordId: '9' });
+    await secrets.setSecret('ai', 'apiKey', 'kein-echter-schluessel-von-woanders-1234', {
+      actorDiscordId: '9',
+    });
 
     expect(await secrets.refreshIntegrationRuntimeIfChanged()).toBe(true);
     // Und beim naechsten Blick hat sich nichts mehr geaendert.
@@ -235,10 +237,9 @@ describeWithDatabase('Integrationen: Zugangsdaten', () => {
   it('übernimmt einen Wert aus der Umgebung verschlüsselt', async () => {
     process.env.DISCORD_BOT_TOKEN = BOT_TOKEN;
 
-    const ergebnis = await secrets.importFromEnvironment(
-      [{ integrationId: 'discord', key: 'botToken' }],
-      { actorDiscordId: '1' },
-    );
+    const ergebnis = await secrets.importFromEnvironment([{ integrationId: 'discord', key: 'botToken' }], {
+      actorDiscordId: '1',
+    });
     expect(ergebnis.uebernommen).toEqual(['discord.botToken']);
     expect(await secrets.getSecret('discord', 'botToken')).toBe(BOT_TOKEN);
     expect(await alleZellen()).not.toContain(BOT_TOKEN);
@@ -248,17 +249,16 @@ describeWithDatabase('Integrationen: Zugangsdaten', () => {
     await secrets.setSecret('discord', 'botToken', BOT_TOKEN, { actorDiscordId: '1' });
     process.env.DISCORD_BOT_TOKEN = 'kein-echtes-token-aus-der-umgebung-0002';
 
-    const ohne = await secrets.importFromEnvironment(
-      [{ integrationId: 'discord', key: 'botToken' }],
-      { actorDiscordId: '1' },
-    );
+    const ohne = await secrets.importFromEnvironment([{ integrationId: 'discord', key: 'botToken' }], {
+      actorDiscordId: '1',
+    });
     expect(ohne.uebersprungen).toEqual(['discord.botToken']);
     expect(await secrets.getSecret('discord', 'botToken')).toBe(BOT_TOKEN);
 
-    const mit = await secrets.importFromEnvironment(
-      [{ integrationId: 'discord', key: 'botToken' }],
-      { actorDiscordId: '1', ueberschreiben: true },
-    );
+    const mit = await secrets.importFromEnvironment([{ integrationId: 'discord', key: 'botToken' }], {
+      actorDiscordId: '1',
+      ueberschreiben: true,
+    });
     expect(mit.uebernommen).toEqual(['discord.botToken']);
     expect(await secrets.getSecret('discord', 'botToken')).toBe('kein-echtes-token-aus-der-umgebung-0002');
   });
@@ -323,9 +323,7 @@ describeWithDatabase('Integrationen: Zugangsdaten', () => {
 
 describe('Logger-Schwärzung', () => {
   it('entfernt ein zur Laufzeit geladenes Geheimnis aus jeder Logzeile', async () => {
-    const { redactString, registerRuntimeSecret, clearRuntimeSecrets } = await import(
-      '@swisshub/logger'
-    );
+    const { redactString, registerRuntimeSecret, clearRuntimeSecrets } = await import('@swisshub/logger');
     clearRuntimeSecrets();
 
     // Vor der Anmeldung steht es noch drin - das ist genau die Lücke, die
@@ -384,9 +382,9 @@ describeWithDatabase('Integrationen: Bots', () => {
 
   it('lässt das Token des Systembots hier nicht ersetzen', async () => {
     const bot = await secrets.ensureSystemBot();
-    await expect(
-      secrets.rotateBotToken(bot.id, 'kein-echtes-token-versuch-0009', '1'),
-    ).rejects.toMatchObject({ code: 'CONFLICT' });
+    await expect(secrets.rotateBotToken(bot.id, 'kein-echtes-token-versuch-0009', '1')).rejects.toMatchObject(
+      { code: 'CONFLICT' },
+    );
   });
 
   it('lässt den Systembot nicht entfernen', async () => {
@@ -418,12 +416,9 @@ describeWithDatabase('Integrationen: Bots', () => {
       { kind: 'MUSIC_WORKER', label: 'Music Worker 1', slug: 'WORKER_1' },
       '1',
     );
-    await secrets.setSecret(
-      `bot:${worker.id}`,
-      'token',
-      'kein-echtes-token-worker-eins-0004',
-      { actorDiscordId: '1' },
-    );
+    await secrets.setSecret(`bot:${worker.id}`, 'token', 'kein-echtes-token-worker-eins-0004', {
+      actorDiscordId: '1',
+    });
 
     // Jeder bekommt seinen eigenen Wert - ein Austausch beim einen rührt den
     // anderen nicht an.

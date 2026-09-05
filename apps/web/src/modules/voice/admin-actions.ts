@@ -34,7 +34,10 @@ const hubSchema = z.object({
   name: z.string().min(1).max(60),
   discordChannelId: z.string().regex(/^\d{17,20}$/u),
   targetCategoryId: z.string().regex(/^\d{17,20}$/u),
-  overflowCategoryId: z.string().regex(/^\d{17,20}$/u).nullable(),
+  overflowCategoryId: z
+    .string()
+    .regex(/^\d{17,20}$/u)
+    .nullable(),
   presetId: z.string().cuid(),
   allowedRoleIds: z.array(z.string()).max(20),
   blockedRoleIds: z.array(z.string()).max(20),

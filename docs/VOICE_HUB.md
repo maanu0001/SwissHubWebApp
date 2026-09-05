@@ -133,16 +133,16 @@ einem `#voice-control`, nicht im Bot-Kanal, nicht per DM. Wer im Talk ist,
 sieht es; wer nicht, sieht es nicht. Discord erledigt damit die halbe
 Zugriffsfrage von selbst.
 
-| Knopf | Wirkung |
-| --- | --- |
-| ✏️ Umbenennen | Modal, gegen die Abkühlzeit des Presets |
-| 👥 Limit | Modal, höchstens `maxUserLimit` des Presets |
-| 🔒 Sperren / 🔓 Entsperren | `CONNECT` für `@everyone` |
-| 👁 Verstecken / Zeigen | `VIEW_CHANNEL` für `@everyone` |
-| 👤 Zugriff | Mitglied zulassen, sperren, entfernen |
-| 👑 Übergeben | Auswahl des neuen Besitzers |
-| ⚙️ Mehr | Bitrate, Thema, Bedienfeld erneuern |
-| 🗑️ Löschen | mit Rückfrage |
+| Knopf                      | Wirkung                                     |
+| -------------------------- | ------------------------------------------- |
+| ✏️ Umbenennen              | Modal, gegen die Abkühlzeit des Presets     |
+| 👥 Limit                   | Modal, höchstens `maxUserLimit` des Presets |
+| 🔒 Sperren / 🔓 Entsperren | `CONNECT` für `@everyone`                   |
+| 👁 Verstecken / Zeigen      | `VIEW_CHANNEL` für `@everyone`              |
+| 👤 Zugriff                 | Mitglied zulassen, sperren, entfernen       |
+| 👑 Übergeben               | Auswahl des neuen Besitzers                 |
+| ⚙️ Mehr                    | Bitrate, Thema, Bedienfeld erneuern         |
+| 🗑️ Löschen                 | mit Rückfrage                               |
 
 Der Klick prüft **jedes Mal neu**, wem der Talk gerade gehört. Wer das
 Bedienfeld ursprünglich bekommen hat, sagt nichts darüber aus, wer es jetzt
@@ -189,16 +189,16 @@ stehen.
 
 Der Abgleich läuft periodisch und holt nach, was liegen geblieben ist:
 
-| Fall | Was geschieht |
-| --- | --- |
-| Kanal auf Discord weg | Zeile schliessen |
-| Reservierung nie fertig geworden | Zeile schliessen |
-| Leer und Frist abgelaufen | Kanal löschen |
-| Leer, noch keine Frist | Frist setzen |
-| Wieder besetzt | Frist aufheben |
-| Besitzer sitzt nicht drin, ohne Frist | Frist anlaufen lassen |
-| Besitzer weg, Frist abgelaufen | an den Nächsten übergeben |
-| Besitzer hat den Server verlassen | sofort übergeben, sonst löschen einplanen |
+| Fall                                  | Was geschieht                             |
+| ------------------------------------- | ----------------------------------------- |
+| Kanal auf Discord weg                 | Zeile schliessen                          |
+| Reservierung nie fertig geworden      | Zeile schliessen                          |
+| Leer und Frist abgelaufen             | Kanal löschen                             |
+| Leer, noch keine Frist                | Frist setzen                              |
+| Wieder besetzt                        | Frist aufheben                            |
+| Besitzer sitzt nicht drin, ohne Frist | Frist anlaufen lassen                     |
+| Besitzer weg, Frist abgelaufen        | an den Nächsten übergeben                 |
+| Besitzer hat den Server verlassen     | sofort übergeben, sonst löschen einplanen |
 
 Er ist damit zugleich die Rettung nach einem Absturz und das Netz gegen
 Ereignisse, die Discord nie geschickt hat.
@@ -234,20 +234,20 @@ Aufräumlogik nach einem Neustart.
 Getrennt nach dem, was jemand mit dem **eigenen** Talk tut, und dem, was
 jemand mit **fremden** tut.
 
-| Recht | Bedeutung |
-| --- | --- |
-| `voiceHub.view` | Den Bereich im Dashboard öffnen |
-| `voiceHub.use` | Über einen Hub einen Talk öffnen |
-| `voiceHub.manageOwn` | Name, Limit, Sperre, Sichtbarkeit des eigenen Talks |
-| `voiceHub.manageUsers` | Zugriff im eigenen Talk steuern |
-| `voiceHub.transferOwnership` | Den eigenen Talk abgeben |
-| `voiceHub.admin.view` | Alle laufenden Talks sehen |
-| `voiceHub.admin.manage` | Fremde Talks verwalten |
-| `voiceHub.admin.delete` | Einen laufenden Talk beenden |
-| `voiceHub.hubs.manage` | Hub-Channels verwalten |
-| `voiceHub.presets.manage` | Vorlagen verwalten |
-| `voiceHub.settings` | Moduleinstellungen ändern |
-| `voiceHub.stats.view` | Auswertungen ansehen |
+| Recht                        | Bedeutung                                           |
+| ---------------------------- | --------------------------------------------------- |
+| `voiceHub.view`              | Den Bereich im Dashboard öffnen                     |
+| `voiceHub.use`               | Über einen Hub einen Talk öffnen                    |
+| `voiceHub.manageOwn`         | Name, Limit, Sperre, Sichtbarkeit des eigenen Talks |
+| `voiceHub.manageUsers`       | Zugriff im eigenen Talk steuern                     |
+| `voiceHub.transferOwnership` | Den eigenen Talk abgeben                            |
+| `voiceHub.admin.view`        | Alle laufenden Talks sehen                          |
+| `voiceHub.admin.manage`      | Fremde Talks verwalten                              |
+| `voiceHub.admin.delete`      | Einen laufenden Talk beenden                        |
+| `voiceHub.hubs.manage`       | Hub-Channels verwalten                              |
+| `voiceHub.presets.manage`    | Vorlagen verwalten                                  |
+| `voiceHub.settings`          | Moduleinstellungen ändern                           |
+| `voiceHub.stats.view`        | Auswertungen ansehen                                |
 
 Wer beides hat, bekommt die Vereinigung: ein Administrator soll seinen eigenen
 Talk nicht schlechter verwalten können als einen fremden.

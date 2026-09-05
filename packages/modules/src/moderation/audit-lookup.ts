@@ -104,10 +104,7 @@ export function passt(eintrag: AuditLogEntry, suche: AuditSuche): boolean {
  * Verlassen. «Nicht abrufbar» heisst dagegen, dass wir es schlicht nicht
  * wissen, und daraus darf nie ein Kick werden.
  */
-export async function findeAuditEintrag(
-  suche: AuditSuche,
-  options: AuditOptions = {},
-): Promise<AuditBefund> {
+export async function findeAuditEintrag(suche: AuditSuche, options: AuditOptions = {}): Promise<AuditBefund> {
   const gateway = options.gateway ?? defaultDiscord;
   const warte = options.warte ?? schlafe;
   const versucheGesamt = Math.min(

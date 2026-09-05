@@ -33,9 +33,7 @@ const log = createLogger('voice:lifecycle');
  * `closedAt: null` in der Bedingung macht den Aufruf wiederholbar: ein
  * zweites Ereignis zum selben Kanal schliesst nichts erneut und meldet 0.
  */
-export async function schliesseZeilen(
-  where: Prisma.TemporaryVoiceChannelWhereInput,
-): Promise<number> {
+export async function schliesseZeilen(where: Prisma.TemporaryVoiceChannelWhereInput): Promise<number> {
   const { count } = await prisma.temporaryVoiceChannel.updateMany({
     where: { ...where, closedAt: null },
     data: { closedAt: new Date(), deleteScheduledAt: null, activeOwnerKey: null },
@@ -70,10 +68,7 @@ export async function menschenImKanal(discordChannelId: string): Promise<number>
  * waehrend die Gruppe noch redet. Betritt jemand den Kanal wieder, hebt
  * `haltePlanungAn` den Auftrag auf.
  */
-export async function planeLoeschung(
-  kanal: TemporaryVoiceChannel,
-  graceSeconds: number,
-): Promise<void> {
+export async function planeLoeschung(kanal: TemporaryVoiceChannel, graceSeconds: number): Promise<void> {
   if (kanal.closedAt) {
     return;
   }
@@ -129,10 +124,7 @@ export async function deleteTemporaryVoice(
  * koennen, wie gross Talks tatsaechlich werden, und nicht nur, wie viele es
  * gab.
  */
-export async function notiereAnwesenheit(
-  kanal: TemporaryVoiceChannel,
-  anzahl: number,
-): Promise<void> {
+export async function notiereAnwesenheit(kanal: TemporaryVoiceChannel, anzahl: number): Promise<void> {
   await prisma.temporaryVoiceChannel.updateMany({
     where: { id: kanal.id, closedAt: null },
     data: {

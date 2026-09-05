@@ -254,9 +254,9 @@ describeWithDatabase('Entbannungsanträge', () => {
     const { gateway } = attrappe();
     const { appeal } = await reicheEin(gateway);
 
-    await expect(
-      appeals.requireEigenerAppeal(GILDE, appeal.id, ANDERER),
-    ).rejects.toMatchObject({ code: 'NOT_FOUND' });
+    await expect(appeals.requireEigenerAppeal(GILDE, appeal.id, ANDERER)).rejects.toMatchObject({
+      code: 'NOT_FOUND',
+    });
 
     expect(await appeals.holeAntragstellerSicht(GILDE, appeal.id, ANDERER)).toBeNull();
     expect(await appeals.holeAntragstellerSicht(GILDE, appeal.id, GEBANNT)).not.toBeNull();
@@ -280,12 +280,10 @@ describeWithDatabase('Entbannungsanträge', () => {
     const { gateway } = attrappe();
     const { appeal } = await reicheEin(gateway);
 
-    await appeals.schreibeInternenKommentar(
-      GILDE,
-      appeal.id,
-      'Wiederholungstäter, siehe Fall von 2025.',
-      { discordId: MODERATOR, username: 'moderatorin' },
-    );
+    await appeals.schreibeInternenKommentar(GILDE, appeal.id, 'Wiederholungstäter, siehe Fall von 2025.', {
+      discordId: MODERATOR,
+      username: 'moderatorin',
+    });
 
     const sicht = await appeals.holeAntragstellerSicht(GILDE, appeal.id, GEBANNT);
     const alsText = JSON.stringify(sicht);
@@ -774,9 +772,7 @@ describeWithDatabase('Entbannungsanträge', () => {
 
     // Der Antragsteller erfährt davon - es betrifft ihn unmittelbar.
     const sicht = await appeals.holeAntragstellerSicht(GILDE, appeal.id, GEBANNT);
-    expect(sicht?.zeitleiste.map((eintrag) => eintrag.label)).toContain(
-      'Dein Bann wurde bereits aufgehoben',
-    );
+    expect(sicht?.zeitleiste.map((eintrag) => eintrag.label)).toContain('Dein Bann wurde bereits aufgehoben');
   });
 
   it('schliesst keinen Antrag, wenn Discord nicht antwortet', async () => {

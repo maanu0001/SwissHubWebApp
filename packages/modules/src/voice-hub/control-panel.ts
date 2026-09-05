@@ -42,16 +42,7 @@ export const VOICE_BUTTON_PREFIX = 'swisshub:voice:';
  * Umweg fuer alle. Was daraus geblieben ist, steht in der Anwendung.
  */
 export type VoiceButtonAction =
-  | 'rename'
-  | 'limit'
-  | 'lock'
-  | 'access'
-  | 'owner'
-  | 'delete'
-  | 'delete-confirm'
-  | 'allow'
-  | 'deny'
-  | 'kick';
+  'rename' | 'limit' | 'lock' | 'access' | 'owner' | 'delete' | 'delete-confirm' | 'allow' | 'deny' | 'kick';
 
 export function baueKnopfId(action: VoiceButtonAction, kanalId: string): string {
   return `${VOICE_BUTTON_PREFIX}${action}:${kanalId}`;
@@ -192,10 +183,7 @@ export function baueKnoepfe(kanal: TemporaryVoiceChannel): DiscordActionRow[] {
   ];
 }
 
-export function baueNachricht(
-  kanal: TemporaryVoiceChannel,
-  anzahlZugriff: number,
-): DiscordMessagePayload {
+export function baueNachricht(kanal: TemporaryVoiceChannel, anzahlZugriff: number): DiscordMessagePayload {
   return {
     embeds: [baueEmbed(kanal, anzahlZugriff)],
     components: baueKnoepfe(kanal),
@@ -220,10 +208,7 @@ export async function posteBedienfeld(kanal: TemporaryVoiceChannel): Promise<str
   const anzahl = await prisma.temporaryVoiceAccess.count({ where: { channelId: kanal.id } });
 
   try {
-    const nachricht = await discord.channels.send(
-      kanal.discordChannelId,
-      baueNachricht(kanal, anzahl),
-    );
+    const nachricht = await discord.channels.send(kanal.discordChannelId, baueNachricht(kanal, anzahl));
     await prisma.temporaryVoiceChannel.updateMany({
       where: { id: kanal.id, closedAt: null },
       data: { controlMessageId: nachricht.id },
@@ -258,11 +243,7 @@ export async function aktualisiereBedienfeld(kanal: TemporaryVoiceChannel): Prom
   const anzahl = await prisma.temporaryVoiceAccess.count({ where: { channelId: kanal.id } });
 
   try {
-    await discord.channels.edit(
-      kanal.discordChannelId,
-      kanal.controlMessageId,
-      baueNachricht(kanal, anzahl),
-    );
+    await discord.channels.edit(kanal.discordChannelId, kanal.controlMessageId, baueNachricht(kanal, anzahl));
   } catch (error) {
     log.info('Bedienfeld nicht mehr vorhanden - lege es neu an', {
       id: kanal.id,

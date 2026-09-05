@@ -83,13 +83,14 @@ export function registerVerification(client: Client): void {
         const frueher = await verification.frueherVerifiziert(member.guild.id, member.id);
         if (frueher) {
           if (settings.memberRoleId) {
-            await member.roles.add(settings.memberRoleId, 'Bereits früher verifiziert').catch(
-              (error: unknown) =>
+            await member.roles
+              .add(settings.memberRoleId, 'Bereits früher verifiziert')
+              .catch((error: unknown) =>
                 log.warn('Mitgliederrolle beim Wiedereintritt nicht vergeben', {
                   member: member.id,
                   error,
                 }),
-            );
+              );
           }
           log.info('Wiedereintritt eines bereits verifizierten Mitglieds', { member: member.id });
           return;

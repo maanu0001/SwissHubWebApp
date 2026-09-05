@@ -323,7 +323,10 @@ export function CreateJailDialog({
                       />
                     </div>
                     <div className="space-y-1">
-                      <Label htmlFor="jail-custom-hours" className="text-xs font-normal text-muted-foreground">
+                      <Label
+                        htmlFor="jail-custom-hours"
+                        className="text-xs font-normal text-muted-foreground"
+                      >
                         Stunden
                       </Label>
                       <Input

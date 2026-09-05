@@ -1,11 +1,7 @@
 import type { Metadata } from 'next';
 import { tournaments } from '@swisshub/modules';
 import { AppError } from '@swisshub/shared';
-import {
-  BracketAdmin,
-  GruppenTabellen,
-  RundenPlanung,
-} from '@/modules/tournaments/components/bracket-admin';
+import { BracketAdmin, GruppenTabellen, RundenPlanung } from '@/modules/tournaments/components/bracket-admin';
 import { BracketView } from '@/modules/tournaments/components/bracket-view';
 import { csrfTokenFor, requireMember } from '@/server/auth';
 import { ladeTurnierMitZugriff } from '@/server/tournaments';
@@ -45,17 +41,13 @@ export default async function TurnierBracketPage({
   const gruppenFertig =
     gruppenAbschnitt !== undefined &&
     gruppenAbschnitt.matches.length > 0 &&
-    gruppenAbschnitt.matches.every(
-      (match) => match.status === 'COMPLETED' || match.status === 'FORFEIT',
-    );
+    gruppenAbschnitt.matches.every((match) => match.status === 'COMPLETED' || match.status === 'FORFEIT');
 
   const swissAbschnitt = bracket.find((abschnitt) => abschnitt.kind === 'SWISS');
   const swissRundeFertig =
     swissAbschnitt !== undefined &&
     swissAbschnitt.matches.length > 0 &&
-    swissAbschnitt.matches.every(
-      (match) => match.status === 'COMPLETED' || match.status === 'FORFEIT',
-    );
+    swissAbschnitt.matches.every((match) => match.status === 'COMPLETED' || match.status === 'FORFEIT');
 
   return (
     <div className="space-y-8">
@@ -83,9 +75,7 @@ export default async function TurnierBracketPage({
           tournamentId={id}
           csrfToken={csrfTokenFor(context)}
           runden={bracket.flatMap((abschnitt) => {
-            const runden = [
-              ...new Set(abschnitt.matches.map((match) => match.round)),
-            ].sort((a, b) => a - b);
+            const runden = [...new Set(abschnitt.matches.map((match) => match.round))].sort((a, b) => a - b);
             return runden.map((runde) => {
               const matches = abschnitt.matches.filter((match) => match.round === runde);
               return {
@@ -93,9 +83,8 @@ export default async function TurnierBracketPage({
                 stageName: abschnitt.name,
                 round: runde,
                 matches: matches.length,
-                offen: matches.filter(
-                  (match) => match.status !== 'COMPLETED' && match.status !== 'FORFEIT',
-                ).length,
+                offen: matches.filter((match) => match.status !== 'COMPLETED' && match.status !== 'FORFEIT')
+                  .length,
               };
             });
           })}

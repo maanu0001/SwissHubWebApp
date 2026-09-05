@@ -13,9 +13,7 @@ export default async function KategorienPage(): Promise<React.JSX.Element> {
   const context = await requirePagePermission(calendar.CALENDAR_PERMISSIONS.categoriesManage);
 
   if (!(await isModuleEnabled(calendar.CALENDAR_MODULE_ID))) {
-    return (
-      <ErrorState title="Modul deaktiviert" description="Der Community-Kalender ist deaktiviert." />
-    );
+    return <ErrorState title="Modul deaktiviert" description="Der Community-Kalender ist deaktiviert." />;
   }
 
   const kategorien = await calendar.listCategories();

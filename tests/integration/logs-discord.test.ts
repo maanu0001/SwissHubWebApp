@@ -553,9 +553,7 @@ describeWithDatabase('Discord-Log-Kanäle', () => {
   });
 
   it('lehnt eine Testnachricht ohne eingerichteten Kanal ab', async () => {
-    await expect(
-      logs.sendeTestnachricht('MODERATION', AKTEUR, { gateway: gateway() }),
-    ).rejects.toThrow();
+    await expect(logs.sendeTestnachricht('MODERATION', AKTEUR, { gateway: gateway() })).rejects.toThrow();
   });
 
   // --- Audit ---------------------------------------------------------------
@@ -576,9 +574,7 @@ describeWithDatabase('Discord-Log-Kanäle', () => {
     await richteEin('MODERATION');
     await logs.setzeZiel({ category: 'MODERATION', channelId: null, actor: AKTEUR });
 
-    expect(
-      await prisma.auditLog.count({ where: { action: 'LOG_CHANNEL_DISABLED' } }),
-    ).toBe(1);
+    expect(await prisma.auditLog.count({ where: { action: 'LOG_CHANNEL_DISABLED' } })).toBe(1);
   });
 
   it('protokolliert die Testnachricht', async () => {

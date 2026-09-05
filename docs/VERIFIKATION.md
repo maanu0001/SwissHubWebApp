@@ -46,15 +46,15 @@ sobald jemand diese Trennung aufweicht.
 
 ## 3. Berechtigungen
 
-| Berechtigung                    | Wofür                                       |
-| ------------------------------- | ------------------------------------------- |
-| `verification.view`             | Übersicht und Kennzahlen                    |
-| `verification.review`           | Warteschlange öffnen, Fälle ansehen         |
-| `verification.approve`          | Freischalten                                |
-| `verification.reject`           | Ablehnen – das heisst bannen (kritisch)     |
-| `verification.history.view`     | Verlauf und der Block im Member Center      |
-| `verification.ai.manage`        | AI-Einordnung erneut anstossen (kritisch)   |
-| `verification.settings.manage`  | Einstellungen des Moduls (kritisch)         |
+| Berechtigung                   | Wofür                                     |
+| ------------------------------ | ----------------------------------------- |
+| `verification.view`            | Übersicht und Kennzahlen                  |
+| `verification.review`          | Warteschlange öffnen, Fälle ansehen       |
+| `verification.approve`         | Freischalten                              |
+| `verification.reject`          | Ablehnen – das heisst bannen (kritisch)   |
+| `verification.history.view`    | Verlauf und der Block im Member Center    |
+| `verification.ai.manage`       | AI-Einordnung erneut anstossen (kritisch) |
+| `verification.settings.manage` | Einstellungen des Moduls (kritisch)       |
 
 `approve` und `reject` sind bewusst getrennt: freischalten ist eine
 Gefälligkeit, ablehnen ist ein Bann. Wer das eine darf, darf deshalb nicht
@@ -86,16 +86,16 @@ Rollen des Drückenden, löst sie über `resolvePermissions` auf und prüft mit
 
 ### Status
 
-| Status                | Bedeutung                                          |
-| --------------------- | -------------------------------------------------- |
-| `WAITING_FOR_MESSAGE` | Beigetreten, hat noch nichts geschrieben           |
-| `AI_ANALYZING`        | Nachricht da, die AI ordnet gerade ein             |
-| `WAITING_FOR_REVIEW`  | Wartet auf einen Menschen                          |
-| `VERIFIED`            | Freigeschaltet                                     |
+| Status                | Bedeutung                                                    |
+| --------------------- | ------------------------------------------------------------ |
+| `WAITING_FOR_MESSAGE` | Beigetreten, hat noch nichts geschrieben                     |
+| `AI_ANALYZING`        | Nachricht da, die AI ordnet gerade ein                       |
+| `WAITING_FOR_REVIEW`  | Wartet auf einen Menschen                                    |
+| `VERIFIED`            | Freigeschaltet                                               |
 | `REJECTED`            | Abgelehnt und gebannt – ausschliesslich durch einen Menschen |
-| `LEFT_SERVER`         | Hat den Server während des Vorgangs verlassen      |
-| `EXPIRED`             | Frist ohne Nachricht verstrichen                   |
-| `ERROR`               | Der Vorgang selbst ist gescheitert (Rolle, Rechte) |
+| `LEFT_SERVER`         | Hat den Server während des Vorgangs verlassen                |
+| `EXPIRED`             | Frist ohne Nachricht verstrichen                             |
+| `ERROR`               | Der Vorgang selbst ist gescheitert (Rolle, Rechte)           |
 
 `WAITING_FOR_MESSAGE`, `AI_ANALYZING` und `WAITING_FOR_REVIEW` gelten als
 offen; die letzten beiden warten auf einen Menschen und ergeben die Zahl auf
@@ -167,29 +167,29 @@ und damit die Kosten.
 Unter **Module → Verifikation → Einstellungen**, Gruppen «Rollen & Kanäle»,
 «Texte», «AI», «Ablauf», «Benachrichtigungen», «Datenschutz».
 
-| Schlüssel               | Vorgabe | Bedeutung                                          |
-| ----------------------- | ------- | -------------------------------------------------- |
-| `unverifiedRoleId`      | –       | Rolle für neue Mitglieder (Pflicht)                |
-| `memberRoleId`          | –       | Rolle nach Freischaltung (Pflicht)                 |
-| `verificationChannelId` | –       | Wo begrüsst und geschrieben wird (Pflicht)         |
-| `moderatorChannelId`    | –       | Wohin die Meldung geht (Pflicht)                   |
-| `moderatorPingRoleId`   | –       | Wird bei einem neuen Fall erwähnt                  |
-| `logChannelId`          | –       | Zusätzlicher Protokollkanal                        |
-| `greetingMessage`       | Text    | `{user}` wird durch die Erwähnung ersetzt          |
-| `welcomeMessage`        | Text    | Leer = keine Nachricht nach der Freischaltung      |
-| `aiEnabled`             | `false` | Einordnung überhaupt anfragen                      |
-| `aiAutoVerify`          | `false` | Darf ein sicheres Ergebnis selbst freischalten     |
-| `aiThreshold`           | `0.95`  | Darunter entscheidet immer ein Mensch              |
-| `aiModel`               | `claude-opus-5` | Modell der Einordnung                      |
-| `aiMaxAttempts`         | `2`     | Anfragen je Vorgang – Kostenbremse                 |
-| `expireEnabled`         | `true`  | Frist überhaupt anwenden                           |
-| `expireAfterHours`      | `48`    | Frist ohne Nachricht                               |
-| `kickOnExpire`          | `false` | Nach Ablauf vom Server werfen – **niemals** bannen |
-| `trustReturningMembers` | `true`  | Früher Verifizierte beim Wiedereintritt durchwinken |
-| `notifyOnMessage`       | `true`  | Meldung bei neuer Nachricht                        |
-| `notifyOnAiVerify`      | `true`  | Meldung bei AI-Freischaltung                       |
-| `notifyOnReject`        | `true`  | Meldung bei Ablehnung                              |
-| `retentionDays`         | `90`    | Aufbewahrung der Verifikationsnachricht            |
+| Schlüssel               | Vorgabe         | Bedeutung                                           |
+| ----------------------- | --------------- | --------------------------------------------------- |
+| `unverifiedRoleId`      | –               | Rolle für neue Mitglieder (Pflicht)                 |
+| `memberRoleId`          | –               | Rolle nach Freischaltung (Pflicht)                  |
+| `verificationChannelId` | –               | Wo begrüsst und geschrieben wird (Pflicht)          |
+| `moderatorChannelId`    | –               | Wohin die Meldung geht (Pflicht)                    |
+| `moderatorPingRoleId`   | –               | Wird bei einem neuen Fall erwähnt                   |
+| `logChannelId`          | –               | Zusätzlicher Protokollkanal                         |
+| `greetingMessage`       | Text            | `{user}` wird durch die Erwähnung ersetzt           |
+| `welcomeMessage`        | Text            | Leer = keine Nachricht nach der Freischaltung       |
+| `aiEnabled`             | `false`         | Einordnung überhaupt anfragen                       |
+| `aiAutoVerify`          | `false`         | Darf ein sicheres Ergebnis selbst freischalten      |
+| `aiThreshold`           | `0.95`          | Darunter entscheidet immer ein Mensch               |
+| `aiModel`               | `claude-opus-5` | Modell der Einordnung                               |
+| `aiMaxAttempts`         | `2`             | Anfragen je Vorgang – Kostenbremse                  |
+| `expireEnabled`         | `true`          | Frist überhaupt anwenden                            |
+| `expireAfterHours`      | `48`            | Frist ohne Nachricht                                |
+| `kickOnExpire`          | `false`         | Nach Ablauf vom Server werfen – **niemals** bannen  |
+| `trustReturningMembers` | `true`          | Früher Verifizierte beim Wiedereintritt durchwinken |
+| `notifyOnMessage`       | `true`          | Meldung bei neuer Nachricht                         |
+| `notifyOnAiVerify`      | `true`          | Meldung bei AI-Freischaltung                        |
+| `notifyOnReject`        | `true`          | Meldung bei Ablehnung                               |
+| `retentionDays`         | `90`            | Aufbewahrung der Verifikationsnachricht             |
 
 Rollen und Kanäle werden ausgewählt, nicht eingetippt – im Code steht keine
 einzige Rollen- oder Kanalkennung.
@@ -249,11 +249,11 @@ Jeder Schritt landet im Audit-Log: `VERIFICATION_STARTED`,
 
 ## 11. Oberfläche
 
-| Seite                          | Braucht                     |
-| ------------------------------ | --------------------------- |
-| `/verifikation`                | `verification.view`         |
-| `/verifikation/warteschlange`  | `verification.review`       |
-| `/verifikation/verlauf`        | `verification.history.view` |
+| Seite                         | Braucht                     |
+| ----------------------------- | --------------------------- |
+| `/verifikation`               | `verification.view`         |
+| `/verifikation/warteschlange` | `verification.review`       |
+| `/verifikation/verlauf`       | `verification.history.view` |
 
 Die Warteschlange aktualisiert sich über Server-Sent Events
 (`/api/verifikation/live`) – dieselbe Technik wie die Turnier-Liveansicht,

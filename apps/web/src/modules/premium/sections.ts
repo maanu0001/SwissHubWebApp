@@ -8,13 +8,7 @@
  * eine Weile gut und stünde irgendwann im Weg.
  */
 export type PremiumSectionIcon =
-  | 'me'
-  | 'overview'
-  | 'subscriptions'
-  | 'products'
-  | 'payments'
-  | 'stuebli'
-  | 'settings';
+  'me' | 'overview' | 'subscriptions' | 'products' | 'payments' | 'stuebli' | 'settings';
 
 export interface PremiumSection {
   href: string;

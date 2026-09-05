@@ -45,10 +45,7 @@ export function EnvUebernahme({
     return null;
   }
 
-  const uebernehmen = async (
-    kandidat: EnvKandidatAnzeige,
-    ueberschreiben: boolean,
-  ): Promise<void> => {
+  const uebernehmen = async (kandidat: EnvKandidatAnzeige, ueberschreiben: boolean): Promise<void> => {
     setPending(true);
     try {
       const antwort = await importEnvAction({
@@ -96,21 +93,14 @@ export function EnvUebernahme({
                 <p className="truncate text-sm font-medium">
                   {kandidat.integrationLabel} → {kandidat.fieldLabel}
                 </p>
-                <p className="truncate font-mono text-xs text-muted-foreground">
-                  {kandidat.envKey} gefunden
-                </p>
+                <p className="truncate font-mono text-xs text-muted-foreground">{kandidat.envKey} gefunden</p>
               </div>
               {fertig ? (
                 <div className="flex items-center gap-2">
                   <Badge variant="outline" className="border-emerald-500/40 text-emerald-500">
                     In der Datenbank
                   </Badge>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    disabled={pending}
-                    onClick={() => setOffen(kandidat)}
-                  >
+                  <Button size="sm" variant="ghost" disabled={pending} onClick={() => setOffen(kandidat)}>
                     Ersetzen
                   </Button>
                 </div>
@@ -126,8 +116,8 @@ export function EnvUebernahme({
       </ul>
 
       <p className="mt-4 text-xs text-muted-foreground">
-        Die Datei <code className="font-mono">.env</code> wird dabei nicht verändert. Was übernommen
-        wurde, kann dort anschliessend von Hand entfernt werden - die Datenbank gewinnt ohnehin.
+        Die Datei <code className="font-mono">.env</code> wird dabei nicht verändert. Was übernommen wurde,
+        kann dort anschliessend von Hand entfernt werden - die Datenbank gewinnt ohnehin.
       </p>
 
       <ConfirmationDialog

@@ -29,9 +29,7 @@ export default async function AccessDeniedPage(): Promise<React.JSX.Element> {
    * Seite dahinter - hier waere die Auskunft an der falschen Stelle.
    */
   const { appeals, isModuleEnabled } = await import('@swisshub/modules');
-  const appealsAn = context
-    ? await isModuleEnabled(appeals.APPEALS_MODULE_ID).catch(() => false)
-    : false;
+  const appealsAn = context ? await isModuleEnabled(appeals.APPEALS_MODULE_ID).catch(() => false) : false;
 
   return (
     <main className="flex min-h-dvh items-center justify-center px-4 py-16">
@@ -58,13 +56,9 @@ export default async function AccessDeniedPage(): Promise<React.JSX.Element> {
             <div className="rounded-lg border border-border/60 bg-muted/30 p-4 text-left">
               <p className="mb-2 text-sm font-medium text-foreground">Wurdest du gebannt?</p>
               <p className="mb-3 text-sm">
-                Dann kannst du eine erneute Prüfung beantragen. Der Antrag wird von Menschen
-                gelesen.
+                Dann kannst du eine erneute Prüfung beantragen. Der Antrag wird von Menschen gelesen.
               </p>
-              <Link
-                href="/entbannung"
-                className={cn(buttonVariants({ variant: 'default', size: 'sm' }))}
-              >
+              <Link href="/entbannung" className={cn(buttonVariants({ variant: 'default', size: 'sm' }))}>
                 Entbannungsantrag stellen
               </Link>
             </div>

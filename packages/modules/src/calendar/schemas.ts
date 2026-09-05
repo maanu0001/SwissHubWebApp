@@ -155,7 +155,13 @@ export const eventInputSchema = z
 
     /** Vorlaufzeiten in Minuten. Doppelte werden verworfen. */
     reminderMinutes: z
-      .array(z.coerce.number().int().min(1).max(60 * 24 * 30))
+      .array(
+        z.coerce
+          .number()
+          .int()
+          .min(1)
+          .max(60 * 24 * 30),
+      )
       .max(10)
       .default([])
       .transform((value) => [...new Set(value)].sort((a, b) => b - a)),
@@ -174,9 +180,7 @@ export const eventInputSchema = z
     registrationClosesAt: input.registrationClosesAt
       ? leseZeitpunkt(input.registrationClosesAt, input.timezone)
       : null,
-    cancelDeadlineAt: input.cancelDeadlineAt
-      ? leseZeitpunkt(input.cancelDeadlineAt, input.timezone)
-      : null,
+    cancelDeadlineAt: input.cancelDeadlineAt ? leseZeitpunkt(input.cancelDeadlineAt, input.timezone) : null,
   }))
   .superRefine((input, ctx) => {
     if (!input.startAt) {
@@ -301,36 +305,38 @@ export const notifyChangeSchema = z.object({
   message: optionalText(500),
 });
 
-export const categoryInputSchema = z.object({
-  id: z.string().optional(),
-  name: text(60).refine((value) => value.length > 0, 'Bitte einen Namen angeben.'),
-  description: optionalText(200),
-  color: z
-    .string()
-    .trim()
-    .regex(/^#[0-9A-Fa-f]{6}$/u, 'Bitte eine Hex-Farbe wie #83060A angeben.')
-    .default('#83060A'),
-  icon: optionalText(40),
-  /**
-   * Vorgabe-Banner der Kategorie.
-   *
-   * Wiederkehrende Reihen haben ihr eigenes Bild. Es an jedem einzelnen
-   * Termin nachzutragen ist Arbeit, die niemand zwanzigmal richtig macht -
-   * und eine vergessene Zeile heisst nackte Ankuendigung.
-   */
-  defaultBannerUrl: optionalUrl,
-  active: z.coerce.boolean().default(true),
-  position: z.coerce.number().int().min(0).max(999).default(0),
-}).superRefine((input, ctx) => {
-  // Dieselbe Pruefung wie beim Banner eines Termins: eine Adresse, die
-  // Discord nicht laedt, faellt sonst erst im Kanal auf.
-  if (input.defaultBannerUrl) {
-    const problem = validateBannerUrl(input.defaultBannerUrl);
-    if (problem) {
-      ctx.addIssue({ code: 'custom', path: ['defaultBannerUrl'], message: problem });
+export const categoryInputSchema = z
+  .object({
+    id: z.string().optional(),
+    name: text(60).refine((value) => value.length > 0, 'Bitte einen Namen angeben.'),
+    description: optionalText(200),
+    color: z
+      .string()
+      .trim()
+      .regex(/^#[0-9A-Fa-f]{6}$/u, 'Bitte eine Hex-Farbe wie #83060A angeben.')
+      .default('#83060A'),
+    icon: optionalText(40),
+    /**
+     * Vorgabe-Banner der Kategorie.
+     *
+     * Wiederkehrende Reihen haben ihr eigenes Bild. Es an jedem einzelnen
+     * Termin nachzutragen ist Arbeit, die niemand zwanzigmal richtig macht -
+     * und eine vergessene Zeile heisst nackte Ankuendigung.
+     */
+    defaultBannerUrl: optionalUrl,
+    active: z.coerce.boolean().default(true),
+    position: z.coerce.number().int().min(0).max(999).default(0),
+  })
+  .superRefine((input, ctx) => {
+    // Dieselbe Pruefung wie beim Banner eines Termins: eine Adresse, die
+    // Discord nicht laedt, faellt sonst erst im Kanal auf.
+    if (input.defaultBannerUrl) {
+      const problem = validateBannerUrl(input.defaultBannerUrl);
+      if (problem) {
+        ctx.addIssue({ code: 'custom', path: ['defaultBannerUrl'], message: problem });
+      }
     }
-  }
-});
+  });
 
 export const categoryIdSchema = z.object({ categoryId: z.string().min(1) });
 

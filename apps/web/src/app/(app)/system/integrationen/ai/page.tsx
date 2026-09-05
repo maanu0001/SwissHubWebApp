@@ -90,8 +90,8 @@ export default async function AiIntegrationPage(): Promise<React.JSX.Element> {
             <div className="min-w-0">
               <p className="font-medium">Verifikation</p>
               <p className="text-xs text-muted-foreground">
-                Ordnet die Nachricht neuer Mitglieder ein. Kann ausschliesslich freischalten oder an
-                die Moderation abgeben - niemals ablehnen oder bannen.
+                Ordnet die Nachricht neuer Mitglieder ein. Kann ausschliesslich freischalten oder an die
+                Moderation abgeben - niemals ablehnen oder bannen.
               </p>
             </div>
             <span className="text-xs text-muted-foreground">
@@ -106,8 +106,8 @@ export default async function AiIntegrationPage(): Promise<React.JSX.Element> {
           </li>
         </ul>
         <p className="mt-4 text-xs text-muted-foreground">
-          Ein Modul entscheidet selbst, <em>ob</em> es die AI nutzt und was aus dem Ergebnis folgt.
-          Anbieter, Schlüssel und Modell kommen ausschliesslich von dieser Seite.
+          Ein Modul entscheidet selbst, <em>ob</em> es die AI nutzt und was aus dem Ergebnis folgt. Anbieter,
+          Schlüssel und Modell kommen ausschliesslich von dieser Seite.
         </p>
       </Panel>
     </>

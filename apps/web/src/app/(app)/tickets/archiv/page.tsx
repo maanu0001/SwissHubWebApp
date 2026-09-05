@@ -5,12 +5,7 @@ import { TicketFilters } from '@/modules/tickets/components/ticket-filters';
 import { TicketList } from '@/modules/tickets/components/ticket-list';
 import { TicketSectionNav } from '@/modules/tickets/components/section-nav';
 import { requirePagePermission } from '@/server/auth';
-import {
-  ladeTicketListe,
-  ticketListenHref,
-  ticketSections,
-  type TicketListenSuche,
-} from '@/server/tickets';
+import { ladeTicketListe, ticketListenHref, ticketSections, type TicketListenSuche } from '@/server/tickets';
 
 export const metadata: Metadata = { title: 'Ticket-Archiv' };
 export const dynamic = 'force-dynamic';
@@ -46,11 +41,7 @@ export default async function TicketArchivPage({
         kategorien={kategorien}
         archiv
       />
-      <TicketList
-        rows={rows}
-        leerTitel="Nichts im Archiv"
-        leerText="Geschlossene Tickets erscheinen hier."
-      />
+      <TicketList rows={rows} leerTitel="Nichts im Archiv" leerText="Geschlossene Tickets erscheinen hier." />
       {totalPages > 1 ? (
         <Pagination
           page={page}

@@ -62,8 +62,8 @@ export default async function CommunicationHistoryPage({
         <CardHeader>
           <CardTitle>Letzte Nachrichten</CardTitle>
           <CardDescription>
-            Alles, was über die WebApp oder <code>/post</code> im Namen des Bots gesendet wurde.
-            Gelöschte und fehlgeschlagene Nachrichten bleiben zur Nachvollziehbarkeit sichtbar.
+            Alles, was über die WebApp oder <code>/post</code> im Namen des Bots gesendet wurde. Gelöschte und
+            fehlgeschlagene Nachrichten bleiben zur Nachvollziehbarkeit sichtbar.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -92,9 +92,7 @@ export default async function CommunicationHistoryPage({
                       <Badge variant="outline">{TYPE_LABEL[entry.type] ?? entry.type}</Badge>
                       <span className="truncate font-medium">{entry.title}</span>
                       {entry.status === 'DELETED' ? <Badge variant="destructive">gelöscht</Badge> : null}
-                      {entry.status === 'FAILED' ? (
-                        <Badge variant="destructive">nicht gesendet</Badge>
-                      ) : null}
+                      {entry.status === 'FAILED' ? <Badge variant="destructive">nicht gesendet</Badge> : null}
                       {entry.editedAt ? <Badge variant="outline">bearbeitet</Badge> : null}
                       <Badge variant="secondary">
                         {entry.source === 'SLASH_COMMAND' ? 'via /post' : 'via WebApp'}

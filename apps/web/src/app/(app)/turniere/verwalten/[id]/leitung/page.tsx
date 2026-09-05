@@ -1,10 +1,7 @@
 import type { Metadata } from 'next';
 import { tournaments } from '@swisshub/modules';
 import { AppError } from '@swisshub/shared';
-import {
-  StaffAdmin,
-  type StaffRolle,
-} from '@/modules/tournaments/components/staff-admin';
+import { StaffAdmin, type StaffRolle } from '@/modules/tournaments/components/staff-admin';
 import { csrfTokenFor, requireMember } from '@/server/auth';
 import { ladeTurnierMitZugriff } from '@/server/tournaments';
 

@@ -19,11 +19,10 @@ const ALTE_NAMEN = ['Bot Control Center', 'Bot-Control-Center', 'Bot Dashboard']
 /** Sichtbare Treffer im Quelltext - ohne Abhaengigkeiten und Buildartefakte. */
 function suche(begriff: string): string[] {
   try {
-    const ausgabe = execFileSync(
-      'git',
-      ['grep', '-rniI', '--', begriff, ':!*.lock', ':!package-lock.json'],
-      { cwd: process.cwd(), encoding: 'utf8' },
-    );
+    const ausgabe = execFileSync('git', ['grep', '-rniI', '--', begriff, ':!*.lock', ':!package-lock.json'], {
+      cwd: process.cwd(),
+      encoding: 'utf8',
+    });
     return ausgabe.split('\n').filter((zeile) => zeile.trim() !== '');
   } catch (fehler) {
     // `git grep` endet mit Status 1, wenn es nichts findet - das ist hier der

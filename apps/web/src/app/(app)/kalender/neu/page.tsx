@@ -14,9 +14,7 @@ export default async function NeuesEventPage(): Promise<React.JSX.Element> {
   const context = await requirePagePermission(calendar.CALENDAR_PERMISSIONS.create);
 
   if (!(await isModuleEnabled(calendar.CALENDAR_MODULE_ID))) {
-    return (
-      <ErrorState title="Modul deaktiviert" description="Der Community-Kalender ist deaktiviert." />
-    );
+    return <ErrorState title="Modul deaktiviert" description="Der Community-Kalender ist deaktiviert." />;
   }
 
   const [auswahl, werte] = await Promise.all([formularAuswahl(), leereWerte()]);

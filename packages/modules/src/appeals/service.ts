@@ -112,10 +112,7 @@ export async function requireEigenerAppeal(
 }
 
 /** Der aktuelle Antrag einer Person, falls es einen gibt. */
-export async function aktuellerAppeal(
-  guildId: string,
-  discordId: string,
-): Promise<Appeal | null> {
+export async function aktuellerAppeal(guildId: string, discordId: string): Promise<Appeal | null> {
   return prisma.appeal.findFirst({
     where: { guildId, applicantDiscordId: discordId },
     orderBy: { createdAt: 'desc' },

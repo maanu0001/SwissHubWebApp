@@ -36,13 +36,9 @@ describeWithDatabase('Ticketnummern', () => {
   });
 
   it('vergibt bei fünfzig gleichzeitigen Anfragen keine Nummer doppelt', async () => {
-    const nummern = await Promise.all(
-      Array.from({ length: 50 }, () => tickets.nextTicketNumber(GUILD)),
-    );
+    const nummern = await Promise.all(Array.from({ length: 50 }, () => tickets.nextTicketNumber(GUILD)));
     expect(new Set(nummern).size).toBe(50);
-    expect([...nummern].sort((a, b) => a - b)).toEqual(
-      Array.from({ length: 50 }, (_, i) => i + 1),
-    );
+    expect([...nummern].sort((a, b) => a - b)).toEqual(Array.from({ length: 50 }, (_, i) => i + 1));
   });
 
   it('zaehlt je Guild getrennt', async () => {

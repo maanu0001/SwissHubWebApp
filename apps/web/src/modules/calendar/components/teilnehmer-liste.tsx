@@ -61,9 +61,7 @@ export function TeilnehmerListe({
       STATUS_TEXT[zeile.status],
       zeile.waitlistPosition === null ? '' : String(zeile.waitlistPosition),
       new Date(zeile.registeredAt).toISOString(),
-      ...spalten.map(
-        (spalte) => zeile.answers.find((a) => a.question === spalte)?.value ?? '',
-      ),
+      ...spalten.map((spalte) => zeile.answers.find((a) => a.question === spalte)?.value ?? ''),
     ]);
     // Anfuehrungszeichen verdoppeln, alles einschliessen: sonst zerlegt ein
     // Komma in einer Antwort die Zeile.
@@ -175,9 +173,7 @@ export function TeilnehmerListe({
               throw new Error('fehlgeschlagen');
             }
             toast.success(
-              ergebnis.data?.nachgerueckt
-                ? 'Entfernt - eine Person ist nachgerückt.'
-                : 'Teilnahme entfernt.',
+              ergebnis.data?.nachgerueckt ? 'Entfernt - eine Person ist nachgerückt.' : 'Teilnahme entfernt.',
             );
             setEntfernen(null);
             router.refresh();

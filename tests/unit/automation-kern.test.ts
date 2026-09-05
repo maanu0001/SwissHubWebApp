@@ -222,10 +222,7 @@ describe('Bedingungsbaum', () => {
    * ohne dass jemand geprüft hat, ob sie darf.
    */
   it('gilt als nicht erfüllt, wenn die Bedingung fehlt', async () => {
-    const ergebnis = await werteBaumAus(
-      { art: 'bedingung', typ: 'gibtsNicht', config: {} },
-      kontext(),
-    );
+    const ergebnis = await werteBaumAus({ art: 'bedingung', typ: 'gibtsNicht', config: {} }, kontext());
     expect(ergebnis.erfuellt).toBe(false);
     expect(ergebnis.schritte[0]?.fehler).toContain('nicht mehr verfügbar');
   });
@@ -247,10 +244,7 @@ describe('Bedingungsbaum', () => {
   });
 
   it('behandelt eine leere Gruppe als keine Einschränkung', async () => {
-    const ergebnis = await werteBaumAus(
-      { art: 'gruppe', verknuepfung: 'UND', kinder: [] },
-      kontext(),
-    );
+    const ergebnis = await werteBaumAus({ art: 'gruppe', verknuepfung: 'UND', kinder: [] }, kontext());
     expect(ergebnis.erfuellt).toBe(true);
   });
 });
@@ -317,9 +311,7 @@ describe('Schrittfolge', () => {
    * Damit ist die Folge ein Baum - und ein Baum hat keinen Zyklus.
    */
   it('weist eine Schrittfolge ab, die auf eine Stellung zeigt', () => {
-    const geprueft = stepsSchema.safeParse([
-      { art: 'sprung', ziel: 0 },
-    ]);
+    const geprueft = stepsSchema.safeParse([{ art: 'sprung', ziel: 0 }]);
     expect(geprueft.success).toBe(false);
   });
 
@@ -353,10 +345,7 @@ describe('Zeitplan', () => {
 
   it('liegt immer echt nach dem Ausgangszeitpunkt', () => {
     const von = new Date('2026-07-01T18:00:00.000Z');
-    const naechster = naechsterTermin(
-      { modus: 'TAEGLICH', zeit: '20:00', zeitzone: 'Europe/Zurich' },
-      von,
-    );
+    const naechster = naechsterTermin({ modus: 'TAEGLICH', zeit: '20:00', zeitzone: 'Europe/Zurich' }, von);
     expect(naechster!.getTime()).toBeGreaterThan(von.getTime());
   });
 

@@ -38,10 +38,7 @@ export function registerTournamentInteractions(client: Client): void {
       const { customId } = interaction;
 
       if (customId.startsWith(tournaments.TOURNAMENT_BUTTON.checkinPrefix)) {
-        void behandleCheckin(
-          interaction,
-          customId.slice(tournaments.TOURNAMENT_BUTTON.checkinPrefix.length),
-        );
+        void behandleCheckin(interaction, customId.slice(tournaments.TOURNAMENT_BUTTON.checkinPrefix.length));
         return;
       }
       if (customId === tournaments.TOURNAMENT_BUTTON.ready) {
@@ -66,10 +63,7 @@ export function registerTournamentInteractions(client: Client): void {
 
 // --- Check-in --------------------------------------------------------------
 
-async function behandleCheckin(
-  interaction: ButtonInteraction,
-  tournamentId: string,
-): Promise<void> {
+async function behandleCheckin(interaction: ButtonInteraction, tournamentId: string): Promise<void> {
   await interaction.deferReply({ flags: MessageFlags.Ephemeral }).catch(() => undefined);
 
   try {
@@ -102,7 +96,11 @@ async function behandleCheckin(
 async function ladeMatchUndSeite(
   interaction: ButtonInteraction | ModalSubmitInteraction,
   matchId?: string,
-): Promise<{ match: Awaited<ReturnType<typeof tournaments.getMatch>>; slot: 'A' | 'B' | null; actor: CommandActor }> {
+): Promise<{
+  match: Awaited<ReturnType<typeof tournaments.getMatch>>;
+  slot: 'A' | 'B' | null;
+  actor: CommandActor;
+}> {
   const match = matchId
     ? await tournaments.getMatch(matchId)
     : await (async () => {
@@ -229,16 +227,11 @@ async function zeigeResultatFormular(interaction: ButtonInteraction): Promise<vo
     if (!(fehler instanceof AppError)) {
       log.error('Resultatformular konnte nicht geöffnet werden', { fehler });
     }
-    await interaction
-      .reply({ content: meldung, flags: MessageFlags.Ephemeral })
-      .catch(() => undefined);
+    await interaction.reply({ content: meldung, flags: MessageFlags.Ephemeral }).catch(() => undefined);
   }
 }
 
-async function meldeResultat(
-  interaction: ModalSubmitInteraction,
-  matchId: string,
-): Promise<void> {
+async function meldeResultat(interaction: ModalSubmitInteraction, matchId: string): Promise<void> {
   await interaction.deferReply({ flags: MessageFlags.Ephemeral }).catch(() => undefined);
 
   try {
@@ -277,10 +270,7 @@ async function meldeResultat(
 
     if (ergebnis.bestaetigt) {
       await interaction.editReply({ content: 'Resultat bestätigt - beide Seiten sind sich einig.' });
-      await tournaments.matchMeldung(
-        match.id,
-        `📊 Resultat steht fest: **${scoreA}:${scoreB}**.`,
-      );
+      await tournaments.matchMeldung(match.id, `📊 Resultat steht fest: **${scoreA}:${scoreB}**.`);
       return;
     }
     if (ergebnis.strittig) {
@@ -331,9 +321,7 @@ async function rufeAdmin(interaction: ButtonInteraction): Promise<void> {
       select: { discordId: true },
     });
 
-    const erwaehnungen = leitung
-      .map((eintrag) => eintrag.discordId)
-      .filter((id) => id !== 'system');
+    const erwaehnungen = leitung.map((eintrag) => eintrag.discordId).filter((id) => id !== 'system');
 
     await tournaments.matchMeldungMitErwaehnung(
       match.id,
@@ -384,8 +372,6 @@ async function meldeFehler(
   if (interaction.deferred || interaction.replied) {
     await interaction.editReply({ content: meldung }).catch(() => undefined);
   } else {
-    await interaction
-      .reply({ content: meldung, flags: MessageFlags.Ephemeral })
-      .catch(() => undefined);
+    await interaction.reply({ content: meldung, flags: MessageFlags.Ephemeral }).catch(() => undefined);
   }
 }

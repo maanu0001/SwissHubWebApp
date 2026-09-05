@@ -188,11 +188,7 @@ export function TicketComposer({
             <span className="text-xs tabular-nums text-muted-foreground">
               {notiz.length} / {NOTIZ_MAX} Zeichen
             </span>
-            <Button
-              type="submit"
-              variant="outline"
-              disabled={laeuft !== null || notiz.trim().length === 0}
-            >
+            <Button type="submit" variant="outline" disabled={laeuft !== null || notiz.trim().length === 0}>
               {laeuft === 'notiz' ? <Loader2 className="animate-spin" aria-hidden="true" /> : null}
               Notiz speichern
             </Button>

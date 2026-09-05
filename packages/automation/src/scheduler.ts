@@ -89,10 +89,7 @@ export async function planeJob(eingabe: JobEingabe): Promise<AutomationJob | nul
  * es geändert hat: erst die Kandidaten lesen, dann jeden einzeln unter
  * Bedingung beanspruchen. Wer einen nicht bekommt, überspringt ihn.
  */
-export async function beanspruchFaellige(
-  limit = 20,
-  jetzt = new Date(),
-): Promise<AutomationJob[]> {
+export async function beanspruchFaellige(limit = 20, jetzt = new Date()): Promise<AutomationJob[]> {
   const kandidaten = await prisma.automationJob.findMany({
     where: { status: 'PENDING', runAt: { lte: jetzt } },
     orderBy: { runAt: 'asc' },

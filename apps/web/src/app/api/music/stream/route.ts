@@ -97,9 +97,7 @@ export async function GET(request: Request): Promise<Response> {
           return;
         }
         try {
-          steuerung.enqueue(
-            kodierer.encode(`event: ${ereignis}\ndata: ${JSON.stringify(daten)}\n\n`),
-          );
+          steuerung.enqueue(kodierer.encode(`event: ${ereignis}\ndata: ${JSON.stringify(daten)}\n\n`));
         } catch {
           schliessen();
         }

@@ -6,11 +6,7 @@ import { calendar, isModuleEnabled } from '@swisshub/modules';
 import { tageSpaeter, teileIn } from '@swisshub/shared';
 import { Button } from '@/components/ui/button';
 import { EmptyState, ErrorState } from '@/components/shared/states';
-import {
-  Agendaansicht,
-  Monatsansicht,
-  Wochenansicht,
-} from '@/modules/calendar/components/kalender-gitter';
+import { Agendaansicht, Monatsansicht, Wochenansicht } from '@/modules/calendar/components/kalender-gitter';
 import { KalenderFilter } from '@/modules/calendar/components/kalender-filter';
 import { EventKarte } from '@/modules/calendar/components/shared';
 import { requirePagePermission } from '@/server/auth';
@@ -38,10 +34,7 @@ export default async function KalenderPage({
 
   if (!(await isModuleEnabled(calendar.CALENDAR_MODULE_ID))) {
     return (
-      <ErrorState
-        title="Modul deaktiviert"
-        description="Der Community-Kalender ist derzeit deaktiviert."
-      />
+      <ErrorState title="Modul deaktiviert" description="Der Community-Kalender ist derzeit deaktiviert." />
     );
   }
 
@@ -79,9 +72,7 @@ export default async function KalenderPage({
   const teile = teileIn(anker, zone);
   const titel =
     query.view === 'month'
-      ? new Intl.DateTimeFormat('de-CH', { timeZone: zone, month: 'long', year: 'numeric' }).format(
-          anker,
-        )
+      ? new Intl.DateTimeFormat('de-CH', { timeZone: zone, month: 'long', year: 'numeric' }).format(anker)
       : query.view === 'week'
         ? `${new Intl.DateTimeFormat('de-CH', { timeZone: zone, day: '2-digit', month: 'short' }).format(von)} – ${new Intl.DateTimeFormat('de-CH', { timeZone: zone, day: '2-digit', month: 'short' }).format(tageSpaeter(bis, zone, -1))}`
         : 'Die nächsten Wochen';
@@ -92,9 +83,7 @@ export default async function KalenderPage({
       ? tageSpaeter(anker, zone, -schritt)
       : new Date(Date.UTC(teile.jahr, teile.monat - 2, 15, 12));
   const nachher =
-    schritt > 0
-      ? tageSpaeter(anker, zone, schritt)
-      : new Date(Date.UTC(teile.jahr, teile.monat, 15, 12));
+    schritt > 0 ? tageSpaeter(anker, zone, schritt) : new Date(Date.UTC(teile.jahr, teile.monat, 15, 12));
 
   const gitterProps = { zeilen, von, bis, anker, zone, heute };
 
@@ -182,8 +171,8 @@ export default async function KalenderPage({
       ) : null}
 
       <p className="text-xs text-muted-foreground">
-        Alle Zeiten in {zone}. Events ohne Endzeit werden mit{' '}
-        {settings.defaultDurationMinutes} Minuten dargestellt.
+        Alle Zeiten in {zone}. Events ohne Endzeit werden mit {settings.defaultDurationMinutes} Minuten
+        dargestellt.
       </p>
     </>
   );

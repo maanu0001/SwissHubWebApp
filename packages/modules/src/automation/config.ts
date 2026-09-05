@@ -38,8 +38,7 @@ export const AUTOMATION_PERMISSIONS = {
   webhooksManage: 'automations.webhooks.manage',
 } as const;
 
-export type AutomationPermission =
-  (typeof AUTOMATION_PERMISSIONS)[keyof typeof AUTOMATION_PERMISSIONS];
+export type AutomationPermission = (typeof AUTOMATION_PERMISSIONS)[keyof typeof AUTOMATION_PERMISSIONS];
 
 export const automationSettingsSchema = z.object({
   /**
@@ -135,9 +134,7 @@ const automationSettingsFields: SettingsField[] = [
   },
 ];
 
-async function automationHealthChecks(
-  context: ModuleHealthContext,
-): Promise<ModuleHealthCheck[]> {
+async function automationHealthChecks(context: ModuleHealthContext): Promise<ModuleHealthCheck[]> {
   const checks: ModuleHealthCheck[] = [];
   const { getModuleSettings } = await import('../module-state');
   const { schedulerGesundheit } = await import('@swisshub/automation');
@@ -277,8 +274,7 @@ export const automationModule: ModuleDefinition = registerModule({
     {
       key: AUTOMATION_PERMISSIONS.webhooksManage,
       label: 'Webhooks verwenden',
-      description:
-        'Automationen bauen, die nach aussen senden. Trägt Serverdaten an eine fremde Adresse.',
+      description: 'Automationen bauen, die nach aussen senden. Trägt Serverdaten an eine fremde Adresse.',
       module: AUTOMATION_MODULE_ID,
       critical: true,
     },

@@ -45,7 +45,11 @@ function importierteAktionen(quelltext: string): string[] {
   let treffer: RegExpExecArray | null;
   while ((treffer = muster.exec(quelltext)) !== null) {
     for (const teil of (treffer[1] ?? '').split(',')) {
-      const name = teil.trim().split(/\s+as\s+/u).pop()?.trim();
+      const name = teil
+        .trim()
+        .split(/\s+as\s+/u)
+        .pop()
+        ?.trim();
       if (name && name.endsWith('Action')) {
         namen.push(name);
       }
@@ -87,9 +91,7 @@ describe('CSRF-Token an den Server Actions', () => {
    */
   it('kennt keine Aktion ohne CSRF-Prüfung', () => {
     for (const datei of AKTIONSDATEIEN) {
-      expect(lies(datei), `${datei} nimmt eine Aktion von der CSRF-Prüfung aus`).not.toContain(
-        'csrf: false',
-      );
+      expect(lies(datei), `${datei} nimmt eine Aktion von der CSRF-Prüfung aus`).not.toContain('csrf: false');
     }
   });
 });

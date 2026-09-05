@@ -63,7 +63,9 @@ export default async function RaffleOverviewPage(): Promise<React.JSX.Element> {
         <StatCard
           label="Aktive Verlosung"
           value={overview.active ? overview.active.title : '—'}
-          hint={overview.active ? <RaffleStatusBadge status={overview.active.status} /> : 'Zurzeit läuft keine'}
+          hint={
+            overview.active ? <RaffleStatusBadge status={overview.active.status} /> : 'Zurzeit läuft keine'
+          }
           icon={<Ticket aria-hidden="true" />}
         />
         <StatCard
@@ -105,7 +107,10 @@ export default async function RaffleOverviewPage(): Promise<React.JSX.Element> {
               header: 'Verlosung',
               render: (row) => (
                 <div className="min-w-0">
-                  <Link href={`/level/gluecksrad/${row.id}`} className="inline-flex min-h-6 items-center font-medium hover:underline">
+                  <Link
+                    href={`/level/gluecksrad/${row.id}`}
+                    className="inline-flex min-h-6 items-center font-medium hover:underline"
+                  >
                     {row.title}
                   </Link>
                   <p className="truncate text-xs text-muted-foreground">{row.prizeDescription}</p>
@@ -155,8 +160,8 @@ export default async function RaffleOverviewPage(): Promise<React.JSX.Element> {
 
       {list.rows.length > 0 ? (
         <p className="text-xs text-muted-foreground">
-          Der XP-Topf zeigt die Summe aller Einsätze. Er wird nicht automatisch an die gewinnende
-          Person ausgezahlt – der Gewinn wird je Verlosung eigens festgelegt.
+          Der XP-Topf zeigt die Summe aller Einsätze. Er wird nicht automatisch an die gewinnende Person
+          ausgezahlt – der Gewinn wird je Verlosung eigens festgelegt.
         </p>
       ) : null}
     </>

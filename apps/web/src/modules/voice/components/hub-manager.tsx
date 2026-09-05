@@ -13,15 +13,8 @@ import { ConfirmationDialog } from '@/components/shared/confirmation-dialog';
 import { EmptyState } from '@/components/shared/states';
 import { ChannelSelect } from '@/modules/configuration/components/channel-select';
 import { MultiSelect } from '@/modules/configuration/components/multi-select';
-import type {
-  ChannelOption,
-  RoleOption,
-} from '@/modules/configuration/components/discord-option-types';
-import {
-  createHubAction,
-  deleteHubAction,
-  updateHubAction,
-} from '@/modules/voice/admin-actions';
+import type { ChannelOption, RoleOption } from '@/modules/configuration/components/discord-option-types';
+import { createHubAction, deleteHubAction, updateHubAction } from '@/modules/voice/admin-actions';
 
 export interface HubZeile {
   id: string;
@@ -108,9 +101,7 @@ export function HubManager({
       enabled: entwurf.enabled,
     };
 
-    const antwort = hubId
-      ? await updateHubAction({ ...eingabe, hubId })
-      : await createHubAction(eingabe);
+    const antwort = hubId ? await updateHubAction({ ...eingabe, hubId }) : await createHubAction(eingabe);
 
     if (antwort.ok) {
       toast.success(hubId ? 'Hub gespeichert.' : 'Hub angelegt.');
@@ -155,9 +146,7 @@ export function HubManager({
           void speichern(bearbeitet);
         }}
       >
-        <h2 className="text-sm font-semibold">
-          {bearbeitet ? 'Hub bearbeiten' : 'Hub hinzufügen'}
-        </h2>
+        <h2 className="text-sm font-semibold">{bearbeitet ? 'Hub bearbeiten' : 'Hub hinzufügen'}</h2>
 
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-1.5">
@@ -223,8 +212,8 @@ export function HubManager({
               placeholder="Keine"
             />
             <p className="text-xs text-muted-foreground">
-              Discord erlaubt 50 Kanäle je Kategorie. Ohne Ausweich steht der Betrieb, wenn die
-              erste voll ist.
+              Discord erlaubt 50 Kanäle je Kategorie. Ohne Ausweich steht der Betrieb, wenn die erste voll
+              ist.
             </p>
           </div>
 
@@ -256,9 +245,7 @@ export function HubManager({
         <div className="flex items-center justify-between gap-4 rounded-lg border border-border/60 p-3">
           <div>
             <p className="text-sm font-medium">Aktiv</p>
-            <p className="text-xs text-muted-foreground">
-              Abgeschaltet passiert beim Betreten nichts.
-            </p>
+            <p className="text-xs text-muted-foreground">Abgeschaltet passiert beim Betreten nichts.</p>
           </div>
           <Switch
             checked={entwurf.enabled}
@@ -309,9 +296,7 @@ export function HubManager({
                     Vorlage «{hub.presetName}»
                   </span>
                 </span>
-                <Badge variant={hub.enabled ? 'success' : 'outline'}>
-                  {hub.enabled ? 'Aktiv' : 'Aus'}
-                </Badge>
+                <Badge variant={hub.enabled ? 'success' : 'outline'}>{hub.enabled ? 'Aktiv' : 'Aus'}</Badge>
                 <Button size="sm" variant="outline" onClick={() => bearbeite(hub)}>
                   Bearbeiten
                 </Button>

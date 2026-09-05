@@ -52,9 +52,7 @@ describe('Docker-Abbild', () => {
     // Auch ohne aktuell verschachtelte Pakete müssen diese Zeilen stehen: sonst
     // bricht die nächste Versionsanhebung das Abbild wieder stillschweigend.
     expect(wirdKopiert('apps'), 'Dockerfile kopiert /app/apps nicht aus der deps-Stufe').toBe(true);
-    expect(wirdKopiert('packages'), 'Dockerfile kopiert /app/packages nicht aus der deps-Stufe').toBe(
-      true,
-    );
+    expect(wirdKopiert('packages'), 'Dockerfile kopiert /app/packages nicht aus der deps-Stufe').toBe(true);
     expect(wirdKopiert('node_modules')).toBe(true);
   });
 

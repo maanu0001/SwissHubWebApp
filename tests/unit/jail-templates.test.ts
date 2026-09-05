@@ -19,10 +19,7 @@ const BASE = {
 
 describe('Platzhalter', () => {
   it('setzt die bekannten Werte ein', () => {
-    const text = jail.renderJailTemplate(
-      '{mention} ({user}) · {duration} · von {moderator}',
-      BASE,
-    );
+    const text = jail.renderJailTemplate('{mention} ({user}) · {duration} · von {moderator}', BASE);
 
     expect(text).toBe('<@100000000000000004> (spammer99) · 2 Std. · von nina.mod');
   });
@@ -92,9 +89,7 @@ describe('Sicherheit', () => {
     );
     // Auch die Beschriftung verschwindet mit - «Grund:» ohne Grund wäre
     // schlimmer als beides.
-    expect(jail.renderJailTemplate('{mention} — Grund: {reason}', BASE)).toBe(
-      `<@${BASE.targetDiscordId}>`,
-    );
+    expect(jail.renderJailTemplate('{mention} — Grund: {reason}', BASE)).toBe(`<@${BASE.targetDiscordId}>`);
   });
 
   it('kann über die Vorlage niemanden zusätzlich anpingen', () => {

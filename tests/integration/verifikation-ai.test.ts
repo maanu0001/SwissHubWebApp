@@ -430,11 +430,7 @@ describeWithDatabase('Verifikation: AI', () => {
   });
 
   it('fragt die AI gar nicht, wenn sie ausgeschaltet ist', async () => {
-    await setModuleSettings(
-      verification.VERIFICATION_MODULE_ID,
-      { aiEnabled: false },
-      'test',
-    );
+    await setModuleSettings(verification.VERIFICATION_MODULE_ID, { aiEnabled: false }, 'test');
     const fall = await fallMitNachricht('900000000000010302', 'Hoi zäme');
     const discord = discordAttrappe();
 

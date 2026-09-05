@@ -181,9 +181,7 @@ export default async function MusikPage(): Promise<React.JSX.Element> {
                 ) : (
                   <>
                     <h2 className="text-2xl font-semibold tracking-tight">Nichts läuft gerade</h2>
-                    <p className="mt-1 text-muted-foreground">
-                      Such dir unten einen Titel und leg los.
-                    </p>
+                    <p className="mt-1 text-muted-foreground">Such dir unten einen Titel und leg los.</p>
                   </>
                 )}
               </div>

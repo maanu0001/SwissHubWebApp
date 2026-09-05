@@ -212,7 +212,10 @@ describe('Was der Antragsteller liest', () => {
   });
 
   it('vermerkt die Quelle der Sanktion', () => {
-    const vonSwissHub = baueSnapshot({ discordId: '1', reason: null }, { id: 'x', createdAt: new Date() } as never);
+    const vonSwissHub = baueSnapshot({ discordId: '1', reason: null }, {
+      id: 'x',
+      createdAt: new Date(),
+    } as never);
     const vonDiscord = baueSnapshot({ discordId: '1', reason: null }, null);
     expect(vonSwissHub.quelle).toBe('swisshub');
     expect(vonDiscord.quelle).toBe('discord');

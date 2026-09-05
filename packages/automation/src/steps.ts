@@ -174,11 +174,7 @@ export function sammleAktionen(knoten: StepNode[]): string[] {
 export function zaehleSchritte(knoten: StepNode[]): number {
   return knoten.reduce(
     (summe, eintrag) =>
-      summe +
-      1 +
-      (eintrag.art === 'wenn'
-        ? zaehleSchritte(eintrag.dann) + zaehleSchritte(eintrag.sonst)
-        : 0),
+      summe + 1 + (eintrag.art === 'wenn' ? zaehleSchritte(eintrag.dann) + zaehleSchritte(eintrag.sonst) : 0),
     0,
   );
 }

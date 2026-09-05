@@ -15,9 +15,7 @@ export default function PremiumCancelledPage(): React.JSX.Element {
       </span>
       <div className="space-y-1">
         <h1 className="text-2xl font-semibold">Die Zahlung wurde nicht abgeschlossen.</h1>
-        <p className="text-muted-foreground">
-          Es wurde nichts belastet und kein Abonnement angelegt.
-        </p>
+        <p className="text-muted-foreground">Es wurde nichts belastet und kein Abonnement angelegt.</p>
       </div>
       <Link href="/premium" className={cn(buttonVariants())}>
         Erneut versuchen

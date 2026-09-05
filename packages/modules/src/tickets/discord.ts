@@ -59,10 +59,7 @@ export function eroeffnungsNachricht(input: {
     embeds: [
       {
         title: `Ticket #${String(input.ticketNumber).padStart(4, '0')} · ${input.subject}`.slice(0, 256),
-        description: (input.willkommen ?? 'Das Team meldet sich, sobald jemand übernimmt.').slice(
-          0,
-          4000,
-        ),
+        description: (input.willkommen ?? 'Das Team meldet sich, sobald jemand übernimmt.').slice(0, 4000),
         color: input.kategorieFarbe ?? ACCENT_COLOR,
         fields: felder,
         footer: { text: input.kategorieName.slice(0, 2048) },
@@ -103,10 +100,7 @@ export function eroeffnungsNachricht(input: {
 /** Die Eroeffnungsnachricht in den frisch angelegten Kanal senden. */
 export async function sendeEroeffnung(
   ticket: Ticket,
-  kategorie: Pick<
-    TicketCategory,
-    'name' | 'color' | 'welcomeMessage' | 'supportRoleIds' | 'pingSupport'
-  >,
+  kategorie: Pick<TicketCategory, 'name' | 'color' | 'welcomeMessage' | 'supportRoleIds' | 'pingSupport'>,
   settings: TicketSettings,
 ): Promise<void> {
   if (!ticket.discordChannelId) {

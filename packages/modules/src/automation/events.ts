@@ -337,8 +337,7 @@ registerEvent({
 registerEvent({
   type: 'automation.custom',
   label: 'Eigenes Ereignis',
-  description:
-    'Ein Ereignis, das eine Automation selbst auslöst - um eine zweite Automation anzustossen.',
+  description: 'Ein Ereignis, das eine Automation selbst auslöst - um eine zweite Automation anzustossen.',
   module: 'automation',
   // Bewusst offen: die Felder bestimmt die auslösende Automation. Die Grösse
   // begrenzt der Bus, die Tiefe der Schleifenschutz.

@@ -63,10 +63,7 @@ export async function reconcilePremium(now = new Date()): Promise<ReconcileResul
   //    geloeschte Kanaele wieder zurechtgerueckt werden.
   const zuPruefen = await prisma.premiumSubscription.findMany({
     where: {
-      OR: [
-        { discordSyncStatus: { in: ['PENDING', 'FAILED'] } },
-        { activeUserKey: { not: null } },
-      ],
+      OR: [{ discordSyncStatus: { in: ['PENDING', 'FAILED'] } }, { activeUserKey: { not: null } }],
     },
     select: { userId: true },
     distinct: ['userId'],

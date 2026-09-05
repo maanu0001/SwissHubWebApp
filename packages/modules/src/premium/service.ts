@@ -1,9 +1,5 @@
 import { AUDIT_ACTIONS, prisma, safeRecordAudit } from '@swisshub/database';
-import type {
-  PremiumProduct,
-  PremiumSubscription,
-  PremiumSubscriptionStatus,
-} from '@swisshub/database';
+import type { PremiumProduct, PremiumSubscription, PremiumSubscriptionStatus } from '@swisshub/database';
 import { createLogger } from '@swisshub/logger';
 import { conflict, notFound } from '@swisshub/shared';
 import { getModuleSettings } from '../module-state';
@@ -103,9 +99,7 @@ export async function startCheckout(input: StartCheckoutInput): Promise<Subscrip
     });
 
     if (offen && grantsEntitlements(offen.status)) {
-      throw conflict(
-        'Du hast bereits ein laufendes Abonnement. Bitte verwalte es unter "Mein Abo".',
-      );
+      throw conflict('Du hast bereits ein laufendes Abonnement. Bitte verwalte es unter "Mein Abo".');
     }
 
     const produkt = await tx.premiumProduct.findUnique({ where: { id: input.productId } });

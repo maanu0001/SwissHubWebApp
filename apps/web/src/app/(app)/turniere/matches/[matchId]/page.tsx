@@ -5,14 +5,8 @@ import { AppError, formatDateTime, formatDayTime } from '@swisshub/shared';
 import { PageHeader } from '@/components/shared/page-header';
 import { Badge } from '@/components/ui/badge';
 import { buttonVariants } from '@/components/ui/button';
-import {
-  MatchParticipantPanel,
-  MatchStaffPanel,
-} from '@/modules/tournaments/components/match-panel';
-import {
-  MatchStatusBadge,
-  StreamStatusBadge,
-} from '@/modules/tournaments/components/tournament-badges';
+import { MatchParticipantPanel, MatchStaffPanel } from '@/modules/tournaments/components/match-panel';
+import { MatchStatusBadge, StreamStatusBadge } from '@/modules/tournaments/components/tournament-badges';
 import { rundenName } from '@/modules/tournaments/components/bracket-view';
 import { csrfTokenFor, requireMember } from '@/server/auth';
 import { ladeMatchMitZugriff, turnierHref } from '@/server/tournaments';
@@ -51,9 +45,7 @@ export default async function MatchSeite({
   const nameB = match.participantB?.team?.name ?? match.participantB?.username ?? 'Noch offen';
 
   const offeneMeldung =
-    match.submissions.find(
-      (meldung) => meldung.confirmedAt === null && meldung.rejectedAt === null,
-    ) ?? null;
+    match.submissions.find((meldung) => meldung.confirmedAt === null && meldung.rejectedAt === null) ?? null;
 
   const offeneEinsprueche = match.disputes.filter(
     (einspruch) => einspruch.status === 'OPEN' || einspruch.status === 'IN_REVIEW',
@@ -67,9 +59,7 @@ export default async function MatchSeite({
         actions={
           <div className="flex flex-wrap items-center gap-2">
             <MatchStatusBadge status={match.status} />
-            {match.streamStatus !== 'NOT_STREAMED' ? (
-              <StreamStatusBadge status={match.streamStatus} />
-            ) : null}
+            {match.streamStatus !== 'NOT_STREAMED' ? <StreamStatusBadge status={match.streamStatus} /> : null}
             {zugriff.asStaff ? (
               <Link
                 href={turnierHref(match.tournament.id, 'matches')}
@@ -139,9 +129,7 @@ export default async function MatchSeite({
           <ul className="mt-4 space-y-1 border-t border-border/60 pt-3 text-sm">
             {match.games.map((spiel) => (
               <li key={spiel.id} className="flex items-center gap-3">
-                <span className="w-14 shrink-0 text-xs text-muted-foreground">
-                  Karte {spiel.index}
-                </span>
+                <span className="w-14 shrink-0 text-xs text-muted-foreground">Karte {spiel.index}</span>
                 <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground">
                   {spiel.map ?? '–'}
                 </span>
@@ -237,9 +225,7 @@ export default async function MatchSeite({
                     <Badge variant="warning">Wartet</Badge>
                   )}
                 </p>
-                {meldung.comment ? (
-                  <p className="text-xs text-muted-foreground">{meldung.comment}</p>
-                ) : null}
+                {meldung.comment ? <p className="text-xs text-muted-foreground">{meldung.comment}</p> : null}
               </li>
             ))}
           </ul>
@@ -256,8 +242,7 @@ export default async function MatchSeite({
               .map((einspruch) => (
                 <li key={einspruch.id} className="rounded-xl border border-border p-4 text-sm">
                   <p className="text-xs text-muted-foreground">
-                    Einspruch von {einspruch.openedByUsername} ·{' '}
-                    {formatDateTime(einspruch.createdAt)}
+                    Einspruch von {einspruch.openedByUsername} · {formatDateTime(einspruch.createdAt)}
                   </p>
                   <p className="mt-1 text-muted-foreground">{einspruch.reason}</p>
                   <p className="mt-2 border-l-2 border-primary/50 pl-3">{einspruch.resolution}</p>

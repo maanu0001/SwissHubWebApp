@@ -117,9 +117,7 @@ export const publishEventAction = defineAction(
     const event = await calendar.publishEvent(actorOf(ctx), input.eventId);
     // Die Ankuendigung darf scheitern, ohne die Veroeffentlichung
     // zurueckzunehmen: der Termin steht, Discord ist die Zugabe.
-    const gesendet = await calendar
-      .announceEvent(input.eventId, { actor: actorOf(ctx) })
-      .catch(() => null);
+    const gesendet = await calendar.announceEvent(input.eventId, { actor: actorOf(ctx) }).catch(() => null);
     revalidateCalendar(event.slug);
     return { slug: event.slug, status: event.status, announced: gesendet !== null };
   },
@@ -299,11 +297,7 @@ export const removeRegistrationAction = defineAction(
   },
   async ({ ctx, input }) => {
     await assertModuleEnabled(MODULE_ID);
-    const ergebnis = await calendar.removeRegistration(
-      actorOf(ctx),
-      input.registrationId,
-      input.reason,
-    );
+    const ergebnis = await calendar.removeRegistration(actorOf(ctx), input.registrationId, input.reason);
     await calendar.scheduleRefresh(ergebnis.registration.eventId);
     const event = await calendar.requireEvent(ergebnis.registration.eventId);
     revalidateCalendar(event.slug);

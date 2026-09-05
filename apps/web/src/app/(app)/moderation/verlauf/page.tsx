@@ -31,7 +31,9 @@ const querySchema = z.object({
   quelle: z
     .string()
     .optional()
-    .transform((wert) => (wert && (SOURCES as string[]).includes(wert) ? (wert as ModerationSource) : undefined)),
+    .transform((wert) =>
+      wert && (SOURCES as string[]).includes(wert) ? (wert as ModerationSource) : undefined,
+    ),
   member: z
     .string()
     .max(30)
@@ -123,9 +125,7 @@ export default async function ModerationVerlaufPage({
             key: 'time',
             header: 'Zeitpunkt',
             render: (row: ModerationAction) => (
-              <span className="whitespace-nowrap text-muted-foreground">
-                {formatDateTime(row.createdAt)}
-              </span>
+              <span className="whitespace-nowrap text-muted-foreground">{formatDateTime(row.createdAt)}</span>
             ),
           },
           {

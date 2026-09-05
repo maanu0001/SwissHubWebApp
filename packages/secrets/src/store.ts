@@ -1,13 +1,7 @@
 import { bumpConfigRevision, clearRevisionCaches, prisma, revisionCache } from '@swisshub/database';
 import { createLogger } from '@swisshub/logger';
 import { conflict } from '@swisshub/shared';
-import {
-  decryptSecret,
-  encryptSecret,
-  hasMasterKey,
-  maskSecret,
-  type SecretAddress,
-} from './crypto';
+import { decryptSecret, encryptSecret, hasMasterKey, maskSecret, type SecretAddress } from './crypto';
 import {
   INTEGRATIONS,
   envKeysFor,
@@ -67,7 +61,10 @@ function adresse(
   };
 }
 
-function bereich(definition: IntegrationDefinition | undefined, guildId?: string | null): {
+function bereich(
+  definition: IntegrationDefinition | undefined,
+  guildId?: string | null,
+): {
   scope: IntegrationScope;
   guildId: string;
 } {
@@ -336,13 +333,7 @@ export async function describe(
         required: feld.required ?? false,
         configured: origin !== 'missing',
         origin,
-        display: zeile
-          ? zeile.hint
-          : envWert !== null
-            ? feld.secret
-              ? maskSecret(envWert)
-              : envWert
-            : null,
+        display: zeile ? zeile.hint : envWert !== null ? (feld.secret ? maskSecret(envWert) : envWert) : null,
         updatedAt: zeile?.updatedAt ?? null,
         updatedBy: zeile?.updatedBy ?? null,
         alsoInEnvironment: envWert !== null,

@@ -3,12 +3,7 @@ import Link from 'next/link';
 import { AlertTriangle, Activity, Clock, ListChecks, Plus, ShieldQuestion } from 'lucide-react';
 import { can } from '@swisshub/auth';
 import { automation, isModuleEnabled } from '@swisshub/modules';
-import {
-  getTrigger,
-  holeOffeneFreigaben,
-  laufGesundheit,
-  listeAutomationen,
-} from '@swisshub/automation';
+import { getTrigger, holeOffeneFreigaben, laufGesundheit, listeAutomationen } from '@swisshub/automation';
 import { Button } from '@/components/ui/button';
 import { Panel } from '@/components/shared/panel';
 import { StatCard } from '@/components/shared/stat-card';
@@ -149,10 +144,7 @@ export default async function AutomationenPage(): Promise<React.JSX.Element> {
       </Panel>
 
       {bausteine.vorlagen.length > 0 ? (
-        <Panel
-          title="Vorlagen"
-          description="Ein fertiger Entwurf zum Ansehen, Anpassen und Einschalten."
-        >
+        <Panel title="Vorlagen" description="Ein fertiger Entwurf zum Ansehen, Anpassen und Einschalten.">
           <Vorlagen
             csrfToken={csrfToken}
             vorlagen={bausteine.vorlagen}

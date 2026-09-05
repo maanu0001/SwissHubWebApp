@@ -31,9 +31,7 @@ export default async function TeilnehmerPage({
   const { slug } = await params;
 
   if (!(await isModuleEnabled(calendar.CALENDAR_MODULE_ID))) {
-    return (
-      <ErrorState title="Modul deaktiviert" description="Der Community-Kalender ist deaktiviert." />
-    );
+    return <ErrorState title="Modul deaktiviert" description="Der Community-Kalender ist deaktiviert." />;
   }
 
   const event = await calendar.findEvent(slug);
@@ -57,9 +55,7 @@ export default async function TeilnehmerPage({
   }
 
   const darfVerwalten =
-    can(context, P.manageRegistrations) ||
-    can(context, P.edit) ||
-    (can(context, P.manageOwn) && zustaendig);
+    can(context, P.manageRegistrations) || can(context, P.edit) || (can(context, P.manageOwn) && zustaendig);
 
   const [teilnehmer, belegung] = await Promise.all([
     calendar.listRegistrations(event.id, { withAnswers: true, includeCancelled: true }),
@@ -124,8 +120,8 @@ export default async function TeilnehmerPage({
       )}
 
       <p className="text-xs text-muted-foreground">
-        Gespeichert werden nur Discord-Kennung, Namensstand zum Zeitpunkt der Anmeldung und die
-        Antworten auf die gestellten Fragen.
+        Gespeichert werden nur Discord-Kennung, Namensstand zum Zeitpunkt der Anmeldung und die Antworten auf
+        die gestellten Fragen.
       </p>
     </>
   );

@@ -117,7 +117,12 @@ describeWithDatabase('Kalender - Entwurf, Veröffentlichen und Teilnahme', () =>
     // Sie schreibt in die Datenbank und sonst nirgendwohin.
     const entwurf = await calendar.createEvent(
       ADMIN,
-      eingabe({ registrationEnabled: true, capacity: 5, announceOnDiscord: true, announcementChannelId: KANAL }),
+      eingabe({
+        registrationEnabled: true,
+        capacity: 5,
+        announceOnDiscord: true,
+        announcementChannelId: KANAL,
+      }),
     );
     const { gateway, gesendet } = attrappe();
     await calendar.publishEvent(ADMIN, entwurf.id, new Date(), { gateway });
@@ -132,10 +137,7 @@ describeWithDatabase('Kalender - Entwurf, Veröffentlichen und Teilnahme', () =>
   });
 
   it('meldet niemanden zweimal an', async () => {
-    const entwurf = await calendar.createEvent(
-      ADMIN,
-      eingabe({ registrationEnabled: true, capacity: 5 }),
-    );
+    const entwurf = await calendar.createEvent(ADMIN, eingabe({ registrationEnabled: true, capacity: 5 }));
     const event = await calendar.publishEvent(ADMIN, entwurf.id);
     await calendar.register(person(2), event.id);
 
@@ -208,7 +210,7 @@ it('schickt aus dem Knopf heraus nichts in den Kanal', () => {
 it('zieht die Anzahl in der bestehenden Ankündigung nach', () => {
   // Ein Zähler, der sich ändert, ist kein neuer Beitrag: `scheduleRefresh`
   // bearbeitet die vorhandene Nachricht.
-  expect(botQuelltext).toContain('calendar.scheduleRefresh(eventId)');
+  expect(botQuelltext).toMatch(/calendar\s*\.?\s*scheduleRefresh\(eventId\)/u);
 });
 
 /**

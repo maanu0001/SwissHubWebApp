@@ -238,10 +238,7 @@ describeWithDatabase('Kalender-Erinnerungen', () => {
     await calendar.cancelEvent(ADMIN, event.id, 'Referent krank');
     const { gateway, gesendet } = attrappe();
 
-    const ergebnis = await calendar.runReminderTick(
-      new Date(event.startAt.getTime() - 59 * 60_000),
-      gateway,
-    );
+    const ergebnis = await calendar.runReminderTick(new Date(event.startAt.getTime() - 59 * 60_000), gateway);
 
     expect(ergebnis.gesendet).toBe(0);
     expect(gesendet).toHaveLength(0);

@@ -69,9 +69,9 @@ describe('Keine Plattform für fremden Code (§44)', () => {
    * Integration.
    */
   it('greift nirgends auf gespeicherte Geheimnisse zu', () => {
-    const treffer = QUELLEN.filter((quelle) =>
-      /\bgetSecret\s*\(|@swisshub\/secrets/u.test(quelle.code),
-    ).map((quelle) => quelle.pfad);
+    const treffer = QUELLEN.filter((quelle) => /\bgetSecret\s*\(|@swisshub\/secrets/u.test(quelle.code)).map(
+      (quelle) => quelle.pfad,
+    );
     expect(treffer, `gefunden in: ${treffer.join(', ')}`).toEqual([]);
   });
 

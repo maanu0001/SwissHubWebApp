@@ -95,9 +95,7 @@ describe('Jail-Navigation', () => {
   });
 
   it('bleibt bei beiden Rechten bei einem einzigen Eintrag', () => {
-    const eintraege = nav([JAIL_SEHEN, P.view, P.voteStart]).filter(
-      (item) => item.moduleId === 'jail',
-    );
+    const eintraege = nav([JAIL_SEHEN, P.view, P.voteStart]).filter((item) => item.moduleId === 'jail');
 
     expect(eintraege).toHaveLength(1);
     expect(eintraege[0]?.href).toBe('/vote-jail');
@@ -119,9 +117,7 @@ describe('Jail-Navigation', () => {
   it('zeigt gar nichts ohne «Modul sehen» - auch mit Jail-Rechten', () => {
     // Die Umkehrung der Faelle oben: Sichtbarkeit ist eine eigene
     // Entscheidung und keine Nebenwirkung einer Handlungsbefugnis.
-    expect(nav([P.view, P.voteStart, P.import]).filter((item) => item.moduleId === 'jail')).toEqual(
-      [],
-    );
+    expect(nav([P.view, P.voteStart, P.import]).filter((item) => item.moduleId === 'jail')).toEqual([]);
   });
 
   it('trägt den Vote Jail unter seiner eigenen Adresse, nicht unter der des Jails', () => {
@@ -160,9 +156,7 @@ describe('Jail-Bereichsnavigation', () => {
   });
 
   it('führt den Import unter die neue Adresse', () => {
-    const importEintrag = jailSections(betrachter([P.view, P.import])).find(
-      (e) => e.label === 'Import',
-    );
+    const importEintrag = jailSections(betrachter([P.view, P.import])).find((e) => e.label === 'Import');
 
     expect(importEintrag?.href).toBe('/moderation/jail/import');
   });

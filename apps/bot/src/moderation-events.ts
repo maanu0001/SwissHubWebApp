@@ -30,14 +30,9 @@ const log = createLogger('bot:moderation');
  * das ist bedauerlich und wird gemeldet, aber es ist kein Grund, den Bot
  * abzuschiessen.
  */
-export function registerModerationEvents(
-  client: Client,
-  guildIdAktiv: (candidate: string) => boolean,
-): void {
+export function registerModerationEvents(client: Client, guildIdAktiv: (candidate: string) => boolean): void {
   const sicher = (was: string, arbeit: () => Promise<unknown>): void => {
-    void arbeit().catch((error: unknown) =>
-      log.warn(`${was} konnte nicht erfasst werden`, { error }),
-    );
+    void arbeit().catch((error: unknown) => log.warn(`${was} konnte nicht erfasst werden`, { error }));
   };
 
   /** Die eigene Kennung - ohne sie liesse sich SwissHub nicht von fremd unterscheiden. */

@@ -64,9 +64,7 @@ export async function GET(request: Request): Promise<Response> {
         if (!offen) {
           return;
         }
-        controller.enqueue(
-          encoder.encode(`event: ${ereignis}\ndata: ${JSON.stringify(daten)}\n\n`),
-        );
+        controller.enqueue(encoder.encode(`event: ${ereignis}\ndata: ${JSON.stringify(daten)}\n\n`));
       };
 
       const schliessen = (): void => {

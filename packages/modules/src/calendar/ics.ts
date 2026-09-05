@@ -20,11 +20,7 @@ import { eventUrl, ortsZeile } from './discord';
 
 /** Zeilenumbrueche und Sonderzeichen nach RFC 5545 entschaerfen. */
 function escape(value: string): string {
-  return value
-    .replace(/\\/gu, '\\\\')
-    .replace(/;/gu, '\\;')
-    .replace(/,/gu, '\\,')
-    .replace(/\r?\n/gu, '\\n');
+  return value.replace(/\\/gu, '\\\\').replace(/;/gu, '\\;').replace(/,/gu, '\\,').replace(/\r?\n/gu, '\\n');
 }
 
 /** `20260904T180000Z` */
@@ -93,8 +89,7 @@ function ganztagsEnde(event: CalendarEvent, ende: Date): Date {
 }
 
 export function buildIcs(event: CalendarEvent, options: IcsOptions): string {
-  const ende =
-    event.endAt ?? new Date(event.startAt.getTime() + options.defaultDurationMinutes * 60_000);
+  const ende = event.endAt ?? new Date(event.startAt.getTime() + options.defaultDurationMinutes * 60_000);
 
   const zeiten = event.allDay
     ? [

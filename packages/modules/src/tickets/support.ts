@@ -52,11 +52,7 @@ export async function deleteTag(tagId: string): Promise<void> {
   await prisma.ticketTag.delete({ where: { id: tagId } });
 }
 
-export async function setTicketTags(
-  ticketId: string,
-  tagIds: string[],
-  actor: TicketActor,
-): Promise<void> {
+export async function setTicketTags(ticketId: string, tagIds: string[], actor: TicketActor): Promise<void> {
   const vorher = await prisma.ticketTagAssignment.findMany({
     where: { ticketId },
     include: { tag: { select: { id: true, name: true } } },
@@ -175,8 +171,7 @@ export async function listBlocks(): Promise<TicketBlockAnsicht[]> {
   const jetzt = new Date();
   return eintraege.map((eintrag) => ({
     ...eintrag,
-    aktiv:
-      eintrag.liftedAt === null && (eintrag.expiresAt === null || eintrag.expiresAt > jetzt),
+    aktiv: eintrag.liftedAt === null && (eintrag.expiresAt === null || eintrag.expiresAt > jetzt),
   }));
 }
 

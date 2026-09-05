@@ -11,10 +11,7 @@ import { Badge } from '@/components/ui/badge';
  * Masken und Zeitpunkte.
  */
 
-const ZUSTAND: Record<
-  IntegrationHealth,
-  { label: string; klasse: string; symbol: React.JSX.Element }
-> = {
+const ZUSTAND: Record<IntegrationHealth, { label: string; klasse: string; symbol: React.JSX.Element }> = {
   CONNECTED: {
     label: 'Verbunden',
     klasse: 'border-emerald-500/40 bg-emerald-500/10 text-emerald-500',

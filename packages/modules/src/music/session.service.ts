@@ -267,11 +267,7 @@ export async function stop(sessionId: string, actor: SessionActor): Promise<stri
   return befehl(session, 'STOP', actor);
 }
 
-export async function setVolume(
-  sessionId: string,
-  prozent: number,
-  actor: SessionActor,
-): Promise<string> {
+export async function setVolume(sessionId: string, prozent: number, actor: SessionActor): Promise<string> {
   const session = await ladeSession(sessionId);
   const settings = await getModuleSettings<MusicSettings>(MUSIC_MODULE_ID);
   const wert = Math.max(0, Math.min(Math.trunc(prozent), settings.maxVolume));
@@ -282,11 +278,7 @@ export async function setVolume(
   return befehl(session, 'SET_VOLUME', actor, { volume: wert });
 }
 
-export async function setLoop(
-  sessionId: string,
-  modus: MusicLoopMode,
-  actor: SessionActor,
-): Promise<string> {
+export async function setLoop(sessionId: string, modus: MusicLoopMode, actor: SessionActor): Promise<string> {
   const session = await ladeSession(sessionId);
   await prisma.musicSession.update({
     where: { id: sessionId },
@@ -295,11 +287,7 @@ export async function setLoop(
   return befehl(session, 'SET_LOOP', actor, { loopMode: modus });
 }
 
-export async function removeItem(
-  sessionId: string,
-  queueItemId: string,
-  actor: SessionActor,
-): Promise<void> {
+export async function removeItem(sessionId: string, queueItemId: string, actor: SessionActor): Promise<void> {
   const session = await ladeSession(sessionId);
   const eintrag = await prisma.musicQueueItem.findFirst({ where: { id: queueItemId, sessionId } });
   if (!eintrag) {

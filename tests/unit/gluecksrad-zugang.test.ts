@@ -1,12 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import {
-  buildNavigation,
-  groupNavigation,
-  level,
-  listModuleDefinitions,
-} from '@swisshub/modules';
+import { buildNavigation, groupNavigation, level, listModuleDefinitions } from '@swisshub/modules';
 import { PERMISSION_PRESETS, resolvePreset } from '@swisshub/permissions';
 
 /**
@@ -67,9 +62,7 @@ describe('Sichtbarkeit in der Seitenleiste', () => {
 
   it('steht in derselben Gruppe wie zuvor', () => {
     const gruppen = groupNavigation(nav([]));
-    const gruppe = gruppen.find((eintrag) =>
-      eintrag.items.some((item) => item.href === RAD),
-    );
+    const gruppe = gruppen.find((eintrag) => eintrag.items.some((item) => item.href === RAD));
 
     expect(gruppe?.id).toBe('overview');
   });

@@ -57,9 +57,7 @@ export default async function TurnierStatistikenPage(): Promise<React.JSX.Elemen
           label="Check-in-Quote"
           value={stats.checkinQuote === null ? '–' : `${stats.checkinQuote}%`}
           hint={
-            stats.checkinQuote === null
-              ? 'Noch kein Check-in verlangt'
-              : 'Eingecheckt unter den Bestätigten'
+            stats.checkinQuote === null ? 'Noch kein Check-in verlangt' : 'Eingecheckt unter den Bestätigten'
           }
           icon={<UserCheck className="size-4" aria-hidden="true" />}
         />
@@ -86,9 +84,7 @@ export default async function TurnierStatistikenPage(): Promise<React.JSX.Elemen
           <ol className="divide-y divide-border/60 overflow-hidden rounded-xl border border-border">
             {stats.beliebtesteSpiele.map((spiel, index) => (
               <li key={spiel.name} className="flex items-center gap-3 px-4 py-2.5 text-sm">
-                <span className="w-6 shrink-0 font-mono text-xs text-muted-foreground">
-                  {index + 1}
-                </span>
+                <span className="w-6 shrink-0 font-mono text-xs text-muted-foreground">{index + 1}</span>
                 <span className="min-w-0 flex-1 truncate">{spiel.name}</span>
                 <span className="shrink-0 tabular-nums text-muted-foreground">
                   {spiel.anzahl} {spiel.anzahl === 1 ? 'Turnier' : 'Turniere'}

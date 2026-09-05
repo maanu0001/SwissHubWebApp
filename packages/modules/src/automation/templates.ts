@@ -91,8 +91,7 @@ registerTemplate({
       config: {
         wen: 'subject',
         titel: 'Willkommen bei SwissHub',
-        beschreibung:
-          'Du bist freigeschaltet, {{payload.displayName}}. Schau dich um - und viel Spass!',
+        beschreibung: 'Du bist freigeschaltet, {{payload.displayName}}. Schau dich um - und viel Spass!',
       },
       beiFehler: 'WEITER',
       retry: { versuche: 1, basisSekunden: 30 },

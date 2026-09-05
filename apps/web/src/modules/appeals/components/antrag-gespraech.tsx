@@ -7,10 +7,7 @@ import { Send, XCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ConfirmationDialog } from '@/components/shared/confirmation-dialog';
-import {
-  antworteAlsAntragstellerAction,
-  ziehAppealZurueckAction,
-} from '@/modules/appeals/actions';
+import { antworteAlsAntragstellerAction, ziehAppealZurueckAction } from '@/modules/appeals/actions';
 
 export interface GespraechsNachricht {
   id: string;
@@ -116,9 +113,7 @@ export function AntragGespraech({
                 <Send aria-hidden="true" />
                 Senden
               </Button>
-              <span className="text-xs tabular-nums text-muted-foreground">
-                {text.length} / 4000
-              </span>
+              <span className="text-xs tabular-nums text-muted-foreground">{text.length} / 4000</span>
             </div>
           </div>
         ) : null}

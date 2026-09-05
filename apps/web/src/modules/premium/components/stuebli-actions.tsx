@@ -51,11 +51,7 @@ export function StuebliRepairButton({
 
   return (
     <Button variant="outline" size="sm" onClick={reparieren} disabled={pending}>
-      {pending ? (
-        <Loader2 className="animate-spin" aria-hidden="true" />
-      ) : (
-        <Wrench aria-hidden="true" />
-      )}
+      {pending ? <Loader2 className="animate-spin" aria-hidden="true" /> : <Wrench aria-hidden="true" />}
       Abgleichen
     </Button>
   );

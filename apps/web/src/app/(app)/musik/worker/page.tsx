@@ -23,7 +23,10 @@ const STATUS_LABEL: Record<string, string> = {
   DISABLED: 'Deaktiviert',
 };
 
-function statusVariante(status: string, erreichbar: boolean): 'success' | 'warning' | 'destructive' | 'secondary' {
+function statusVariante(
+  status: string,
+  erreichbar: boolean,
+): 'success' | 'warning' | 'destructive' | 'secondary' {
   if (!erreichbar) return 'destructive';
   if (status === 'FREE') return 'success';
   if (status === 'BUSY' || status === 'CONNECTING') return 'secondary';
@@ -56,8 +59,8 @@ export default async function MusikWorkerPage(): Promise<React.JSX.Element> {
 
       {kapazitaet.frei === 0 && kapazitaet.verfuegbar > 0 ? (
         <p className="rounded-lg border border-warning/40 bg-warning/10 p-3 text-sm">
-          Alle Musik-Bots sind aktuell belegt. Eine neue Session lässt sich erst starten, wenn eine
-          bestehende endet.
+          Alle Musik-Bots sind aktuell belegt. Eine neue Session lässt sich erst starten, wenn eine bestehende
+          endet.
         </p>
       ) : null}
 

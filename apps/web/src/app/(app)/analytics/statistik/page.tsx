@@ -367,9 +367,7 @@ export default async function StatistikPage({
 
       {abilities.export ? (
         <section className="space-y-2">
-          <h2 className="text-sm font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-            Export
-          </h2>
+          <h2 className="text-sm font-semibold uppercase tracking-[0.12em] text-muted-foreground">Export</h2>
           <div className="flex flex-wrap gap-2">
             {(
               [

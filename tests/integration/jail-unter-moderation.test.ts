@@ -201,8 +201,6 @@ describeWithDatabase('Jail unter Moderation', () => {
     expect(jail).not.toHaveProperty('jailReasonPresets');
 
     const modul = listModuleDefinitions().find((eintrag) => eintrag.id === 'jail');
-    expect(
-      modul?.settingsFields?.some((feld) => feld.key === 'reasonPresets'),
-    ).toBe(false);
+    expect(modul?.settingsFields?.some((feld) => feld.key === 'reasonPresets')).toBe(false);
   });
 });

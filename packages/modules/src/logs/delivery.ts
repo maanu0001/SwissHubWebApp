@@ -118,9 +118,7 @@ export async function stelleZu(
 
   for (let start = 0; start < gruppen.length; start += PARALLEL) {
     const teil = gruppen.slice(start, start + PARALLEL);
-    const teilErgebnisse = await Promise.all(
-      teil.map((gruppe) => sendeGruppe(gruppe, gateway, jetzt)),
-    );
+    const teilErgebnisse = await Promise.all(teil.map((gruppe) => sendeGruppe(gruppe, gateway, jetzt)));
     for (const teilErgebnis of teilErgebnisse) {
       ergebnis.gesendet += teilErgebnis.gesendet;
       ergebnis.gescheitert += teilErgebnis.gescheitert;
@@ -159,11 +157,7 @@ async function sendeGruppe(
 
 type Ausgang = 'gesendet' | 'gescheitert' | 'verschoben';
 
-async function sendeEine(
-  zeile: DiscordLogDelivery,
-  gateway: DiscordGateway,
-  jetzt: Date,
-): Promise<Ausgang> {
+async function sendeEine(zeile: DiscordLogDelivery, gateway: DiscordGateway, jetzt: Date): Promise<Ausgang> {
   const versuch = zeile.attempts + 1;
 
   try {
@@ -203,9 +197,7 @@ async function sendeEine(
         lastErrorCode: code,
         claimedAt: null,
         claimedBy: null,
-        ...(aufgeben
-          ? {}
-          : { runAt: new Date(jetzt.getTime() + (BACKOFF_MS[versuch - 1] ?? 120_000)) }),
+        ...(aufgeben ? {} : { runAt: new Date(jetzt.getTime() + (BACKOFF_MS[versuch - 1] ?? 120_000)) }),
       },
     });
 
@@ -242,9 +234,7 @@ function fehlerCode(error: unknown): string {
  * Zurueckgeholt wird erst nach einer Weile: waehrend ein Lauf arbeitet, ist
  * die Zeile zu Recht belegt.
  */
-export async function holeSteckengebliebeneZurueck(
-  aelterAlsMs = 5 * 60_000,
-): Promise<number> {
+export async function holeSteckengebliebeneZurueck(aelterAlsMs = 5 * 60_000): Promise<number> {
   const grenze = new Date(Date.now() - aelterAlsMs);
   const { count } = await prisma.discordLogDelivery.updateMany({
     where: { status: 'PENDING', claimedAt: { lt: grenze } },

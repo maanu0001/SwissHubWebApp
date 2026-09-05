@@ -40,8 +40,7 @@ const log = createLogger('members:roles');
 export function istGefaehrlich(role: GuildRole): boolean {
   const bits = BigInt(role.permissions || '0');
   return (
-    (bits & DISCORD_PERMISSIONS.ADMINISTRATOR) !== 0n ||
-    (bits & DISCORD_PERMISSIONS.MANAGE_ROLES) !== 0n
+    (bits & DISCORD_PERMISSIONS.ADMINISTRATOR) !== 0n || (bits & DISCORD_PERMISSIONS.MANAGE_ROLES) !== 0n
   );
 }
 
@@ -140,9 +139,7 @@ export interface RollenAktion {
  * Pruefung entscheidet, was tatsaechlich geschieht: eine Kennung aus dem
  * Browser sagt nichts darueber, ob sie erlaubt war.
  */
-async function pruefeAktion(
-  eingabe: RollenAktion,
-): Promise<{ gateway: DiscordGateway; role: GuildRole }> {
+async function pruefeAktion(eingabe: RollenAktion): Promise<{ gateway: DiscordGateway; role: GuildRole }> {
   const gateway = eingabe.gateway ?? defaultDiscord;
 
   if (!eingabe.viewer.can(MEMBER_PERMISSIONS.rolesManage)) {
@@ -179,11 +176,7 @@ async function pruefeAktion(
 export async function grantMemberRole(eingabe: RollenAktion): Promise<void> {
   const { gateway, role } = await pruefeAktion(eingabe);
 
-  await gateway.roles.add(
-    eingabe.targetDiscordId,
-    role.id,
-    `Member Center: ${eingabe.actor.username}`,
-  );
+  await gateway.roles.add(eingabe.targetDiscordId, role.id, `Member Center: ${eingabe.actor.username}`);
 
   await safeRecordAudit({
     action: AUDIT_ACTIONS.MEMBER_ROLE_GRANTED,
@@ -201,11 +194,7 @@ export async function grantMemberRole(eingabe: RollenAktion): Promise<void> {
 export async function revokeMemberRole(eingabe: RollenAktion): Promise<void> {
   const { gateway, role } = await pruefeAktion(eingabe);
 
-  await gateway.roles.remove(
-    eingabe.targetDiscordId,
-    role.id,
-    `Member Center: ${eingabe.actor.username}`,
-  );
+  await gateway.roles.remove(eingabe.targetDiscordId, role.id, `Member Center: ${eingabe.actor.username}`);
 
   await safeRecordAudit({
     action: AUDIT_ACTIONS.MEMBER_ROLE_REVOKED,

@@ -61,8 +61,8 @@ export default async function AutomationPage({
       {istSystem ? (
         <div className="flex items-center gap-2 rounded-lg border border-border/60 bg-muted/30 px-3 py-2 text-sm">
           <Lock className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-          Eine Systemautomation von SwissHub. Sie lässt sich ein- und ausschalten, aber nicht
-          bearbeiten - beim nächsten Deployment würde die Änderung überschrieben.
+          Eine Systemautomation von SwissHub. Sie lässt sich ein- und ausschalten, aber nicht bearbeiten -
+          beim nächsten Deployment würde die Änderung überschrieben.
         </div>
       ) : null}
 
@@ -88,10 +88,7 @@ export default async function AutomationPage({
       />
 
       {can(context, P.historyView) ? (
-        <Panel
-          title="Letzte Läufe"
-          action={{ label: 'Ganzer Verlauf', href: '/automationen/ausfuehrungen' }}
-        >
+        <Panel title="Letzte Läufe" action={{ label: 'Ganzer Verlauf', href: '/automationen/ausfuehrungen' }}>
           {verlauf.eintraege.length === 0 ? (
             <EmptyState title="Noch nicht gelaufen" className="border-0" />
           ) : (

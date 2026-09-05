@@ -6,11 +6,7 @@ import { can } from '@swisshub/auth';
 import type { AuthContext } from '@swisshub/auth';
 import { discord } from '@swisshub/discord';
 import { automation as automationModul } from '@swisshub/modules';
-import {
-  AUDIT_ACTIONS,
-  prisma,
-  recordAudit,
-} from '@swisshub/database';
+import { AUDIT_ACTIONS, prisma, recordAudit } from '@swisshub/database';
 import {
   aendere,
   archiviere,
@@ -404,13 +400,10 @@ export const entscheideFreigabeAction = defineAction(
   async ({ ctx, input }) => {
     await assertModuleEnabled(MODULE_ID);
     const guildId = await guildIdVonSitzung(ctx);
-    const ergebnis = await entscheideFreigabe(
-      guildId,
-      input.approvalId,
-      input.genehmigt,
-      akteurVon(ctx),
-      { ...(input.grund ? { grund: input.grund } : {}), gateway: discord },
-    );
+    const ergebnis = await entscheideFreigabe(guildId, input.approvalId, input.genehmigt, akteurVon(ctx), {
+      ...(input.grund ? { grund: input.grund } : {}),
+      gateway: discord,
+    });
     revalidateAutomationen();
     return ergebnis;
   },

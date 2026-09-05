@@ -52,17 +52,13 @@ const P = {
 
 /** Der Eintrag, den diese Berechtigungen in der Seitenleiste erzeugen. */
 function eintraege(permissions: string[]) {
-  return groupNavigation(buildNavigation(permissions, ALLE_MODULE)).flatMap(
-    (gruppe) => gruppe.items,
-  );
+  return groupNavigation(buildNavigation(permissions, ALLE_MODULE)).flatMap((gruppe) => gruppe.items);
 }
 
 describe('Vote Jail in der Seitenleiste', () => {
   // Das Jail-Modul stellt nur noch diesen einen Eintrag: die Strafakte ist
   // eine Moderationsmassnahme und steht unter «Moderation».
-  const vote = eintraege([JAIL_SEHEN, P.voteStart]).filter(
-    (eintrag) => eintrag.moduleId === 'jail',
-  );
+  const vote = eintraege([JAIL_SEHEN, P.voteStart]).filter((eintrag) => eintrag.moduleId === 'jail');
 
   it('wird gerendert', () => {
     expect(vote).toHaveLength(1);
@@ -87,9 +83,7 @@ describe('Vote Jail in der Seitenleiste', () => {
   });
 
   it('bleibt auch für den Übersichts-Berechtigten der einzige Eintrag', () => {
-    const mitAkte = eintraege([JAIL_SEHEN, P.view]).filter(
-      (eintrag) => eintrag.moduleId === 'jail',
-    );
+    const mitAkte = eintraege([JAIL_SEHEN, P.view]).filter((eintrag) => eintrag.moduleId === 'jail');
 
     expect(mitAkte).toHaveLength(1);
     expect(mitAkte[0]?.href).toBe('/vote-jail');

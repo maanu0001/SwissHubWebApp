@@ -55,9 +55,7 @@ describe('Antragsteller-Zugang', () => {
    */
   it('kennzeichnet nur die Entbannungsanträge als Antragsteller-Zugang', () => {
     const actionDateien = dateien(join(process.cwd(), 'apps/web/src/modules'));
-    const mitFlag = actionDateien.filter((pfad) =>
-      /\bapplicant:\s*true/u.test(readFileSync(pfad, 'utf8')),
-    );
+    const mitFlag = actionDateien.filter((pfad) => /\bapplicant:\s*true/u.test(readFileSync(pfad, 'utf8')));
     expect(mitFlag.length).toBeGreaterThan(0);
     for (const pfad of mitFlag) {
       expect(pfad, `${pfad} verwendet "applicant: true" ausserhalb der Entbannungsanträge`).toContain(
@@ -185,10 +183,7 @@ describe('Anhänge', () => {
    * Ursprung dieser Anwendung.
    */
   it('liefert Anhänge ausschliesslich als Download aus', () => {
-    const route = readFileSync(
-      join(SEITEN, 'api/appeals/[id]/anhang/[attachmentId]/route.ts'),
-      'utf8',
-    );
+    const route = readFileSync(join(SEITEN, 'api/appeals/[id]/anhang/[attachmentId]/route.ts'), 'utf8');
     expect(route).toContain("'content-disposition': `attachment;");
     expect(route).toContain("'x-content-type-options': 'nosniff'");
     // Kein 403 für einen fremden Anhang - das verriete, dass es ihn gibt.
@@ -276,9 +271,7 @@ describe('Automation und AI', () => {
     expect(quelle).toContain('vergibst keine Punktzahl');
 
     const ohne = ohneKommentare(quelle);
-    expect(ohne, 'Die AI-Zusammenfassung liest interne Kommentare').not.toContain(
-      'appealInternalComment',
-    );
+    expect(ohne, 'Die AI-Zusammenfassung liest interne Kommentare').not.toContain('appealInternalComment');
   });
 });
 

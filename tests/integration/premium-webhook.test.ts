@@ -149,14 +149,22 @@ describeWithDatabase('Premium-Webhook', () => {
   it('setzt bei fehlgeschlagener Zahlung die Schonfrist, ohne etwas zu entziehen', async () => {
     const { user, abo } = await abonnementAnlegen('900000000000002004', 'premium-stuebli');
     const erfolg = ereignis({
-      id: 'evt_ok', type: 'payment.succeeded', kind: 'payment.succeeded',
-      subscriptionId: abo.id, providerPaymentId: 'mock_pi_4', amountMinor: 800,
+      id: 'evt_ok',
+      type: 'payment.succeeded',
+      kind: 'payment.succeeded',
+      subscriptionId: abo.id,
+      providerPaymentId: 'mock_pi_4',
+      amountMinor: 800,
     });
     await premium.handleWebhook(erfolg.body, erfolg.signature);
 
     const fehler = ereignis({
-      id: 'evt_fehler', type: 'payment.failed', kind: 'payment.failed',
-      subscriptionId: abo.id, providerPaymentId: 'mock_pi_5', amountMinor: 800,
+      id: 'evt_fehler',
+      type: 'payment.failed',
+      kind: 'payment.failed',
+      subscriptionId: abo.id,
+      providerPaymentId: 'mock_pi_5',
+      amountMinor: 800,
       failureReason: 'Zahlung abgelehnt',
     });
     await premium.handleWebhook(fehler.body, fehler.signature);
@@ -173,14 +181,20 @@ describeWithDatabase('Premium-Webhook', () => {
   it('räumt bei endgültiger Kündigung durch den Anbieter ab', async () => {
     const { user, abo } = await abonnementAnlegen('900000000000002005', 'premium-bundle');
     const erfolg = ereignis({
-      id: 'evt_ok2', type: 'payment.succeeded', kind: 'payment.succeeded',
-      subscriptionId: abo.id, providerPaymentId: 'mock_pi_6', amountMinor: 1000,
+      id: 'evt_ok2',
+      type: 'payment.succeeded',
+      kind: 'payment.succeeded',
+      subscriptionId: abo.id,
+      providerPaymentId: 'mock_pi_6',
+      amountMinor: 1000,
     });
     await premium.handleWebhook(erfolg.body, erfolg.signature);
     expect((await premium.getStuebli(user.id))?.state).toBe('ACTIVE');
 
     const ende = ereignis({
-      id: 'evt_ende', type: 'subscription.cancelled', kind: 'subscription.cancelled',
+      id: 'evt_ende',
+      type: 'subscription.cancelled',
+      kind: 'subscription.cancelled',
       subscriptionId: abo.id,
     });
     await premium.handleWebhook(ende.body, ende.signature);
@@ -192,8 +206,11 @@ describeWithDatabase('Premium-Webhook', () => {
 
   it('verändert nichts bei einem Ereignis ohne zugehöriges Abonnement', async () => {
     const nachricht = ereignis({
-      id: 'evt_fremd', type: 'payment.succeeded', kind: 'payment.succeeded',
-      subscriptionId: 'gibt-es-nicht', providerPaymentId: 'mock_pi_7',
+      id: 'evt_fremd',
+      type: 'payment.succeeded',
+      kind: 'payment.succeeded',
+      subscriptionId: 'gibt-es-nicht',
+      providerPaymentId: 'mock_pi_7',
     });
     const ergebnis = await premium.handleWebhook(nachricht.body, nachricht.signature);
     expect(ergebnis.status).toBe('ignored');

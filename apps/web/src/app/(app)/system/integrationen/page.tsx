@@ -78,9 +78,7 @@ export default async function IntegrationenPage(): Promise<React.JSX.Element> {
       id: AI_INTEGRATION_ID,
       icon: <Sparkles />,
       href: '/system/integrationen/ai',
-      zusatz: aiSettings.enabled
-        ? `${aiSettings.provider} · ${aiSettings.model}`
-        : 'Ausgeschaltet',
+      zusatz: aiSettings.enabled ? `${aiSettings.provider} · ${aiSettings.model}` : 'Ausgeschaltet',
     },
   ];
 
@@ -174,23 +172,19 @@ export default async function IntegrationenPage(): Promise<React.JSX.Element> {
       </Panel>
 
       {darfImportieren ? (
-        <EnvUebernahme
-          csrfToken={csrfToken}
-          kandidaten={kandidaten.map((kandidat) => ({ ...kandidat }))}
-        />
+        <EnvUebernahme csrfToken={csrfToken} kandidaten={kandidaten.map((kandidat) => ({ ...kandidat }))} />
       ) : null}
 
       <Panel title="Wie Geheimnisse hier gespeichert werden" icon={<KeyRound />}>
         <div className="space-y-2 text-sm text-muted-foreground">
           <p>
-            Tokens und Schlüssel liegen mit AES-256-GCM verschlüsselt in der Datenbank. Der
-            Hauptschlüssel steht ausschliesslich in der Serverumgebung, wird nie angezeigt und nie
-            gespeichert - ohne ihn sind die Werte absichtlich nicht lesbar.
+            Tokens und Schlüssel liegen mit AES-256-GCM verschlüsselt in der Datenbank. Der Hauptschlüssel
+            steht ausschliesslich in der Serverumgebung, wird nie angezeigt und nie gespeichert - ohne ihn
+            sind die Werte absichtlich nicht lesbar.
           </p>
           <p>
-            Im Dashboard erscheint nie ein vollständiger Wert, sondern höchstens die letzten vier
-            Zeichen. Für eine Sicherung braucht es beides: die Datenbank <em>und</em> den
-            Hauptschlüssel.
+            Im Dashboard erscheint nie ein vollständiger Wert, sondern höchstens die letzten vier Zeichen. Für
+            eine Sicherung braucht es beides: die Datenbank <em>und</em> den Hauptschlüssel.
           </p>
           <p className="flex items-center gap-1.5">
             <Plug className="size-4 shrink-0" aria-hidden="true" />

@@ -15,10 +15,7 @@ import { describe, expect, it } from 'vitest';
 const { readFileSync } = await import('node:fs');
 const { join } = await import('node:path');
 
-const QUELLE = readFileSync(
-  join(process.cwd(), 'apps/web/src/components/layout/nav-icon.tsx'),
-  'utf8',
-);
+const QUELLE = readFileSync(join(process.cwd(), 'apps/web/src/components/layout/nav-icon.tsx'), 'utf8');
 
 /** Die Namen aus der Zuordnung `const ICONS: Record<string, LucideIcon> = { … }`. */
 function bekannteSymbole(): Set<string> {
@@ -48,9 +45,7 @@ describe('Modulsymbole', () => {
   it.each(MODULE.map((modul) => [modul.id, modul] as const))(
     '%s verwendet ein bekanntes Symbol',
     (_id, modul) => {
-      expect(SYMBOLE.has(modul.icon), `${modul.id}: «${modul.icon}» fehlt in nav-icon.tsx`).toBe(
-        true,
-      );
+      expect(SYMBOLE.has(modul.icon), `${modul.id}: «${modul.icon}» fehlt in nav-icon.tsx`).toBe(true);
     },
   );
 

@@ -46,11 +46,7 @@ export default async function PremiumOverviewPage(): Promise<React.JSX.Element> 
           hint="monatlich wiederkehrend"
           icon={<TrendingUp />}
         />
-        <StatCard
-          label="Premium-Mitglieder"
-          value={String(kennzahlen.premiumMembers)}
-          icon={<Crown />}
-        />
+        <StatCard label="Premium-Mitglieder" value={String(kennzahlen.premiumMembers)} icon={<Crown />} />
         <StatCard
           label="Stübli-Mitglieder"
           value={String(kennzahlen.stuebliMembers)}

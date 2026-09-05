@@ -109,10 +109,7 @@ export function LiveSession({ sessionId }: { sessionId: string }): React.JSX.Ele
       {verbindung === 'getrennt' || verbindung === 'beendet' ? (
         <WifiOff className="size-3" aria-hidden="true" />
       ) : (
-        <Radio
-          className={cn('size-3', verbindung === 'live' && 'text-primary-bright')}
-          aria-hidden="true"
-        />
+        <Radio className={cn('size-3', verbindung === 'live' && 'text-primary-bright')} aria-hidden="true" />
       )}
       {text[verbindung]}
     </span>

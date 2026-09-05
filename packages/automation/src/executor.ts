@@ -10,12 +10,7 @@ import { werteBaumAus, type ConditionNode } from './conditions';
 import { getAction } from './registry';
 import { flache, einstieg, stepsSchema, type FlacherSchritt, type StepNode } from './steps';
 import { planeJob } from './scheduler';
-import {
-  loeseSchluesselAuf,
-  pruefeGleichzeitigkeit,
-  pruefeKette,
-  pruefeRate,
-} from './limits';
+import { loeseSchluesselAuf, pruefeGleichzeitigkeit, pruefeKette, pruefeRate } from './limits';
 
 const logger = createLogger('automation:executor');
 
@@ -258,10 +253,7 @@ export async function starte(eingabe: StartEingabe): Promise<LaufErgebnis> {
   const context = baueKontext(eingabe, lauf.id, gateway, jetzt);
 
   // --- Bedingungen --------------------------------------------------------
-  const auswertung = await werteBaumAus(
-    (bedingungenRoh ?? null) as ConditionNode | null,
-    context,
-  );
+  const auswertung = await werteBaumAus((bedingungenRoh ?? null) as ConditionNode | null, context);
   const bedingungen = auswertung.schritte.map((schritt) => ({
     label: schritt.label,
     erfuellt: schritt.erfuellt,
@@ -273,13 +265,7 @@ export async function starte(eingabe: StartEingabe): Promise<LaufErgebnis> {
     return { runId: lauf.id, status: 'SKIPPED', neu: true, bedingungen };
   }
 
-  const ergebnis = await arbeiteAb(
-    lauf,
-    schritte,
-    context,
-    jetzt,
-    einstieg(flache(schritte), schritte),
-  );
+  const ergebnis = await arbeiteAb(lauf, schritte, context, jetzt, einstieg(flache(schritte), schritte));
   return { ...ergebnis, bedingungen };
 }
 
@@ -330,7 +316,12 @@ async function arbeiteAb(
     if (schritt.knoten.art === 'warten') {
       const label = schritt.knoten.label ?? `Warten (${schritt.knoten.sekunden} s)`;
       if (context.dryRun) {
-        bericht.push({ index: schritt.index, label, status: 'SKIPPED', detail: 'Im Probelauf übersprungen.' });
+        bericht.push({
+          index: schritt.index,
+          label,
+          status: 'SKIPPED',
+          detail: 'Im Probelauf übersprungen.',
+        });
         zeiger = schritt.weiter;
         continue;
       }
@@ -728,8 +719,7 @@ export async function setzeFort(
         select: { snapshot: true },
       })
     : null;
-  const schritteRoh =
-    (versionsZeile?.snapshot as { steps?: unknown })?.steps ?? lauf.automation.steps;
+  const schritteRoh = (versionsZeile?.snapshot as { steps?: unknown })?.steps ?? lauf.automation.steps;
   const geprueft = stepsSchema.safeParse(schritteRoh);
   if (!geprueft.success) {
     await beendeLauf(runId, 'FAILED', jetzt, 'Die gespeicherte Schrittfolge ist ungültig.');

@@ -123,11 +123,7 @@ export function assertWebAppErlaubt(zugriff: VoiceZugriff): void {
 }
 
 /** Wirft, wenn das benoetigte Recht fehlt. */
-export function assertVoiceRecht(
-  zugriff: VoiceZugriff,
-  recht: keyof VoiceZugriff,
-  meldung: string,
-): void {
+export function assertVoiceRecht(zugriff: VoiceZugriff, recht: keyof VoiceZugriff, meldung: string): void {
   if (!zugriff[recht]) {
     throw new AppError('FORBIDDEN', { userMessage: meldung });
   }

@@ -224,10 +224,10 @@ Ein Modul hat oft mehr als eine Tür. Beim Jail darf jemand die Strafakte lesen 
 oder nur eine Community-Abstimmung starten, ohne die Akte je zu sehen. Dafür gibt
 es zwei Werkzeuge, und sie lösen verschiedene Probleme:
 
-| Feld           | Wirkung                                                        | Wann                                          |
-| -------------- | -------------------------------------------------------------- | --------------------------------------------- |
-| `altPermissions` | Derselbe Eintrag wird auch mit einer anderen Berechtigung sichtbar | Alle dürfen auf **dieselbe** Seite            |
-| `alternatives` | Der Eintrag zeigt **woandershin** und heisst anders            | Die Berechtigungen führen auf **verschiedene** Seiten |
+| Feld             | Wirkung                                                            | Wann                                                  |
+| ---------------- | ------------------------------------------------------------------ | ----------------------------------------------------- |
+| `altPermissions` | Derselbe Eintrag wird auch mit einer anderen Berechtigung sichtbar | Alle dürfen auf **dieselbe** Seite                    |
+| `alternatives`   | Der Eintrag zeigt **woandershin** und heisst anders                | Die Berechtigungen führen auf **verschiedene** Seiten |
 
 `altPermissions` war der erste Versuch beim Jail – und er war falsch: Wer nur
 abstimmen durfte, sah «Jail», klickte, und bekam eine 403-Seite. Der Eintrag

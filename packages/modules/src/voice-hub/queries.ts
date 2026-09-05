@@ -214,8 +214,7 @@ export async function getVoiceHubStats(): Promise<VoiceHubStats> {
       geschlossene.length === 0
         ? null
         : Math.round(
-            (geschlossene.reduce((summe, eintrag) => summe + eintrag.peakMembers, 0) /
-              geschlossene.length) *
+            (geschlossene.reduce((summe, eintrag) => summe + eintrag.peakMembers, 0) / geschlossene.length) *
               10,
           ) / 10,
     peakTalks: await peakGleichzeitig(guildId, vor30),

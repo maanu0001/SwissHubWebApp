@@ -57,9 +57,7 @@ export async function savePreferences(
     preferredName: input.preferredName?.slice(0, 100) ?? null,
     preferredLimit: input.preferredLimit,
     preferredBitrate:
-      input.preferredBitrate === null
-        ? null
-        : Math.min(input.preferredBitrate, settings.maxBitrate),
+      input.preferredBitrate === null ? null : Math.min(input.preferredBitrate, settings.maxBitrate),
     applyPreferences: input.applyPreferences,
     autoAllowTrusted: settings.trustedMembersEnabled ? input.autoAllowTrusted : false,
   };

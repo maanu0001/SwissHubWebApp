@@ -51,12 +51,7 @@ function zusatz(kind: string, detail: unknown): string | null {
     const zu = uebersetze(werte.zu);
     return von && zu ? `${von} → ${zu}` : zu;
   }
-  if (
-    kind === 'USER_ADDED' ||
-    kind === 'USER_REMOVED' ||
-    kind === 'TAG_ADDED' ||
-    kind === 'TAG_REMOVED'
-  ) {
+  if (kind === 'USER_ADDED' || kind === 'USER_REMOVED' || kind === 'TAG_ADDED' || kind === 'TAG_REMOVED') {
     return alsText(werte.wer);
   }
   if (kind === 'ASSIGNED') {
@@ -90,10 +85,7 @@ export function TicketTimeline({ ereignisse }: { ereignisse: TimelineEreignis[] 
         const mehr = zusatz(ereignis.kind, ereignis.detail);
         return (
           <li key={ereignis.id} className="flex gap-2.5 text-xs">
-            <span
-              className="mt-1.5 size-1.5 shrink-0 rounded-full bg-border"
-              aria-hidden="true"
-            />
+            <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-border" aria-hidden="true" />
             <span className="min-w-0">
               <span className="block">
                 {ereignis.actorUsername ? (
@@ -104,9 +96,7 @@ export function TicketTimeline({ ereignisse }: { ereignisse: TimelineEreignis[] 
                 <span className="text-muted-foreground">{text}</span>
               </span>
               {mehr ? <span className="block break-words text-muted-foreground">{mehr}</span> : null}
-              <span className="block text-muted-foreground/70">
-                {formatDayTime(ereignis.createdAt)}
-              </span>
+              <span className="block text-muted-foreground/70">{formatDayTime(ereignis.createdAt)}</span>
             </span>
           </li>
         );

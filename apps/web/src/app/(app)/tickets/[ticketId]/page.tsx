@@ -80,9 +80,7 @@ export default async function TicketDetailPage({
       label: 'Letzte Nachricht',
       wert: ticket.lastMessageAt ? formatDateTime(ticket.lastMessageAt) : '—',
     },
-    ...(ticket.closedAt
-      ? [{ label: 'Geschlossen am', wert: formatDateTime(ticket.closedAt) }]
-      : []),
+    ...(ticket.closedAt ? [{ label: 'Geschlossen am', wert: formatDateTime(ticket.closedAt) }] : []),
     ...(ticket.closeReason ? [{ label: 'Grund', wert: ticket.closeReason }] : []),
   ];
 
@@ -110,8 +108,8 @@ export default async function TicketDetailPage({
       {ticket.channelMissing ? (
         <p className="flex items-start gap-2 rounded-xl border border-warning/40 bg-warning/5 px-4 py-3 text-sm text-warning">
           <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
-          Der Discord-Kanal zu diesem Ticket existiert nicht mehr. Der Verlauf bleibt hier
-          vollständig erhalten, neue Nachrichten erreichen Discord aber nicht.
+          Der Discord-Kanal zu diesem Ticket existiert nicht mehr. Der Verlauf bleibt hier vollständig
+          erhalten, neue Nachrichten erreichen Discord aber nicht.
         </p>
       ) : null}
 
@@ -253,9 +251,7 @@ export default async function TicketDetailPage({
                 <TicketFeedback
                   ticketId={ticket.id}
                   csrfToken={csrfToken}
-                  vorhanden={
-                    bewertung ? { rating: bewertung.rating, comment: bewertung.comment } : null
-                  }
+                  vorhanden={bewertung ? { rating: bewertung.rating, comment: bewertung.comment } : null}
                 />
               </CardContent>
             </Card>

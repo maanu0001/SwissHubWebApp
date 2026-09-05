@@ -5,11 +5,11 @@ Stand: 21. August 2026 · Branch `claude/swisshub-bot-webapp-rmljzl`
 
 Die Legende gilt für den ganzen Bericht:
 
-| Zeichen | Bedeutung                                                                    |
-| ------- | ---------------------------------------------------------------------------- |
-| ✓       | in dieser Umgebung tatsächlich ausgeführt und am Ergebnis überprüft           |
-| ○       | nur statisch geprüft (Quelltext, Konfiguration, Abhängigkeiten)               |
-| ⚠       | benötigt einen Test gegen echtes Discord oder die Production-Umgebung         |
+| Zeichen | Bedeutung                                                             |
+| ------- | --------------------------------------------------------------------- |
+| ✓       | in dieser Umgebung tatsächlich ausgeführt und am Ergebnis überprüft   |
+| ○       | nur statisch geprüft (Quelltext, Konfiguration, Abhängigkeiten)       |
+| ⚠       | benötigt einen Test gegen echtes Discord oder die Production-Umgebung |
 
 ---
 
@@ -116,21 +116,21 @@ darauf, dass sie als Wert nur aus client-sicheren Einstiegspunkten importiert
 
 ### Weitere Prüfungen
 
-| Prüfung                                                | Ergebnis                                                                                |
-| ------------------------------------------------------ | --------------------------------------------------------------------------------------- |
-| Secret-Werte im Client-Bundle ✓                        | keine – alle 27 ausgelieferten JavaScript-Dateien gegen die echten `.env`-Werte geprüft            |
-| Variablennamen im Bundle ✓                             | nur `AUTH_SECRET`/`DATABASE_URL` als Fliesstext auf `/level/import` – die Erklärung, welche Zugangsdaten beim Import *nicht* gelesen werden |
-| `.env` im Repository ✓                                 | nicht im Index, durch `.gitignore` abgedeckt                                             |
-| `.env.example` ✓                                       | alle Secret-Felder leer                                                                  |
-| Legacy-Bot-Token im Repository oder Git-Verlauf ✓      | nicht vorhanden                                                                          |
-| Legacy-Rollen-IDs (`ALLOWED_ROLE_ID`, Ticket-Channel) ✓ | nicht vorhanden                                                                          |
-| Berechtigung je Server Action ✓                        | alle 52 Actions – 48 mit fester `permission`, 4 mit ausdrücklicher Prüfung im Rumpf (dort steht die Berechtigung erst zur Laufzeit fest) |
-| Eingabeprüfung je Server Action ✓                      | alle 52 mit Zod-Schema                                                                   |
-| Rate Limit je Server Action ✓                          | alle 52                                                                                  |
-| Exporte aus `'use server'`-Dateien ✓                   | ausschliesslich `defineAction` – kein ungeschützter Endpunkt                              |
-| Redaction von Tokens und Cookies in Logs ✓             | durch die bestehende Testabdeckung belegt                                                |
-| Content-Security-Policy ○                              | `script-src` an die Nonce gebunden, kein `unsafe-inline` für Skripte                     |
-| Production-Start mit Entwicklungswerten ✓              | wird verweigert – `DEV_MOCK_DISCORD` und HTTP-Adresse brechen den Start ab               |
+| Prüfung                                                 | Ergebnis                                                                                                                                    |
+| ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| Secret-Werte im Client-Bundle ✓                         | keine – alle 27 ausgelieferten JavaScript-Dateien gegen die echten `.env`-Werte geprüft                                                     |
+| Variablennamen im Bundle ✓                              | nur `AUTH_SECRET`/`DATABASE_URL` als Fliesstext auf `/level/import` – die Erklärung, welche Zugangsdaten beim Import _nicht_ gelesen werden |
+| `.env` im Repository ✓                                  | nicht im Index, durch `.gitignore` abgedeckt                                                                                                |
+| `.env.example` ✓                                        | alle Secret-Felder leer                                                                                                                     |
+| Legacy-Bot-Token im Repository oder Git-Verlauf ✓       | nicht vorhanden                                                                                                                             |
+| Legacy-Rollen-IDs (`ALLOWED_ROLE_ID`, Ticket-Channel) ✓ | nicht vorhanden                                                                                                                             |
+| Berechtigung je Server Action ✓                         | alle 52 Actions – 48 mit fester `permission`, 4 mit ausdrücklicher Prüfung im Rumpf (dort steht die Berechtigung erst zur Laufzeit fest)    |
+| Eingabeprüfung je Server Action ✓                       | alle 52 mit Zod-Schema                                                                                                                      |
+| Rate Limit je Server Action ✓                           | alle 52                                                                                                                                     |
+| Exporte aus `'use server'`-Dateien ✓                    | ausschliesslich `defineAction` – kein ungeschützter Endpunkt                                                                                |
+| Redaction von Tokens und Cookies in Logs ✓              | durch die bestehende Testabdeckung belegt                                                                                                   |
+| Content-Security-Policy ○                               | `script-src` an die Nonce gebunden, kein `unsafe-inline` für Skripte                                                                        |
+| Production-Start mit Entwicklungswerten ✓               | wird verweigert – `DEV_MOCK_DISCORD` und HTTP-Adresse brechen den Start ab                                                                  |
 
 `tests/unit/action-authorization.test.ts` hält die vier Action-Regeln fest,
 damit keine neue Action ohne Berechtigung, Schema oder Rate Limit dazukommt.
@@ -165,16 +165,16 @@ tatsächlich verwendet wird.
 
 Gesucht, nichts gefunden – jedes Bedienelement tut etwas. Geprüft im Browser:
 
-| Element                    | Ergebnis                                                                     |
-| -------------------------- | ---------------------------------------------------------------------------- |
-| Globale Suche ✓            | führt zu `/members?q=…`, liefert Treffer; `Strg`/`Cmd`+`K` setzt den Fokus    |
-| Benutzermenü ✓             | öffnet; Profil zeigt auf das eigene Profil, Discord-Link und Abmelden greifen |
-| Seitenleiste ein-/ausklappen ✓ | wechselt den Zustand                                                     |
-| Premium-Karte ✓            | verlinkt auf den konfigurierten Discord-Server                                |
-| Server-Karte ○             | reine Anzeige, kein Auswahlmenü – die Anwendung ist auf eine Guild ausgelegt  |
-| Bot-Status ✓               | wechselte beim Start des Bots von «Offline» auf «Online», mit echtem Heartbeat |
-| Alle 20 Navigationseinträge ✓ | laden mit Status 200                                                      |
-| «Coming Soon»-Reste ✓      | keine im ganzen Quelltext                                                     |
+| Element                        | Ergebnis                                                                       |
+| ------------------------------ | ------------------------------------------------------------------------------ |
+| Globale Suche ✓                | führt zu `/members?q=…`, liefert Treffer; `Strg`/`Cmd`+`K` setzt den Fokus     |
+| Benutzermenü ✓                 | öffnet; Profil zeigt auf das eigene Profil, Discord-Link und Abmelden greifen  |
+| Seitenleiste ein-/ausklappen ✓ | wechselt den Zustand                                                           |
+| Premium-Karte ✓                | verlinkt auf den konfigurierten Discord-Server                                 |
+| Server-Karte ○                 | reine Anzeige, kein Auswahlmenü – die Anwendung ist auf eine Guild ausgelegt   |
+| Bot-Status ✓                   | wechselte beim Start des Bots von «Offline» auf «Online», mit echtem Heartbeat |
+| Alle 20 Navigationseinträge ✓  | laden mit Status 200                                                           |
+| «Coming Soon»-Reste ✓          | keine im ganzen Quelltext                                                      |
 
 Der Platzhaltertext der Suche lautete «Suche Mitglieder, ID, …» und versprach
 mit den Auslassungspunkten mehr, als sie kann. Jetzt: «Mitglied oder
@@ -184,15 +184,15 @@ Discord-ID suchen».
 
 ## 6. Module
 
-| Modul               | Geprüft                                                                                              |
-| ------------------- | ---------------------------------------------------------------------------------------------------- |
+| Modul               | Geprüft                                                                                                       |
+| ------------------- | ------------------------------------------------------------------------------------------------------------- |
 | Kommunikation ✓     | Neuigkeit erstellt, Bestätigungsdialog, gesendet in 1,07 s ohne Hänger, erscheint im Verlauf und im Audit Log |
-| Spielersuche ✓      | Spiel angelegt, Suche gestartet, erscheint unter «Aktive Suchen»                                     |
-| Jail ✓              | zweistufiger Dialog, Jail erstellt, erscheint in der Liste                                            |
-| XP-Glücksrad ✓      | Seite, Rad, vergangene Ziehungen; Doppelziehung und Doppelauszahlung geschlossen (Abschnitt 3)         |
-| Level-System ✓      | Übersicht und alle zwölf aufgerufenen Unterseiten laden                                                               |
-| Vote Jail ✓         | Seite lädt                                                                                            |
-| ⚠ Alles auf Discord | Slash Commands, Knöpfe, Reaktionen, Sprachkanäle, echtes Senden – hier läuft nur ein Mock-Gateway     |
+| Spielersuche ✓      | Spiel angelegt, Suche gestartet, erscheint unter «Aktive Suchen»                                              |
+| Jail ✓              | zweistufiger Dialog, Jail erstellt, erscheint in der Liste                                                    |
+| XP-Glücksrad ✓      | Seite, Rad, vergangene Ziehungen; Doppelziehung und Doppelauszahlung geschlossen (Abschnitt 3)                |
+| Level-System ✓      | Übersicht und alle zwölf aufgerufenen Unterseiten laden                                                       |
+| Vote Jail ✓         | Seite lädt                                                                                                    |
+| ⚠ Alles auf Discord | Slash Commands, Knöpfe, Reaktionen, Sprachkanäle, echtes Senden – hier läuft nur ein Mock-Gateway             |
 
 Nebenbefund: die Fehlermeldungen bei fehlender Konfiguration sind gut. Ohne
 Spielersuche-Channel steht «Es ist kein Spielersuche-Channel konfiguriert.
@@ -293,14 +293,14 @@ Produktionscode. Von 350 Quelldateien war genau eine verwaist.
 
 ## 10. Abschliessende Prüfläufe
 
-| Prüfung                                    | Ergebnis                              |
-| ------------------------------------------ | ------------------------------------- |
-| `npm run lint` ✓                           | sauber                                |
-| `npm run typecheck` ✓                      | sauber (beide Projekte)               |
-| `npm run test` ✓                           | **806 Tests in 41 Dateien, alle grün** – gegen echtes PostgreSQL |
-| `npm run build` ✓                          | WebApp und Bot erfolgreich            |
-| `npm ci --dry-run` ✓                       | Lockfile stimmt mit `package.json` überein. **Das sagt nichts darüber aus, ob das fertige Abbild vollständig ist** – siehe Abschnitt 13 |
-| ⚠ `docker compose -f docker-compose.prod.yml build` | in dieser Umgebung nicht ausführbar: kein Docker-Daemon |
+| Prüfung                                             | Ergebnis                                                                                                                                |
+| --------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| `npm run lint` ✓                                    | sauber                                                                                                                                  |
+| `npm run typecheck` ✓                               | sauber (beide Projekte)                                                                                                                 |
+| `npm run test` ✓                                    | **806 Tests in 41 Dateien, alle grün** – gegen echtes PostgreSQL                                                                        |
+| `npm run build` ✓                                   | WebApp und Bot erfolgreich                                                                                                              |
+| `npm ci --dry-run` ✓                                | Lockfile stimmt mit `package.json` überein. **Das sagt nichts darüber aus, ob das fertige Abbild vollständig ist** – siehe Abschnitt 13 |
+| ⚠ `docker compose -f docker-compose.prod.yml build` | in dieser Umgebung nicht ausführbar: kein Docker-Daemon                                                                                 |
 
 Vier Testdateien sind neu hinzugekommen und decken Bereiche ab, die vorher nur
 durch Hinsehen gesichert waren: Seitentitel (113 Prüfungen), Autorisierung der
@@ -359,7 +359,7 @@ gutschreiben.
 Nach dem Durchgang fiel auf, dass der Bot offline war. Die Ursache lag in
 diesem Durchgang selbst.
 
-**Was passiert ist.** Next führt `sharp` als *optionale* Abhängigkeit in
+**Was passiert ist.** Next führt `sharp` als _optionale_ Abhängigkeit in
 Version `^0.34.3`. Solange der Bot dieselbe Spanne verlangte, legte npm eine
 gemeinsame Kopie unter `node_modules/` ab. Mit der Anhebung des Bots auf
 `^0.35.3` passte das nicht mehr zusammen, und weil Next's Variante optional

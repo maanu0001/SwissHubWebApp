@@ -70,7 +70,14 @@ function attrappe() {
     // der Bann läuft bewusst durch dieselbe Engine wie jede andere Sanktion.
     roles: {
       list: vi.fn(async () => [
-        { id: UNVERIFIZIERT, name: 'Nicht verifiziert', color: 0, position: 1, managed: false, permissions: '0' },
+        {
+          id: UNVERIFIZIERT,
+          name: 'Nicht verifiziert',
+          color: 0,
+          position: 1,
+          managed: false,
+          permissions: '0',
+        },
         { id: MITGLIED, name: 'Mitglied', color: 0, position: 2, managed: false, permissions: '0' },
         { id: MOD_ROLLE, name: 'Moderation', color: 0, position: 50, managed: false, permissions: '0' },
       ]),
@@ -290,9 +297,7 @@ describeWithDatabase('Verifikation: Entscheidungen', () => {
     // Keine zweite Rollenvergabe.
     expect(b.gesetzteRollen).toHaveLength(0);
     // Und nur ein Audit-Eintrag.
-    expect(
-      await prisma.auditLog.count({ where: { action: 'VERIFICATION_HUMAN_VERIFIED' } }),
-    ).toBe(1);
+    expect(await prisma.auditLog.count({ where: { action: 'VERIFICATION_HUMAN_VERIFIED' } })).toBe(1);
   });
 
   it('lässt bei zwei gleichzeitigen Klicks nur einen gewinnen', async () => {

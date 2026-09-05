@@ -92,12 +92,7 @@ export function MemberPremiumActions({
 
       {canEnd && subscriptionId ? (
         <>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setDialog(true)}
-            disabled={pending !== null}
-          >
+          <Button variant="outline" size="sm" onClick={() => setDialog(true)} disabled={pending !== null}>
             {pending === 'end' ? <Loader2 className="animate-spin" aria-hidden="true" /> : null}
             Abonnement beenden
           </Button>

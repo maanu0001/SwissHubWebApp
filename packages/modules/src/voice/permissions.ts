@@ -50,8 +50,7 @@ export const BESITZER_MODERATION =
  * vorbei umbenennen. Der Abgleich holt den Namen ohnehin ein, und ein
  * Besitzer, der seinen eigenen Kanal nicht einstellen darf, ist keiner.
  */
-export const BESITZER_VERWALTUNG =
-  DISCORD_PERMISSIONS.MANAGE_CHANNELS | DISCORD_PERMISSIONS.MANAGE_ROLES;
+export const BESITZER_VERWALTUNG = DISCORD_PERMISSIONS.MANAGE_CHANNELS | DISCORD_PERMISSIONS.MANAGE_ROLES;
 
 /**
  * Rechte des Bots im eigenen Kanal.

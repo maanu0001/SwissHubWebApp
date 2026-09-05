@@ -58,13 +58,13 @@ export default async function BotsPage(): Promise<React.JSX.Element> {
 
       <div className="space-y-2 text-xs text-muted-foreground">
         <p>
-          Der Systembot dient zugleich als Musik-Controller: er betritt den Sprachkanal unter dem
-          Namen, den alle ohnehin kennen, und braucht dafür keine zweite Discord-Anwendung.
+          Der Systembot dient zugleich als Musik-Controller: er betritt den Sprachkanal unter dem Namen, den
+          alle ohnehin kennen, und braucht dafür keine zweite Discord-Anwendung.
         </p>
         <p>
-          Jeder <strong>Worker</strong> dagegen braucht eine eigene Anwendung. Zwei Bots mit
-          demselben Token können nicht gleichzeitig in verschiedenen Kanälen spielen - ein Bot ist
-          je Server immer nur in einem Sprachkanal.
+          Jeder <strong>Worker</strong> dagegen braucht eine eigene Anwendung. Zwei Bots mit demselben Token
+          können nicht gleichzeitig in verschiedenen Kanälen spielen - ein Bot ist je Server immer nur in
+          einem Sprachkanal.
         </p>
       </div>
     </>

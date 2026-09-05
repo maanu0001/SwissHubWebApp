@@ -98,8 +98,8 @@ export default async function VoiceUebersichtPage(): Promise<React.JSX.Element> 
 
           {zugriff.istVerwaltung ? null : (
             <p className="rounded-xl border border-border bg-card px-4 py-3 text-sm text-muted-foreground">
-              Namen, Limit, Sperre und wer hereindarf, stellst du im Bedienfeld
-              deines Talks auf Discord ein - dort, wo du ohnehin bist.
+              Namen, Limit, Sperre und wer hereindarf, stellst du im Bedienfeld deines Talks auf Discord ein -
+              dort, wo du ohnehin bist.
             </p>
           )}
         </section>
@@ -154,4 +154,3 @@ export default async function VoiceUebersichtPage(): Promise<React.JSX.Element> 
     </>
   );
 }
-

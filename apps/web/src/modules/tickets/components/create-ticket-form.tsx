@@ -128,9 +128,7 @@ export function CreateTicketForm({
                 {eintrag.name}
               </span>
               {eintrag.description ? (
-                <span className="mt-0.5 block text-xs text-muted-foreground">
-                  {eintrag.description}
-                </span>
+                <span className="mt-0.5 block text-xs text-muted-foreground">{eintrag.description}</span>
               ) : null}
             </button>
           ))}
@@ -148,8 +146,8 @@ export function CreateTicketForm({
                 label="Im Namen von (leer = für dich selbst)"
               />
               <p className="text-xs text-muted-foreground">
-                Das Ticket erscheint im Archiv als von der Verwaltung angelegt - nicht so, als
-                hätte das Mitglied es selbst eröffnet.
+                Das Ticket erscheint im Archiv als von der Verwaltung angelegt - nicht so, als hätte das
+                Mitglied es selbst eröffnet.
               </p>
             </div>
           ) : null}

@@ -202,14 +202,20 @@ export default async function MembersPage({
           {seiten > 1 ? (
             <nav className="flex items-center justify-between gap-3" aria-label="Seiten">
               {seite.page > 1 ? (
-                <Link href={link({ seite: seite.page - 1 })} className={cn(buttonVariants({ variant: 'outline', size: 'sm' }))}>
+                <Link
+                  href={link({ seite: seite.page - 1 })}
+                  className={cn(buttonVariants({ variant: 'outline', size: 'sm' }))}
+                >
                   Zurück
                 </Link>
               ) : (
                 <span />
               )}
               {seite.page < seiten ? (
-                <Link href={link({ seite: seite.page + 1 })} className={cn(buttonVariants({ variant: 'outline', size: 'sm' }))}>
+                <Link
+                  href={link({ seite: seite.page + 1 })}
+                  className={cn(buttonVariants({ variant: 'outline', size: 'sm' }))}
+                >
                   Weiter
                 </Link>
               ) : (

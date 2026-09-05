@@ -136,9 +136,7 @@ export async function dispatchMassnahme(massnahme: ModerationAction): Promise<Di
       },
       ziel.channelId,
     );
-    return neu
-      ? { ergebnis: 'eingereiht', channelId: ziel.channelId }
-      : { ergebnis: 'bereits-eingereiht' };
+    return neu ? { ergebnis: 'eingereiht', channelId: ziel.channelId } : { ergebnis: 'bereits-eingereiht' };
   } catch (error) {
     log.warn('Massnahme konnte nicht für Discord eingereiht werden', { error, id: massnahme.id });
     return { ergebnis: 'uebersprungen', grund: 'fehler' };
@@ -185,9 +183,7 @@ export async function dispatchEreignis(ereignis: DiscordEvent): Promise<Dispatch
       { quelle: 'event', logId: ereignis.id, category, guildId: ereignis.guildId, embed },
       ziel.channelId,
     );
-    return neu
-      ? { ergebnis: 'eingereiht', channelId: ziel.channelId }
-      : { ergebnis: 'bereits-eingereiht' };
+    return neu ? { ergebnis: 'eingereiht', channelId: ziel.channelId } : { ergebnis: 'bereits-eingereiht' };
   } catch (error) {
     log.warn('Ereignis konnte nicht für Discord eingereiht werden', { error, id: ereignis.id });
     return { ergebnis: 'uebersprungen', grund: 'fehler' };

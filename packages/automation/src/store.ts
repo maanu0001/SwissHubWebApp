@@ -133,11 +133,7 @@ function pruefeForm(eingabe: AutomationEingabe): { steps: unknown; conditions: u
  * Bedingungen, Schritte. Ein Lauf zeigt darauf und nicht auf die Automation
  * selbst; deshalb bleibt er nach einer Änderung derselbe Lauf.
  */
-async function schreibeFassung(
-  automation: Automation,
-  akteur: Akteur | null,
-  notiz?: string,
-): Promise<void> {
+async function schreibeFassung(automation: Automation, akteur: Akteur | null, notiz?: string): Promise<void> {
   await prisma.automationVersion.upsert({
     where: { automationId_version: { automationId: automation.id, version: automation.version } },
     create: {

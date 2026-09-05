@@ -104,9 +104,7 @@ describe('Secret-Verschlüsselung', () => {
   it('verweigert die Entschlüsselung mit einem anderen Hauptschlüssel', () => {
     const umschlag = encryptSecret(GEHEIM, ADRESSE);
     process.env.MASTER_ENCRYPTION_KEY = KEY_B;
-    expect(fuerMenschen(() => decryptSecret(umschlag, ADRESSE))).toMatch(
-      /anderen MASTER_ENCRYPTION_KEY/u,
-    );
+    expect(fuerMenschen(() => decryptSecret(umschlag, ADRESSE))).toMatch(/anderen MASTER_ENCRYPTION_KEY/u);
   });
 
   it('erkennt einen veränderten Geheimtext', () => {

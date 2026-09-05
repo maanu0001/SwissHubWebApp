@@ -155,10 +155,7 @@ export interface AnhangDatei {
  * verlangt allerdings die Antragskennung: damit lässt sich keine fremde
  * Anhangskennung an einem beliebigen Antrag vorbei abrufen.
  */
-export async function leseAnhang(
-  appealId: string,
-  attachmentId: string,
-): Promise<AnhangDatei | null> {
+export async function leseAnhang(appealId: string, attachmentId: string): Promise<AnhangDatei | null> {
   const anhang = await prisma.appealAttachment.findFirst({
     where: { id: attachmentId, appealId, deletedAt: null },
   });

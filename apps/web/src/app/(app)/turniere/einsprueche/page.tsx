@@ -23,23 +23,15 @@ export default async function EinspruecheSeite(): Promise<React.JSX.Element> {
   const turnierIds = await sichtbareTurnierIds(context);
 
   const einsprueche =
-    turnierIds.length > 0
-      ? await tournaments.listDisputes({ tournamentIds: turnierIds, offen: true })
-      : [];
+    turnierIds.length > 0 ? await tournaments.listDisputes({ tournamentIds: turnierIds, offen: true }) : [];
 
   return (
     <>
       <TournamentSectionNav sections={tournamentSections(context)} />
-      <PageHeader
-        title="Einsprüche"
-        description="Strittige Resultate, die auf eine Entscheidung warten."
-      />
+      <PageHeader title="Einsprüche" description="Strittige Resultate, die auf eine Entscheidung warten." />
 
       {einsprueche.length === 0 ? (
-        <EmptyState
-          title="Nichts offen"
-          description="Zurzeit ist kein Resultat strittig."
-        />
+        <EmptyState title="Nichts offen" description="Zurzeit ist kein Resultat strittig." />
       ) : (
         <ul className="divide-y divide-border/60 overflow-hidden rounded-xl border border-border">
           {einsprueche.map((einspruch) => (

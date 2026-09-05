@@ -129,20 +129,24 @@ describeWithDatabase('Kalender-Verbesserungen', () => {
   // --- Ort ----------------------------------------------------------------
 
   it('nimmt nur noch die zwei verbliebenen Ortsarten entgegen', () => {
-    expect(calendar.eventInputSchema.safeParse({
-      title: 'Treffen',
-      description: 'Wir treffen uns.',
-      startAt: new Date(Date.now() + 86_400_000).toISOString(),
-      locationKind: 'HYBRID',
-    }).success).toBe(false);
+    expect(
+      calendar.eventInputSchema.safeParse({
+        title: 'Treffen',
+        description: 'Wir treffen uns.',
+        startAt: new Date(Date.now() + 86_400_000).toISOString(),
+        locationKind: 'HYBRID',
+      }).success,
+    ).toBe(false);
 
-    expect(calendar.eventInputSchema.safeParse({
-      title: 'Treffen',
-      description: 'Wir treffen uns.',
-      startAt: new Date(Date.now() + 86_400_000).toISOString(),
-      locationKind: 'REAL_LIFE',
-      locationName: 'Sihlcity',
-    }).success).toBe(true);
+    expect(
+      calendar.eventInputSchema.safeParse({
+        title: 'Treffen',
+        description: 'Wir treffen uns.',
+        startAt: new Date(Date.now() + 86_400_000).toISOString(),
+        locationKind: 'REAL_LIFE',
+        locationName: 'Sihlcity',
+      }).success,
+    ).toBe(true);
   });
 
   it('verlangt bei einem Termin im echten Leben einen Ort', () => {
@@ -155,9 +159,7 @@ describeWithDatabase('Kalender-Verbesserungen', () => {
 
     expect(ergebnis.success).toBe(false);
     if (!ergebnis.success) {
-      expect(ergebnis.error.issues.map((problem) => problem.path.join('.'))).toContain(
-        'locationName',
-      );
+      expect(ergebnis.error.issues.map((problem) => problem.path.join('.'))).toContain('locationName');
     }
   });
 
@@ -185,11 +187,14 @@ describeWithDatabase('Kalender-Verbesserungen', () => {
     });
 
     expect(
-      calendar.bannerFuer({ bannerUrl: null }, {
-        name: kategorie.name,
-        icon: kategorie.icon,
-        defaultBannerUrl: kategorie.defaultBannerUrl,
-      }),
+      calendar.bannerFuer(
+        { bannerUrl: null },
+        {
+          name: kategorie.name,
+          icon: kategorie.icon,
+          defaultBannerUrl: kategorie.defaultBannerUrl,
+        },
+      ),
     ).toBe('https://cdn.example.com/gamenight.png');
   });
 
@@ -222,12 +227,8 @@ describeWithDatabase('Kalender-Verbesserungen', () => {
     await calendar.publishEvent(ADMIN, event.id, new Date(), { gateway });
 
     const alle = knoepfe(gesendet[0]!.payload);
-    expect(alle.map((knopf) => knopf.custom_id)).toContain(
-      calendar.buildJoinButtonId(event.id),
-    );
-    expect(alle.map((knopf) => knopf.custom_id)).toContain(
-      calendar.buildLeaveButtonId(event.id),
-    );
+    expect(alle.map((knopf) => knopf.custom_id)).toContain(calendar.buildJoinButtonId(event.id));
+    expect(alle.map((knopf) => knopf.custom_id)).toContain(calendar.buildLeaveButtonId(event.id));
   });
 
   it('hängt keine an, wo es gar keine Anmeldung gibt', async () => {
@@ -318,10 +319,7 @@ describeWithDatabase('Kalender-Verbesserungen', () => {
   });
 
   it('verschwindet der Anmeldeknopf, sobald die Anmeldung zu ist', async () => {
-    const entwurf = await calendar.createEvent(
-      ADMIN,
-      eingabe({ registrationEnabled: true, capacity: 5 }),
-    );
+    const entwurf = await calendar.createEvent(ADMIN, eingabe({ registrationEnabled: true, capacity: 5 }));
     const event = await calendar.publishEvent(ADMIN, entwurf.id);
     expect(await calendar.zeigtAnmeldeknoepfe(event)).toBe(true);
 

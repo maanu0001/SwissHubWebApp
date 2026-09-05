@@ -1,12 +1,7 @@
 import { prisma } from '@swisshub/database';
 import type { AppealPriority, AppealStatus } from '@swisshub/database';
 import { formatFallnummer } from './numbering';
-import {
-  OFFENE_STATUS,
-  STATUS_LABEL_ANTRAGSTELLER,
-  statusFuerAnsicht,
-  type AppealAnsicht,
-} from './status';
+import { OFFENE_STATUS, STATUS_LABEL_ANTRAGSTELLER, statusFuerAnsicht, type AppealAnsicht } from './status';
 import type { BanSnapshot } from './eligibility';
 import { snapshotFuerAntragsteller } from './eligibility';
 
@@ -110,7 +105,14 @@ export async function holeAntragstellerSicht(
   // Der Idempotenzschlüssel ist Technik und keine Antwort.
   delete antworten.__idempotencyKey;
 
-  const offen = ['SUBMITTED', 'UNDER_REVIEW', 'WAITING_FOR_APPLICANT', 'WAITING_FOR_STAFF', 'ESCALATED', 'DECISION_PENDING'];
+  const offen = [
+    'SUBMITTED',
+    'UNDER_REVIEW',
+    'WAITING_FOR_APPLICANT',
+    'WAITING_FOR_STAFF',
+    'ESCALATED',
+    'DECISION_PENDING',
+  ];
 
   return {
     id: appeal.id,
@@ -194,12 +196,8 @@ export async function listeAppeals(
     where: {
       guildId: filter.guildId,
       ...(filter.status && filter.status.length > 0 ? { status: { in: filter.status } } : {}),
-      ...(filter.prioritaet && filter.prioritaet.length > 0
-        ? { priority: { in: filter.prioritaet } }
-        : {}),
-      ...(filter.bearbeiter !== undefined
-        ? { assignedToDiscordId: filter.bearbeiter }
-        : {}),
+      ...(filter.prioritaet && filter.prioritaet.length > 0 ? { priority: { in: filter.prioritaet } } : {}),
+      ...(filter.bearbeiter !== undefined ? { assignedToDiscordId: filter.bearbeiter } : {}),
       ...(suche
         ? {
             OR: [
@@ -379,10 +377,7 @@ export async function kennzahlen(guildId: string, jetzt = new Date()): Promise<A
     .filter((wert): wert is number => wert !== null)
     .sort((a, b) => a - b);
 
-  const median =
-    dauern.length === 0
-      ? null
-      : Math.round(dauern[Math.floor(dauern.length / 2)] ?? 0);
+  const median = dauern.length === 0 ? null : Math.round(dauern[Math.floor(dauern.length / 2)] ?? 0);
 
   const entschiedeneAnzahl = genehmigt + abgelehnt;
 
@@ -394,8 +389,7 @@ export async function kennzahlen(guildId: string, jetzt = new Date()): Promise<A
     genehmigt,
     abgelehnt,
     medianStunden: median,
-    genehmigungsQuote:
-      entschiedeneAnzahl === 0 ? null : Math.round((genehmigt / entschiedeneAnzahl) * 100),
+    genehmigungsQuote: entschiedeneAnzahl === 0 ? null : Math.round((genehmigt / entschiedeneAnzahl) * 100),
     entbannungOffen,
   };
 }

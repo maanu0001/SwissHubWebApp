@@ -73,9 +73,7 @@ export function begrenze(embed: DiscordEmbed): DiscordEmbed {
   const gekuerzt: DiscordEmbed = {
     ...embed,
     ...(embed.title ? { title: kuerze(embed.title, EMBED_LIMITS.title) } : {}),
-    ...(embed.description
-      ? { description: kuerze(embed.description, EMBED_LIMITS.description) }
-      : {}),
+    ...(embed.description ? { description: kuerze(embed.description, EMBED_LIMITS.description) } : {}),
     ...(embed.footer ? { footer: { text: kuerze(embed.footer.text, EMBED_LIMITS.footer) } } : {}),
     ...(embed.fields
       ? {
@@ -122,11 +120,7 @@ export function gesamtlaenge(embed: DiscordEmbed): number {
  * Funktion nichts zurueck, und der Formatter entscheidet, ob er stattdessen
  * ausdruecklich «Kein Grund angegeben» schreibt.
  */
-export function feld(
-  name: string,
-  wert: string | null | undefined,
-  inline = true,
-): DiscordEmbedField[] {
+export function feld(name: string, wert: string | null | undefined, inline = true): DiscordEmbedField[] {
   if (wert === null || wert === undefined) {
     return [];
   }

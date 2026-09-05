@@ -97,9 +97,7 @@ describe('Server Actions', () => {
    */
   const ANTRAGSTELLER_PRUEFUNGEN = ['requireEigenerAppeal', 'assertEigenerAppeal'];
 
-  const antragstellerActions = actions.filter((action) =>
-    /\bapplicant:\s*true/.test(action.body),
-  );
+  const antragstellerActions = actions.filter((action) => /\bapplicant:\s*true/.test(action.body));
 
   const antragstellerFaelle: Array<[string, Action | null]> =
     antragstellerActions.length > 0
@@ -132,9 +130,7 @@ describe('Server Actions', () => {
       const source = readFileSync(join(process.cwd(), file), 'utf8');
       const exports = [...source.matchAll(/^export (?:async function|const|function) (\w+)/gm)];
       for (const [line, name] of exports.map((m) => [m[0], m[1]] as const)) {
-        expect(line, `${file}: "${name}" ist exportiert, aber keine defineAction`).toContain(
-          'export const',
-        );
+        expect(line, `${file}: "${name}" ist exportiert, aber keine defineAction`).toContain('export const');
         expect(
           source.includes(`export const ${name} = defineAction(`),
           `${file}: "${name}" ist exportiert, aber keine defineAction`,

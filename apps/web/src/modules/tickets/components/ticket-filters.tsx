@@ -3,13 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { PRIORITAET_LABEL, STATUS_LABEL } from './ticket-badges';
 
-const STATUS_AUSWAHL = [
-  'OPEN',
-  'IN_PROGRESS',
-  'WAITING_FOR_USER',
-  'WAITING_FOR_STAFF',
-  'RESOLVED',
-] as const;
+const STATUS_AUSWAHL = ['OPEN', 'IN_PROGRESS', 'WAITING_FOR_USER', 'WAITING_FOR_STAFF', 'RESOLVED'] as const;
 
 const ARCHIV_STATUS = ['CLOSED', 'ARCHIVED'] as const;
 

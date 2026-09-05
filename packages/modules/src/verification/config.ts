@@ -32,8 +32,7 @@ export const VERIFICATION_PERMISSIONS = {
   settingsManage: 'verification.settings.manage',
 } as const;
 
-export type VerificationPermission =
-  (typeof VERIFICATION_PERMISSIONS)[keyof typeof VERIFICATION_PERMISSIONS];
+export type VerificationPermission = (typeof VERIFICATION_PERMISSIONS)[keyof typeof VERIFICATION_PERMISSIONS];
 
 /**
  * Vorgabetext der Begruessung.
@@ -284,8 +283,7 @@ const verificationSettingsFields: SettingsField[] = [
   {
     key: 'kickOnExpire',
     label: 'Nach Ablauf vom Server entfernen',
-    description:
-      'Aus als Vorgabe. Ein Kick ist kein Bann - die Person kann jederzeit wiederkommen.',
+    description: 'Aus als Vorgabe. Ein Kick ist kein Bann - die Person kann jederzeit wiederkommen.',
     type: 'boolean',
     group: 'Ablauf',
   },
@@ -334,9 +332,7 @@ const verificationSettingsFields: SettingsField[] = [
  * Moderation erfaehrt nichts davon, und auf der Webseite sieht alles richtig
  * aus. Deshalb sind es Fehler und keine Hinweise.
  */
-async function verificationHealthChecks(
-  context: ModuleHealthContext,
-): Promise<ModuleHealthCheck[]> {
+async function verificationHealthChecks(context: ModuleHealthContext): Promise<ModuleHealthCheck[]> {
   const checks: ModuleHealthCheck[] = [];
   const { getModuleSettings } = await import('../module-state');
   const settings = await getModuleSettings<VerificationSettings>(VERIFICATION_MODULE_ID);
@@ -354,12 +350,22 @@ async function verificationHealthChecks(
         // bewusst leer laesst, ist Laerm.
         return;
       }
-      checks.push({ label, status: 'error', detail: 'Nicht gesetzt - der Ablauf startet nicht.', fixHref: fix });
+      checks.push({
+        label,
+        status: 'error',
+        detail: 'Nicht gesetzt - der Ablauf startet nicht.',
+        fixHref: fix,
+      });
       return;
     }
     const eintrag = context.roles.find((wert) => wert.id === id);
     if (!eintrag) {
-      checks.push({ label, status: 'error', detail: 'Diese Rolle gibt es auf Discord nicht mehr.', fixHref: fix });
+      checks.push({
+        label,
+        status: 'error',
+        detail: 'Diese Rolle gibt es auf Discord nicht mehr.',
+        fixHref: fix,
+      });
       return;
     }
     // Der Bot kann nur Rollen vergeben, die unter seiner hoechsten stehen.
@@ -475,8 +481,7 @@ export const verificationModule: ModuleDefinition = registerModule({
     {
       key: VERIFICATION_PERMISSIONS.reject,
       label: 'Ablehnen und bannen',
-      description:
-        'Einen Fall ablehnen. Das bannt die Person - deshalb getrennt vom Freischalten vergeben.',
+      description: 'Einen Fall ablehnen. Das bannt die Person - deshalb getrennt vom Freischalten vergeben.',
       module: VERIFICATION_MODULE_ID,
       critical: true,
     },

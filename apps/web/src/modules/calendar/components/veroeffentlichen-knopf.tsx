@@ -54,11 +54,7 @@ export function VeroeffentlichenKnopf({
 
   return (
     <Button disabled={pending} onClick={() => void veroeffentlichen()}>
-      {pending ? (
-        <Loader2 className="animate-spin" aria-hidden="true" />
-      ) : (
-        <Send aria-hidden="true" />
-      )}
+      {pending ? <Loader2 className="animate-spin" aria-hidden="true" /> : <Send aria-hidden="true" />}
       Veröffentlichen
     </Button>
   );

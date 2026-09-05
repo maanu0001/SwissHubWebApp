@@ -45,8 +45,7 @@ export default async function TurnierAnmeldungenPage({
       csrfToken={csrfTokenFor(context)}
       darfVerwalten={zugriff.registrationsManage}
       wartelisteVorhanden={
-        tournament.maxParticipants > 0 &&
-        anmeldungen.some((eintrag) => eintrag.status === 'WAITLISTED')
+        tournament.maxParticipants > 0 && anmeldungen.some((eintrag) => eintrag.status === 'WAITLISTED')
       }
       anmeldungen={anmeldungen.map((eintrag) => ({
         id: eintrag.id,

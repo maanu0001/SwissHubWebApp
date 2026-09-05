@@ -25,7 +25,10 @@ import { darfSessionSteuern } from '@/server/music';
 const sessionSchema = z.object({ sessionId: z.string().cuid() });
 
 /** Gemeinsame Vorpruefung: existiert die Session, und darf ich sie steuern? */
-async function pruefeZugriff(context: Parameters<typeof darfSessionSteuern>[0], sessionId: string): Promise<void> {
+async function pruefeZugriff(
+  context: Parameters<typeof darfSessionSteuern>[0],
+  sessionId: string,
+): Promise<void> {
   if (!(await darfSessionSteuern(context, sessionId))) {
     throw new AppError('FORBIDDEN', {
       userMessage: 'Du kannst nur die Session deines eigenen Sprachkanals steuern.',
@@ -115,7 +118,11 @@ export const seekAction = defineAction(
     module: 'music',
     permission: music.MUSIC_PERMISSIONS.skip,
     schema: sessionSchema.extend({
-      positionSeconds: z.coerce.number().int().min(0).max(24 * 3600),
+      positionSeconds: z.coerce
+        .number()
+        .int()
+        .min(0)
+        .max(24 * 3600),
     }),
     rateLimit: 'musicControl',
   },
@@ -226,12 +233,7 @@ export const moveItemAction = defineAction(
   },
   async ({ ctx, input }) => {
     await pruefeZugriff(ctx, input.sessionId);
-    await music.sessionService.moveItem(
-      input.sessionId,
-      input.queueItemId,
-      input.targetIndex,
-      actor(ctx),
-    );
+    await music.sessionService.moveItem(input.sessionId, input.queueItemId, input.targetIndex, actor(ctx));
     revalidatePath('/musik');
     return { ok: true };
   },

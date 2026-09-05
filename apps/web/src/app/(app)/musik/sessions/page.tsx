@@ -20,10 +20,7 @@ const LOOP_LABEL: Record<string, string> = {
 /** Alle laufenden Sessions - der Ueberblick ueber den gesamten Server. */
 export default async function MusikSessionsPage(): Promise<React.JSX.Element> {
   const context = await requirePagePermission(music.MUSIC_PERMISSIONS.sessionsViewAll);
-  const [sessions, kapazitaet] = await Promise.all([
-    music.listActiveSessions(),
-    music.getPoolCapacity(),
-  ]);
+  const [sessions, kapazitaet] = await Promise.all([music.listActiveSessions(), music.getPoolCapacity()]);
 
   return (
     <>
@@ -39,24 +36,37 @@ export default async function MusikSessionsPage(): Promise<React.JSX.Element> {
       <MusicSectionNav sections={musicSections(context)} />
 
       {sessions.length === 0 ? (
-        <EmptyState
-          title="Keine aktiven Sessions"
-          description="Derzeit läuft in keinem Sprachkanal Musik."
-        />
+        <EmptyState title="Keine aktiven Sessions" description="Derzeit läuft in keinem Sprachkanal Musik." />
       ) : (
         <div className="relative overflow-x-auto rounded-xl border border-border">
           <table className="w-full text-sm">
             <caption className="sr-only">Laufende Musik-Sessions</caption>
             <thead>
               <tr className="border-b border-border/70 text-left text-xs uppercase tracking-[0.12em] text-muted-foreground">
-                <th scope="col" className="px-5 py-3 font-semibold">Sprachkanal</th>
-                <th scope="col" className="px-5 py-3 font-semibold">Bot</th>
-                <th scope="col" className="px-5 py-3 font-semibold">Zuhörer</th>
-                <th scope="col" className="px-5 py-3 font-semibold">Titel</th>
-                <th scope="col" className="px-5 py-3 font-semibold">Warteschlange</th>
-                <th scope="col" className="px-5 py-3 font-semibold">Lautstärke</th>
-                <th scope="col" className="px-5 py-3 font-semibold">Loop</th>
-                <th scope="col" className="px-5 py-3 font-semibold">Seit</th>
+                <th scope="col" className="px-5 py-3 font-semibold">
+                  Sprachkanal
+                </th>
+                <th scope="col" className="px-5 py-3 font-semibold">
+                  Bot
+                </th>
+                <th scope="col" className="px-5 py-3 font-semibold">
+                  Zuhörer
+                </th>
+                <th scope="col" className="px-5 py-3 font-semibold">
+                  Titel
+                </th>
+                <th scope="col" className="px-5 py-3 font-semibold">
+                  Warteschlange
+                </th>
+                <th scope="col" className="px-5 py-3 font-semibold">
+                  Lautstärke
+                </th>
+                <th scope="col" className="px-5 py-3 font-semibold">
+                  Loop
+                </th>
+                <th scope="col" className="px-5 py-3 font-semibold">
+                  Seit
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -71,11 +81,11 @@ export default async function MusikSessionsPage(): Promise<React.JSX.Element> {
                   <td className="px-5 py-3 tabular-nums">{row.queueLength}</td>
                   <td className="px-5 py-3 tabular-nums">{row.session.volume} %</td>
                   <td className="px-5 py-3">
-                    <Badge variant="outline">{LOOP_LABEL[row.session.loopMode] ?? row.session.loopMode}</Badge>
+                    <Badge variant="outline">
+                      {LOOP_LABEL[row.session.loopMode] ?? row.session.loopMode}
+                    </Badge>
                   </td>
-                  <td className="px-5 py-3 text-muted-foreground">
-                    {formatDateTime(row.session.createdAt)}
-                  </td>
+                  <td className="px-5 py-3 text-muted-foreground">{formatDateTime(row.session.createdAt)}</td>
                 </tr>
               ))}
             </tbody>

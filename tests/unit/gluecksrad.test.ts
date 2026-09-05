@@ -161,7 +161,7 @@ describe('Das Rad zeigt nur, was feststeht', () => {
   it('verwendet dieselbe Dauer für Übergang und Auswertung', () => {
     // Zwei getrennte Zahlen liefen früher auseinander: das Rad stand still,
     // während der Name noch fehlte, oder er stand da, bevor es stillstand.
-    expect(quelle).toContain('transition: animate ? `transform ${DREHDAUER_MS}ms ${DREH_KURVE}` : \'none\'');
+    expect(quelle).toContain("transition: animate ? `transform ${DREHDAUER_MS}ms ${DREH_KURVE}` : 'none'");
     expect(quelle).toContain('}, DREHDAUER_MS + NACHLAUF_MS);');
   });
 

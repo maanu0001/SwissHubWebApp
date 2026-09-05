@@ -166,9 +166,7 @@ export function BotListe({
                 value={entwurf.slug}
                 placeholder="WORKER_1"
                 className="font-mono"
-                onChange={(event) =>
-                  setEntwurf({ ...entwurf, slug: event.target.value.toUpperCase() })
-                }
+                onChange={(event) => setEntwurf({ ...entwurf, slug: event.target.value.toUpperCase() })}
               />
               <p className="text-xs text-muted-foreground">
                 Stabile Kennung für die Laufzeit. Grossbuchstaben, Ziffern, Unterstriche.
@@ -216,9 +214,7 @@ export function BotListe({
                     ? ` · zuletzt verbunden ${new Date(bot.lastLoginAt).toLocaleString('de-CH')}`
                     : ''}
                 </p>
-                {bot.lastError ? (
-                  <p className="mt-1 text-xs text-destructive">{bot.lastError}</p>
-                ) : null}
+                {bot.lastError ? <p className="mt-1 text-xs text-destructive">{bot.lastError}</p> : null}
               </div>
               <HealthBadge status={bot.status} />
             </div>

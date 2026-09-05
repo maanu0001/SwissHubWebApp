@@ -57,8 +57,7 @@ export async function GET(
   const istTeam =
     can(context, appeals.APPEALS_PERMISSIONS.viewAll) ||
     (can(context, appeals.APPEALS_PERMISSIONS.view) &&
-      (appeal.assignedToDiscordId === null ||
-        appeal.assignedToDiscordId === context.user.discordId));
+      (appeal.assignedToDiscordId === null || appeal.assignedToDiscordId === context.user.discordId));
 
   if (!istEigener && !istTeam) {
     // 404 und nicht 403: ein anderer Code verriete, dass es die Datei gibt.

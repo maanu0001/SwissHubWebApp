@@ -83,9 +83,7 @@ export async function dashboardRoleLabel(roleIds: readonly string[]): Promise<st
   const benannt = roleIds
     .flatMap((roleId) => {
       const label = configuration.roleLabels.get(roleId)?.trim();
-      return label
-        ? [{ label, stufe: configuration.moderationLevels.get(roleId) ?? 0 }]
-        : [];
+      return label ? [{ label, stufe: configuration.moderationLevels.get(roleId) ?? 0 }] : [];
     })
     .sort((a, b) => b.stufe - a.stufe || a.label.localeCompare(b.label));
 

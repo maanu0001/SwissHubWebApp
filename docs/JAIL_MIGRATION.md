@@ -245,11 +245,11 @@ Befugnis, den Server zu durchsuchen.
 
 Drei Wege zum Ziel, je nachdem, was jemand ohnehin darf:
 
-| Weg | Voraussetzung |
-| --- | --- |
-| `/vote_jail` auf Discord | `jail.vote.start` — das Ziel kommt aus Discords eigenem Auswahldialog |
-| Discord-ID im Dashboard eintragen | `jail.vote.start` — genau eine Kennung wird nachgeschlagen, nichts aufgezählt |
-| Namenssuche im Dashboard | zusätzlich `members.view` — dieselbe Liste, die das Member Center ohnehin zeigt |
+| Weg                               | Voraussetzung                                                                   |
+| --------------------------------- | ------------------------------------------------------------------------------- |
+| `/vote_jail` auf Discord          | `jail.vote.start` — das Ziel kommt aus Discords eigenem Auswahldialog           |
+| Discord-ID im Dashboard eintragen | `jail.vote.start` — genau eine Kennung wird nachgeschlagen, nichts aufgezählt   |
+| Namenssuche im Dashboard          | zusätzlich `members.view` — dieselbe Liste, die das Member Center ohnehin zeigt |
 
 Alle drei enden bei derselben Prüfung: `evaluateModerationPolicy` mit
 `kind: 'COMMUNITY_VOTE'`. Zurück kommt ausschliesslich, gegen wen dieser

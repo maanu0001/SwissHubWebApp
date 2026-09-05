@@ -5,12 +5,7 @@ import { TicketFilters } from '@/modules/tickets/components/ticket-filters';
 import { TicketList } from '@/modules/tickets/components/ticket-list';
 import { TicketSectionNav } from '@/modules/tickets/components/section-nav';
 import { requirePagePermission } from '@/server/auth';
-import {
-  ladeTicketListe,
-  ticketListenHref,
-  ticketSections,
-  type TicketListenSuche,
-} from '@/server/tickets';
+import { ladeTicketListe, ticketListenHref, ticketSections, type TicketListenSuche } from '@/server/tickets';
 
 export const metadata: Metadata = { title: 'Offene Tickets' };
 export const dynamic = 'force-dynamic';

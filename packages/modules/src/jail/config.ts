@@ -93,12 +93,7 @@ export const jailSettingsSchema = z.object({
    * Schluessel bleibt, damit bestehende Eintraege nicht verlorengehen; die
    * Migration `moderation_gruende_zusammenfuehren` hat sie uebernommen.
    */
-  reasonPresets: z
-    .string()
-    .max(2000)
-    .default(
-      JAIL_STANDARD_GRUENDE.join('\n'),
-    ),
+  reasonPresets: z.string().max(2000).default(JAIL_STANDARD_GRUENDE.join('\n')),
 
   /** Zusätzliche Rollen, die während des Jails erhalten bleiben. */
   keepRoleIds: z

@@ -61,10 +61,25 @@ export default async function TicketsPage(): Promise<React.JSX.Element> {
   const karten = [
     { label: 'Offen', wert: kennzahlen.offen, icon: Inbox },
     { label: 'In Bearbeitung', wert: kennzahlen.inBearbeitung, icon: UserCheck },
-    { label: 'Wartet auf Support', wert: kennzahlen.wartetAufSupport, icon: Clock, warnung: kennzahlen.wartetAufSupport > 0 },
+    {
+      label: 'Wartet auf Support',
+      wert: kennzahlen.wartetAufSupport,
+      icon: Clock,
+      warnung: kennzahlen.wartetAufSupport > 0,
+    },
     { label: 'Wartet auf Mitglied', wert: kennzahlen.wartetAufMitglied, icon: Users },
-    { label: 'Nicht zugewiesen', wert: kennzahlen.nichtZugewiesen, icon: TicketIcon, warnung: kennzahlen.nichtZugewiesen > 0 },
-    { label: 'Überfällig', wert: kennzahlen.ueberfaellig, icon: AlertTriangle, warnung: kennzahlen.ueberfaellig > 0 },
+    {
+      label: 'Nicht zugewiesen',
+      wert: kennzahlen.nichtZugewiesen,
+      icon: TicketIcon,
+      warnung: kennzahlen.nichtZugewiesen > 0,
+    },
+    {
+      label: 'Überfällig',
+      wert: kennzahlen.ueberfaellig,
+      icon: AlertTriangle,
+      warnung: kennzahlen.ueberfaellig > 0,
+    },
   ];
 
   return (
@@ -96,7 +111,10 @@ export default async function TicketsPage(): Promise<React.JSX.Element> {
       <section className="space-y-3">
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-semibold">Neueste Tickets</h2>
-          <Link href="/tickets/offen" className="text-sm text-muted-foreground hover:text-foreground hover:underline">
+          <Link
+            href="/tickets/offen"
+            className="text-sm text-muted-foreground hover:text-foreground hover:underline"
+          >
             Alle offenen ansehen
           </Link>
         </div>

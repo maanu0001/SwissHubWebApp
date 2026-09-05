@@ -95,11 +95,7 @@ export default async function PremiumMePage(): Promise<React.JSX.Element> {
                 <p className="text-xs text-muted-foreground">@{context.user.username}</p>
               </div>
             </div>
-            <Badge
-              variant={
-                abo.status === 'ACTIVE' ? 'success' : gilt ? 'warning' : 'destructive'
-              }
-            >
+            <Badge variant={abo.status === 'ACTIVE' ? 'success' : gilt ? 'warning' : 'destructive'}>
               {premium.STATUS_LABEL[abo.status]}
             </Badge>
           </header>
@@ -183,11 +179,21 @@ export default async function PremiumMePage(): Promise<React.JSX.Element> {
               <caption className="sr-only">Zahlungen deines Premium-Abos</caption>
               <thead>
                 <tr className="border-b border-border/70 text-left text-xs uppercase tracking-[0.12em] text-muted-foreground">
-                  <th scope="col" className="px-5 py-3 font-semibold">Datum</th>
-                  <th scope="col" className="px-5 py-3 font-semibold">Angebot</th>
-                  <th scope="col" className="px-5 py-3 font-semibold">Betrag</th>
-                  <th scope="col" className="px-5 py-3 font-semibold">Status</th>
-                  <th scope="col" className="px-5 py-3 font-semibold">Referenz</th>
+                  <th scope="col" className="px-5 py-3 font-semibold">
+                    Datum
+                  </th>
+                  <th scope="col" className="px-5 py-3 font-semibold">
+                    Angebot
+                  </th>
+                  <th scope="col" className="px-5 py-3 font-semibold">
+                    Betrag
+                  </th>
+                  <th scope="col" className="px-5 py-3 font-semibold">
+                    Status
+                  </th>
+                  <th scope="col" className="px-5 py-3 font-semibold">
+                    Referenz
+                  </th>
                 </tr>
               </thead>
               <tbody>

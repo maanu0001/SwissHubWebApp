@@ -57,7 +57,21 @@ export interface TicketCategoryInput {
 export const MAX_FORM_FIELDS = 4;
 
 export async function listCategories(): Promise<
-  Array<TicketCategory & { formFields: Array<{ id: string; label: string; kind: TicketFormFieldKind; required: boolean; placeholder: string | null; minLength: number | null; maxLength: number | null; sortOrder: number }>; ticketCount: number }>
+  Array<
+    TicketCategory & {
+      formFields: Array<{
+        id: string;
+        label: string;
+        kind: TicketFormFieldKind;
+        required: boolean;
+        placeholder: string | null;
+        minLength: number | null;
+        maxLength: number | null;
+        sortOrder: number;
+      }>;
+      ticketCount: number;
+    }
+  >
 > {
   const eintraege = await prisma.ticketCategory.findMany({
     orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],

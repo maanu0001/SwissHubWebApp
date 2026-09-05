@@ -143,9 +143,7 @@ export async function schlageVor(
       status: 'DECISION_PENDING',
       decisionKind: eingabe.art,
       publicDecision: oeffentlich,
-      internalDecision: eingabe.internalDecision
-        ? sanitizeText(eingabe.internalDecision, 4000)
-        : null,
+      internalDecision: eingabe.internalDecision ? sanitizeText(eingabe.internalDecision, 4000) : null,
       proposedByDiscordId: eingabe.actor.discordId,
       proposedByUsername: eingabe.actor.username,
       proposedAt: jetzt,
@@ -255,11 +253,9 @@ export async function genehmige(eingabe: GenehmigungsEingabe): Promise<Entscheid
   }).catch(() => undefined);
 
   if (ausgang.zustand === 'PARTIAL' || ausgang.zustand === 'FAILED') {
-    await meldeEntbannungGescheitert(
-      aktualisiert,
-      ausgang.hinweis ?? 'Die Entbannung ist gescheitert.',
-      { ...(eingabe.gateway ? { gateway: eingabe.gateway } : {}) },
-    ).catch(() => undefined);
+    await meldeEntbannungGescheitert(aktualisiert, ausgang.hinweis ?? 'Die Entbannung ist gescheitert.', {
+      ...(eingabe.gateway ? { gateway: eingabe.gateway } : {}),
+    }).catch(() => undefined);
   }
 
   return {
@@ -362,8 +358,7 @@ export async function fuehreEntbannungAus(
       return { zustand: 'NO_OP', hinweis: 'Es bestand bereits kein Bann mehr.' };
     }
 
-    const meldung =
-      (error as { userMessage?: string })?.userMessage ?? 'Die Entbannung ist gescheitert.';
+    const meldung = (error as { userMessage?: string })?.userMessage ?? 'Die Entbannung ist gescheitert.';
     await vermerkeEntbannung(appeal.id, 'PARTIAL', meldung, jetzt);
     await schreibeEreignis({
       appealId: appeal.id,

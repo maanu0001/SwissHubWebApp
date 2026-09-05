@@ -367,8 +367,7 @@ function PanelForm({
           emptyLabel="Noch keine Kategorie angelegt."
         />
         <p className="text-xs text-muted-foreground">
-          Je Kategorie entsteht ein Knopf. Bei genau einer Kategorie trägt der Knopf die
-          Beschriftung unten.
+          Je Kategorie entsteht ein Knopf. Bei genau einer Kategorie trägt der Knopf die Beschriftung unten.
         </p>
       </div>
 

@@ -7,13 +7,7 @@ import { CheckCircle2, Hand, Loader2, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/input';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ConfirmationDialog } from '@/components/shared/confirmation-dialog';
 import {
   changePriorityAction,
@@ -75,7 +69,11 @@ export function TicketControls({
 
   const geschlossen = status === 'CLOSED' || status === 'ARCHIVED';
 
-  async function fuehreAus(name: string, arbeit: () => Promise<{ ok: boolean; fehler?: string }>, erfolg: string): Promise<void> {
+  async function fuehreAus(
+    name: string,
+    arbeit: () => Promise<{ ok: boolean; fehler?: string }>,
+    erfolg: string,
+  ): Promise<void> {
     setLaeuft(name);
     const ergebnis = await arbeit();
     if (ergebnis.ok) {

@@ -134,11 +134,7 @@ export function ProgressBar({
               'aria-disabled': pending,
             }
           : {})}
-        className={
-          springbar
-            ? 'group -my-2 cursor-pointer py-2 focus-visible:outline-none'
-            : undefined
-        }
+        className={springbar ? 'group -my-2 cursor-pointer py-2 focus-visible:outline-none' : undefined}
       >
         <div className="h-1.5 overflow-hidden rounded-full bg-border/70 group-focus-visible:ring-2 group-focus-visible:ring-ring">
           <div

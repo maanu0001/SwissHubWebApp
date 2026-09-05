@@ -98,10 +98,7 @@ export async function DELETE(request: NextRequest): Promise<Response> {
     // Ohne Angabe die eigene. Eine fremde verlangt die Verwaltungsberechtigung
     // des Levelmoduls - das prueft der Dienst.
     const roh = form.get('discordId');
-    const ziel =
-      typeof roh === 'string' && roh !== ''
-        ? snowflakeSchema.parse(roh)
-        : viewer.discordId;
+    const ziel = typeof roh === 'string' && roh !== '' ? snowflakeSchema.parse(roh) : viewer.discordId;
 
     await level.clearCustomCard(viewer, actor, ziel);
     return NextResponse.json(ok({ discordId: ziel }));

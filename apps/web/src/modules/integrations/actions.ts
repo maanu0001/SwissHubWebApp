@@ -130,9 +130,7 @@ export const setSecretAction = defineAction(
       throw conflict('Dieses Feld gibt es nicht.');
     }
     if (feld) {
-      const geprueft = feld.schema.safeParse(
-        feld.type === 'number' ? Number(input.value) : input.value,
-      );
+      const geprueft = feld.schema.safeParse(feld.type === 'number' ? Number(input.value) : input.value);
       if (!geprueft.success) {
         throw conflict(`${feld.label}: ${geprueft.error.issues[0]?.message ?? 'ungültig'}`);
       }
@@ -259,9 +257,7 @@ export const testIntegrationAction = defineAction(
       const clientId = await getSecret(DISCORD_INTEGRATION_ID, 'clientId');
       const clientSecret = await getSecret(DISCORD_INTEGRATION_ID, 'clientSecret');
 
-      const bot = token
-        ? await validateBotToken(token)
-        : { ok: false, fehler: 'Kein Bot-Token hinterlegt.' };
+      const bot = token ? await validateBotToken(token) : { ok: false, fehler: 'Kein Bot-Token hinterlegt.' };
       const oauth =
         clientId && clientSecret
           ? await validateOAuthCredentials(clientId, clientSecret)
@@ -282,11 +278,7 @@ export const testIntegrationAction = defineAction(
       throw conflict('Für diese Integration gibt es keinen Test.');
     }
 
-    await writeStatus(
-      input.integrationId,
-      ergebnis.ok ? 'CONNECTED' : 'ERROR',
-      ergebnis.detail,
-    );
+    await writeStatus(input.integrationId, ergebnis.ok ? 'CONNECTED' : 'ERROR', ergebnis.detail);
     await protokolliere(ctx, AUDIT_ACTIONS.INTEGRATION_TESTED, {
       integration: input.integrationId,
       erfolgreich: ergebnis.ok,
@@ -444,12 +436,7 @@ export const rotateBotTokenAction = defineAction(
     if (ergebnis.ok) {
       await refreshIntegrationRuntime({ force: true });
     }
-    await protokolliere(
-      ctx,
-      AUDIT_ACTIONS.INTEGRATION_BOT_TOKEN_ROTATED,
-      { bot: input.id },
-      ergebnis.ok,
-    );
+    await protokolliere(ctx, AUDIT_ACTIONS.INTEGRATION_BOT_TOKEN_ROTATED, { bot: input.id }, ergebnis.ok);
     revalidateIntegrations();
     return {
       ok: ergebnis.ok,

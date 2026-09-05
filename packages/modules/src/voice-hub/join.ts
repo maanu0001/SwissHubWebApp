@@ -97,9 +97,7 @@ export async function handleHubJoin(anfrage: JoinAnfrage): Promise<JoinErgebnis>
   // Sonst blockierte ein von Hand geloeschter Kanal die Person auf Dauer.
   const lebendige: TemporaryVoiceChannel[] = [];
   for (const kandidat of eigene) {
-    const existiert = await discord.managedChannels
-      .get(kandidat.discordChannelId!)
-      .catch(() => null);
+    const existiert = await discord.managedChannels.get(kandidat.discordChannelId!).catch(() => null);
     if (existiert) {
       lebendige.push(kandidat);
     } else {
@@ -193,11 +191,7 @@ export async function handleHubJoin(anfrage: JoinAnfrage): Promise<JoinErgebnis>
   }
 
   // --- Verschieben --------------------------------------------------------
-  const verschoben = await verschiebe(
-    anfrage.discordId,
-    kanal.discordChannelId!,
-    'Eigener Talk erstellt',
-  );
+  const verschoben = await verschiebe(anfrage.discordId, kanal.discordChannelId!, 'Eigener Talk erstellt');
 
   if (!verschoben) {
     // Die Person hat den Hub schon wieder verlassen. Ein leerer Kanal bliebe

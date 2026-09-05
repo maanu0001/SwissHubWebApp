@@ -13,7 +13,10 @@ import { premiumSections } from '@/server/premium';
 export const metadata: Metadata = { title: 'Premium-Stübli' };
 export const dynamic = 'force-dynamic';
 
-const ZUSTAND: Record<string, { label: string; variant: 'success' | 'warning' | 'destructive' | 'secondary' }> = {
+const ZUSTAND: Record<
+  string,
+  { label: string; variant: 'success' | 'warning' | 'destructive' | 'secondary' }
+> = {
   ACTIVE: { label: 'Aktiv', variant: 'success' },
   PENDING: { label: 'Wird angelegt', variant: 'warning' },
   FAILED: { label: 'Fehler', variant: 'destructive' },
@@ -42,13 +45,29 @@ export default async function PremiumStuebliPage(): Promise<React.JSX.Element> {
             <caption className="sr-only">Premium-Stübli</caption>
             <thead>
               <tr className="border-b border-border/70 text-left text-xs uppercase tracking-[0.12em] text-muted-foreground">
-                <th scope="col" className="px-5 py-3 font-semibold">Mitglied</th>
-                <th scope="col" className="px-5 py-3 font-semibold">Angebot</th>
-                <th scope="col" className="px-5 py-3 font-semibold">Kanal</th>
-                <th scope="col" className="px-5 py-3 font-semibold">Kanal-ID</th>
-                <th scope="col" className="px-5 py-3 font-semibold">Zustand</th>
-                <th scope="col" className="px-5 py-3 font-semibold">Letzter Abgleich</th>
-                {darfVerwalten ? <th scope="col" className="px-5 py-3 font-semibold">Aktion</th> : null}
+                <th scope="col" className="px-5 py-3 font-semibold">
+                  Mitglied
+                </th>
+                <th scope="col" className="px-5 py-3 font-semibold">
+                  Angebot
+                </th>
+                <th scope="col" className="px-5 py-3 font-semibold">
+                  Kanal
+                </th>
+                <th scope="col" className="px-5 py-3 font-semibold">
+                  Kanal-ID
+                </th>
+                <th scope="col" className="px-5 py-3 font-semibold">
+                  Zustand
+                </th>
+                <th scope="col" className="px-5 py-3 font-semibold">
+                  Letzter Abgleich
+                </th>
+                {darfVerwalten ? (
+                  <th scope="col" className="px-5 py-3 font-semibold">
+                    Aktion
+                  </th>
+                ) : null}
               </tr>
             </thead>
             <tbody>
@@ -75,9 +94,7 @@ export default async function PremiumStuebliPage(): Promise<React.JSX.Element> {
                     <td className="px-5 py-3">
                       <Badge variant={zustand.variant}>{zustand.label}</Badge>
                       {eintrag.lastSyncError ? (
-                        <p className="mt-1 max-w-[22rem] text-xs text-destructive">
-                          {eintrag.lastSyncError}
-                        </p>
+                        <p className="mt-1 max-w-[22rem] text-xs text-destructive">{eintrag.lastSyncError}</p>
                       ) : null}
                     </td>
                     <td className="px-5 py-3">

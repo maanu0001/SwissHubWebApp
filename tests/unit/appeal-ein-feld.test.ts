@@ -68,12 +68,7 @@ describe('Anzeigen eines Antrags', () => {
     const felder = appealAntwortFelder(ALT);
 
     expect(felder).toHaveLength(4);
-    expect(felder.map((feld) => feld.key)).toEqual([
-      'grund',
-      'hergang',
-      'warumPruefen',
-      'anders',
-    ]);
+    expect(felder.map((feld) => feld.key)).toEqual(['grund', 'hergang', 'warumPruefen', 'anders']);
     expect(felder[0]?.label).toBe('Warum möchtest du entbannt werden?');
   });
 
@@ -81,9 +76,7 @@ describe('Anzeigen eines Antrags', () => {
     // «weiteres» war freiwillig und ist oft leer - eine Überschrift ohne Text
     // sähe aus, als fehlte etwas.
     expect(appealAntwortFelder(ALT).map((feld) => feld.key)).not.toContain('weiteres');
-    expect(appealAntwortFelder({ ...ALT, weiteres: '   ' }).map((f) => f.key)).not.toContain(
-      'weiteres',
-    );
+    expect(appealAntwortFelder({ ...ALT, weiteres: '   ' }).map((f) => f.key)).not.toContain('weiteres');
   });
 
   it('verschweigt den Idempotenzschlüssel', () => {

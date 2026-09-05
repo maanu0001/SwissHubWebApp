@@ -58,10 +58,7 @@ async function freierSlug(guildId: string, wunsch: string, eigeneId?: string): P
   throw conflict('Zu diesem Namen gibt es bereits zu viele Kategorien.');
 }
 
-export async function saveCategory(
-  actor: CalendarActor,
-  input: CategoryInput,
-): Promise<CalendarCategory> {
+export async function saveCategory(actor: CalendarActor, input: CategoryInput): Promise<CalendarCategory> {
   const guildId = await resolveGuildId();
   const slug = await freierSlug(guildId, input.name, input.id);
   const daten = {

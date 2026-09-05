@@ -91,10 +91,7 @@ async function meldeFehler(
         embeds: [
           {
             title: 'Eine Automation ist gescheitert',
-            description: [
-              `**${lauf.automation.name}**`,
-              lauf.error ?? 'Ohne nähere Angabe.',
-            ].join('\n'),
+            description: [`**${lauf.automation.name}**`, lauf.error ?? 'Ohne nähere Angabe.'].join('\n'),
             color: 0xd93025,
             timestamp: lauf.createdAt.toISOString(),
             footer: { text: 'Automationen → Fehler' },
@@ -124,10 +121,7 @@ async function meldeFehler(
  * Nachricht steht an der Freigabe; sie ist zugleich die Marke, dass bereits
  * gemeldet wurde.
  */
-async function meldeFreigaben(
-  settings: AutomationSettings,
-  gateway: DiscordGateway,
-): Promise<number> {
+async function meldeFreigaben(settings: AutomationSettings, gateway: DiscordGateway): Promise<number> {
   if (!settings.freigabeKanalId) {
     return 0;
   }
@@ -159,12 +153,9 @@ async function meldeFreigaben(
         embeds: [
           {
             title: 'Eine Automation wartet auf eine Freigabe',
-            description: [
-              `**${freigabe.run.automation.name}**`,
-              freigabe.title,
-              '',
-              freigabe.summary,
-            ].join('\n'),
+            description: [`**${freigabe.run.automation.name}**`, freigabe.title, '', freigabe.summary].join(
+              '\n',
+            ),
             color: 0xf9ab00,
             timestamp: freigabe.requestedAt.toISOString(),
             footer: { text: 'Automationen → Fehler' },

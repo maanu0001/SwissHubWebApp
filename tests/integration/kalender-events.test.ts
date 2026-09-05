@@ -383,16 +383,11 @@ describeWithDatabase('Kalender-Events', () => {
   // --- Löschen -----------------------------------------------------------
 
   it('verweigert das Löschen eines laufenden Events mit Angemeldeten', async () => {
-    const event = await calendar.createEvent(
-      ADMIN,
-      eingabe({ registrationEnabled: true, capacity: 0 }),
-    );
+    const event = await calendar.createEvent(ADMIN, eingabe({ registrationEnabled: true, capacity: 0 }));
     await calendar.publishEvent(ADMIN, event.id);
     await calendar.register({ discordId: '900000000000003001' }, event.id);
 
-    await expect(calendar.deleteEvent(ADMIN, event.id, 'Aufräumen')).rejects.toThrow(
-      /sage es ab/u,
-    );
+    await expect(calendar.deleteEvent(ADMIN, event.id, 'Aufräumen')).rejects.toThrow(/sage es ab/u);
   });
 
   it('löscht einen Entwurf und schreibt es ins Audit Log', async () => {
@@ -483,10 +478,7 @@ describeWithDatabase('Kalender-Events', () => {
   });
 
   it('zeigt unter «Meine Events» nur die eigenen Anmeldungen', async () => {
-    const meins = await calendar.createEvent(
-      ADMIN,
-      eingabe({ title: 'Meins', registrationEnabled: true }),
-    );
+    const meins = await calendar.createEvent(ADMIN, eingabe({ title: 'Meins', registrationEnabled: true }));
     await calendar.publishEvent(ADMIN, meins.id);
     const fremd = await calendar.createEvent(ADMIN, eingabe({ title: 'Fremd' }));
     await calendar.publishEvent(ADMIN, fremd.id);

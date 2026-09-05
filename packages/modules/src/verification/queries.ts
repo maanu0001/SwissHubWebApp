@@ -54,10 +54,7 @@ const AUSWAHL = {
   aiError: true,
 } as const;
 
-function zuZeile(
-  eintrag: Pick<VerificationRequest, keyof typeof AUSWAHL>,
-  jetzt: Date,
-): WarteZeile {
+function zuZeile(eintrag: Pick<VerificationRequest, keyof typeof AUSWAHL>, jetzt: Date): WarteZeile {
   return {
     ...eintrag,
     wartetSeit: Math.max(0, Math.floor((jetzt.getTime() - eintrag.joinedAt.getTime()) / 1000)),
@@ -108,13 +105,7 @@ export interface VerlaufZeile extends WarteZeile {
   dauer: number | null;
 }
 
-export type VerlaufFilter =
-  | 'ALL'
-  | 'HUMAN_VERIFIED'
-  | 'AI_VERIFIED'
-  | 'REJECTED'
-  | 'LEFT_SERVER'
-  | 'EXPIRED';
+export type VerlaufFilter = 'ALL' | 'HUMAN_VERIFIED' | 'AI_VERIFIED' | 'REJECTED' | 'LEFT_SERVER' | 'EXPIRED';
 
 export async function listHistory(
   filter: VerlaufFilter = 'ALL',
@@ -301,9 +292,7 @@ export async function kennzahlen(jetzt = new Date()): Promise<Kennzahlen> {
     heuteAbgelehnt,
     heuteAiVerifiziert,
     schnittWartezeit:
-      dauern.length > 0
-        ? Math.round(dauern.reduce((summe, wert) => summe + wert, 0) / dauern.length)
-        : null,
+      dauern.length > 0 ? Math.round(dauern.reduce((summe, wert) => summe + wert, 0) / dauern.length) : null,
     medianWartezeit: median(dauern),
     schnittBasis: dauern.length,
     aiAnfragenHeute: aiAnfragen._sum.aiAttempts ?? 0,

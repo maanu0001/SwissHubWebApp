@@ -181,10 +181,7 @@ export async function syncDiscordMessage(input: {
   }
 }
 
-export async function markDiscordMessageEdited(
-  discordMessageId: string,
-  inhalt: string,
-): Promise<void> {
+export async function markDiscordMessageEdited(discordMessageId: string, inhalt: string): Promise<void> {
   await prisma.ticketMessage.updateMany({
     where: { discordMessageId },
     data: { content: inhalt, editedAt: new Date() },

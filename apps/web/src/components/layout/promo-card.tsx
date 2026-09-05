@@ -43,9 +43,7 @@ export function PromoCard({
   const premiumAktiv = premium !== null && premium !== undefined;
   const target = premiumAktiv ? '/premium' : (promo.href ?? href ?? null);
   const titel = promo.title;
-  const text = premiumAktiv
-    ? (premium.planName ?? promo.description)
-    : promo.description;
+  const text = premiumAktiv ? (premium.planName ?? promo.description) : promo.description;
   const cta = premiumAktiv && premium.planName ? 'Abo verwalten' : promo.cta;
   const zielIstIntern = target?.startsWith('/') ?? false;
 

@@ -128,11 +128,7 @@ export function StartVoteJailDialog({
               suche={searchVoteJailTargetsAction}
             />
           ) : (
-            <ZielUeberKennung
-              csrfToken={csrfToken}
-              value={member}
-              onChange={setMember}
-            />
+            <ZielUeberKennung csrfToken={csrfToken} value={member} onChange={setMember} />
           )}
 
           <div className="space-y-2">

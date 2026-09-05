@@ -50,9 +50,7 @@ export function BedingungsBaum({
             type="button"
             variant="outline"
             size="sm"
-            onClick={() =>
-              onChange({ art: 'gruppe', verknuepfung: 'UND', kinder: [] })
-            }
+            onClick={() => onChange({ art: 'gruppe', verknuepfung: 'UND', kinder: [] })}
           >
             <Plus aria-hidden="true" />
             Bedingung hinzufügen
@@ -105,9 +103,7 @@ export function BedingungsBaum({
             ))}
           </div>
         ) : (
-          <p className="text-sm text-destructive">
-            Die Bedingung «{knoten.typ}» gibt es nicht mehr.
-          </p>
+          <p className="text-sm text-destructive">Die Bedingung «{knoten.typ}» gibt es nicht mehr.</p>
         )}
       </div>
     );
@@ -139,9 +135,7 @@ export function BedingungsBaum({
       <div className="flex flex-wrap items-center gap-2">
         <Select
           value={knoten.verknuepfung}
-          onValueChange={(naechster) =>
-            onChange({ ...knoten, verknuepfung: naechster as 'UND' | 'ODER' })
-          }
+          onValueChange={(naechster) => onChange({ ...knoten, verknuepfung: naechster as 'UND' | 'ODER' })}
           disabled={disabled}
         >
           <SelectTrigger className="w-44">
@@ -210,10 +204,7 @@ export function BedingungsBaum({
               onClick={() =>
                 onChange({
                   ...knoten,
-                  kinder: [
-                    ...knoten.kinder,
-                    { art: 'gruppe', verknuepfung: 'ODER', kinder: [] },
-                  ],
+                  kinder: [...knoten.kinder, { art: 'gruppe', verknuepfung: 'ODER', kinder: [] }],
                 })
               }
             >

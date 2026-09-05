@@ -36,8 +36,7 @@ export function botIstVerfuegbar(bot: MusicBotInstance, jetzt = new Date()): boo
   return jetzt.getTime() - bot.lastHeartbeatAt.getTime() < HEARTBEAT_TIMEOUT_MS;
 }
 
-const kanalSchluessel = (guildId: string, voiceChannelId: string): string =>
-  `${guildId}:${voiceChannelId}`;
+const kanalSchluessel = (guildId: string, voiceChannelId: string): string => `${guildId}:${voiceChannelId}`;
 
 /**
  * Eine Session fuer einen Voice-Kanal beschaffen.
@@ -77,14 +76,14 @@ export async function allocateSession(
   // 2. Reihenfolge nach Legacy-Politik.
   const controller = verfuegbar.filter((bot) => bot.type === 'CONTROLLER');
   const worker = verfuegbar.filter((bot) => bot.type === 'WORKER');
-  const reihenfolge =
-    nurWorker || !settings.controllerPlaysMusic ? worker : [...controller, ...worker];
+  const reihenfolge = nurWorker || !settings.controllerPlaysMusic ? worker : [...controller, ...worker];
 
   if (reihenfolge.length === 0) {
     throw new AppError('CONFLICT', {
-      userMessage: verfuegbar.length === 0
-        ? 'Derzeit ist kein Musik-Bot erreichbar.'
-        : 'Alle Musik-Bots sind momentan belegt.',
+      userMessage:
+        verfuegbar.length === 0
+          ? 'Derzeit ist kein Musik-Bot erreichbar.'
+          : 'Alle Musik-Bots sind momentan belegt.',
     });
   }
 

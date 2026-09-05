@@ -82,10 +82,12 @@ export function Warteschlange({
     quelle.addEventListener('queue', (ereignis) => {
       try {
         const daten = JSON.parse((ereignis as MessageEvent<string>).data) as {
-          zeilen: Array<Omit<WarteEintrag, 'joinedAt' | 'accountCreatedAt'> & {
-            joinedAt: string;
-            accountCreatedAt: string | null;
-          }>;
+          zeilen: Array<
+            Omit<WarteEintrag, 'joinedAt' | 'accountCreatedAt'> & {
+              joinedAt: string;
+              accountCreatedAt: string | null;
+            }
+          >;
         };
         setEintraege(daten.zeilen as WarteEintrag[]);
       } catch {
@@ -144,10 +146,7 @@ export function Warteschlange({
           const busy = pending !== null;
           const name = eintrag.displayName ?? eintrag.username ?? eintrag.discordId;
           return (
-            <div
-              key={eintrag.id}
-              className="space-y-3 rounded-xl border border-border bg-card p-4"
-            >
+            <div key={eintrag.id} className="space-y-3 rounded-xl border border-border bg-card p-4">
               <div className="flex flex-wrap items-start gap-3">
                 <DiscordAvatar
                   discordId={eintrag.discordId}

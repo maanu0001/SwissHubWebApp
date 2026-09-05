@@ -45,10 +45,7 @@ export default async function VerlaufPage({
 
   return (
     <>
-      <PageHeader
-        title="Verlauf"
-        description="Wer wann von wem entschieden wurde - und warum."
-      />
+      <PageHeader title="Verlauf" description="Wer wann von wem entschieden wurde - und warum." />
 
       <form className="flex gap-2" action="/verifikation/verlauf">
         <input type="hidden" name="filter" value={filter} />
@@ -84,10 +81,7 @@ export default async function VerlaufPage({
       </div>
 
       {zeilen.length === 0 ? (
-        <EmptyState
-          title="Nichts gefunden"
-          description="Für diese Auswahl gibt es keine Einträge."
-        />
+        <EmptyState title="Nichts gefunden" description="Für diese Auswahl gibt es keine Einträge." />
       ) : (
         <div className="space-y-2">
           {zeilen.map((zeile) => (
@@ -102,9 +96,7 @@ export default async function VerlaufPage({
                 size={32}
               />
               <div className="min-w-0 flex-1">
-                <p className="font-medium">
-                  {zeile.displayName ?? zeile.username ?? zeile.discordId}
-                </p>
+                <p className="font-medium">{zeile.displayName ?? zeile.username ?? zeile.discordId}</p>
                 <p className="text-xs text-muted-foreground">
                   {zeile.decidedAt
                     ? new Intl.DateTimeFormat('de-CH', {
@@ -121,9 +113,7 @@ export default async function VerlaufPage({
                       : (zeile.decidedByUsername ?? 'Moderation')}
                 </p>
                 {zeile.latestMessage ? (
-                  <p className="mt-1 truncate text-sm text-muted-foreground">
-                    «{zeile.latestMessage}»
-                  </p>
+                  <p className="mt-1 truncate text-sm text-muted-foreground">«{zeile.latestMessage}»</p>
                 ) : (
                   <p className="mt-1 text-xs text-muted-foreground">
                     Nachricht nach Ablauf der Aufbewahrung entfernt.

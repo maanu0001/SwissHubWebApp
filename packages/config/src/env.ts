@@ -64,10 +64,7 @@ export const serverEnvSchema = z
      * Ende ueberhaupt etwas da ist, prueft `assertIntegrationsReady()` beim
      * Start - nicht dieses Schema, denn es kennt die Datenbank nicht.
      */
-    DISCORD_BOT_TOKEN: z
-      .string()
-      .min(20, 'sieht nicht wie ein gültiger Bot Token aus')
-      .optional(),
+    DISCORD_BOT_TOKEN: z.string().min(20, 'sieht nicht wie ein gültiger Bot Token aus').optional(),
     DISCORD_CLIENT_ID: optionalSnowflake,
     DISCORD_CLIENT_SECRET: z.string().min(10, 'wird benötigt').optional(),
 

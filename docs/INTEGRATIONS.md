@@ -35,12 +35,12 @@ Dashboard  ──►  Server Action  ──►  @swisshub/secrets  ──►  In
 
 Vier Bausteine:
 
-| Baustein                     | Wofür                                          |
-| ---------------------------- | ---------------------------------------------- |
-| `packages/secrets/crypto.ts` | Ver-/Entschlüsselung, Maskierung               |
-| `packages/secrets/catalog.ts`| Welche Integrationen es gibt und welche Felder |
-| `packages/secrets/store.ts`  | `getSecret` / `setSecret` / `deleteSecret`     |
-| `packages/config/runtime.ts` | Die synchrone Ablage für bestehende Aufrufer   |
+| Baustein                      | Wofür                                          |
+| ----------------------------- | ---------------------------------------------- |
+| `packages/secrets/crypto.ts`  | Ver-/Entschlüsselung, Maskierung               |
+| `packages/secrets/catalog.ts` | Welche Integrationen es gibt und welche Felder |
+| `packages/secrets/store.ts`   | `getSecret` / `setSecret` / `deleteSecret`     |
+| `packages/config/runtime.ts`  | Die synchrone Ablage für bestehende Aufrufer   |
 
 **Kein Redis, kein Event-Bus.** Dass ein anderer Prozess eine Änderung
 mitbekommt, läuft über `ConfigRevision` — denselben Zähler, an dem auch Rollen,
@@ -113,29 +113,29 @@ scheitern.
 
 ## 5. Was noch in der `.env` bleibt
 
-| Variable                 | Warum sie bleiben muss                              |
-| ------------------------ | --------------------------------------------------- |
-| `DATABASE_URL`           | Ohne sie gibt es keine Datenbank, aus der man liest |
-| `MASTER_ENCRYPTION_KEY`  | Der Schlüssel zu allem Übrigen                      |
-| `AUTH_SECRET`            | Sessions und CSRF — gebraucht, bevor eine Anfrage die Datenbank erreicht |
-| `NEXT_PUBLIC_APP_URL`    | Bildet die OAuth-Redirect-URI; muss zur tatsächlichen Adresse passen |
-| `SWISSHUB_OWNER_DISCORD_ID` | Notzugang. Bewusst nicht über die WebApp setzbar — sonst könnte man sich aussperren |
-| `SWISSHUB_UPLOAD_DIR`, `LOG_*`, `TRUST_PROXY`, Intervalle | Betriebsparameter des Prozesses |
-| `POSTGRES_*`             | Nur für `docker-compose.prod.yml`, legt den Datenbankcontainer an |
+| Variable                                                  | Warum sie bleiben muss                                                              |
+| --------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| `DATABASE_URL`                                            | Ohne sie gibt es keine Datenbank, aus der man liest                                 |
+| `MASTER_ENCRYPTION_KEY`                                   | Der Schlüssel zu allem Übrigen                                                      |
+| `AUTH_SECRET`                                             | Sessions und CSRF — gebraucht, bevor eine Anfrage die Datenbank erreicht            |
+| `NEXT_PUBLIC_APP_URL`                                     | Bildet die OAuth-Redirect-URI; muss zur tatsächlichen Adresse passen                |
+| `SWISSHUB_OWNER_DISCORD_ID`                               | Notzugang. Bewusst nicht über die WebApp setzbar — sonst könnte man sich aussperren |
+| `SWISSHUB_UPLOAD_DIR`, `LOG_*`, `TRUST_PROXY`, Intervalle | Betriebsparameter des Prozesses                                                     |
+| `POSTGRES_*`                                              | Nur für `docker-compose.prod.yml`, legt den Datenbankcontainer an                   |
 
 ### Ersetzt (nur noch Rückfall)
 
-| Variable                  | Jetzt unter                                    |
-| ------------------------- | ---------------------------------------------- |
-| `DISCORD_BOT_TOKEN`       | Integrationen → Discord                        |
-| `DISCORD_CLIENT_ID`       | Integrationen → Discord                        |
-| `DISCORD_CLIENT_SECRET`   | Integrationen → Discord                        |
-| `ANTHROPIC_API_KEY`       | Integrationen → AI                             |
-| `OPENAI_API_KEY`          | Integrationen → AI                             |
-| `MUSIC_CONTROLLER_TOKEN`  | entfällt - der Controller ist der Systembot    |
-| `MUSIC_WORKER_TOKENS`     | Integrationen → Discord-Bots                   |
-| `MUSIC_RUNTIME_URL/KEY`   | Integrationen (Musik-Laufzeit)                 |
-| `PAYMENT_API_KEY`, `PAYMENT_WEBHOOK_SECRET`, `PAYMENT_PROVIDER` | Integrationen (Zahlungsanbieter) |
+| Variable                                                        | Jetzt unter                                 |
+| --------------------------------------------------------------- | ------------------------------------------- |
+| `DISCORD_BOT_TOKEN`                                             | Integrationen → Discord                     |
+| `DISCORD_CLIENT_ID`                                             | Integrationen → Discord                     |
+| `DISCORD_CLIENT_SECRET`                                         | Integrationen → Discord                     |
+| `ANTHROPIC_API_KEY`                                             | Integrationen → AI                          |
+| `OPENAI_API_KEY`                                                | Integrationen → AI                          |
+| `MUSIC_CONTROLLER_TOKEN`                                        | entfällt - der Controller ist der Systembot |
+| `MUSIC_WORKER_TOKENS`                                           | Integrationen → Discord-Bots                |
+| `MUSIC_RUNTIME_URL/KEY`                                         | Integrationen (Musik-Laufzeit)              |
+| `PAYMENT_API_KEY`, `PAYMENT_WEBHOOK_SECRET`, `PAYMENT_PROVIDER` | Integrationen (Zahlungsanbieter)            |
 
 **Reihenfolge:** Datenbank gewinnt. Die Umgebung wird nur gefragt, solange in
 der Datenbank nichts steht. So lässt sich eine laufende Installation
@@ -169,13 +169,13 @@ Auskunft «vorhanden».
 
 ## 7. Berechtigungen
 
-| Berechtigung                   | Wofür                                     |
-| ------------------------------ | ----------------------------------------- |
-| `integrations.view`            | Zustände und Masken sehen                 |
-| `integrations.manage`          | Nicht geheime Einstellungen, Tests        |
-| `integrations.secrets.manage`  | Werte hinterlegen, ersetzen, entfernen    |
-| `integrations.discord.manage`  | Bot-Token, OAuth, die hinterlegten Bots   |
-| `integrations.ai.manage`       | Anbieter, Modell und Schlüssel der AI     |
+| Berechtigung                  | Wofür                                   |
+| ----------------------------- | --------------------------------------- |
+| `integrations.view`           | Zustände und Masken sehen               |
+| `integrations.manage`         | Nicht geheime Einstellungen, Tests      |
+| `integrations.secrets.manage` | Werte hinterlegen, ersetzen, entfernen  |
+| `integrations.discord.manage` | Bot-Token, OAuth, die hinterlegten Bots |
+| `integrations.ai.manage`      | Anbieter, Modell und Schlüssel der AI   |
 
 Geprüft wird **zweimal**: einmal von `defineAction` gegen die deklarierte
 Berechtigung, einmal im Rumpf gegen die anbieterbezogene. Wer nur die AI
@@ -194,11 +194,11 @@ das fest.
 
 **System → Integrationen → Discord**
 
-| Feld            | Geheim | Prüfung vor der Übernahme         |
-| --------------- | ------ | --------------------------------- |
-| Bot Token       | ja     | `GET /users/@me` mit dem Token    |
-| Client ID       | nein   | Discord-Snowflake (17–20 Ziffern) |
-| Client Secret   | ja     | zusammen mit der Client ID beim Verbindungstest |
+| Feld          | Geheim | Prüfung vor der Übernahme                       |
+| ------------- | ------ | ----------------------------------------------- |
+| Bot Token     | ja     | `GET /users/@me` mit dem Token                  |
+| Client ID     | nein   | Discord-Snowflake (17–20 Ziffern)               |
+| Client Secret | ja     | zusammen mit der Client ID beim Verbindungstest |
 
 **Der Bot-Token wird geprüft, bevor er gespeichert wird.** Ein ungültiger Token
 erreicht die Datenbank gar nicht — der bestehende bleibt unangetastet. Ein
@@ -251,15 +251,15 @@ erreichbar sein, wenn etwas fehlt — dort trägt man es nach.
 
 Ein Anbieter, ein Schlüssel, ein Modell — für alle Module.
 
-| Feld       | Geheim | Bemerkung                                     |
-| ---------- | ------ | --------------------------------------------- |
-| Aktiviert  | nein   | Aus: kein Modul fragt ein Modell an           |
-| Anbieter   | nein   | `anthropic` oder `openai`                     |
-| API Key    | **ja** | Verschlüsselt, nie angezeigt                  |
-| Modell     | nein   | Freitext mit Vorschlagsliste                  |
-| Base URL   | nein   | Leer = Standardadresse. Nur https             |
-| Zeitlimit  | nein   | 1 000 – 120 000 ms                            |
-| Max Tokens | nein   | Obergrenze je Antwort — begrenzt die Kosten   |
+| Feld       | Geheim | Bemerkung                                   |
+| ---------- | ------ | ------------------------------------------- |
+| Aktiviert  | nein   | Aus: kein Modul fragt ein Modell an         |
+| Anbieter   | nein   | `anthropic` oder `openai`                   |
+| API Key    | **ja** | Verschlüsselt, nie angezeigt                |
+| Modell     | nein   | Freitext mit Vorschlagsliste                |
+| Base URL   | nein   | Leer = Standardadresse. Nur https           |
+| Zeitlimit  | nein   | 1 000 – 120 000 ms                          |
+| Max Tokens | nein   | Obergrenze je Antwort — begrenzt die Kosten |
 
 Nicht geheime Werte stehen in `SystemConfig` unter `integration.ai` — demselben
 Speicher wie Guild und Moduleinstellungen. Ein eigener Speicher nur für
@@ -326,7 +326,7 @@ einen Bot. Voice-XP, Voice-Hub, Anwesenheit und Analytics filtern Bots bereits
 — das galt schon, als der Controller eine eigene Anwendung war, und ändert
 sich dadurch nicht.
 
-**Eine Grenze bleibt:** ein Bot ist je Server immer nur in *einem*
+**Eine Grenze bleibt:** ein Bot ist je Server immer nur in _einem_
 Sprachkanal. Der Controller kann also eine Sitzung gleichzeitig bedienen —
 genau wie zuvor. Wer mehr will, legt Worker an.
 
@@ -348,8 +348,8 @@ können nicht gleichzeitig in verschiedenen Kanälen spielen.
 Die Voice-Laufzeit (Python) liest beim Start aus derselben Datenbank und
 entschlüsselt mit demselben Hauptschlüssel — dasselbe Format, zwei Sprachen:
 
-| Rolle      | Adresse des Geheimnisses            |
-| ---------- | ----------------------------------- |
+| Rolle      | Adresse des Geheimnisses                   |
+| ---------- | ------------------------------------------ |
 | Controller | `provider = "discord"`, `key = "botToken"` |
 | Worker     | `provider = "bot:<id>"`, `key = "token"`   |
 
@@ -364,12 +364,12 @@ gebraucht wird es nicht mehr und kann entfernt werden.
 
 ## 12. Zustände
 
-| Zustand           | Bedeutung                                        |
-| ----------------- | ------------------------------------------------ |
-| `CONNECTED`       | Hinterlegt, letzter Test erfolgreich             |
-| `DEGRADED`        | Nutzbar, aber unvollständig oder nie geprüft     |
-| `NOT_CONFIGURED`  | Nichts hinterlegt — kein Fehler                  |
-| `ERROR`           | Hinterlegt, letzter Test gescheitert             |
+| Zustand          | Bedeutung                                    |
+| ---------------- | -------------------------------------------- |
+| `CONNECTED`      | Hinterlegt, letzter Test erfolgreich         |
+| `DEGRADED`       | Nutzbar, aber unvollständig oder nie geprüft |
+| `NOT_CONFIGURED` | Nichts hinterlegt — kein Fehler              |
+| `ERROR`          | Hinterlegt, letzter Test gescheitert         |
 
 Der Unterschied zwischen `NOT_CONFIGURED` und `ERROR` ist der wichtigste: eine
 nicht eingerichtete AI ist ein bewusster Zustand und darf nichts rot färben;

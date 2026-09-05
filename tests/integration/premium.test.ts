@@ -90,11 +90,7 @@ describeWithDatabase('SwissHub Premium', () => {
 
   it('führt Ansprüche über das Produkt, nicht über dessen Namen', async () => {
     const bundle = await premium.getProductBySlug('premium-bundle');
-    expect(bundle!.entitlements.sort()).toEqual([
-      'PREMIUM_ROLE',
-      'PREMIUM_STUEBLI_ROLE',
-      'PRIVATE_VOICE',
-    ]);
+    expect(bundle!.entitlements.sort()).toEqual(['PREMIUM_ROLE', 'PREMIUM_STUEBLI_ROLE', 'PRIVATE_VOICE']);
   });
 
   it('lässt kein zweites Abonnement zu', async () => {
@@ -103,7 +99,12 @@ describeWithDatabase('SwissHub Premium', () => {
 
     const produkt = await premium.getProductBySlug('premium-bundle');
     await expect(
-      premium.startCheckout({ userId, discordId: '900000000000001001', productId: produkt!.id, provider: 'mock' }),
+      premium.startCheckout({
+        userId,
+        discordId: '900000000000001001',
+        productId: produkt!.id,
+        provider: 'mock',
+      }),
     ).rejects.toThrow(/bereits ein laufendes Abonnement/u);
   });
 
@@ -113,11 +114,17 @@ describeWithDatabase('SwissHub Premium', () => {
     const bundle = await premium.getProductBySlug('premium-bundle');
 
     const erster = await premium.startCheckout({
-      userId, discordId: '900000000000001002', productId: premiumProdukt!.id, provider: 'mock',
+      userId,
+      discordId: '900000000000001002',
+      productId: premiumProdukt!.id,
+      provider: 'mock',
     });
     // Nie bezahlt - ein neuer Anlauf darf nicht blockieren.
     const zweiter = await premium.startCheckout({
-      userId, discordId: '900000000000001002', productId: bundle!.id, provider: 'mock',
+      userId,
+      discordId: '900000000000001002',
+      productId: bundle!.id,
+      provider: 'mock',
     });
     expect(zweiter.id).toBe(erster.id);
     expect(zweiter.productId).toBe(bundle!.id);
@@ -128,7 +135,10 @@ describeWithDatabase('SwissHub Premium', () => {
     const userId = await mitglied('900000000000001003', 'lena');
     const produkt = await premium.getProductBySlug('premium-bundle');
     const offen = await premium.startCheckout({
-      userId, discordId: '900000000000001003', productId: produkt!.id, provider: 'mock',
+      userId,
+      discordId: '900000000000001003',
+      productId: produkt!.id,
+      provider: 'mock',
     });
 
     // Noch nicht bezahlt: kein einziger Anspruch.
@@ -143,9 +153,7 @@ describeWithDatabase('SwissHub Premium', () => {
     });
 
     const nachher = await premium.syncDiscordEntitlements(userId);
-    expect(nachher.entitlements.sort()).toEqual([
-      'PREMIUM_ROLE', 'PREMIUM_STUEBLI_ROLE', 'PRIVATE_VOICE',
-    ]);
+    expect(nachher.entitlements.sort()).toEqual(['PREMIUM_ROLE', 'PREMIUM_STUEBLI_ROLE', 'PRIVATE_VOICE']);
     expect(nachher.channelCreated).not.toBeNull();
   });
 
@@ -153,9 +161,7 @@ describeWithDatabase('SwissHub Premium', () => {
     const userId = await mitglied('900000000000001004', 'finn');
     await abonniere(userId, '900000000000001004', 'premium-stuebli');
 
-    await Promise.all(
-      Array.from({ length: 10 }, () => premium.syncDiscordEntitlements(userId)),
-    );
+    await Promise.all(Array.from({ length: 10 }, () => premium.syncDiscordEntitlements(userId)));
 
     const kanaele = await prisma.premiumDiscordResource.findMany({
       where: { userId, resourceType: 'PREMIUM_STUEBLI_VOICE' },
@@ -255,7 +261,10 @@ describeWithDatabase('SwissHub Premium', () => {
 
     const bundle = await premium.getProductBySlug('premium-bundle');
     const neu = await premium.startCheckout({
-      userId, discordId: '900000000000001011', productId: bundle!.id, provider: 'mock',
+      userId,
+      discordId: '900000000000001011',
+      productId: bundle!.id,
+      provider: 'mock',
     });
     expect(neu.id).not.toBe(abo.id);
   });

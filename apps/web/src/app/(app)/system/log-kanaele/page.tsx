@@ -41,16 +41,16 @@ export default async function LogKanaelePage(): Promise<React.JSX.Element> {
         <CardHeader>
           <CardTitle>Discord-Log-Kanäle</CardTitle>
           <CardDescription>
-            Jede Kategorie kann optional in einen Discord-Kanal ausgegeben werden. Ohne Kanal bleibt
-            der Logeintrag im SwissHub System bestehen - es wird lediglich keine Discord-Nachricht
-            erzeugt. Derselbe Kanal darf mehrfach verwendet werden.
+            Jede Kategorie kann optional in einen Discord-Kanal ausgegeben werden. Ohne Kanal bleibt der
+            Logeintrag im SwissHub System bestehen - es wird lediglich keine Discord-Nachricht erzeugt.
+            Derselbe Kanal darf mehrfach verwendet werden.
             {zuletztGeprueft ? ` Zuletzt geprüft ${formatDateTime(zuletztGeprueft)}.` : ''}
           </CardDescription>
         </CardHeader>
         <CardContent className="text-sm text-muted-foreground">
           Der Bot braucht im Zielkanal drei Rechte: <strong>Kanal ansehen</strong>,{' '}
-          <strong>Nachrichten senden</strong> und <strong>Embeds senden</strong>. Fehlt eines,
-          weist SwissHub den Kanal beim Speichern ab und sagt, welches.
+          <strong>Nachrichten senden</strong> und <strong>Embeds senden</strong>. Fehlt eines, weist SwissHub
+          den Kanal beim Speichern ab und sagt, welches.
         </CardContent>
       </Card>
 

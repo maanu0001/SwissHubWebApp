@@ -23,7 +23,7 @@ jemand gebannt wurde — nicht, wer ihn gebannt hat. Diese Angabe steht
 ausschliesslich in Discords Audit Log, und sie ist das Wertvollste an der ganzen
 Auskunft.
 
-## 2. Was bewusst *nicht* gebaut wurde
+## 2. Was bewusst _nicht_ gebaut wurde
 
 Keine zweite Moderationshistorie. Extern erkannte Massnahmen landen in
 `ModerationAction`, derselben Tabelle, die das Moderation Center und das
@@ -40,12 +40,12 @@ der Scheduler des Bots, die Ereignisregistrierung der Automation Engine, der
 
 Vier additive Spalten an `ModerationAction`:
 
-| Spalte | Bedeutung |
-|---|---|
-| `source` | `WEBAPP` \| `BOT` \| `DISCORD` \| `SYSTEM` |
-| `actorType` | `HUMAN` \| `BOT` \| `SYSTEM` \| `UNKNOWN` |
-| `discordAuditLogEntryId` | eindeutig — dieselbe Kennung nie zweimal |
-| `detectedAt` | wann SwissHub es bemerkt hat, nicht wann es geschah |
+| Spalte                   | Bedeutung                                           |
+| ------------------------ | --------------------------------------------------- |
+| `source`                 | `WEBAPP` \| `BOT` \| `DISCORD` \| `SYSTEM`          |
+| `actorType`              | `HUMAN` \| `BOT` \| `SYSTEM` \| `UNKNOWN`           |
+| `discordAuditLogEntryId` | eindeutig — dieselbe Kennung nie zweimal            |
+| `detectedAt`             | wann SwissHub es bemerkt hat, nicht wann es geschah |
 
 Dazu der Typ `TIMEOUT_UPDATE` (eine geänderte Frist ist kein zweiter Timeout)
 und drei Spalten an `BotStatus`: `auditLogAccess`, `auditLogCheckedAt`,
@@ -70,7 +70,7 @@ Zwei Mechanismen greifen:
    der Audit-Eintrag an sie **angehängt** statt eine neue anzulegen — er belegt
    dann, dass Discord die Massnahme tatsächlich vollzogen hat.
 2. **Der eigene Bot.** Ist der Handelnde die eigene Bot-Kennung und findet sich
-   trotzdem keine Zeile, wird *nichts* angelegt. Sie wird gerade geschrieben:
+   trotzdem keine Zeile, wird _nichts_ angelegt. Sie wird gerade geschrieben:
    jeder Weg, der den Bot handeln lässt, schreibt sie unmittelbar danach.
 
 Die zweite Regel hat einen Preis, und er steht hier, statt verschwiegen zu
@@ -112,12 +112,12 @@ liesse sich entfernen, ohne dass sich das Verhalten änderte — geprüft.
 Avatar. Reagiert wird nur, wenn sich `communicationDisabledUntil` tatsächlich
 geändert hat.
 
-| vorher | nachher | Ergebnis |
-|---|---|---|
-| — | 22:00 | `TIMEOUT` |
-| 22:00 | 23:00 | `TIMEOUT_UPDATE` |
-| 22:00 (künftig) | — | `TIMEOUT_REMOVE` |
-| 22:00 (vergangen) | — | **nichts** |
+| vorher            | nachher | Ergebnis         |
+| ----------------- | ------- | ---------------- |
+| —                 | 22:00   | `TIMEOUT`        |
+| 22:00             | 23:00   | `TIMEOUT_UPDATE` |
+| 22:00 (künftig)   | —       | `TIMEOUT_REMOVE` |
+| 22:00 (vergangen) | —       | **nichts**       |
 
 Die letzte Zeile ist der Fall, den man leicht übersieht: ein **abgelaufener**
 Timeout sieht aus wie eine Aufhebung — das Feld verschwindet in beiden Fällen.
@@ -128,7 +128,7 @@ nie jemand ergriffen hat.
 
 Discord schreibt das Audit Log nicht synchron zum Gateway. Drei Versuche —
 sofort, nach 700 ms, nach 2500 ms — und danach ist Schluss. Jeder Versuch fragt
-gezielt nach *einem* Ereignistyp mit `limit: 10`; kein Vollabzug, kein
+gezielt nach _einem_ Ereignistyp mit `limit: 10`; kein Vollabzug, kein
 Dauerpolling.
 
 Das Zeitfenster für eine Zuordnung beträgt zehn Sekunden. Es ist bewusst weiter
@@ -161,7 +161,7 @@ bereits gesetzt und decken alle vier verwendeten Ereignisse ab. Kein zusätzlich
 privilegiertes Intent.
 
 **Bot-Berechtigung:** `VIEW_AUDIT_LOG` («Audit-Log anzeigen»). Der Bot braucht
-für das *Lesen* einer fremden Massnahme nicht die Rechte, mit denen sie
+für das _Lesen_ einer fremden Massnahme nicht die Rechte, mit denen sie
 ausgeführt wurde — kein Administrator.
 
 Fehlt das Recht, läuft alles weiter: Banns und Timeouts landen ohne Handelnden

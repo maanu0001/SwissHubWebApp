@@ -32,10 +32,7 @@ export interface LogZielAnsicht {
   lastErrorCode: string | null;
 }
 
-const ZUSTAND: Record<
-  DiscordLogHealth,
-  { label: string; klasse: string; symbol: React.ReactNode }
-> = {
+const ZUSTAND: Record<DiscordLogHealth, { label: string; klasse: string; symbol: React.ReactNode }> = {
   HEALTHY: {
     label: 'Aktiv',
     klasse: 'text-success',
@@ -80,9 +77,7 @@ export function LogKanalVerwaltung({
     starte(async () => {
       const ergebnis = await setzeLogKanalAction({ csrfToken, category, channelId: channelId ?? null });
       setMeldung(
-        ergebnis.ok
-          ? { art: 'ok', text: 'Gespeichert.' }
-          : { art: 'fehler', text: ergebnis.error.message },
+        ergebnis.ok ? { art: 'ok', text: 'Gespeichert.' } : { art: 'fehler', text: ergebnis.error.message },
       );
     });
   }
@@ -132,8 +127,8 @@ export function LogKanalVerwaltung({
           <CardHeader>
             <CardTitle>Schnelle Einrichtung</CardTitle>
             <CardDescription>
-              Weist allen Kategorien denselben Kanal zu. Das setzt lediglich die einzelnen
-              Zuweisungen - danach lässt sich jede Kategorie wieder einzeln umhängen.
+              Weist allen Kategorien denselben Kanal zu. Das setzt lediglich die einzelnen Zuweisungen -
+              danach lässt sich jede Kategorie wieder einzeln umhängen.
             </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-wrap items-end gap-3">
@@ -198,13 +193,10 @@ export function LogKanalVerwaltung({
 
               {/* Warum ein Ziel nicht funktioniert, gehört an das Ziel - nicht
                   in eine Sammelmeldung am Seitenkopf. */}
-              {ziel.healthNote ? (
-                <p className="mt-2 text-sm text-destructive">{ziel.healthNote}</p>
-              ) : null}
+              {ziel.healthNote ? <p className="mt-2 text-sm text-destructive">{ziel.healthNote}</p> : null}
               {!ziel.healthNote && ziel.health === 'DEGRADED' && ziel.lastErrorCode ? (
                 <p className="mt-2 text-sm text-warning">
-                  Die letzte Zustellung ist gescheitert ({ziel.lastErrorCode}). SwissHub versucht es
-                  erneut.
+                  Die letzte Zustellung ist gescheitert ({ziel.lastErrorCode}). SwissHub versucht es erneut.
                 </p>
               ) : null}
             </li>

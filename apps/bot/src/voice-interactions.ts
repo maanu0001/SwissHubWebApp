@@ -52,9 +52,7 @@ export function registerVoiceInteractions(client: Client): void {
   client.on(Events.InteractionCreate, (interaction) => {
     if (interaction.isButton()) {
       if (voiceHub.leseKnopfId(interaction.customId)) {
-        void behandleKnopf(interaction).catch((error: unknown) =>
-          melde(interaction, error),
-        );
+        void behandleKnopf(interaction).catch((error: unknown) => melde(interaction, error));
       }
       return;
     }
@@ -65,16 +63,11 @@ export function registerVoiceInteractions(client: Client): void {
     }
 
     if (interaction.isUserSelectMenu() && interaction.customId.startsWith('swisshub:voice:select:')) {
-      void behandleMitgliedAuswahl(interaction).catch((error: unknown) =>
-        melde(interaction, error),
-      );
+      void behandleMitgliedAuswahl(interaction).catch((error: unknown) => melde(interaction, error));
       return;
     }
 
-    if (
-      interaction.isStringSelectMenu() &&
-      interaction.customId.startsWith(SELECT_ACCESS)
-    ) {
+    if (interaction.isStringSelectMenu() && interaction.customId.startsWith(SELECT_ACCESS)) {
       void behandleZugriffsWahl(interaction).catch((error: unknown) => melde(interaction, error));
     }
   });
@@ -82,7 +75,8 @@ export function registerVoiceInteractions(client: Client): void {
 
 /** Der Kontext einer Aktion - Rechte aus demselben System wie ueberall. */
 async function kontextVon(
-  interaction: ButtonInteraction | ModalSubmitInteraction | UserSelectMenuInteraction | StringSelectMenuInteraction,
+  interaction:
+    ButtonInteraction | ModalSubmitInteraction | UserSelectMenuInteraction | StringSelectMenuInteraction,
 ): Promise<voiceHub.AktionsKontext> {
   const actor = await buildCommandActor(interaction);
   return {
@@ -228,7 +222,6 @@ async function behandleModal(interaction: ModalSubmitInteraction): Promise<void>
         : `👥 Dein Talk fasst jetzt **${neu.userLimit}** Lüt.`,
     );
   }
-
 }
 
 // --- Auswahl von Mitgliedern -----------------------------------------------
@@ -250,10 +243,7 @@ async function zeigeMitgliedAuswahl(
   });
 }
 
-async function zeigeZugriffsAuswahl(
-  interaction: ButtonInteraction,
-  kanalId: string,
-): Promise<void> {
+async function zeigeZugriffsAuswahl(interaction: ButtonInteraction, kanalId: string): Promise<void> {
   const auswahl = new StringSelectMenuBuilder()
     .setCustomId(SELECT_ACCESS + kanalId)
     .setPlaceholder('Was möchtsch mache?')
@@ -331,9 +321,7 @@ async function behandleMitgliedAuswahl(interaction: UserSelectMenuInteraction): 
     );
     return aktualisiere(
       interaction,
-      entfernt
-        ? `⛔ <@${zielId}> isch gsperrt und usem Talk gnoh.`
-        : `⛔ <@${zielId}> isch gsperrt.`,
+      entfernt ? `⛔ <@${zielId}> isch gsperrt und usem Talk gnoh.` : `⛔ <@${zielId}> isch gsperrt.`,
     );
   }
 
@@ -366,9 +354,7 @@ async function frageLoeschenNach(interaction: ButtonInteraction, kanalId: string
 
   await interaction.reply({
     content:
-      drin > 1
-        ? `⚠️ Es sind no **${drin}** Lüt im Talk. Wirklich lösche?`
-        : 'Wirklich dein Talk lösche?',
+      drin > 1 ? `⚠️ Es sind no **${drin}** Lüt im Talk. Wirklich lösche?` : 'Wirklich dein Talk lösche?',
     components: [
       {
         type: 1,
@@ -412,10 +398,7 @@ async function aktualisiere(interaction: UserSelectMenuInteraction, text: string
  */
 async function melde(
   interaction:
-    | ButtonInteraction
-    | ModalSubmitInteraction
-    | UserSelectMenuInteraction
-    | StringSelectMenuInteraction,
+    ButtonInteraction | ModalSubmitInteraction | UserSelectMenuInteraction | StringSelectMenuInteraction,
   error: unknown,
 ): Promise<void> {
   const text =

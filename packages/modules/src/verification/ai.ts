@@ -180,9 +180,9 @@ export async function classify(
   };
 
   const antwort: StrukturAntwort = options.client
-    ? await options.client(frage).catch(
-        (): StrukturAntwort => ({ ok: false, error: 'Die Anfrage ist fehlgeschlagen.' }),
-      )
+    ? await options
+        .client(frage)
+        .catch((): StrukturAntwort => ({ ok: false, error: 'Die Anfrage ist fehlgeschlagen.' }))
     : await strukturierteAntwort(frage);
 
   if (!antwort.ok) {
@@ -217,10 +217,7 @@ export async function classify(
  * Es gibt keine Entsprechung fuer «nein, also sanktionieren». Ein `false`
  * heisst ausschliesslich: ein Mensch schaut darauf.
  */
-export function reichtZumFreischalten(
-  ergebnis: AiResult,
-  settings: VerificationSettings,
-): boolean {
+export function reichtZumFreischalten(ergebnis: AiResult, settings: VerificationSettings): boolean {
   if (!settings.aiAutoVerify) {
     return false;
   }

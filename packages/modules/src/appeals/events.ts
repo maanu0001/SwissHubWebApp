@@ -126,8 +126,7 @@ registerEvent({
 registerEvent({
   type: 'appeal.unban_failed',
   label: 'Entbannung nach Genehmigung gescheitert',
-  description:
-    'Der Antrag ist genehmigt, die Entbannung auf Discord aber noch nicht durchgeführt.',
+  description: 'Der Antrag ist genehmigt, die Entbannung auf Discord aber noch nicht durchgeführt.',
   module: 'appeals',
   payloadSchema: z.object({ ...basis, grund: z.string() }),
   variables: [...basisVariablen, { path: 'payload.grund', label: 'Grund', type: 'string' }],

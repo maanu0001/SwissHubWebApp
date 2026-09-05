@@ -40,9 +40,7 @@ export default async function TurnierPreisePage({
         sponsorName: preis.sponsorName,
         sponsorUrl: preis.sponsorUrl,
         status: preis.status,
-        gewinner: preis.gewinner
-          ? (preis.gewinner.team?.name ?? preis.gewinner.username ?? null)
-          : null,
+        gewinner: preis.gewinner ? (preis.gewinner.team?.name ?? preis.gewinner.username ?? null) : null,
       }))}
     />
   );

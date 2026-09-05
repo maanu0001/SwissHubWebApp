@@ -194,10 +194,7 @@ async function belegeMassnahme(massnahmeId: string, auditEntryId: string): Promi
 }
 
 /** Die Metadaten eines externen Vorgangs - knapp und begrenzt. */
-function metadatenFuer(
-  massnahme: ExterneMassnahme,
-  eintrag: AuditLogEntry | null,
-): Record<string, unknown> {
+function metadatenFuer(massnahme: ExterneMassnahme, eintrag: AuditLogEntry | null): Record<string, unknown> {
   const basis: Record<string, unknown> = {
     // Ausdruecklich mitgefuehrt, weil bis heute jede Zeile diesen Schluessel
     // im Metadaten-JSON trug und Auswertungen darauf zugreifen. Die Spalte
@@ -284,8 +281,7 @@ async function verarbeite(
   // als Kick zu fuehren waere eine Behauptung ueber einen Menschen, die sich
   // nicht belegen laesst - und sie stuende dauerhaft in seiner Akte.
   if (!OHNE_BELEG_ERFASSBAR.has(art) && !eintrag) {
-    const grund: VerwerfGrund =
-      befundStatus === 'nicht-abrufbar' ? 'kick-unbelegt' : 'freiwilliger-austritt';
+    const grund: VerwerfGrund = befundStatus === 'nicht-abrufbar' ? 'kick-unbelegt' : 'freiwilliger-austritt';
     log.debug('moderation.discord.audit_unmatched', { art, grund });
     return { ergebnis: 'verworfen', grund };
   }
@@ -339,11 +335,7 @@ async function verarbeite(
   }
 
   // --- Erfassen ------------------------------------------------------------
-  const actorType: ModerationActorType = eintrag?.userId
-    ? eintrag.bot
-      ? 'BOT'
-      : 'HUMAN'
-    : 'UNKNOWN';
+  const actorType: ModerationActorType = eintrag?.userId ? (eintrag.bot ? 'BOT' : 'HUMAN') : 'UNKNOWN';
   const source: ModerationSource = 'DISCORD';
 
   try {
@@ -352,9 +344,7 @@ async function verarbeite(
         type,
         module: 'moderation',
         actorDiscordId: eintrag?.userId ?? 'unknown',
-        actorUsername: eintrag?.username
-          ? sanitizeText(eintrag.username, NAME_MAX)
-          : 'Unbekannt',
+        actorUsername: eintrag?.username ? sanitizeText(eintrag.username, NAME_MAX) : 'Unbekannt',
         actorType,
         targetDiscordId: massnahme.targetDiscordId,
         targetUsername: sanitizeText(massnahme.targetUsername, NAME_MAX) || 'Unbekannt',

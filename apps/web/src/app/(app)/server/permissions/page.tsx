@@ -91,7 +91,12 @@ export default async function ServerPermissionsPage(): Promise<React.JSX.Element
               managedRoles.flatMap((role) => {
                 const drift = findPresetDrift(role.permissions.map((entry) => entry.permission));
                 return drift
-                  ? [[role.discordRoleId, { presetLabel: drift.preset.label, fehlend: drift.fehlend }] as const]
+                  ? [
+                      [
+                        role.discordRoleId,
+                        { presetLabel: drift.preset.label, fehlend: drift.fehlend },
+                      ] as const,
+                    ]
                   : [];
               }),
             )}

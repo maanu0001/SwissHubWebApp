@@ -341,10 +341,7 @@ async function fuehreJobAus(job: AutomationJob, gateway: DiscordGateway): Promis
  * dadurch nicht zweimal einplanen, auch wenn zwei Instanzen gleichzeitig
  * planen.
  */
-export async function planeNaechsten(
-  automation: Automation,
-  von = new Date(),
-): Promise<Date | null> {
+export async function planeNaechsten(automation: Automation, von = new Date()): Promise<Date | null> {
   const trigger = getTrigger(automation.triggerType);
   if (!trigger?.nextRunAt) {
     return null;
@@ -384,16 +381,20 @@ export async function planeNaechsten(
  * bereits geplanter Termin nicht ein zweites Mal entsteht.
  */
 export async function planeZeitTrigger(von = new Date()): Promise<number> {
-  const zeitTypen = [...new Set(
-    // Nur Trigger, die überhaupt einen Zeitpunkt kennen.
-    (await prisma.automation.findMany({
-      where: { enabled: true, archivedAt: null },
-      select: { triggerType: true },
-      distinct: ['triggerType'],
-    }))
-      .map((zeile) => zeile.triggerType)
-      .filter((typ) => Boolean(getTrigger(typ)?.nextRunAt)),
-  )];
+  const zeitTypen = [
+    ...new Set(
+      // Nur Trigger, die überhaupt einen Zeitpunkt kennen.
+      (
+        await prisma.automation.findMany({
+          where: { enabled: true, archivedAt: null },
+          select: { triggerType: true },
+          distinct: ['triggerType'],
+        })
+      )
+        .map((zeile) => zeile.triggerType)
+        .filter((typ) => Boolean(getTrigger(typ)?.nextRunAt)),
+    ),
+  ];
 
   if (zeitTypen.length === 0) {
     return 0;

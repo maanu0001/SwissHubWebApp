@@ -209,7 +209,9 @@ export async function sendeWebhook(
     logger.warn('Webhook nicht zustellbar', { host: befund.host, abgebrochen });
     return {
       ok: false,
-      grund: abgebrochen ? 'Die Gegenstelle antwortete nicht rechtzeitig.' : 'Die Gegenstelle war nicht erreichbar.',
+      grund: abgebrochen
+        ? 'Die Gegenstelle antwortete nicht rechtzeitig.'
+        : 'Die Gegenstelle war nicht erreichbar.',
     };
   } finally {
     clearTimeout(wecker);

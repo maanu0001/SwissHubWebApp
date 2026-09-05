@@ -119,9 +119,7 @@ export function SecretFeld({
         </div>
       </div>
 
-      {feld.description ? (
-        <p className="text-xs text-muted-foreground">{feld.description}</p>
-      ) : null}
+      {feld.description ? <p className="text-xs text-muted-foreground">{feld.description}</p> : null}
 
       {darfAendern ? (
         <div className="flex flex-wrap items-center gap-2">

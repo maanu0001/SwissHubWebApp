@@ -3,7 +3,17 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { Ban, CheckCircle2, DoorClosed, DoorOpen, Megaphone, RefreshCw, Send, Sparkles, Trash2 } from 'lucide-react';
+import {
+  Ban,
+  CheckCircle2,
+  DoorClosed,
+  DoorOpen,
+  Megaphone,
+  RefreshCw,
+  Send,
+  Sparkles,
+  Trash2,
+} from 'lucide-react';
 import type { XpRaffleStatus } from '@swisshub/database';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -352,8 +362,8 @@ export function RaffleControls({
                 placeholder="Aufräumen: Verlosung vom letzten Jahr"
               />
               <p className="text-xs text-muted-foreground">
-                Der Grund landet im Audit Log. Nach dem Löschen ist dieser Eintrag die einzige
-                verbliebene Auskunft über die Verlosung.
+                Der Grund landet im Audit Log. Nach dem Löschen ist dieser Eintrag die einzige verbliebene
+                Auskunft über die Verlosung.
               </p>
             </div>
           </ConfirmationDialog>

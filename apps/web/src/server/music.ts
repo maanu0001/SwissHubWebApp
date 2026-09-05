@@ -29,9 +29,7 @@ export async function getMusicViewerContext(context: AuthContext): Promise<Music
     where: { discordId: context.user.discordId },
   });
 
-  const session = praesenz
-    ? await music.getSessionForChannel(praesenz.guildId, praesenz.channelId)
-    : null;
+  const session = praesenz ? await music.getSessionForChannel(praesenz.guildId, praesenz.channelId) : null;
 
   const alleSteuern = can(context, music.MUSIC_PERMISSIONS.sessionsManageAll);
 
@@ -59,10 +57,7 @@ export async function getMusicViewerContext(context: AuthContext): Promise<Music
  * nichts darueber aus, ob sie dazugehoert - das entscheidet der Voice-Zustand
  * oder die Verwaltungsberechtigung.
  */
-export async function darfSessionSteuern(
-  context: AuthContext,
-  sessionId: string,
-): Promise<boolean> {
+export async function darfSessionSteuern(context: AuthContext, sessionId: string): Promise<boolean> {
   if (can(context, music.MUSIC_PERMISSIONS.sessionsManageAll)) {
     return true;
   }

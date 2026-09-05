@@ -66,10 +66,7 @@ describe('Ticket-Modul', () => {
       expect(hatSeite(href), `Seite fehlt: ${href}`).toBe(true);
     }
 
-    const quelle = readFileSync(
-      join(process.cwd(), 'apps/web/src/server/tickets.ts'),
-      'utf8',
-    );
+    const quelle = readFileSync(join(process.cwd(), 'apps/web/src/server/tickets.ts'), 'utf8');
     for (const href of bereiche) {
       expect(quelle, `Bereich nicht verlinkt: ${href}`).toContain(`'${href}'`);
     }
@@ -138,10 +135,7 @@ describe('Ticket-Modul', () => {
     // `ladeTicketMitZugriff` gehen - eine Ticket-ID aus dem Browser ist
     // keine Berechtigung. Der Waechter arbeitet auf dem Quelltext und fängt
     // damit auch eine Aktion ab, die niemand getestet hat.
-    const quelle = readFileSync(
-      join(process.cwd(), 'apps/web/src/modules/tickets/actions.ts'),
-      'utf8',
-    );
+    const quelle = readFileSync(join(process.cwd(), 'apps/web/src/modules/tickets/actions.ts'), 'utf8');
     const aktionen = [...quelle.matchAll(/^export const (\w+) = defineAction\(\n([\s\S]*?)^\);$/gm)];
     expect(aktionen.length).toBeGreaterThan(5);
 
@@ -153,9 +147,7 @@ describe('Ticket-Modul', () => {
         expect(rumpf).toContain('getCategory');
         continue;
       }
-      expect(rumpf, `${name} lädt das Ticket ohne Zugriffsprüfung`).toContain(
-        'ladeTicketMitZugriff',
-      );
+      expect(rumpf, `${name} lädt das Ticket ohne Zugriffsprüfung`).toContain('ladeTicketMitZugriff');
     }
   });
 
@@ -164,8 +156,7 @@ describe('Ticket-Modul', () => {
     expect(seiten.length).toBeGreaterThan(5);
     for (const datei of seiten) {
       const quelle = readFileSync(join(process.cwd(), datei), 'utf8');
-      const geschuetzt =
-        quelle.includes('requirePagePermission') || quelle.includes('ladeTicketMitZugriff');
+      const geschuetzt = quelle.includes('requirePagePermission') || quelle.includes('ladeTicketMitZugriff');
       expect(geschuetzt, `Ungeschützte Seite: ${datei}`).toBe(true);
     }
   });

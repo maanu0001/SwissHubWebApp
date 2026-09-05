@@ -273,8 +273,7 @@ export async function reopenTicket(
     // in der Datenbank weiter, und ein beiläufig neu angelegter Kanal wäre
     // für alle Beteiligten überraschend.
     throw new AppError('CONFLICT', {
-      userMessage:
-        'Der Discord-Kanal existiert nicht mehr. Das Ticket bleibt im Archiv erhalten.',
+      userMessage: 'Der Discord-Kanal existiert nicht mehr. Das Ticket bleibt im Archiv erhalten.',
     });
   }
 
@@ -392,7 +391,13 @@ export async function purgeDueChannels(jetzt = new Date()): Promise<number> {
     // weg oder von Hand geloescht worden; erneut zu versuchen brachte nichts.
     await prisma.ticket.update({
       where: { id: ticket.id },
-      data: { discordChannelId: null, channelPurgeAt: null, channelMissing: true, status: 'ARCHIVED', archivedAt: new Date() },
+      data: {
+        discordChannelId: null,
+        channelPurgeAt: null,
+        channelMissing: true,
+        status: 'ARCHIVED',
+        archivedAt: new Date(),
+      },
     });
   }
 

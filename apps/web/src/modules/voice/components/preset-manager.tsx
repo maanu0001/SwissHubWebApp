@@ -12,15 +12,8 @@ import { ConfirmationDialog } from '@/components/shared/confirmation-dialog';
 import { EmptyState } from '@/components/shared/states';
 import { ChannelSelect } from '@/modules/configuration/components/channel-select';
 import { MultiSelect } from '@/modules/configuration/components/multi-select';
-import type {
-  ChannelOption,
-  RoleOption,
-} from '@/modules/configuration/components/discord-option-types';
-import {
-  createPresetAction,
-  deletePresetAction,
-  updatePresetAction,
-} from '@/modules/voice/admin-actions';
+import type { ChannelOption, RoleOption } from '@/modules/configuration/components/discord-option-types';
+import { createPresetAction, deletePresetAction, updatePresetAction } from '@/modules/voice/admin-actions';
 
 export interface PresetZeile {
   id: string;
@@ -116,9 +109,7 @@ export function PresetManager({
           void speichern(bearbeitet);
         }}
       >
-        <h2 className="text-sm font-semibold">
-          {bearbeitet ? 'Preset bearbeiten' : 'Preset hinzufügen'}
-        </h2>
+        <h2 className="text-sm font-semibold">{bearbeitet ? 'Preset bearbeiten' : 'Preset hinzufügen'}</h2>
 
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-1.5">
@@ -176,9 +167,7 @@ export function PresetManager({
                 setEntwurf({ ...entwurf, maxUserLimit: Number.parseInt(e.target.value, 10) || 1 })
               }
             />
-            <p className="text-xs text-muted-foreground">
-              So hoch darf der Besitzer selbst gehen.
-            </p>
+            <p className="text-xs text-muted-foreground">So hoch darf der Besitzer selbst gehen.</p>
           </div>
 
           <div className="space-y-1.5">

@@ -95,18 +95,12 @@ export default async function TurnierLeitstandPage({
               ['Angemeldet', `${stats.angemeldet}`],
               ['Bestätigt', `${stats.bestaetigt}`],
               ['Warteliste', `${stats.warteliste}`],
-              [
-                'Check-in-Quote',
-                stats.checkinQuote === null ? '–' : `${stats.checkinQuote}%`,
-              ],
+              ['Check-in-Quote', stats.checkinQuote === null ? '–' : `${stats.checkinQuote}%`],
               ['Matches', `${stats.matchesGespielt} von ${stats.matchesGesamt} gespielt`],
               ['Einsprüche', `${stats.einsprueche}`],
               ['Forfait', `${stats.forfeits}`],
               ['Nicht angetreten', `${stats.noShows}`],
-              [
-                'Ø Matchdauer',
-                stats.matchdauerMinuten === null ? '–' : `${stats.matchdauerMinuten} Min.`,
-              ],
+              ['Ø Matchdauer', stats.matchdauerMinuten === null ? '–' : `${stats.matchdauerMinuten} Min.`],
             ] as const
           ).map(([bezeichnung, wert]) => (
             <div key={bezeichnung} className="flex items-center justify-between gap-3">

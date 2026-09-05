@@ -93,11 +93,7 @@ export function CustomCardPanel({
         <div className="overflow-hidden rounded-lg border border-border">
           {/* Feste Seitenverhaeltnisse, `cover` gegen Verzerrung. */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={quelle}
-            alt="Eigene Level-Card"
-            className="block aspect-[4/1] w-full object-cover"
-          />
+          <img src={quelle} alt="Eigene Level-Card" className="block aspect-[4/1] w-full object-cover" />
         </div>
       ) : (
         <p className="text-sm text-muted-foreground">
@@ -122,12 +118,7 @@ export function CustomCardPanel({
       />
 
       <div className="flex flex-wrap gap-2">
-        <Button
-          type="button"
-          size="sm"
-          disabled={laeuft}
-          onClick={() => eingabe.current?.click()}
-        >
+        <Button type="button" size="sm" disabled={laeuft} onClick={() => eingabe.current?.click()}>
           <ImageUp className="size-4" aria-hidden="true" />
           Bild hochladen
         </Button>

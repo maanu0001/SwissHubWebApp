@@ -33,9 +33,7 @@ export default async function TicketStatistikenPage(): Promise<React.JSX.Element
         <StatCard
           label="Erste Antwort"
           value={
-            zahlen.ersteAntwortMinuten === null
-              ? '—'
-              : formatDuration(zahlen.ersteAntwortMinuten * 60_000)
+            zahlen.ersteAntwortMinuten === null ? '—' : formatDuration(zahlen.ersteAntwortMinuten * 60_000)
           }
           hint={
             zahlen.ersteAntwortMinuten === null
@@ -101,8 +99,7 @@ export default async function TicketStatistikenPage(): Promise<React.JSX.Element
             ) : (
               <ul className="space-y-2">
                 {zahlen.proKategorie.map((eintrag) => {
-                  const anteil =
-                    zahlen.gesamt > 0 ? Math.round((eintrag.anzahl / zahlen.gesamt) * 100) : 0;
+                  const anteil = zahlen.gesamt > 0 ? Math.round((eintrag.anzahl / zahlen.gesamt) * 100) : 0;
                   return (
                     <li key={eintrag.name} className="space-y-1">
                       <div className="flex items-center justify-between gap-3 text-sm">
@@ -112,10 +109,7 @@ export default async function TicketStatistikenPage(): Promise<React.JSX.Element
                         </span>
                       </div>
                       <div className="h-1.5 overflow-hidden rounded-full bg-muted">
-                        <div
-                          className="h-full rounded-full bg-primary"
-                          style={{ width: `${anteil}%` }}
-                        />
+                        <div className="h-full rounded-full bg-primary" style={{ width: `${anteil}%` }} />
                       </div>
                     </li>
                   );

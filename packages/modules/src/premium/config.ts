@@ -40,7 +40,12 @@ export const premiumSettingsSchema = z.object({
   bundleRoleId: z.string().nullable().default(null),
   stuebliCategoryId: z.string().nullable().default(null),
   /// Schonfrist nach einer fehlgeschlagenen Folgezahlung, in Sekunden.
-  gracePeriodSeconds: z.number().int().min(0).max(30 * 86_400).default(3 * 86_400),
+  gracePeriodSeconds: z
+    .number()
+    .int()
+    .min(0)
+    .max(30 * 86_400)
+    .default(3 * 86_400),
   /// Vorlage des Kanalnamens. `{user}` wird ersetzt.
   stuebliNameTemplate: z.string().min(1).max(80).default('🔊・stübli-{user}'),
   /// Teilnehmerlimit des Stüblis; 0 = unbegrenzt.
@@ -207,9 +212,7 @@ async function premiumHealthChecks(context: ModuleHealthContext): Promise<Module
       label: 'Zahlungsanbieter',
       status: 'error',
       detail:
-        error instanceof Error
-          ? error.message
-          : 'Nicht konfiguriert - ein Checkout würde fehlschlagen.',
+        error instanceof Error ? error.message : 'Nicht konfiguriert - ein Checkout würde fehlschlagen.',
     });
   }
 

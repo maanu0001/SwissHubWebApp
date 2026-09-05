@@ -104,9 +104,9 @@ describe('Kategorien', () => {
 
   /** Ein Austritt bleibt ein Austritt - auch wenn er ein Kick war. */
   it('gibt einen Austritt weiterhin aus', () => {
-    expect(
-      logs.kategorieFuerEreignis({ category: 'MEMBER', type: analytics.EVENT_TYPES.MEMBER_LEAVE }),
-    ).toBe('MEMBERS');
+    expect(logs.kategorieFuerEreignis({ category: 'MEMBER', type: analytics.EVENT_TYPES.MEMBER_LEAVE })).toBe(
+      'MEMBERS',
+    );
   });
 
   /** Was zu einer Massnahme dieses Dashboards gehört, meldet die Akte. */
@@ -172,9 +172,7 @@ describe('Embed einer Massnahme', () => {
   });
 
   it('kennzeichnet einen Bot als Bot', () => {
-    const text = alsText(
-      logs.formatiereMassnahme(massnahme({ actorType: 'BOT', actorUsername: 'AutoMod' })),
-    );
+    const text = alsText(logs.formatiereMassnahme(massnahme({ actorType: 'BOT', actorUsername: 'AutoMod' })));
     expect(text).toContain('AutoMod (Bot)');
   });
 
@@ -352,9 +350,7 @@ describe('Erwähnungen in Logs', () => {
     // Der Text steht sichtbar im Embed - benachrichtigen kann er niemanden,
     // weil jede Lognachricht mit `parse: []` gesendet wird.
     const text = alsText(
-      logs.formatiereEreignis(
-        ereignis({ contentBefore: '@everyone @here <@&123> kommt alle!' }),
-      ),
+      logs.formatiereEreignis(ereignis({ contentBefore: '@everyone @here <@&123> kommt alle!' })),
     );
     expect(text).toContain('@everyone');
     expect(text).toContain('@here');
@@ -364,12 +360,8 @@ describe('Erwähnungen in Logs', () => {
     expect(logs.formatDiscordUserReference('200000000000000002', 'spammer')).toBe(
       '<@200000000000000002>\nspammer · `200000000000000002`',
     );
-    expect(logs.formatDiscordChannelReference('300000000000000003', 'general')).toBe(
-      '<#300000000000000003>',
-    );
-    expect(logs.formatDiscordRoleReference('900000000000000042', 'Premium')).toBe(
-      '<@&900000000000000042>',
-    );
+    expect(logs.formatDiscordChannelReference('300000000000000003', 'general')).toBe('<#300000000000000003>');
+    expect(logs.formatDiscordRoleReference('900000000000000042', 'Premium')).toBe('<@&900000000000000042>');
     // Keine gueltige Kennung: der Name, oder gar nichts.
     expect(logs.formatDiscordUserReference(null, 'spammer')).toBe('spammer');
     expect(logs.formatDiscordUserReference(null, null)).toBeNull();

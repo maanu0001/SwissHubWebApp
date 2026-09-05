@@ -44,13 +44,9 @@ export function TicketFeedback({
               aria-hidden="true"
             />
           ))}
-          <span className="ml-1 text-sm text-muted-foreground">
-            {vorhanden.rating} von 5
-          </span>
+          <span className="ml-1 text-sm text-muted-foreground">{vorhanden.rating} von 5</span>
         </p>
-        {vorhanden.comment ? (
-          <p className="text-sm text-muted-foreground">{vorhanden.comment}</p>
-        ) : null}
+        {vorhanden.comment ? <p className="text-sm text-muted-foreground">{vorhanden.comment}</p> : null}
       </div>
     );
   }

@@ -36,10 +36,7 @@ export function registerTicketInteractions(client: Client): void {
   client.on(Events.InteractionCreate, (interaction) => {
     if (interaction.isButton()) {
       if (interaction.customId.startsWith(tickets.PANEL_BUTTON_PREFIX)) {
-        void zeigeFormular(
-          interaction,
-          interaction.customId.slice(tickets.PANEL_BUTTON_PREFIX.length),
-        );
+        void zeigeFormular(interaction, interaction.customId.slice(tickets.PANEL_BUTTON_PREFIX.length));
         return;
       }
       if (

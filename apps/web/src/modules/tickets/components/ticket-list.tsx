@@ -55,8 +55,7 @@ export function TicketList({
             <span className="min-w-0 flex-1 basis-48">
               <span className="block truncate font-medium">{ticket.subject}</span>
               <span className="block truncate text-xs text-muted-foreground">
-                {categoryName ? `${categoryName} · ` : ''}
-                @{ticket.creatorUsername}
+                {categoryName ? `${categoryName} · ` : ''}@{ticket.creatorUsername}
                 {ticket.assignedToUsername ? ` · bearbeitet von @${ticket.assignedToUsername}` : ''}
                 {messageCount > 0
                   ? ` · ${messageCount} ${messageCount === 1 ? 'Nachricht' : 'Nachrichten'}`

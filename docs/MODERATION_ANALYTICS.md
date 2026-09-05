@@ -211,7 +211,7 @@ entwickelt sich der Server» – dieselben Daten, eine andere Frage.
 ### Der Befund, der alles bestimmt
 
 Das Ereignisprotokoll konnte diese Frage nicht beantworten. Es zeichnet auf,
-wenn eine Nachricht **bearbeitet oder gelöscht** wird – eine *geschriebene*
+wenn eine Nachricht **bearbeitet oder gelöscht** wird – eine _geschriebene_
 Nachricht war nie ein Ereignis. Sprachzeit gab es als Betreten, Verlassen und
 Verschieben, aber nirgends als Dauer.
 
@@ -222,36 +222,36 @@ Message-Content-Intent.
 
 ### Sprachzeit als Abschnitte
 
-| Ereignis     | Abschnitt      | Sitzung        |
-| ------------ | -------------- | -------------- |
-| Betreten     | beginnt        | beginnt        |
-| Verschieben  | endet, beginnt | **läuft weiter** |
-| Verlassen    | endet          | endet          |
+| Ereignis    | Abschnitt      | Sitzung          |
+| ----------- | -------------- | ---------------- |
+| Betreten    | beginnt        | beginnt          |
+| Verschieben | endet, beginnt | **läuft weiter** |
+| Verlassen   | endet          | endet            |
 
 Wer den Kanal wechselt, bleibt im Gespräch. `sessionId` klammert die
 Abschnitte einer durchgehenden Anwesenheit: die Kanalstatistik summiert
 Abschnitte, die Sitzungszahl gruppiert nach Sitzung. Ein Wechsel ergibt
-dadurch zwei Kanäle mit je der Hälfte der Zeit – und trotzdem *eine* Sitzung.
+dadurch zwei Kanäle mit je der Hälfte der Zeit – und trotzdem _eine_ Sitzung.
 
 Zeit im AFK-Kanal ist Anwesenheit, keine Aktivität: der Abschnitt bleibt als
 Beleg stehen, seine Sekunden fliessen nicht in die Zahlen.
 
 Nach einem Absturz stehen Abschnitte offen, und wir wissen nicht, wann die
 Leute gegangen sind. Was wir wissen, ist der **letzte Herzschlag des Bots** –
-bis dorthin wird geschlossen. Bis *jetzt* zu zählen machte aus drei Tagen
+bis dorthin wird geschlossen. Bis _jetzt_ zu zählen machte aus drei Tagen
 Ausfall drei Tage Sprachzeit.
 
 ### Aggregate
 
-| Tabelle                 | Körnung            | Wofür                                  |
-| ----------------------- | ------------------ | -------------------------------------- |
-| `AnalyticsHourly`        | Server × Stunde    | Tagesverlauf, Heatmap                  |
-| `AnalyticsDaily`         | Server × Tag       | Kennzahlen, Mitgliederverlauf          |
-| `AnalyticsUserDaily`     | Person × Tag       | Ranglisten, **eindeutige** Aktive      |
-| `AnalyticsChannelDaily`  | Kanal × Tag        | Top-Kanäle, Wachstum je Kanal          |
-| `AnalyticsVoiceSegment`  | Abschnitt          | Sitzungen, laufende Anwesenheit        |
-| `AnalyticsMemberProfile` | Person             | Aktivierung, Bindung, erste Äusserung  |
-| `AnalyticsTracking`      | Server             | seit wann gezählt wird                 |
+| Tabelle                  | Körnung         | Wofür                                 |
+| ------------------------ | --------------- | ------------------------------------- |
+| `AnalyticsHourly`        | Server × Stunde | Tagesverlauf, Heatmap                 |
+| `AnalyticsDaily`         | Server × Tag    | Kennzahlen, Mitgliederverlauf         |
+| `AnalyticsUserDaily`     | Person × Tag    | Ranglisten, **eindeutige** Aktive     |
+| `AnalyticsChannelDaily`  | Kanal × Tag     | Top-Kanäle, Wachstum je Kanal         |
+| `AnalyticsVoiceSegment`  | Abschnitt       | Sitzungen, laufende Anwesenheit       |
+| `AnalyticsMemberProfile` | Person          | Aktivierung, Bindung, erste Äusserung |
+| `AnalyticsTracking`      | Server          | seit wann gezählt wird                |
 
 Die Zeile je Person und Tag ist die wichtigste: eindeutige aktive Mitglieder
 über einen Monat sind **nicht** die Summe der Tageswerte. Wer an zwanzig Tagen
@@ -263,7 +263,7 @@ statt `sum` – auch beim Zusammenfassen zu Wochen.
 Stunden decken sich mit UTC (Zürich liegt auf vollen Stunden). Tage nicht: ein
 Zürcher Tag beginnt um 22:00 oder 23:00 UTC, und am Umstellungstag ist er 23
 oder 25 Stunden lang. Kalendertage werden deshalb als reines Datum geführt und
-die Verschiebung wird *berechnet* statt angenommen.
+die Verschiebung wird _berechnet_ statt angenommen.
 
 Eine Sitzung von 23:30 bis 01:30 landet zu 30 Minuten im einen und zu 90
 Minuten im nächsten Tag.

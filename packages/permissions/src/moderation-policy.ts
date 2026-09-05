@@ -130,8 +130,7 @@ export function evaluateModerationPolicy(input: PolicyEvaluationInput): PolicyDe
   // Gemeinschaft, nicht die Rollenposition des Antragstellers.
   if ((input.kind ?? 'UNILATERAL') === 'UNILATERAL') {
     const actorPosition = highestRolePosition(actor.roleIds, guildRoles);
-    const isActorGuildOwner =
-      input.guildOwnerId !== undefined && input.guildOwnerId === actor.discordId;
+    const isActorGuildOwner = input.guildOwnerId !== undefined && input.guildOwnerId === actor.discordId;
     if (!isActorGuildOwner && targetPosition >= actorPosition) {
       return deny('TARGET_HIGHER_OR_EQUAL_ROLE');
     }

@@ -38,9 +38,7 @@ export interface EnvKandidat {
  *
  * Enthält Namen, nie Werte. Diese Liste geht direkt an den Browser.
  */
-export async function listEnvCandidates(
-  source: NodeJS.ProcessEnv = process.env,
-): Promise<EnvKandidat[]> {
+export async function listEnvCandidates(source: NodeJS.ProcessEnv = process.env): Promise<EnvKandidat[]> {
   const treffer: EnvKandidat[] = [];
 
   for (const integration of INTEGRATIONS) {

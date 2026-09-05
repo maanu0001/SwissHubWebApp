@@ -35,8 +35,7 @@ export default async function EntbannungPage(): Promise<React.JSX.Element> {
         <CardHeader>
           <CardTitle>Anträge sind derzeit nicht möglich</CardTitle>
           <CardDescription>
-            Der Bereich für Entbannungsanträge ist zurzeit nicht in Betrieb. Bitte versuche es
-            später erneut.
+            Der Bereich für Entbannungsanträge ist zurzeit nicht in Betrieb. Bitte versuche es später erneut.
           </CardDescription>
         </CardHeader>
       </Card>
@@ -119,8 +118,8 @@ export default async function EntbannungPage(): Promise<React.JSX.Element> {
           <div className="space-y-1">
             <CardTitle className="text-lg">Du kannst einen Antrag stellen</CardTitle>
             <CardDescription>
-              Nimm dir Zeit dafür. Ein Antrag wird von Menschen gelesen, und ein sorgfältig
-              geschriebener wird sorgfältig geprüft.
+              Nimm dir Zeit dafür. Ein Antrag wird von Menschen gelesen, und ein sorgfältig geschriebener wird
+              sorgfältig geprüft.
             </CardDescription>
           </div>
         </CardHeader>

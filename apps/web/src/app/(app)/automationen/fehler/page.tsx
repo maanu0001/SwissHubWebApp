@@ -76,9 +76,7 @@ export default async function FehlerPage(): Promise<React.JSX.Element> {
                     {lauf.eventType ?? lauf.trigger} · {lauf.createdAt.toLocaleString('de-CH')}
                   </span>
                 </div>
-                <p className="mt-1 text-sm text-destructive">
-                  {lauf.error ?? 'Ohne nähere Angabe.'}
-                </p>
+                <p className="mt-1 text-sm text-destructive">{lauf.error ?? 'Ohne nähere Angabe.'}</p>
               </li>
             ))}
           </ul>

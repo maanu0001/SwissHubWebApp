@@ -30,9 +30,7 @@ describeWithDatabase('Bezeichnung im Dashboard', () => {
   });
 
   beforeEach(async () => {
-    await prisma.$executeRawUnsafe(
-      'TRUNCATE "RolePermission","ManagedRole" RESTART IDENTITY CASCADE',
-    );
+    await prisma.$executeRawUnsafe('TRUNCATE "RolePermission","ManagedRole" RESTART IDENTITY CASCADE');
     invalidateRoleConfiguration();
   });
 
@@ -92,10 +90,7 @@ describeWithDatabase('Bezeichnung im Dashboard', () => {
     // einer Stelle, und das ist die verwaltete Rolle.
     const { readFileSync } = await import('node:fs');
     const { join } = await import('node:path');
-    const schema = readFileSync(
-      join(process.cwd(), 'packages/database/prisma/schema.prisma'),
-      'utf8',
-    );
+    const schema = readFileSync(join(process.cwd(), 'packages/database/prisma/schema.prisma'), 'utf8');
     const modell = schema.slice(schema.indexOf('model User {'), schema.indexOf('model Session {'));
     expect(modell).not.toContain('dashboardLabel');
     expect(modell).not.toContain('primaryRole');

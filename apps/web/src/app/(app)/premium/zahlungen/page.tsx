@@ -51,13 +51,27 @@ export default async function PremiumPaymentsPage({
             <caption className="sr-only">Premium-Zahlungen</caption>
             <thead>
               <tr className="border-b border-border/70 text-left text-xs uppercase tracking-[0.12em] text-muted-foreground">
-                <th scope="col" className="px-5 py-3 font-semibold">Datum</th>
-                <th scope="col" className="px-5 py-3 font-semibold">Mitglied</th>
-                <th scope="col" className="px-5 py-3 font-semibold">Angebot</th>
-                <th scope="col" className="px-5 py-3 font-semibold">Betrag</th>
-                <th scope="col" className="px-5 py-3 font-semibold">Anbieter</th>
-                <th scope="col" className="px-5 py-3 font-semibold">Status</th>
-                <th scope="col" className="px-5 py-3 font-semibold">Referenz</th>
+                <th scope="col" className="px-5 py-3 font-semibold">
+                  Datum
+                </th>
+                <th scope="col" className="px-5 py-3 font-semibold">
+                  Mitglied
+                </th>
+                <th scope="col" className="px-5 py-3 font-semibold">
+                  Angebot
+                </th>
+                <th scope="col" className="px-5 py-3 font-semibold">
+                  Betrag
+                </th>
+                <th scope="col" className="px-5 py-3 font-semibold">
+                  Anbieter
+                </th>
+                <th scope="col" className="px-5 py-3 font-semibold">
+                  Status
+                </th>
+                <th scope="col" className="px-5 py-3 font-semibold">
+                  Referenz
+                </th>
               </tr>
             </thead>
             <tbody>

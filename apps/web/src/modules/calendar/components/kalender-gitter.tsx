@@ -17,11 +17,7 @@ type Zeile = Awaited<ReturnType<typeof calendar.listEventsInRange>>[number];
 const WOCHENTAGE = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
 
 /** Ordnet Events den Tagen zu, auf die sie fallen. */
-function nachTagen(
-  zeilen: Zeile[],
-  tage: Date[],
-  zone: string,
-): Map<number, Zeile[]> {
+function nachTagen(zeilen: Zeile[], tage: Date[], zone: string): Map<number, Zeile[]> {
   const karte = new Map<number, Zeile[]>();
   for (const [index, tag] of tage.entries()) {
     const ende = tageSpaeter(tag, zone, 1);
@@ -30,8 +26,7 @@ function nachTagen(
     // sonst nur in der Freitagsspalte und fehlt am Samstag.
     const treffer = zeilen.filter((zeile) => {
       const beginnt = zeile.startAt >= tag && zeile.startAt < ende;
-      const ragtHinein =
-        zeile.endAt !== null && zeile.startAt < tag && zeile.endAt > tag;
+      const ragtHinein = zeile.endAt !== null && zeile.startAt < tag && zeile.endAt > tag;
       return beginnt || ragtHinein;
     });
     if (treffer.length > 0) {
@@ -63,20 +58,12 @@ export interface GitterProps {
   heute: Date;
 }
 
-export function Monatsansicht({
-  zeilen,
-  anker,
-  zone,
-  heute,
-}: GitterProps): React.JSX.Element {
+export function Monatsansicht({ zeilen, anker, zone, heute }: GitterProps): React.JSX.Element {
   const ankerTeile = teileIn(anker, zone);
   // Das Gitter beginnt am Montag vor dem Monatsersten und laeuft ueber
   // sechs Wochen - so bleibt die Hoehe ueber alle Monate gleich, und die
   // Ansicht springt beim Blaettern nicht.
-  const monatsErster = tagesBeginnIn(
-    new Date(Date.UTC(ankerTeile.jahr, ankerTeile.monat - 1, 1, 12)),
-    zone,
-  );
+  const monatsErster = tagesBeginnIn(new Date(Date.UTC(ankerTeile.jahr, ankerTeile.monat - 1, 1, 12)), zone);
   const ersterTeile = teileIn(monatsErster, zone);
   const versatz = (ersterTeile.wochentag + 6) % 7;
   const start = tageSpaeter(monatsErster, zone, -versatz);
@@ -125,9 +112,7 @@ export function Monatsansicht({
                   <EventChip key={zeile.id} zeile={zeile} />
                 ))}
                 {events.length > 3 ? (
-                  <p className="px-1.5 text-xs text-muted-foreground">
-                    +{events.length - 3} weitere
-                  </p>
+                  <p className="px-1.5 text-xs text-muted-foreground">+{events.length - 3} weitere</p>
                 ) : null}
               </div>
             </div>
@@ -138,13 +123,7 @@ export function Monatsansicht({
   );
 }
 
-export function Wochenansicht({
-  zeilen,
-  von,
-  bis,
-  zone,
-  heute,
-}: GitterProps): React.JSX.Element {
+export function Wochenansicht({ zeilen, von, bis, zone, heute }: GitterProps): React.JSX.Element {
   const tage = tageZwischen(von, bis, zone);
   const karte = nachTagen(zeilen, tage, zone);
   const heuteSchluessel = tagesBeginnIn(heute, zone).getTime();
@@ -165,15 +144,8 @@ export function Wochenansicht({
               )}
             >
               <div className="mb-2 flex items-baseline gap-1.5">
-                <span className="text-xs text-muted-foreground">
-                  {WOCHENTAGE[(teile.wochentag + 6) % 7]}
-                </span>
-                <span
-                  className={cn(
-                    'text-sm tabular-nums',
-                    istHeute && 'font-semibold text-primary',
-                  )}
-                >
+                <span className="text-xs text-muted-foreground">{WOCHENTAGE[(teile.wochentag + 6) % 7]}</span>
+                <span className={cn('text-sm tabular-nums', istHeute && 'font-semibold text-primary')}>
                   {teile.tag}.{teile.monat}.
                 </span>
               </div>
@@ -182,10 +154,7 @@ export function Wochenansicht({
                   <p className="px-1 text-xs text-muted-foreground/60">–</p>
                 ) : (
                   events.map((zeile) => (
-                    <div
-                      key={zeile.id}
-                      className="rounded-lg border border-border/60 bg-card p-1.5"
-                    >
+                    <div key={zeile.id} className="rounded-lg border border-border/60 bg-card p-1.5">
                       <EventChip zeile={zeile} />
                       {!zeile.allDay && zeile.endAt ? (
                         <p className="px-1.5 text-xs text-muted-foreground">
@@ -223,9 +192,7 @@ export function Agendaansicht({ zeilen, zone }: GitterProps): React.JSX.Element 
     <div className="space-y-5">
       {[...gruppen.values()].map((gruppe) => (
         <div key={gruppe.tag.toISOString()} className="space-y-2">
-          <h3 className="text-sm font-medium text-muted-foreground">
-            {datumKurz(gruppe.tag, zone)}
-          </h3>
+          <h3 className="text-sm font-medium text-muted-foreground">{datumKurz(gruppe.tag, zone)}</h3>
           <div className="space-y-2">
             {gruppe.events.map((zeile) => (
               <EventKarte key={zeile.id} zeile={zeile} />

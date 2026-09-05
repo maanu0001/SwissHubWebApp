@@ -26,7 +26,6 @@ import {
   getModuleSettings,
 } from '@swisshub/modules';
 
-
 const log = createLogger('bot:jobs');
 
 /**

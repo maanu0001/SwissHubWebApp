@@ -36,9 +36,7 @@ export function resolvePaymentProvider(): PaymentProvider {
 
   if (name === 'stripe') {
     if (!env.PAYMENT_API_KEY || !env.PAYMENT_WEBHOOK_SECRET) {
-      throw new Error(
-        'PAYMENT_API_KEY und PAYMENT_WEBHOOK_SECRET werden für Stripe benötigt.',
-      );
+      throw new Error('PAYMENT_API_KEY und PAYMENT_WEBHOOK_SECRET werden für Stripe benötigt.');
     }
     zwischengespeichert = new StripeProvider(env.PAYMENT_API_KEY, env.PAYMENT_WEBHOOK_SECRET);
     return zwischengespeichert;

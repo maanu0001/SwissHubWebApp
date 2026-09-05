@@ -80,19 +80,11 @@ export function XpPanel({
         <Button type="button" size="sm" disabled={laeuft} onClick={() => void buchen(1)}>
           Vergeben
         </Button>
-        <Button
-          type="button"
-          size="sm"
-          variant="outline"
-          disabled={laeuft}
-          onClick={() => void buchen(-1)}
-        >
+        <Button type="button" size="sm" variant="outline" disabled={laeuft} onClick={() => void buchen(-1)}>
           Entziehen
         </Button>
       </div>
-      <p className="text-xs text-muted-foreground">
-        Die Buchung steht im XP-Journal und im Audit Log.
-      </p>
+      <p className="text-xs text-muted-foreground">Die Buchung steht im XP-Journal und im Audit Log.</p>
     </div>
   );
 }

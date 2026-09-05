@@ -7,7 +7,10 @@ import { MUSIC_MODULE_ID, type MusicSettings } from './config';
 /** Der vollstaendige Zustand einer Session - eine Struktur fuer Web und Bot. */
 export interface PlayerState {
   session: MusicSession;
-  bot: Pick<MusicBotInstance, 'id' | 'key' | 'type' | 'name' | 'status' | 'discordUserId' | 'avatarHash'> | null;
+  bot: Pick<
+    MusicBotInstance,
+    'id' | 'key' | 'type' | 'name' | 'status' | 'discordUserId' | 'avatarHash'
+  > | null;
   /** Ob der zugewiesene Bot sich kuerzlich gemeldet hat. */
   botErreichbar: boolean;
   currentItem: MusicQueueItem | null;
@@ -135,9 +138,7 @@ export async function listBots(): Promise<BotRow[]> {
       select: { id: true, botInstanceId: true, voiceChannelName: true },
     }),
   ]);
-  const nachBot = new Map(
-    sessions.filter((s) => s.botInstanceId).map((s) => [s.botInstanceId!, s]),
-  );
+  const nachBot = new Map(sessions.filter((s) => s.botInstanceId).map((s) => [s.botInstanceId!, s]));
 
   return bots.map((bot) => ({
     ...bot,

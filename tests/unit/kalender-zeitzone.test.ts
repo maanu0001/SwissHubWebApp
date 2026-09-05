@@ -22,9 +22,7 @@ describe('Zeitzonen-Rechnung', () => {
 
   it('trifft den Tag der Vorstellung (29.03.2026, 23 Stunden)', () => {
     // 02:00 -> 03:00. Der Tag beginnt noch in Winterzeit.
-    expect(tagesBeginnIn(new Date('2026-03-29T12:00:00Z'), Z).toISOString()).toBe(
-      '2026-03-28T23:00:00.000Z',
-    );
+    expect(tagesBeginnIn(new Date('2026-03-29T12:00:00Z'), Z).toISOString()).toBe('2026-03-28T23:00:00.000Z');
     const laenge =
       naechsterTagesBeginnIn(new Date('2026-03-29T12:00:00Z'), Z).getTime() -
       tagesBeginnIn(new Date('2026-03-29T12:00:00Z'), Z).getTime();
@@ -32,9 +30,7 @@ describe('Zeitzonen-Rechnung', () => {
   });
 
   it('trifft den Tag der Rueckstellung (25.10.2026, 25 Stunden)', () => {
-    expect(tagesBeginnIn(new Date('2026-10-25T12:00:00Z'), Z).toISOString()).toBe(
-      '2026-10-24T22:00:00.000Z',
-    );
+    expect(tagesBeginnIn(new Date('2026-10-25T12:00:00Z'), Z).toISOString()).toBe('2026-10-24T22:00:00.000Z');
     const laenge =
       naechsterTagesBeginnIn(new Date('2026-10-25T12:00:00Z'), Z).getTime() -
       tagesBeginnIn(new Date('2026-10-25T12:00:00Z'), Z).getTime();

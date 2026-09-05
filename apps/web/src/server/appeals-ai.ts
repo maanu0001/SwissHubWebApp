@@ -60,8 +60,7 @@ export async function fasseZusammen(appeal: Appeal): Promise<AiZusammenfassung> 
     ...Object.entries(antworten).map(([frage, antwort]) => `${frage}: ${antwort}`),
     nachrichten.length > 0 ? '--- GESPRAECH ---' : '',
     ...nachrichten.map(
-      (nachricht) =>
-        `${nachricht.author === 'APPLICANT' ? 'Antragsteller' : 'Team'}: ${nachricht.content}`,
+      (nachricht) => `${nachricht.author === 'APPLICANT' ? 'Antragsteller' : 'Team'}: ${nachricht.content}`,
     ),
   ]
     .filter((zeile) => zeile !== '')

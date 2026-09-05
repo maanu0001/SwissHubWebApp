@@ -8,20 +8,11 @@ import { Button } from '@/components/ui/button';
 import { Input, Textarea } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ConfirmationDialog } from '@/components/shared/confirmation-dialog';
 import { ChannelSelect } from '@/modules/configuration/components/channel-select';
 import { MultiSelect } from '@/modules/configuration/components/multi-select';
-import type {
-  ChannelOption,
-  RoleOption,
-} from '@/modules/configuration/components/discord-option-types';
+import type { ChannelOption, RoleOption } from '@/modules/configuration/components/discord-option-types';
 import {
   createCategoryAction,
   deleteCategoryAction,
@@ -263,8 +254,8 @@ export function CategoryEditor({
             searchPlaceholder="Rolle suchen …"
           />
           <p className="text-xs text-muted-foreground">
-            Nur diese Rollen sehen Tickets dieser Kategorie. Ohne Auswahl greifen die
-            Standard-Support-Rollen aus den Moduleinstellungen.
+            Nur diese Rollen sehen Tickets dieser Kategorie. Ohne Auswahl greifen die Standard-Support-Rollen
+            aus den Moduleinstellungen.
           </p>
         </div>
 
@@ -411,8 +402,8 @@ export function CategoryEditor({
       <fieldset className="space-y-3 rounded-xl border border-border/60 p-4">
         <legend className="px-2 text-sm font-semibold">Fragen beim Eröffnen</legend>
         <p className="text-xs text-muted-foreground">
-          Discord erlaubt höchstens {MAX_FELDER} eigene Fragen - das fünfte Feld im Modal ist der
-          Betreff. Ohne eigene Fragen wird nur nach dem Anliegen gefragt.
+          Discord erlaubt höchstens {MAX_FELDER} eigene Fragen - das fünfte Feld im Modal ist der Betreff.
+          Ohne eigene Fragen wird nur nach dem Anliegen gefragt.
         </p>
 
         {form.formFields.map((feld, index) => (
@@ -461,9 +452,7 @@ export function CategoryEditor({
                     setze(
                       'formFields',
                       form.formFields.map((eintrag, i) =>
-                        i === index
-                          ? { ...eintrag, kind: naechste as 'SHORT_TEXT' | 'LONG_TEXT' }
-                          : eintrag,
+                        i === index ? { ...eintrag, kind: naechste as 'SHORT_TEXT' | 'LONG_TEXT' } : eintrag,
                       ),
                     )
                   }

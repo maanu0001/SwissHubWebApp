@@ -157,16 +157,15 @@ export async function reconcileTemporaryVoices(): Promise<ReconcileErgebnis> {
 
     // --- Besitzer weg und Schonfrist vorbei -------------------------------
     if (kanal.ownerLeftAt && kanal.ownerLeftAt.getTime() + grace * 1000 <= Date.now()) {
-      const uebergeben = await uebergibAnNachfolger(
-        kanal,
-        kanal.preset?.ownerModeration ?? true,
-      ).catch((error: unknown) => {
-        log.warn('Talk konnte nicht übergeben werden', {
-          error: error instanceof Error ? error.message : 'unbekannt',
-          id: kanal.id,
-        });
-        return false;
-      });
+      const uebergeben = await uebergibAnNachfolger(kanal, kanal.preset?.ownerModeration ?? true).catch(
+        (error: unknown) => {
+          log.warn('Talk konnte nicht übergeben werden', {
+            error: error instanceof Error ? error.message : 'unbekannt',
+            id: kanal.id,
+          });
+          return false;
+        },
+      );
       if (uebergeben) {
         ergebnis.uebergeben += 1;
       }
@@ -178,9 +177,7 @@ export async function reconcileTemporaryVoices(): Promise<ReconcileErgebnis> {
     if (!besitzer) {
       const nachfolger = await findeNachfolger(kanal);
       if (nachfolger) {
-        await uebergibAnNachfolger(kanal, kanal.preset?.ownerModeration ?? true).catch(
-          () => undefined,
-        );
+        await uebergibAnNachfolger(kanal, kanal.preset?.ownerModeration ?? true).catch(() => undefined);
         ergebnis.uebergeben += 1;
       } else {
         await planeLoeschung(kanal, grace);

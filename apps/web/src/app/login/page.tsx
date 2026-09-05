@@ -51,9 +51,7 @@ export default async function LoginPage({
     !params.redirect.includes('\\')
       ? params.redirect
       : null;
-  const anmeldeAdresse = ziel
-    ? `/api/auth/login?redirect=${encodeURIComponent(ziel)}`
-    : '/api/auth/login';
+  const anmeldeAdresse = ziel ? `/api/auth/login?redirect=${encodeURIComponent(ziel)}` : '/api/auth/login';
 
   return (
     <main className="relative flex min-h-dvh items-center justify-center px-4 py-16">

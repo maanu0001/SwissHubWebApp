@@ -3,16 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import {
-  ArrowUpCircle,
-  Check,
-  Hand,
-  MessageSquare,
-  RefreshCw,
-  Send,
-  Sparkles,
-  X,
-} from 'lucide-react';
+import { ArrowUpCircle, Check, Hand, MessageSquare, RefreshCw, Send, Sparkles, X } from 'lucide-react';
 import type { AppealPriority, AppealStatus } from '@swisshub/database';
 import { Button } from '@/components/ui/button';
 import { Panel } from '@/components/shared/panel';
@@ -91,9 +82,11 @@ export function FallAktionen({
   const [intern, setIntern] = useState('');
   const [erneutErlaubt, setErneutErlaubt] = useState(true);
   const [entbannen, setEntbannen] = useState(true);
-  const [ki, setKi] = useState<{ zusammenfassung: string; kernaussagen: string[]; offeneFragen: string[] } | null>(
-    null,
-  );
+  const [ki, setKi] = useState<{
+    zusammenfassung: string;
+    kernaussagen: string[];
+    offeneFragen: string[];
+  } | null>(null);
 
   const offen = !['APPROVED', 'REJECTED', 'WITHDRAWN', 'EXPIRED', 'RESOLVED_EXTERNALLY', 'CLOSED'].includes(
     status,
@@ -159,9 +152,7 @@ export function FallAktionen({
               variant={istZugewiesenAnMich ? 'outline' : 'default'}
               disabled={pending}
               onClick={() =>
-                void mit(() =>
-                  uebernimmAppealAction({ csrfToken, appealId, freigeben: istZugewiesenAnMich }),
-                )
+                void mit(() => uebernimmAppealAction({ csrfToken, appealId, freigeben: istZugewiesenAnMich }))
               }
             >
               <Hand aria-hidden="true" />
@@ -364,7 +355,12 @@ export function FallAktionen({
               onChange={(event) => setText(event.target.value)}
               className="flex w-full rounded-md border border-input bg-background/60 px-3 py-2 text-sm shadow-sm focus:outline-none focus-visible:border-primary/60 focus-visible:ring-2 focus-visible:ring-ring/60"
             />
-            <Button size="sm" onClick={() => void senden()} loading={pending} disabled={text.trim().length < 2}>
+            <Button
+              size="sm"
+              onClick={() => void senden()}
+              loading={pending}
+              disabled={text.trim().length < 2}
+            >
               <Send aria-hidden="true" />
               Senden
             </Button>

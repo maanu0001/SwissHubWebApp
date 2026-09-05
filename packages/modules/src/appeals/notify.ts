@@ -61,9 +61,7 @@ async function sendeMeldung(
       ],
       // Nur die eine, ausdrücklich gewählte Rolle darf pingen.
       allowedMentions:
-        erwaehnung && settings.meldeRolleId
-          ? { parse: [], roles: [settings.meldeRolleId] }
-          : { parse: [] },
+        erwaehnung && settings.meldeRolleId ? { parse: [], roles: [settings.meldeRolleId] } : { parse: [] },
     });
   } catch (error) {
     // Eine misslungene Meldung darf den Vorgang nicht umwerfen: der Antrag

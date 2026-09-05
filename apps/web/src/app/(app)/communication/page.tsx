@@ -203,7 +203,10 @@ export default async function CommunicationPage({
           <ul className="mt-2 space-y-1.5">
             {drafts.map((draft) => (
               <li key={draft.id} className="flex flex-wrap items-center gap-2 text-sm">
-                <Link href={`/communication?entwurf=${draft.id}`} className="inline-flex min-h-6 items-center font-medium hover:underline">
+                <Link
+                  href={`/communication?entwurf=${draft.id}`}
+                  className="inline-flex min-h-6 items-center font-medium hover:underline"
+                >
                   {draft.title}
                 </Link>
                 <span className="text-xs text-muted-foreground">

@@ -167,11 +167,7 @@ export async function syncDiscordEntitlements(userId: string): Promise<SyncResul
 }
 
 /** Rollen setzen bzw. entziehen - jede einzeln, damit ein Fehler nicht alles kippt. */
-async function syncRoles(
-  discordId: string,
-  ziel: GewuenschterZustand,
-  ergebnis: SyncResult,
-): Promise<void> {
+async function syncRoles(discordId: string, ziel: GewuenschterZustand, ergebnis: SyncResult): Promise<void> {
   const member = await discord.members.get(discordId);
   if (!member) {
     // Kein Mitglied mehr auf dem Server - es gibt keine Rolle zu setzen.
@@ -264,9 +260,7 @@ async function syncStuebli(
   }
 
   // Existiert der eingetragene Kanal wirklich noch?
-  const bestehend = resource.discordResourceId
-    ? await discord.voice.get(resource.discordResourceId)
-    : null;
+  const bestehend = resource.discordResourceId ? await discord.voice.get(resource.discordResourceId) : null;
 
   if (!bestehend) {
     const name = stuebliName(ziel.settings.stuebliNameTemplate, username);

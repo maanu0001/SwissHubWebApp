@@ -50,8 +50,8 @@ export default async function PremiumSuccessPage(): Promise<React.JSX.Element> {
           <div className="space-y-1">
             <h1 className="text-2xl font-semibold">Zahlung wird bestätigt</h1>
             <p className="text-muted-foreground">
-              Sobald unser Zahlungsanbieter die Zahlung bestätigt hat, werden deine Vorteile
-              freigeschaltet. Das dauert in der Regel nur einen Moment.
+              Sobald unser Zahlungsanbieter die Zahlung bestätigt hat, werden deine Vorteile freigeschaltet.
+              Das dauert in der Regel nur einen Moment.
             </p>
           </div>
         </>

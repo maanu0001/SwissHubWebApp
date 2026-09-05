@@ -17,9 +17,7 @@ const { prisma } = await import('@swisshub/database');
 const { verification, setModuleEnabled, setModuleSettings } = await import('@swisshub/modules');
 const { setDiscordGateway } = await import('@swisshub/discord');
 const { invalidateRoleConfiguration } = await import('@swisshub/permissions');
-const { registerVerification, registerRejectConfirmation } = await import(
-  '../../apps/bot/src/verification'
-);
+const { registerVerification, registerRejectConfirmation } = await import('../../apps/bot/src/verification');
 
 const GUILD = '200000000000000000';
 const UNVERIFIZIERT = '900000000000000701';
@@ -72,7 +70,14 @@ function attrappe() {
     },
     roles: {
       list: vi.fn(async () => [
-        { id: UNVERIFIZIERT, name: 'Nicht verifiziert', color: 0, position: 1, managed: false, permissions: '0' },
+        {
+          id: UNVERIFIZIERT,
+          name: 'Nicht verifiziert',
+          color: 0,
+          position: 1,
+          managed: false,
+          permissions: '0',
+        },
         { id: MITGLIED, name: 'Mitglied', color: 0, position: 2, managed: false, permissions: '0' },
         { id: MOD_ROLLE, name: 'Moderation', color: 0, position: 50, managed: false, permissions: '0' },
       ]),
@@ -147,10 +152,7 @@ interface FakeMember {
   roles: { add: ReturnType<typeof vi.fn> };
 }
 
-function mitglied(
-  discordId: string,
-  options: { rollenFehler?: boolean } = {},
-): FakeMember {
+function mitglied(discordId: string, options: { rollenFehler?: boolean } = {}): FakeMember {
   return {
     id: discordId,
     user: {
@@ -398,7 +400,10 @@ describeWithDatabase('Verifikation über Discord', () => {
     const discordId = '900000000000009304';
     await bot.feuere('guildMemberAdd', mitglied(discordId));
 
-    await bot.feuere('messageCreate', nachricht(discordId, VERIFIKATIONSKANAL, 'Hoi zäme, ich bi de Luca.', 'm-1'));
+    await bot.feuere(
+      'messageCreate',
+      nachricht(discordId, VERIFIKATIONSKANAL, 'Hoi zäme, ich bi de Luca.', 'm-1'),
+    );
     await bisWahr(() => discord.gesendet.some((eintrag) => eintrag.channelId === MOD_KANAL));
 
     const meldung = discord.gesendet.find((eintrag) => eintrag.channelId === MOD_KANAL);
@@ -603,10 +608,7 @@ describeWithDatabase('Verifikation über Discord', () => {
   it('pingt genau die eingestellte Staff-Rolle und sonst niemanden', async () => {
     const discordId = '900000000000009320';
     await bot.feuere('guildMemberAdd', mitglied(discordId));
-    await bot.feuere(
-      'messageCreate',
-      nachricht(discordId, VERIFIKATIONSKANAL, 'Hoi zäme', 'm-ping'),
-    );
+    await bot.feuere('messageCreate', nachricht(discordId, VERIFIKATIONSKANAL, 'Hoi zäme', 'm-ping'));
     await bisWahr(() => discord.gesendet.some((eintrag) => eintrag.channelId === MOD_KANAL));
 
     const meldung = discord.gesendet.find((eintrag) => eintrag.channelId === MOD_KANAL);
@@ -681,11 +683,9 @@ describeWithDatabase('Verifikation über Discord', () => {
     });
     const request = await prisma.verificationRequest.findFirstOrThrow({ where: { discordId } });
 
-    const { interaction, antworten } = bestaetigung(
-      `verification:confirm:0:${request.id}`,
-      MODERATOR,
-      [MOD_ROLLE],
-    );
+    const { interaction, antworten } = bestaetigung(`verification:confirm:0:${request.id}`, MODERATOR, [
+      MOD_ROLLE,
+    ]);
     await bot.feuere('interactionCreate', interaction);
     await bisWahr(() => antworten.length > 0);
 
@@ -739,11 +739,7 @@ describeWithDatabase('Verifikation über Discord', () => {
     });
     const request = await prisma.verificationRequest.findFirstOrThrow({ where: { discordId } });
 
-    const { interaction, antworten } = bestaetigung(
-      `verification:confirm:0:${request.id}`,
-      FREMDER,
-      [],
-    );
+    const { interaction, antworten } = bestaetigung(`verification:confirm:0:${request.id}`, FREMDER, []);
     await bot.feuere('interactionCreate', interaction);
     await bisWahr(() => antworten.length > 0);
 
@@ -763,11 +759,9 @@ describeWithDatabase('Verifikation über Discord', () => {
     });
     const request = await prisma.verificationRequest.findFirstOrThrow({ where: { discordId } });
 
-    const { interaction, antworten } = bestaetigung(
-      `verification:cancel:${request.id}`,
-      MODERATOR,
-      [MOD_ROLLE],
-    );
+    const { interaction, antworten } = bestaetigung(`verification:cancel:${request.id}`, MODERATOR, [
+      MOD_ROLLE,
+    ]);
     await bot.feuere('interactionCreate', interaction);
     await bisWahr(() => antworten.length > 0);
 
@@ -800,11 +794,9 @@ describeWithDatabase('Verifikation über Discord', () => {
       request.id,
     );
 
-    const { interaction, antworten } = bestaetigung(
-      `verification:confirm:0:${request.id}`,
-      MODERATOR,
-      [MOD_ROLLE],
-    );
+    const { interaction, antworten } = bestaetigung(`verification:confirm:0:${request.id}`, MODERATOR, [
+      MOD_ROLLE,
+    ]);
     await bot.feuere('interactionCreate', interaction);
     await bisWahr(() => antworten.length > 0);
 

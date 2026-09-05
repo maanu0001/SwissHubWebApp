@@ -1,4 +1,13 @@
-import { Events, type ButtonInteraction, type Client } from 'discord.js';
+import {
+  ActionRowBuilder,
+  Events,
+  ModalBuilder,
+  TextInputBuilder,
+  TextInputStyle,
+  type ButtonInteraction,
+  type Client,
+  type ModalSubmitInteraction,
+} from 'discord.js';
 import { createLogger } from '@swisshub/logger';
 import { bootstrapConfig } from '@swisshub/config';
 import { hasPermission, loadRoleConfiguration, resolvePermissions } from '@swisshub/permissions';
@@ -21,7 +30,7 @@ const log = createLogger('bot:verification');
  */
 
 /** Berechtigungen des Klickenden - aus seinen echten Discord-Rollen. */
-async function actorFuer(interaction: ButtonInteraction) {
+async function actorFuer(interaction: ButtonInteraction | ModalSubmitInteraction) {
   const roleIds =
     interaction.member && 'roles' in interaction.member && 'cache' in interaction.member.roles
       ? [...interaction.member.roles.cache.keys()]
@@ -43,6 +52,9 @@ async function actorFuer(interaction: ButtonInteraction) {
     roleIds,
     isOwner: bootstrapConfig.ownerDiscordId === interaction.user.id,
     can: (permission: string) => hasPermission(resolution, permission),
+    // Steht spaeter in der Meldung und in der Pruefspur. Entschieden wird
+    // deswegen nicht anders - es ist derselbe Dienst wie im Dashboard.
+    source: 'DISCORD' as const,
   };
 }
 
@@ -278,17 +290,41 @@ async function behandleKnopf(
     }
 
     await interaction.reply({
-      content: `**${request.displayName ?? request.discordId} wirklich ablehnen und bannen?**\nBitte einen Grund wählen:`,
+      content: [
+        `**Möchtest du <@${request.discordId}> wirklich vom SwissHub Server bannen?**`,
+        'Ein Bann lässt sich nicht mit einem Klick zurücknehmen. Wähle einen Grund - er steht später in der Akte.',
+      ].join('\n'),
       ephemeral: true,
+      allowedMentions: { parse: [] },
       components: [
         {
           type: 1,
-          components: verification.ABLEHNUNGSGRUENDE.slice(0, 5).map((grund, index) => ({
+          components: verification.ABLEHNUNGSGRUENDE.slice(0, 4).map((grund, index) => ({
             type: 2 as const,
             style: 4 as const,
             label: grund,
             custom_id: `verification:confirm:${index}:${requestId}`,
           })),
+        },
+        {
+          type: 1,
+          components: [
+            {
+              // Ein eigener Grund. Discord laesst ein Modal nur aus einer
+              // noch unbeantworteten Interaktion oeffnen - der Knopf hier ist
+              // genau das.
+              type: 2 as const,
+              style: 2 as const,
+              label: 'Anderer Grund …',
+              custom_id: `verification:reason:${requestId}`,
+            },
+            {
+              type: 2 as const,
+              style: 2 as const,
+              label: 'Abbrechen',
+              custom_id: `verification:cancel:${requestId}`,
+            },
+          ],
         },
       ],
     });
@@ -303,51 +339,136 @@ async function behandleKnopf(
   }
 }
 
-/** Die Bestaetigung der Ablehnung - eigener Knopf, eigene Pruefung. */
+const REASON_MODAL = 'verification:reasonModal:';
+
+/**
+ * Der zweite Schritt der Ablehnung.
+ *
+ * Ein Bann ist nicht mit einem Klick zurueckzunehmen, deshalb ist er auch
+ * nicht mit einem Klick auszusprechen: der rote Knopf oeffnet nur eine
+ * Rueckfrage, die nur der Klickende sieht. Erst was dort bestaetigt wird,
+ * geht in den Moderationsdienst.
+ *
+ * Alle drei Wege - vorgegebener Grund, eigener Grund, Abbrechen - pruefen die
+ * Berechtigung erneut. Zwischen dem ersten und dem zweiten Klick koennen
+ * Minuten liegen, und in denen kann jemand eine Rolle verloren haben.
+ */
 export function registerRejectConfirmation(client: Client): void {
   client.on(Events.InteractionCreate, (interaction) => {
-    if (!interaction.isButton() || !interaction.customId.startsWith('verification:confirm:')) {
+    if (interaction.isModalSubmit() && interaction.customId.startsWith(REASON_MODAL)) {
+      const requestId = interaction.customId.slice(REASON_MODAL.length);
+      const grund = interaction.fields.getTextInputValue('grund').trim();
+      void fuehreAblehnungAus(interaction, requestId, grund || 'Verifikation abgelehnt');
       return;
     }
-    void (async () => {
-      try {
-        const teile = interaction.customId.split(':');
-        const index = Number(teile[2]);
-        const requestId = teile.slice(3).join(':');
-        const grund = verification.ABLEHNUNGSGRUENDE[index];
-        if (!grund || !requestId) {
-          return;
-        }
 
-        const actor = await actorFuer(interaction);
-        // Auch hier vollstaendig neu geprueft: zwischen dem ersten und dem
-        // zweiten Klick kann sich alles geaendert haben.
-        if (!actor.can(verification.VERIFICATION_PERMISSIONS.reject)) {
-          await interaction.update({ content: 'Dir fehlt die Berechtigung zum Ablehnen.', components: [] });
-          return;
-        }
+    if (!interaction.isButton()) {
+      return;
+    }
 
-        await interaction.deferUpdate();
-        const settings = await verification.verificationSettings();
-        const ergebnis = await verification.humanReject(actor, requestId, grund);
-        await verification.pushModNotice(requestId, settings);
-        if (ergebnis.gewonnen && settings.notifyOnReject) {
-          await verification.writeLog(ergebnis.request, settings);
-        }
-        await interaction.editReply({
-          content: ergebnis.gewonnen
-            ? ergebnis.rollenFehler
-              ? `Abgelehnt - aber: ${ergebnis.rollenFehler}`
-              : `Abgelehnt und gebannt (${grund}).`
-            : 'Dieser Vorgang war bereits entschieden.',
-          components: [],
-        });
-      } catch (error) {
-        log.error('Ablehnung fehlgeschlagen', { error });
-        await interaction
-          .editReply({ content: 'Das hat nicht geklappt.', components: [] })
-          .catch(() => undefined);
-      }
-    })();
+    if (interaction.customId.startsWith('verification:cancel:')) {
+      void interaction
+        .update({ content: 'Abgebrochen. Es wurde niemand gebannt.', components: [] })
+        .catch(() => undefined);
+      return;
+    }
+
+    if (interaction.customId.startsWith('verification:reason:')) {
+      const requestId = interaction.customId.slice('verification:reason:'.length);
+      void zeigeGrundModal(interaction, requestId).catch((error: unknown) =>
+        log.error('Grund-Modal fehlgeschlagen', { error, requestId }),
+      );
+      return;
+    }
+
+    if (!interaction.customId.startsWith('verification:confirm:')) {
+      return;
+    }
+
+    const teile = interaction.customId.split(':');
+    const grund = verification.ABLEHNUNGSGRUENDE[Number(teile[2])];
+    const requestId = teile.slice(3).join(':');
+    if (!grund || !requestId) {
+      return;
+    }
+    void fuehreAblehnungAus(interaction, requestId, grund);
   });
+}
+
+/** Freitext als Grund - Discords Modal, ein Feld, nichts weiter. */
+async function zeigeGrundModal(interaction: ButtonInteraction, requestId: string): Promise<void> {
+  const actor = await actorFuer(interaction);
+  if (!actor.can(verification.VERIFICATION_PERMISSIONS.reject)) {
+    await interaction.update({ content: 'Dir fehlt die Berechtigung zum Ablehnen.', components: [] });
+    return;
+  }
+
+  const eingabe = new TextInputBuilder()
+    .setCustomId('grund')
+    .setLabel('Grund für den Bann')
+    .setStyle(TextInputStyle.Paragraph)
+    .setMaxLength(300)
+    .setRequired(true)
+    .setPlaceholder('Steht später in der Akte und im Ban-Log.');
+
+  await interaction.showModal(
+    new ModalBuilder()
+      .setCustomId(REASON_MODAL + requestId)
+      .setTitle('Ablehnen und bannen')
+      .addComponents(new ActionRowBuilder<TextInputBuilder>().addComponents(eingabe)),
+  );
+}
+
+/**
+ * Die Ablehnung ausfuehren.
+ *
+ * Eine Stelle fuer beide Wege: `humanReject` bannt ueber den zentralen
+ * Moderationsdienst, mit dessen Policy, Akte und Protokoll. Hier steht kein
+ * `guild.members.ban` - und soll auch keines stehen.
+ */
+async function fuehreAblehnungAus(
+  interaction: ButtonInteraction | ModalSubmitInteraction,
+  requestId: string,
+  grund: string,
+): Promise<void> {
+  try {
+    const actor = await actorFuer(interaction);
+    if (!actor.can(verification.VERIFICATION_PERMISSIONS.reject)) {
+      await antworteStill(interaction, 'Dir fehlt die Berechtigung zum Ablehnen.');
+      return;
+    }
+
+    await interaction.deferUpdate();
+    const settings = await verification.verificationSettings();
+    const ergebnis = await verification.humanReject(actor, requestId, grund);
+    await verification.pushModNotice(requestId, settings);
+    if (ergebnis.gewonnen && settings.notifyOnReject) {
+      await verification.writeLog(ergebnis.request, settings);
+    }
+    await interaction.editReply({
+      content: ergebnis.gewonnen
+        ? ergebnis.rollenFehler
+          ? `Abgelehnt - aber: ${ergebnis.rollenFehler}`
+          : `Abgelehnt und gebannt (${grund}).`
+        : 'Dieser Fall wurde bereits bearbeitet.',
+      components: [],
+    });
+  } catch (error) {
+    log.error('Ablehnung fehlgeschlagen', { error, requestId });
+    await interaction
+      .editReply({ content: 'Das hat nicht geklappt.', components: [] })
+      .catch(() => undefined);
+  }
+}
+
+/** Eine Antwort, die nur der Klickende sieht - egal ob Knopf oder Modal. */
+async function antworteStill(
+  interaction: ButtonInteraction | ModalSubmitInteraction,
+  text: string,
+): Promise<void> {
+  if (interaction.isButton()) {
+    await interaction.update({ content: text, components: [] }).catch(() => undefined);
+    return;
+  }
+  await interaction.reply({ content: text, ephemeral: true }).catch(() => undefined);
 }

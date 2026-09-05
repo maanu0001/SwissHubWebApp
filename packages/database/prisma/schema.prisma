@@ -4805,6 +4805,12 @@ model VerificationRequest {
   decidedByUsername  String?
   /// Pflicht bei Ablehnung.
   decisionReason     String?
+  /// Wo die Entscheidung gefallen ist: `DISCORD` oder `WEBAPP`.
+  ///
+  /// Rein zur Darstellung und fuer die Pruefspur - fuer die Entscheidung
+  /// selbst ist es ohne Belang, und beide Wege laufen durch denselben Dienst.
+  /// Nullbar, weil Vorgaenge aus der Zeit davor es nicht wissen koennen.
+  decidedSource      String?
 
   /// Ankuendigung im Moderationskanal - wird fortgeschrieben statt neu
   /// gepostet.

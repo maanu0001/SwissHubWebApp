@@ -157,6 +157,61 @@ export async function kickMember(
 }
 
 /**
+ * Nimmt jemandem die Besitzerrechte in diesem Kanal.
+ *
+ * Wer eine persoenliche Erlaubnis hat, behaelt sie und bleibt gewoehnlicher
+ * Teilnehmer. Wer keine hat - der Regelfall - verliert die Ausnahme ganz:
+ * eine Ausnahme, die nur wiederholt, was der Kanal ohnehin erlaubt, ist eine
+ * Karteileiche, und in einem Kanal mit vielen Uebergaben sammeln sich davon
+ * einige.
+ *
+ * Best effort: schlaegt Discord fehl, ist der Besitzwechsel trotzdem
+ * geschehen. Ein Aufraeumschritt darf ihn nicht rueckgaengig machen.
+ */
+async function nimmBesitzerRechte(
+  kanal: TemporaryVoiceChannel,
+  discordId: string,
+  grund: string,
+): Promise<void> {
+  if (!kanal.discordChannelId) {
+    return;
+  }
+
+  const ausnahme = await prisma.temporaryVoiceAccess
+    .findUnique({
+      where: { channelId_discordId: { channelId: kanal.id, discordId } },
+      select: { kind: true },
+    })
+    .catch(() => null);
+
+  try {
+    if (ausnahme?.kind === 'ALLOW') {
+      await discord.managedChannels.setOverwrite(
+        kanal.discordChannelId,
+        { id: discordId, type: 1, allow: TEILNEHMER_ERLAUBT & MITGLIED_VERWALTET, deny: 0n },
+        grund,
+      );
+    } else if (ausnahme?.kind === 'DENY') {
+      // Eine Sperre bleibt eine Sperre. Sie zu ueberschreiben hiesse, jemanden
+      // durch einen Besitzwechsel zu entsperren.
+      await discord.managedChannels.setOverwrite(
+        kanal.discordChannelId,
+        { id: discordId, type: 1, allow: 0n, deny: MITGLIED_VERWALTET },
+        grund,
+      );
+    } else {
+      await discord.managedChannels.clearOverwrite(kanal.discordChannelId, discordId, grund);
+    }
+  } catch (error) {
+    log.warn('Besitzerrechte konnten nicht entzogen werden', {
+      error: error instanceof Error ? error.message : 'unbekannt',
+      channelId: kanal.discordChannelId,
+      discordId,
+    });
+  }
+}
+
+/**
  * Uebergibt den Talk an jemand anderen.
  *
  * Zuerst die Rechte auf Discord, dann die Zeile - und die Zeile nur, wenn
@@ -220,23 +275,18 @@ export async function transferOwnership(
   }
 
   if (count === 0) {
-    // Jemand war schneller. Die eben gesetzten Rechte schaden nicht - sie
-    // machen den Betreffenden zum Teilnehmer mit Zusatzrechten, nicht zum
-    // Besitzer.
+    // Jemand war schneller. Die eben gesetzten Rechte muessen wieder weg: sie
+    // enthalten `MANAGE_CHANNELS` und `MANAGE_ROLES`, und die haette hier
+    // jemand bekommen, der den Talk gar nicht besitzt.
+    await nimmBesitzerRechte(kanal, neuerBesitzer.discordId, 'Übergabe nicht zustande gekommen');
     throw new AppError('CONFLICT', {
       userMessage: 'Der Talk wurde soeben schon übergeben. Lade die Seite neu.',
     });
   }
 
-  // Dem bisherigen Besitzer die Sonderrechte nehmen - er bleibt gewoehnlicher
-  // Teilnehmer.
-  await discord.managedChannels
-    .setOverwrite(
-      kanal.discordChannelId,
-      { id: kanal.ownerDiscordId, type: 1, allow: TEILNEHMER_ERLAUBT, deny: 0n },
-      'Nicht mehr Besitzer',
-    )
-    .catch(() => undefined);
+  // Dem bisherigen Besitzer die Sonderrechte nehmen. Sonst behielte er
+  // `MANAGE_CHANNELS` in einem Kanal, der ihm nicht mehr gehoert.
+  await nimmBesitzerRechte(kanal, kanal.ownerDiscordId, 'Nicht mehr Besitzer');
 
   const aktualisiert = await prisma.temporaryVoiceChannel.findUniqueOrThrow({
     where: { id: kanal.id },

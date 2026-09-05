@@ -108,7 +108,20 @@ export function PermissionMatrix({
     for (const permission of filtered) {
       map.set(permission.module, [...(map.get(permission.module) ?? []), permission]);
     }
-    return [...map.entries()];
+    // «Modul sehen» steht in jeder Gruppe zuoberst. Alphabetisch landete es
+    // irgendwo in der Mitte, und es ist die Berechtigung, ohne die keine
+    // andere dieser Gruppe jemandem etwas nuetzt.
+    return [...map.entries()].map(
+      ([module, entries]) =>
+        [
+          module,
+          [...entries].sort((a, b) => {
+            const aSehen = a.key.endsWith('.module.view');
+            const bSehen = b.key.endsWith('.module.view');
+            return aSehen === bSehen ? 0 : aSehen ? -1 : 1;
+          }),
+        ] as [string, PermissionView[]],
+    );
   }, [permissions, query]);
 
   const hasFullAccess = draft?.permissions.includes(ADMIN_FULL) ?? false;

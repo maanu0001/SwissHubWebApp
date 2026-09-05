@@ -37,6 +37,8 @@ export interface PlayerControlsProps {
   loopMode: LoopModus;
   /** Ohne laufenden Titel gibt es nichts zu pausieren oder zu überspringen. */
   hatTitel: boolean;
+  /** Wartende Titel - unter zweien gibt es nichts zu mischen. */
+  wartende: number;
   darfSteuern: boolean;
 }
 
@@ -66,6 +68,7 @@ export function PlayerControls({
   maxVolume,
   loopMode,
   hatTitel,
+  wartende,
   darfSteuern,
 }: PlayerControlsProps): React.JSX.Element {
   const router = useRouter();
@@ -122,7 +125,7 @@ export function PlayerControls({
         <button
           type="button"
           onClick={() => void fuehreAus('shuffle', () => shuffleAction({ csrfToken, sessionId }))}
-          disabled={gesperrt}
+          disabled={gesperrt || wartende < 2}
           title="Warteschlange mischen"
           aria-label="Warteschlange mischen"
           className="inline-flex size-10 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-card hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-40"

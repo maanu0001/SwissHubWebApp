@@ -52,6 +52,17 @@ export function parseButtonId(
   return null;
 }
 
+/**
+ * Ein Zeitpunkt, wie Discord ihn darstellt.
+ *
+ * `<t:...:F>` zeigt jedem Leser seine eigene Zeitzone und sein eigenes
+ * Datumsformat. Ein hier ausgerechneter Text waere die Zeitzone des Servers,
+ * und die stimmt fuer niemanden verlaesslich.
+ */
+function zeitpunkt(wert: Date, stil: 'F' | 'R' = 'F'): string {
+  return `<t:${Math.floor(wert.getTime() / 1000)}:${stil}>`;
+}
+
 function alter(von: Date | null, bis: Date): string {
   if (!von) {
     return 'unbekannt';
@@ -68,50 +79,44 @@ function alter(von: Date | null, bis: Date): string {
   return `${stunden} Stunde${stunden === 1 ? '' : 'n'}`;
 }
 
-function seit(wert: Date, jetzt: Date): string {
-  const sekunden = Math.max(0, Math.floor((jetzt.getTime() - wert.getTime()) / 1000));
-  if (sekunden < 60) {
-    return `vor ${sekunden} Sekunden`;
-  }
-  const minuten = Math.floor(sekunden / 60);
-  if (minuten < 60) {
-    return `vor ${minuten} Minute${minuten === 1 ? '' : 'n'}`;
-  }
-  const stunden = Math.floor(minuten / 60);
-  return stunden < 24 ? `vor ${stunden} Stunde${stunden === 1 ? '' : 'n'}` : `vor ${Math.floor(stunden / 24)} Tagen`;
-}
-
-export function buildModEmbed(request: VerificationRequest, jetzt = new Date()): DiscordEmbed {
+export function buildModEmbed(request: VerificationRequest): DiscordEmbed {
   const entschieden = request.decidedAt !== null;
   const kopf = entschieden
     ? request.status === 'VERIFIED'
       ? request.decidedBy === 'AI'
-        ? '🤖 AUTOMATISCH VERIFIZIERT'
-        : '✅ VERIFIZIERT'
+        ? '🤖 Automatisch verifiziert'
+        : '✅ Verifiziert'
       : request.status === 'REJECTED'
-        ? '❌ ABGELEHNT'
+        ? '❌ Abgelehnt und gebannt'
         : request.status === 'LEFT_SERVER'
-          ? '↩️ SERVER VERLASSEN'
+          ? '↩️ Server verlassen'
           : request.status === 'EXPIRED'
-            ? '⌛ ABGELAUFEN'
-            : 'ABGESCHLOSSEN'
-    : 'NEUE VERIFIKATION';
+            ? '⌛ Abgelaufen'
+            : 'Abgeschlossen'
+    : '🔎 Neue Verifikation';
 
   const felder = [
+    // Die Kennung bleibt auch dann lesbar, wenn die Person den Server
+    // verlassen hat und die Erwaehnung nur noch eine Zahl zeigt. Und sie ist
+    // kopierbar, weil sie in Codezeichen steht.
+    { name: 'Discord ID', value: `\`${request.discordId}\``, inline: true },
     {
-      name: 'Discord-Konto',
-      value: alter(request.accountCreatedAt, request.joinedAt),
+      name: 'Konto erstellt',
+      value: request.accountCreatedAt
+        ? `${zeitpunkt(request.accountCreatedAt)}\n(${alter(request.accountCreatedAt, request.joinedAt)} vor dem Beitritt)`
+        : 'unbekannt',
       inline: true,
     },
-    { name: 'Beigetreten', value: seit(request.joinedAt, jetzt), inline: true },
-    { name: 'Status', value: statusLabel(request.status), inline: true },
+    { name: 'Server beigetreten', value: zeitpunkt(request.joinedAt), inline: true },
   ];
 
   if (request.latestMessage) {
     felder.push({
       name: request.messageCount > 1 ? `Nachricht (${request.messageCount} gesamt)` : 'Nachricht',
       // In ein Zitat gesetzt: der Text stammt von aussen und soll sich im
-      // Embed nicht als Ueberschrift oder Erwaehnung ausgeben koennen.
+      // Embed nicht als Ueberschrift oder Erwaehnung ausgeben koennen. Dass
+      // ein `@everyone` darin niemanden erreicht, entscheidet zusaetzlich
+      // `allowedMentions` der Nachricht - der Text hier ist nur Anzeige.
       value: `>>> ${request.latestMessage.slice(0, 900)}`,
       inline: false,
     });
@@ -143,23 +148,15 @@ export function buildModEmbed(request: VerificationRequest, jetzt = new Date()):
     felder.push({ name: 'Hinweise', value: hinweise.join(' · '), inline: false });
   }
 
-  if (entschieden) {
-    felder.push({
-      name: 'Entschieden von',
-      value:
-        request.decidedBy === 'AI'
-          ? 'AI-Prüfung'
-          : (request.decidedByUsername ?? request.decidedBy ?? 'unbekannt'),
-      inline: true,
-    });
-    if (request.decisionReason) {
-      felder.push({ name: 'Grund', value: request.decisionReason.slice(0, 400), inline: false });
-    }
+  felder.push({ name: 'Status', value: statusZeile(request), inline: false });
+
+  if (entschieden && request.decisionReason) {
+    felder.push({ name: 'Grund', value: request.decisionReason.slice(0, 400), inline: false });
   }
 
   return {
     title: kopf,
-    description: `**${request.displayName ?? request.username ?? 'Unbekannt'}**\n<@${request.discordId}> · \`${request.discordId}\``,
+    description: `**${request.displayName ?? request.username ?? 'Unbekannt'}**\n<@${request.discordId}>`,
     color: VERIFICATION_ACCENT_COLOR,
     fields: felder,
     ...(request.avatarHash
@@ -169,9 +166,48 @@ export function buildModEmbed(request: VerificationRequest, jetzt = new Date()):
           },
         }
       : {}),
-    timestamp: request.joinedAt.toISOString(),
-    footer: { text: 'SwissHub Verifikation' },
+    timestamp: (request.decidedAt ?? request.joinedAt).toISOString(),
+    footer: { text: 'SwissHub • Verifikation' },
   };
+}
+
+/**
+ * Der Status in einer Zeile - offen oder entschieden, und von wem.
+ *
+ * Der Moderator steht als Erwaehnung da: anklickbar, und er bleibt lesbar,
+ * wenn sich sein Anzeigename spaeter aendert. Ob die Entscheidung auf Discord
+ * oder im Dashboard fiel, steht dabei; wer den Kanal spaeter liest, soll
+ * nicht raten muessen, warum die Knoepfe nichts mehr tun.
+ */
+function statusZeile(request: VerificationRequest): string {
+  if (!request.decidedAt) {
+    return 'Wartet auf Entscheidung';
+  }
+
+  const wer =
+    request.decidedBy === 'AI'
+      ? 'der AI-Prüfung'
+      : request.decidedByDiscordId
+        ? `<@${request.decidedByDiscordId}>`
+        : (request.decidedByUsername ?? 'unbekannt');
+
+  const wo =
+    request.decidedBy !== 'HUMAN'
+      ? ''
+      : request.decidedSource === 'WEBAPP'
+        ? ' über das SwissHub System'
+        : request.decidedSource === 'DISCORD'
+          ? ' über Discord'
+          : '';
+
+  const was =
+    request.status === 'VERIFIED'
+      ? 'Verifiziert'
+      : request.status === 'REJECTED'
+        ? 'Abgelehnt und gebannt'
+        : statusLabel(request.status);
+
+  return request.decidedBy === 'SYSTEM' ? was : `${was}${wo} von ${wer}`;
 }
 
 function buildComponents(request: VerificationRequest): DiscordMessagePayload['components'] {
@@ -187,13 +223,15 @@ function buildComponents(request: VerificationRequest): DiscordMessagePayload['c
         {
           type: 2 as const,
           style: BUTTON_STYLE.SUCCESS,
-          label: 'Mitglied verifizieren',
+          label: 'Verifizieren',
+          emoji: { name: '🟢' },
           custom_id: buildButtonId('approve', request.id),
         },
         {
           type: 2 as const,
           style: BUTTON_STYLE.DANGER,
-          label: 'User ablehnen',
+          label: 'Bannen',
+          emoji: { name: '🔴' },
           custom_id: buildButtonId('reject', request.id),
         },
       ],

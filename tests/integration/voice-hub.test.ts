@@ -16,9 +16,17 @@ const { prisma } = await import('@swisshub/database');
 const { voice, voiceHub, setModuleEnabled, syncDiscord, writeModuleSettings } = await import(
   '@swisshub/modules'
 );
-const { setDiscordGateway, createMockGateway, resolveGuildId, clearGuildIdCache } = await import(
-  '@swisshub/discord'
-);
+const {
+  setDiscordGateway,
+  createMockGateway,
+  resolveGuildId,
+  clearGuildIdCache,
+  DISCORD_PERMISSIONS,
+} = await import('@swisshub/discord');
+type MockGateway = ReturnType<typeof createMockGateway>;
+
+/** Das Gateway dieses Durchlaufs - die Tests lesen ihm die Ausnahmen ab. */
+let gateway: MockGateway;
 
 let GUILD = '';
 const ADMIN = { discordId: '100000000000000010', username: 'verwaltung' };
@@ -111,7 +119,8 @@ describeWithDatabase('Voice Hub', () => {
         '"VoiceTrustedMember","VoiceUserPreference","VoiceHub","VoicePreset",' +
         '"VoicePresence","ModuleState" RESTART IDENTITY CASCADE',
     );
-    setDiscordGateway(createMockGateway());
+    gateway = createMockGateway();
+    setDiscordGateway(gateway);
     await syncDiscord({ trigger: 'manual' });
     clearGuildIdCache();
     GUILD = await resolveGuildId();
@@ -256,11 +265,6 @@ describeWithDatabase('Voice Hub', () => {
 
     const gesperrt = await voiceHub.setTalkLocked(k, erstellt.kanal.id, true);
     expect(gesperrt.locked).toBe(true);
-
-    const versteckt = await voiceHub.setTalkHidden(k, erstellt.kanal.id, true);
-    expect(versteckt.hidden).toBe(true);
-    // Sperre und Sichtbarkeit sind getrennt - das eine setzt das andere nicht.
-    expect(versteckt.locked).toBe(true);
 
     const limitiert = await voiceHub.setTalkLimit(k, erstellt.kanal.id, 4);
     expect(limitiert.userLimit).toBe(4);
@@ -760,6 +764,131 @@ describeWithDatabase('Voice Hub', () => {
     const k = kontext('900000000000006001', 'anna', EIGENE_RECHTE);
     const ok = await voiceHub.repairTalkPanel(k, erstellt.kanal.id);
     expect(ok).toBe(true);
+  });
+
+  // --- Rechte des Besitzers im eigenen Kanal --------------------------------
+
+  it('gibt dem Besitzer Kanalverwaltung - und nur in seinem Kanal', async () => {
+    const p = await preset();
+    await hub(p.id);
+    const erstellt = await voiceHub.handleHubJoin(beitritt('900000000000007001', 'anna'));
+    if (erstellt.art !== 'ERSTELLT') {
+      throw new Error('Talk nicht erstellt');
+    }
+
+    const kanal = await gateway.managedChannels.get(erstellt.kanal.discordChannelId!);
+    const ausnahme = kanal?.overwrites.find((e) => e.id === '900000000000007001');
+    expect(ausnahme, 'Der Besitzer hat gar keine Ausnahme').toBeDefined();
+
+    const erlaubt = BigInt(ausnahme!.allow);
+    expect(erlaubt & DISCORD_PERMISSIONS.MANAGE_CHANNELS).toBe(
+      DISCORD_PERMISSIONS.MANAGE_CHANNELS,
+    );
+    // «Berechtigungen verwalten» heisst auf Kanalebene MANAGE_ROLES.
+    expect(erlaubt & DISCORD_PERMISSIONS.MANAGE_ROLES).toBe(DISCORD_PERMISSIONS.MANAGE_ROLES);
+    // Es ist eine Kanalausnahme, kein Rollenrecht: Typ 1 = Mitglied.
+    expect(ausnahme!.type).toBe(1);
+  });
+
+  it('gibt einem gewöhnlichen Teilnehmer diese Rechte nicht', async () => {
+    const p = await preset();
+    await hub(p.id);
+    const erstellt = await voiceHub.handleHubJoin(beitritt('900000000000007011', 'anna'));
+    if (erstellt.art !== 'ERSTELLT') {
+      throw new Error('Talk nicht erstellt');
+    }
+
+    const k = kontext('900000000000007011', 'anna', EIGENE_RECHTE);
+    await voiceHub.allowInTalk(k, erstellt.kanal.id, {
+      discordId: '900000000000007012',
+      username: 'beat',
+    });
+
+    const kanal = await gateway.managedChannels.get(erstellt.kanal.discordChannelId!);
+    const gast = kanal?.overwrites.find((e) => e.id === '900000000000007012');
+    expect(gast, 'Der Gast hat keine Ausnahme bekommen').toBeDefined();
+    expect(BigInt(gast!.allow) & DISCORD_PERMISSIONS.MANAGE_CHANNELS).toBe(0n);
+    expect(BigInt(gast!.allow) & DISCORD_PERMISSIONS.MANAGE_ROLES).toBe(0n);
+  });
+
+  it('verschiebt die Besitzerrechte bei einer Übergabe vollständig', async () => {
+    const p = await preset();
+    await hub(p.id);
+    const erstellt = await voiceHub.handleHubJoin(beitritt('900000000000007021', 'anna'));
+    if (erstellt.art !== 'ERSTELLT') {
+      throw new Error('Talk nicht erstellt');
+    }
+
+    const k = kontext('900000000000007021', 'anna', EIGENE_RECHTE);
+    await voiceHub.transferTalk(k, erstellt.kanal.id, {
+      discordId: '900000000000007022',
+      username: 'beat',
+    });
+
+    const kanal = await gateway.managedChannels.get(erstellt.kanal.discordChannelId!);
+
+    // Der neue Besitzer hat sie.
+    const neu = kanal?.overwrites.find((e) => e.id === '900000000000007022');
+    expect(BigInt(neu!.allow) & DISCORD_PERMISSIONS.MANAGE_CHANNELS).toBe(
+      DISCORD_PERMISSIONS.MANAGE_CHANNELS,
+    );
+
+    // Der alte hat keine verwaiste Ausnahme mehr - er hatte auch keine
+    // persoenliche Erlaubnis, also bleibt gar nichts stehen.
+    const alt = kanal?.overwrites.find((e) => e.id === '900000000000007021');
+    expect(alt, 'Der frühere Besitzer behält eine verwaiste Ausnahme').toBeUndefined();
+  });
+
+  it('vergibt für den Voice Hub keine Guild-weiten Rechte', async () => {
+    // Der wichtigste Satz dieses Moduls: Rechte im eigenen Kanal, nie auf dem
+    // Server. Es darf deshalb keine Stelle geben, die eine Rolle anlegt oder
+    // deren Rechte ändert.
+    const { readFileSync, readdirSync } = await import('node:fs');
+    const { join } = await import('node:path');
+    for (const ordner of ['packages/modules/src/voice', 'packages/modules/src/voice-hub']) {
+      for (const datei of readdirSync(join(process.cwd(), ordner))) {
+        if (!datei.endsWith('.ts')) {
+          continue;
+        }
+        const quelle = readFileSync(join(process.cwd(), ordner, datei), 'utf8');
+        expect(quelle, `${ordner}/${datei} fasst Guild-Rollen an`).not.toMatch(
+          /roles\.(create|edit|setPermissions|update)\(/u,
+        );
+      }
+    }
+  });
+
+  // --- Entfernte Bedienelemente --------------------------------------------
+
+  it('bietet weder «Verstecken» noch «Mehr» an', async () => {
+    const p = await preset();
+    await hub(p.id);
+    const erstellt = await voiceHub.handleHubJoin(beitritt('900000000000007031', 'anna'));
+    if (erstellt.art !== 'ERSTELLT') {
+      throw new Error('Talk nicht erstellt');
+    }
+
+    const reihen = voiceHub.baueKnoepfe(erstellt.kanal);
+    const knoepfe = reihen.flatMap((reihe) => reihe.components);
+    const beschriftungen = knoepfe.map((knopf) => knopf.label);
+
+    expect(beschriftungen).not.toContain('Verstecken');
+    expect(beschriftungen).not.toContain('Zeigen');
+    expect(beschriftungen).not.toContain('Mehr');
+    // Was bleiben soll, bleibt.
+    expect(beschriftungen).toContain('Umbenennen');
+    expect(beschriftungen).toContain('Zugriff');
+    expect(beschriftungen).toContain('Übergeben');
+
+    const kennungen = knoepfe.map((knopf) => ('custom_id' in knopf ? knopf.custom_id : ''));
+    expect(kennungen.some((id) => id.includes(':hide:'))).toBe(false);
+    expect(kennungen.some((id) => id.includes(':more:'))).toBe(false);
+  });
+
+  it('hat die Aktionen hinter «Verstecken» nicht mehr', () => {
+    // Toter Code, sauber entfernt - nicht nur aus der Oberfläche.
+    expect('setTalkHidden' in voiceHub).toBe(false);
+    expect('setTalkBitrate' in voiceHub).toBe(false);
   });
 
   it('trägt die Kanalkennung in der Knopfkennung mit', () => {

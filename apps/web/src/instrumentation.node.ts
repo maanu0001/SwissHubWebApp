@@ -6,7 +6,7 @@ import {
 } from '@swisshub/config';
 import { createLogger } from '@swisshub/logger';
 import { ensureBootstrapRoles } from '@swisshub/permissions';
-import { importGuildFromEnvironment } from '@swisshub/modules';
+import { backfillModuleViewPermissions, importGuildFromEnvironment } from '@swisshub/modules';
 import {
   assertIntegrationsReady,
   ensureSystemBot,
@@ -56,6 +56,13 @@ async function bootstrap(): Promise<void> {
 
   await ensureBootstrapRoles().catch((error: unknown) => {
     log.warn('Bootstrap der Administratorrolle übersprungen', { error });
+  });
+
+  // «Modul sehen» fuer bestehende Rollen nachtragen. Idempotent, und der
+  // Start haengt nicht davon ab: schlaegt es fehl, ist die Navigation
+  // unvollstaendig - die WebApp aber erreichbar, und genau dort behebt man es.
+  await backfillModuleViewPermissions().catch((error: unknown) => {
+    log.error('«Modul sehen» konnte nicht nachgetragen werden', { error });
   });
 
   const deprecated = listDeprecatedEnvKeys();

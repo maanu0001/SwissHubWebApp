@@ -22,19 +22,36 @@ export const TEILNEHMER_ERLAUBT =
   DISCORD_PERMISSIONS.USE_VAD;
 
 /**
- * Zusaetzliche Rechte des Besitzers.
+ * Zusaetzliche Rechte des Besitzers waehrend eines Gespraechs.
  *
- * Bewusst ohne `MANAGE_CHANNELS`: damit liesse sich der Kanal verschieben,
- * dauerhaft umkonfigurieren oder in eine andere Kategorie hieven - und der
- * Besitzer koennte an der Anwendung vorbei Dinge tun, die sie hinterher nicht
- * mehr versteht. Umbenennen und Limit setzen laeuft ueber das Bedienfeld, wo
- * die Anwendung mitzaehlt.
+ * Sie wirken auf Menschen im Kanal, nicht auf den Kanal selbst.
  */
 export const BESITZER_MODERATION =
   DISCORD_PERMISSIONS.PRIORITY_SPEAKER |
   DISCORD_PERMISSIONS.MUTE_MEMBERS |
   DISCORD_PERMISSIONS.DEAFEN_MEMBERS |
   DISCORD_PERMISSIONS.MOVE_MEMBERS;
+
+/**
+ * Die Rechte, mit denen der Besitzer seinen Kanal direkt in Discord verwaltet.
+ *
+ * `MANAGE_CHANNELS` erlaubt Name, Limit, Bitrate und Region - dasselbe, was
+ * das Bedienfeld anbietet, nur ueber Discords eigene Kanaleinstellungen.
+ * `MANAGE_ROLES` heisst in der Discord-Oberflaeche «Berechtigungen verwalten»
+ * und ist das Recht, die Ausnahmen *dieses* Kanals zu bearbeiten.
+ *
+ * Beides steht in einer Kanalausnahme, nicht in einer Rolle. Der Unterschied
+ * ist der ganze Punkt: eine Rolle mit diesen Bits duerfte jeden Kanal des
+ * Servers umbauen, eine Ausnahme wirkt nur in diesem einen temporaeren Talk
+ * und verschwindet mit ihm. Es wird deshalb an keiner Stelle dieses Moduls
+ * eine Guild-Rolle angelegt oder veraendert.
+ *
+ * Der Preis ist bekannt: der Besitzer kann seinen Talk hinter der Anwendung
+ * vorbei umbenennen. Der Abgleich holt den Namen ohnehin ein, und ein
+ * Besitzer, der seinen eigenen Kanal nicht einstellen darf, ist keiner.
+ */
+export const BESITZER_VERWALTUNG =
+  DISCORD_PERMISSIONS.MANAGE_CHANNELS | DISCORD_PERMISSIONS.MANAGE_ROLES;
 
 /**
  * Rechte des Bots im eigenen Kanal.
@@ -54,8 +71,16 @@ export const BOT_ERLAUBT =
 /** Die Bits, die dieses Modul an `@everyone` vergibt oder entzieht. */
 const EVERYONE_VERWALTET = DISCORD_PERMISSIONS.VIEW_CHANNEL | DISCORD_PERMISSIONS.CONNECT;
 
+/**
+ * Die Kanalausnahme des Besitzers.
+ *
+ * Die Verwaltungsrechte haengen nicht am Schalter `ownerModeration`: der
+ * entscheidet, ob der Besitzer andere stummschalten und verschieben darf, und
+ * das ist eine andere Frage als die, ob ihm sein eigener Kanal gehoert.
+ */
 export function besitzerRechte(moderation: boolean): bigint {
-  return moderation ? TEILNEHMER_ERLAUBT | BESITZER_MODERATION : TEILNEHMER_ERLAUBT;
+  const grund = TEILNEHMER_ERLAUBT | BESITZER_VERWALTUNG;
+  return moderation ? grund | BESITZER_MODERATION : grund;
 }
 
 /**

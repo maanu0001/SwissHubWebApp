@@ -299,6 +299,23 @@ export async function moveItem(
   await befehl(session, 'QUEUE_MOVE', actor, { queueItemId, targetIndex: ziel });
 }
 
+/**
+ * Die wartenden Titel neu anordnen.
+ *
+ * Der laufende Titel bleibt, wo er ist - und das ist mehr als eine
+ * Anzeigefrage: die Laufzeit haelt den laufenden Titel weiterhin in der
+ * Warteschlange und waehlt den naechsten als die Zeile mit der kleinsten
+ * Position (`store.naechster_titel`). Dass der laufende Titel die kleinste
+ * Position hat, ist die stillschweigende Voraussetzung dieser Auswahl -
+ * jedes Hinzufuegen, Entfernen und Verschieben haelt sie ein.
+ *
+ * Das Mischen hielt sie als einziges nicht ein: es verteilte *alle* Zeilen
+ * neu, den laufenden Titel eingeschlossen. Danach stand mitten in der
+ * Warteschlange ein Titel, der gerade lief, und die Reihenfolge, die man sah,
+ * war nicht mehr die, die gespielt wurde.
+ *
+ * Deshalb: der laufende Titel behaelt die Spitze, gemischt wird der Rest.
+ */
 export async function shuffle(sessionId: string, actor: SessionActor): Promise<void> {
   const session = await ladeSession(sessionId);
   const eintraege = await prisma.musicQueueItem.findMany({
@@ -307,17 +324,40 @@ export async function shuffle(sessionId: string, actor: SessionActor): Promise<v
     select: { id: true },
   });
 
+  const laufend = session.currentItemId
+    ? eintraege.find((eintrag) => eintrag.id === session.currentItemId)
+    : undefined;
+  const wartend = eintraege.filter((eintrag) => eintrag.id !== laufend?.id);
+
+  // Leere Warteschlange, nur der laufende Titel, oder genau einer dahinter:
+  // es gibt nichts umzustellen. Ein Schreibvorgang und ein Befehl an die
+  // Laufzeit, die beide nichts aendern, waeren nur Last - und ein Befehl an
+  // eine Session ohne Bot wuerde obendrein einen Fehler melden.
+  if (wartend.length < 2) {
+    return;
+  }
+
   // Fisher-Yates, serverseitig: eine reine Anzeigesortierung im Browser
   // waere fuer die Slash-Befehle unsichtbar.
-  const gemischt = [...eintraege];
+  const gemischt = [...wartend];
   for (let i = gemischt.length - 1; i > 0; i -= 1) {
     const j = Math.floor(Math.random() * (i + 1));
     [gemischt[i], gemischt[j]] = [gemischt[j]!, gemischt[i]!];
   }
 
+  const reihenfolge = laufend ? [laufend, ...gemischt] : gemischt;
+
+  // `updateMany` statt `update`: endet der laufende Titel genau jetzt, ist
+  // seine Zeile weg. `update` liesse die ganze Transaktion scheitern und der
+  // Klick bliebe folgenlos; so faellt nur der verschwundene Titel aus, und
+  // die uebrigen stehen danach trotzdem in der gemischten Reihenfolge.
+  // Luecken in den Positionen sind ausdruecklich erlaubt.
   await prisma.$transaction(
-    gemischt.map((e, i) =>
-      prisma.musicQueueItem.update({ where: { id: e.id }, data: { position: (i + 1) * 10 } }),
+    reihenfolge.map((eintrag, index) =>
+      prisma.musicQueueItem.updateMany({
+        where: { id: eintrag.id, sessionId },
+        data: { position: (index + 1) * 10 },
+      }),
     ),
   );
   await aktivitaet(sessionId);

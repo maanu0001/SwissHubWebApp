@@ -39,6 +39,9 @@ const actorOf = (ctx: AuthContext) => ({
   roleIds: ctx.roleIds,
   isOwner: ctx.permissionKeys.includes('admin.full'),
   can: (permission: string) => can(ctx, permission),
+  // Damit die Meldung auf Discord sagen kann, wo entschieden wurde. Am
+  // Ergebnis aendert es nichts - es ist derselbe Dienst wie dort.
+  source: 'WEBAPP' as const,
 });
 
 export const approveAction = defineAction(

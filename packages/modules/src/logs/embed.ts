@@ -148,3 +148,72 @@ export function zeitpunkt(datum: Date): string {
   const sekunden = Math.floor(datum.getTime() / 1000);
   return `<t:${sekunden}:F> (<t:${sekunden}:R>)`;
 }
+
+/**
+ * Verweise auf Discord-Objekte.
+ *
+ * Ein Log soll anklickbar sein: `<@123>` oeffnet das Profil, `<#456>` springt
+ * in den Kanal. Ein Name als blosser Text tut beides nicht, und die blosse
+ * Kennung ist eine Zahl, mit der man von Hand suchen muss.
+ *
+ * Anklickbar heisst dabei ausdruecklich **nicht** benachrichtigt. Ob eine
+ * Erwaehnung jemanden erreicht, entscheidet nicht der Text, sondern
+ * `allowedMentions` der Nachricht - und die steht bei jedem Log auf
+ * `{ parse: [] }`. Damit bleibt `<@123>` ein Link und wird nie ein Ping.
+ * Genau deshalb koennen diese Helfer ueberhaupt Erwaehnungen erzeugen, und
+ * genau deshalb darf `allowedMentions` bei Logs nie gelockert werden.
+ *
+ * Die Kennung steht bei Personen zusaetzlich da. Sie ist die einzige Angabe,
+ * die haelt: wer den Server verlassen hat, ist als Erwaehnung nur noch eine
+ * graue Zahl, und ein Anzeigename kann sich jederzeit aendern.
+ */
+
+/**
+ * Eine Person - anklickbar, mit kopierbarer Kennung.
+ *
+ * Bewusst ohne Mitgliedschaftspruefung: ein gebanntes oder ausgetretenes
+ * Mitglied soll genauso dargestellt werden. Die Kennung genuegt.
+ */
+export function formatDiscordUserReference(
+  discordId: string | null | undefined,
+  fallbackName?: string | null,
+): string | null {
+  const id = discordId?.trim();
+  const name = fallbackName?.trim();
+
+  // «unknown» steht in der Akte fuer «Discord hat den Handelnden nicht
+  // genannt». Daraus eine Erwaehnung zu bauen ergaebe einen Link auf nichts.
+  if (!id || id === 'unknown' || !/^\d{15,25}$/u.test(id)) {
+    return name && name.length > 0 ? name : null;
+  }
+
+  return name && name.length > 0 ? `<@${id}>\n${name} · \`${id}\`` : `<@${id}>\n\`${id}\``;
+}
+
+/** Ein Kanal - anklickbar, sonst sein Name. */
+export function formatDiscordChannelReference(
+  channelId: string | null | undefined,
+  fallbackName?: string | null,
+): string | null {
+  const id = channelId?.trim();
+  const name = fallbackName?.trim();
+
+  if (id && /^\d{15,25}$/u.test(id)) {
+    return `<#${id}>`;
+  }
+  return name && name.length > 0 ? `#${name}` : null;
+}
+
+/** Eine Rolle - anklickbar, sonst ihr Name. */
+export function formatDiscordRoleReference(
+  roleId: string | null | undefined,
+  fallbackName?: string | null,
+): string | null {
+  const id = roleId?.trim();
+  const name = fallbackName?.trim();
+
+  if (id && /^\d{15,25}$/u.test(id)) {
+    return `<@&${id}>`;
+  }
+  return name && name.length > 0 ? `@${name}` : null;
+}

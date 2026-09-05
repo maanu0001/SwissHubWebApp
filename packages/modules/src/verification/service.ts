@@ -238,12 +238,17 @@ export async function recordMessage(eingabe: NachrichtEingabe): Promise<Nachrich
   return { request: aktualisiert, erste, doppelt: false };
 }
 
+/** Wo eine Entscheidung gefallen ist. */
+export type Entscheidungsquelle = 'DISCORD' | 'WEBAPP';
+
 export interface Entscheidung {
   status: Extract<VerificationStatus, 'VERIFIED' | 'REJECTED' | 'LEFT_SERVER' | 'EXPIRED' | 'ERROR'>;
   by: 'HUMAN' | 'AI' | 'SYSTEM';
   actorDiscordId?: string | null;
   actorUsername?: string | null;
   reason?: string | null;
+  /** Nur bei einem Menschen gesetzt - AI und System haben keinen Ort. */
+  source?: Entscheidungsquelle | null;
 }
 
 /**
@@ -271,6 +276,7 @@ export async function entscheide(
       decidedByDiscordId: entscheidung.actorDiscordId ?? null,
       decidedByUsername: entscheidung.actorUsername ?? null,
       decisionReason: entscheidung.reason ?? null,
+      decidedSource: entscheidung.source ?? null,
     },
   });
   if (ergebnis.count === 0) {
@@ -351,7 +357,12 @@ export interface VerifyErgebnis {
  */
 export async function verify(
   requestId: string,
-  von: { by: 'HUMAN' | 'AI'; discordId?: string | null; username?: string | null },
+  von: {
+    by: 'HUMAN' | 'AI';
+    discordId?: string | null;
+    username?: string | null;
+    source?: Entscheidungsquelle | null;
+  },
   options: { gateway?: DiscordGateway; settings?: VerificationSettings } = {},
 ): Promise<VerifyErgebnis> {
   const settings = options.settings ?? (await verificationSettings());
@@ -362,6 +373,7 @@ export async function verify(
     by: von.by,
     actorDiscordId: von.discordId ?? null,
     actorUsername: von.username ?? (von.by === 'AI' ? 'AI-Prüfung' : null),
+    source: von.source ?? null,
   });
   if (!entschieden) {
     throw conflict('Dieser Vorgang wurde bereits entschieden.');
@@ -403,6 +415,7 @@ export async function verify(
     metadata: {
       requestId,
       by: von.by,
+      quelle: von.source ?? null,
       ...(von.by === 'AI'
         ? { confidence: vorher.aiConfidence, reasonCode: vorher.aiReasonCode }
         : {}),

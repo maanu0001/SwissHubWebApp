@@ -408,34 +408,6 @@ export async function setTemporaryVoiceLimit(
   return aktualisiert;
 }
 
-/** Setzt die Bitrate in bit/s. */
-export async function setTemporaryVoiceBitrate(
-  kanal: TemporaryVoiceChannel,
-  bitrate: number,
-  actor: VoiceActor,
-  maxBitrate: number,
-): Promise<TemporaryVoiceChannel> {
-  if (bitrate < 8000 || bitrate > maxBitrate) {
-    throw new AppError('VALIDATION_FAILED', {
-      userMessage: `Die Bitrate muss zwischen 8 und ${Math.floor(maxBitrate / 1000)} kbit/s liegen.`,
-    });
-  }
-  if (!kanal.discordChannelId) {
-    throw new AppError('CONFLICT', { userMessage: 'Dieser Talk wird gerade erst erstellt.' });
-  }
-
-  await discord.managedChannels.updateVoice(
-    kanal.discordChannelId,
-    { bitrate },
-    `Bitrate gesetzt von ${actor.username}`,
-  );
-
-  return prisma.temporaryVoiceChannel.update({
-    where: { id: kanal.id },
-    data: { bitrate, lastActiveAt: new Date() },
-  });
-}
-
 /**
  * Sperrt oder oeffnet den Talk.
  *
@@ -449,15 +421,6 @@ export async function setTemporaryVoiceLocked(
   actor: VoiceActor,
 ): Promise<TemporaryVoiceChannel> {
   return setzeSichtbarkeit(kanal, { locked, hidden: kanal.hidden }, actor);
-}
-
-/** Versteckt den Talk oder macht ihn wieder sichtbar. */
-export async function setTemporaryVoiceHidden(
-  kanal: TemporaryVoiceChannel,
-  hidden: boolean,
-  actor: VoiceActor,
-): Promise<TemporaryVoiceChannel> {
-  return setzeSichtbarkeit(kanal, { locked: kanal.locked, hidden }, actor);
 }
 
 async function setzeSichtbarkeit(

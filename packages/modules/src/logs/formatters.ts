@@ -6,7 +6,17 @@ import type {
 } from '@swisshub/database';
 import type { DiscordEmbed, DiscordEmbedField } from '@swisshub/discord';
 import { EVENT_TYPES } from '../analytics/event-types';
-import { EMBED_LIMITS, alsZitat, begrenze, feld, kuerze, zeitpunkt } from './embed';
+import {
+  EMBED_LIMITS,
+  alsZitat,
+  begrenze,
+  feld,
+  formatDiscordChannelReference,
+  formatDiscordRoleReference,
+  formatDiscordUserReference,
+  kuerze,
+  zeitpunkt,
+} from './embed';
 
 /**
  * Aus einem Logeintrag wird ein Embed.
@@ -70,20 +80,17 @@ function fuss(bereich: string): { text: string } {
 }
 
 /**
- * Eine Person lesbar, ohne sie anzupingen.
+ * Eine Person - anklickbar, ohne sie anzupingen.
  *
- * Name und Kennung als Text. Eine Mention waere kuerzer, aber ein Protokoll
- * soll niemanden benachrichtigen - und die Kennung ist ohnehin die
- * belastbarere Angabe.
+ * Der zentrale Helfer aus `embed.ts`. Er steht dort und nicht hier, damit ein
+ * neuer Logtyp die Darstellung erbt, statt sie noch einmal zu erfinden.
+ *
+ * Die Erwaehnung benachrichtigt niemanden: `delivery.ts` sendet jedes Log mit
+ * `allowedMentions: { parse: [] }`. Der Text macht sie klickbar, die
+ * Nachrichtenoption verhindert den Ping - beides gehoert zusammen.
  */
 function person(name: string | null, discordId: string | null): string | null {
-  if (!name && !discordId) {
-    return null;
-  }
-  if (!discordId) {
-    return name;
-  }
-  return name ? `${name}\n\`${discordId}\`` : `\`${discordId}\``;
+  return formatDiscordUserReference(discordId, name);
 }
 
 // --- Moderation -------------------------------------------------------------
@@ -241,16 +248,13 @@ function verursacher(ereignis: DiscordEvent): DiscordEmbedField[] {
   return feld('Ausgeführt von', person(ereignis.actorUsername, ereignis.actorDiscordId));
 }
 
-/** Kanal als Name, nicht als Mention - eine Mention pingt niemanden, lenkt aber ab. */
+/** Der Kanal als Erwaehnung - ein Klick, und man ist dort. */
 function kanal(ereignis: DiscordEvent): DiscordEmbedField[] {
   // Beim Kanalwechsel sagen «Von» und «Nach» dasselbe genauer.
   if (ereignis.type === EVENT_TYPES.VOICE_MOVE) {
     return [];
   }
-  if (!ereignis.channelName && !ereignis.channelId) {
-    return [];
-  }
-  return feld('Kanal', ereignis.channelName ? `#${ereignis.channelName}` : `\`${ereignis.channelId}\``);
+  return feld('Kanal', formatDiscordChannelReference(ereignis.channelId, ereignis.channelName));
 }
 
 /**
@@ -321,8 +325,8 @@ function zusatzFelder(ereignis: DiscordEvent): DiscordEmbedField[] {
     const vonName = typeof daten.vonName === 'string' ? daten.vonName : null;
     const vonId = typeof daten.von === 'string' ? daten.von : null;
     return [
-      ...feld('Von', vonName ?? (vonId ? `\`${vonId}\`` : null)),
-      ...feld('Nach', ereignis.channelName),
+      ...feld('Von', formatDiscordChannelReference(vonId, vonName)),
+      ...feld('Nach', formatDiscordChannelReference(ereignis.channelId, ereignis.channelName)),
     ];
   }
 
@@ -330,15 +334,23 @@ function zusatzFelder(ereignis: DiscordEvent): DiscordEmbedField[] {
     ereignis.type === EVENT_TYPES.MEMBER_ROLE_ADD ||
     ereignis.type === EVENT_TYPES.MEMBER_ROLE_REMOVE
   ) {
+    // Rollen als Erwaehnung: sie sind im Log dieselbe Sache wie ein Kanal -
+    // man will sehen, welche gemeint ist, und Discord faerbt sie ein.
+    // Benachrichtigt wird auch hier niemand.
     const rollen = Array.isArray(daten.rollen) ? daten.rollen : [];
-    const namen = rollen
-      .flatMap((eintrag) =>
-        typeof eintrag === 'object' && eintrag !== null && 'name' in eintrag
-          ? [String((eintrag as { name?: unknown }).name ?? '')]
-          : [],
-      )
-      .filter((name) => name.length > 0);
-    return feld('Rollen', namen.length > 0 ? namen.join(', ') : null, false);
+    const verweise = rollen
+      .flatMap((eintrag) => {
+        if (typeof eintrag !== 'object' || eintrag === null) {
+          return [];
+        }
+        const datensatz = eintrag as { id?: unknown; name?: unknown };
+        const verweis = formatDiscordRoleReference(
+          typeof datensatz.id === 'string' ? datensatz.id : null,
+          typeof datensatz.name === 'string' ? datensatz.name : null,
+        );
+        return verweis ? [verweis] : [];
+      });
+    return feld('Rollen', verweise.length > 0 ? verweise.join(', ') : null, false);
   }
 
   if (ereignis.type === EVENT_TYPES.MEMBER_NICKNAME) {

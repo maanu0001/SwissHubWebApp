@@ -33,6 +33,20 @@ export interface PermissionPreset {
  * konnte.
  */
 const MITGLIED_BASIS: string[] = [
+  // «Modul sehen»: der Schluessel, der einen Bereich ueberhaupt in der
+  // Seitenleiste erscheinen laesst. Er steht neben jeder Berechtigung, die
+  // ihn braucht - eine Vorlage ersetzt die Rechte einer Rolle vollstaendig,
+  // und eine Vorlage ohne diese Schluessel setzte eine Rolle auf eine leere
+  // Navigation.
+  'dashboard.module.view',
+  'members.module.view',
+  'spielersuche.module.view',
+  'tickets.module.view',
+  'level.module.view',
+  'tournaments.module.view',
+  'premium.module.view',
+  'voiceHub.module.view',
+
   'dashboard.view',
 
   // Member Center - ausschliesslich die eigenen Daten.
@@ -92,7 +106,16 @@ export const PERMISSION_PRESETS: PermissionPreset[] = [
     id: 'viewer',
     label: 'Nur Lesen',
     description: 'Dashboard, Mitglieder und Moderationshistorie ansehen - keine Aktionen.',
-    permissions: ['dashboard.view', 'members.view', 'moderation.view', 'jail.view'],
+    permissions: [
+      'dashboard.module.view',
+      'members.module.view',
+      'moderation.module.view',
+      'jail.module.view',
+      'dashboard.view',
+      'members.view',
+      'moderation.view',
+      'jail.view',
+    ],
     moderationLevel: 10,
   },
   {
@@ -114,6 +137,7 @@ export const PERMISSION_PRESETS: PermissionPreset[] = [
       ...MITGLIED_BASIS,
       // Musik: die eigene Session. Ohne `sessions.manageAll`, ohne Worker und
       // ohne Einstellungen - das wäre Verwaltung.
+      'music.module.view',
       'music.view',
       'music.play',
       'music.queue.manage',
@@ -135,6 +159,7 @@ export const PERMISSION_PRESETS: PermissionPreset[] = [
       'Wie Premium. Eigene Vorlage, damit sich die beiden Stufen später unabhängig voneinander ändern lassen, ohne dass jemand die eine mit der anderen verwechselt.',
     permissions: [
       ...MITGLIED_BASIS,
+      'music.module.view',
       'music.view',
       'music.play',
       'music.queue.manage',
@@ -154,6 +179,10 @@ export const PERMISSION_PRESETS: PermissionPreset[] = [
     description:
       'Timeout, Kick und Jail sowie die Moderationsakte. Bannen bleibt dem Senior Moderator vorbehalten.',
     permissions: [
+      'dashboard.module.view',
+      'members.module.view',
+      'moderation.module.view',
+      'jail.module.view',
       'dashboard.view',
       'members.view',
       'moderation.view',
@@ -185,6 +214,13 @@ export const PERMISSION_PRESETS: PermissionPreset[] = [
     description:
       'Alle Massnahmen inklusive Bann und Entbannung, dazu Audit Log und Verlängerung laufender Massnahmen.',
     permissions: [
+      'dashboard.module.view',
+      'members.module.view',
+      'moderation.module.view',
+      'jail.module.view',
+      'audit.module.view',
+      'settings.module.view',
+      'analytics.module.view',
       'dashboard.view',
       'members.view',
       'moderation.view',
@@ -220,6 +256,9 @@ export const PERMISSION_PRESETS: PermissionPreset[] = [
     description:
       'XP vergeben und entziehen, Level-Rollen und XP-Regeln pflegen. Ersetzt die frühere Level-Manager-Rolle.',
     permissions: [
+      'dashboard.module.view',
+      'members.module.view',
+      'level.module.view',
       'dashboard.view',
       'members.view',
       'level.view',
@@ -246,6 +285,9 @@ export const PERMISSION_PRESETS: PermissionPreset[] = [
     description:
       'Tickets bearbeiten: antworten, übernehmen, Status setzen, schliessen. Interne Notizen inbegriffen - Kategorien, Panels und Einstellungen nicht.',
     permissions: [
+      'dashboard.module.view',
+      'members.module.view',
+      'tickets.module.view',
       'dashboard.view',
       'members.view',
       'tickets.view',

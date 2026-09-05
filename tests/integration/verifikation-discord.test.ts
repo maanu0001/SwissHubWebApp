@@ -17,7 +17,9 @@ const { prisma } = await import('@swisshub/database');
 const { verification, setModuleEnabled, setModuleSettings } = await import('@swisshub/modules');
 const { setDiscordGateway } = await import('@swisshub/discord');
 const { invalidateRoleConfiguration } = await import('@swisshub/permissions');
-const { registerVerification } = await import('../../apps/bot/src/verification');
+const { registerVerification, registerRejectConfirmation } = await import(
+  '../../apps/bot/src/verification'
+);
 
 const GUILD = '200000000000000000';
 const UNVERIFIZIERT = '900000000000000701';
@@ -187,6 +189,9 @@ function knopfdruck(customId: string, benutzer: string, rollen: string[]) {
   const antworten: Array<Record<string, unknown>> = [];
   const interaction = {
     isButton: () => true,
+    // discord.js liefert diese Pruefung an jeder Interaktion mit - und beide
+    // Behandler fragen danach, ehe sie etwas tun.
+    isModalSubmit: () => false,
     customId,
     guildId: GUILD,
     user: { id: benutzer, username: 'klickerin' },
@@ -199,6 +204,70 @@ function knopfdruck(customId: string, benutzer: string, rollen: string[]) {
     }),
     deferReply: vi.fn(async () => {
       interaction.deferred = true;
+    }),
+    editReply: vi.fn(async (payload: Record<string, unknown>) => {
+      antworten.push(payload);
+    }),
+    update: vi.fn(async (payload: Record<string, unknown>) => {
+      antworten.push(payload);
+    }),
+  };
+  return { interaction, antworten };
+}
+
+/**
+ * Ein Klick auf einen Bestaetigungsknopf.
+ *
+ * Anders als der erste Knopf beantwortet dieser eine bereits sichtbare
+ * ephemere Nachricht - `update` und `deferUpdate` statt `reply`.
+ */
+function bestaetigung(customId: string, benutzer: string, rollen: string[]) {
+  const antworten: Array<Record<string, unknown>> = [];
+  const interaction = {
+    isButton: () => true,
+    isModalSubmit: () => false,
+    customId,
+    guildId: GUILD,
+    user: { id: benutzer, username: 'klickerin' },
+    member: { roles: { cache: new Map(rollen.map((id) => [id, { id }])) } },
+    deferred: false,
+    replied: false,
+    update: vi.fn(async (payload: Record<string, unknown>) => {
+      antworten.push(payload);
+    }),
+    deferUpdate: vi.fn(async () => {
+      interaction.deferred = true;
+    }),
+    reply: vi.fn(async (payload: Record<string, unknown>) => {
+      interaction.replied = true;
+      antworten.push(payload);
+    }),
+    editReply: vi.fn(async (payload: Record<string, unknown>) => {
+      antworten.push(payload);
+    }),
+    showModal: vi.fn(async () => undefined),
+  };
+  return { interaction, antworten };
+}
+
+/** Ein abgeschicktes Modal mit freiem Grund. */
+function modal(customId: string, grund: string, benutzer: string, rollen: string[]) {
+  const antworten: Array<Record<string, unknown>> = [];
+  const interaction = {
+    isButton: () => false,
+    isModalSubmit: () => true,
+    customId,
+    guildId: GUILD,
+    user: { id: benutzer, username: 'klickerin' },
+    member: { roles: { cache: new Map(rollen.map((id) => [id, { id }])) } },
+    fields: { getTextInputValue: () => grund },
+    deferred: false,
+    replied: false,
+    deferUpdate: vi.fn(async () => {
+      interaction.deferred = true;
+    }),
+    reply: vi.fn(async (payload: Record<string, unknown>) => {
+      antworten.push(payload);
     }),
     editReply: vi.fn(async (payload: Record<string, unknown>) => {
       antworten.push(payload);
@@ -260,6 +329,7 @@ describeWithDatabase('Verifikation über Discord', () => {
     setDiscordGateway(discord.gateway as never);
     bot = fakeClient();
     registerVerification(bot.client as never);
+    registerRejectConfirmation(bot.client as never);
   });
 
   // --- Beitritt und Begrüssung ------------------------------------------
@@ -470,7 +540,7 @@ describeWithDatabase('Verifikation über Discord', () => {
     await bisWahr(() => antworten.length > 0);
 
     // Ein Bann ist nicht rückgängig zu machen - der erste Klick fragt nur.
-    expect(texte(antworten)).toContain('wirklich ablehnen');
+    expect(texte(antworten)).toContain('wirklich vom SwissHub Server bannen');
     expect(discord.banns).toEqual([]);
     const danach = await prisma.verificationRequest.findUniqueOrThrow({ where: { id: request.id } });
     expect(danach.status).toBe('WAITING_FOR_REVIEW');
@@ -526,5 +596,249 @@ describeWithDatabase('Verifikation über Discord', () => {
     expect(texte(antworten)).toContain('anderen Server');
     const danach = await prisma.verificationRequest.findUniqueOrThrow({ where: { id: request.id } });
     expect(danach.decidedAt).toBeNull();
+  });
+
+  // --- Erwähnungen -------------------------------------------------------
+
+  it('pingt genau die eingestellte Staff-Rolle und sonst niemanden', async () => {
+    const discordId = '900000000000009320';
+    await bot.feuere('guildMemberAdd', mitglied(discordId));
+    await bot.feuere(
+      'messageCreate',
+      nachricht(discordId, VERIFIKATIONSKANAL, 'Hoi zäme', 'm-ping'),
+    );
+    await bisWahr(() => discord.gesendet.some((eintrag) => eintrag.channelId === MOD_KANAL));
+
+    const meldung = discord.gesendet.find((eintrag) => eintrag.channelId === MOD_KANAL);
+    const erlaubt = meldung?.payload.allowedMentions as {
+      parse?: string[];
+      roles?: string[];
+      users?: string[];
+    };
+
+    // Die eine gewollte Ausnahme im ganzen System: hier soll die Moderation
+    // tatsächlich benachrichtigt werden.
+    expect(erlaubt.roles).toEqual([PING_ROLLE]);
+    // Und ausschliesslich sie: kein `everyone`, keine Sammelfreigabe.
+    expect(erlaubt.parse).toEqual([]);
+    expect(erlaubt.users).toBeUndefined();
+  });
+
+  it('lässt ein @everyone aus der Verifikationsnachricht niemanden pingen', async () => {
+    const discordId = '900000000000009321';
+    await bot.feuere('guildMemberAdd', mitglied(discordId));
+    await bot.feuere(
+      'messageCreate',
+      nachricht(discordId, VERIFIKATIONSKANAL, '@everyone @here hallo <@&999> ', 'm-evil'),
+    );
+    await bisWahr(() => discord.gesendet.some((eintrag) => eintrag.channelId === MOD_KANAL));
+
+    const meldung = discord.gesendet.find((eintrag) => eintrag.channelId === MOD_KANAL);
+    const embed = (meldung?.payload.embeds as Array<{ fields: Array<{ value: string }> }>)[0]!;
+    const nachrichtenfeld = embed.fields.find((f) => f.value.includes('@everyone'));
+
+    // Der Text steht sichtbar da …
+    expect(nachrichtenfeld).toBeDefined();
+    // … erreicht aber niemanden: freigegeben ist nur die Staff-Rolle.
+    const erlaubt = meldung?.payload.allowedMentions as { parse?: string[]; roles?: string[] };
+    expect(erlaubt.parse).toEqual([]);
+    expect(erlaubt.roles).toEqual([PING_ROLLE]);
+  });
+
+  it('stellt das geprüfte Mitglied klickbar und mit kopierbarer Kennung dar', async () => {
+    const discordId = '900000000000009322';
+    await bot.feuere('guildMemberAdd', mitglied(discordId));
+    await bot.feuere('messageCreate', nachricht(discordId, VERIFIKATIONSKANAL, 'Hoi', 'm-embed'));
+    await bisWahr(() => discord.gesendet.some((eintrag) => eintrag.channelId === MOD_KANAL));
+
+    const meldung = discord.gesendet.find((eintrag) => eintrag.channelId === MOD_KANAL);
+    const embed = (
+      meldung?.payload.embeds as Array<{
+        title: string;
+        description: string;
+        fields: Array<{ name: string; value: string }>;
+      }>
+    )[0]!;
+
+    expect(embed.title).toContain('Neue Verifikation');
+    expect(embed.description).toContain(`<@${discordId}>`);
+    // Die Kennung bleibt lesbar, auch wenn die Person später weg ist.
+    expect(embed.fields.find((f) => f.name === 'Discord ID')?.value).toBe(`\`${discordId}\``);
+    // Zeitpunkte in Discords eigener Schreibweise - jeder sieht seine Zone.
+    expect(embed.fields.find((f) => f.name === 'Server beigetreten')?.value).toMatch(/^<t:\d+:F>$/u);
+    expect(embed.fields.find((f) => f.name === 'Status')?.value).toBe('Wartet auf Entscheidung');
+  });
+
+  // --- Ablehnen: Bestätigung und Bann ------------------------------------
+
+  it('bannt erst nach der Bestätigung - und über den Moderationsdienst', async () => {
+    const discordId = '900000000000009330';
+    await bot.feuere('guildMemberAdd', mitglied(discordId));
+    await bot.feuere('messageCreate', nachricht(discordId, VERIFIKATIONSKANAL, 'aaa', 'm-ban'));
+    await bisWahr(async () => {
+      const stand = await prisma.verificationRequest.findFirst({ where: { discordId } });
+      return stand?.status === 'WAITING_FOR_REVIEW';
+    });
+    const request = await prisma.verificationRequest.findFirstOrThrow({ where: { discordId } });
+
+    const { interaction, antworten } = bestaetigung(
+      `verification:confirm:0:${request.id}`,
+      MODERATOR,
+      [MOD_ROLLE],
+    );
+    await bot.feuere('interactionCreate', interaction);
+    await bisWahr(() => antworten.length > 0);
+
+    expect(discord.banns).toEqual([discordId]);
+    const danach = await prisma.verificationRequest.findUniqueOrThrow({ where: { id: request.id } });
+    expect(danach.status).toBe('REJECTED');
+    expect(danach.decidedByDiscordId).toBe(MODERATOR);
+    expect(danach.decidedSource).toBe('DISCORD');
+
+    // Der Bann steht in der Moderationsakte - nicht in einer zweiten Welt
+    // neben der Moderation.
+    const massnahme = await prisma.moderationAction.findFirst({
+      where: { targetDiscordId: discordId, type: 'BAN' },
+    });
+    expect(massnahme).not.toBeNull();
+    expect(massnahme?.reason).toContain(verification.ABLEHNUNGSGRUENDE[0]);
+  });
+
+  it('nimmt einen frei formulierten Grund entgegen', async () => {
+    const discordId = '900000000000009331';
+    await bot.feuere('guildMemberAdd', mitglied(discordId));
+    await bot.feuere('messageCreate', nachricht(discordId, VERIFIKATIONSKANAL, 'aaa', 'm-modal'));
+    await bisWahr(async () => {
+      const stand = await prisma.verificationRequest.findFirst({ where: { discordId } });
+      return stand?.status === 'WAITING_FOR_REVIEW';
+    });
+    const request = await prisma.verificationRequest.findFirstOrThrow({ where: { discordId } });
+
+    const { interaction, antworten } = modal(
+      `verification:reasonModal:${request.id}`,
+      'Werbung für einen fremden Server',
+      MODERATOR,
+      [MOD_ROLLE],
+    );
+    await bot.feuere('interactionCreate', interaction);
+    await bisWahr(() => antworten.length > 0);
+
+    const danach = await prisma.verificationRequest.findUniqueOrThrow({ where: { id: request.id } });
+    expect(danach.status).toBe('REJECTED');
+    expect(danach.decisionReason).toBe('Werbung für einen fremden Server');
+    expect(discord.banns).toEqual([discordId]);
+  });
+
+  it('lässt einen Unberechtigten die Bestätigung nicht drücken', async () => {
+    const discordId = '900000000000009332';
+    await bot.feuere('guildMemberAdd', mitglied(discordId));
+    await bot.feuere('messageCreate', nachricht(discordId, VERIFIKATIONSKANAL, 'aaa', 'm-fremd2'));
+    await bisWahr(async () => {
+      const stand = await prisma.verificationRequest.findFirst({ where: { discordId } });
+      return stand?.status === 'WAITING_FOR_REVIEW';
+    });
+    const request = await prisma.verificationRequest.findFirstOrThrow({ where: { discordId } });
+
+    const { interaction, antworten } = bestaetigung(
+      `verification:confirm:0:${request.id}`,
+      FREMDER,
+      [],
+    );
+    await bot.feuere('interactionCreate', interaction);
+    await bisWahr(() => antworten.length > 0);
+
+    expect(texte(antworten)).toContain('Berechtigung');
+    expect(discord.banns).toEqual([]);
+    const danach = await prisma.verificationRequest.findUniqueOrThrow({ where: { id: request.id } });
+    expect(danach.decidedAt).toBeNull();
+  });
+
+  it('bricht ab, ohne jemanden zu bannen', async () => {
+    const discordId = '900000000000009333';
+    await bot.feuere('guildMemberAdd', mitglied(discordId));
+    await bot.feuere('messageCreate', nachricht(discordId, VERIFIKATIONSKANAL, 'aaa', 'm-abbruch'));
+    await bisWahr(async () => {
+      const stand = await prisma.verificationRequest.findFirst({ where: { discordId } });
+      return stand?.status === 'WAITING_FOR_REVIEW';
+    });
+    const request = await prisma.verificationRequest.findFirstOrThrow({ where: { discordId } });
+
+    const { interaction, antworten } = bestaetigung(
+      `verification:cancel:${request.id}`,
+      MODERATOR,
+      [MOD_ROLLE],
+    );
+    await bot.feuere('interactionCreate', interaction);
+    await bisWahr(() => antworten.length > 0);
+
+    expect(texte(antworten)).toContain('Abgebrochen');
+    expect(discord.banns).toEqual([]);
+    const danach = await prisma.verificationRequest.findUniqueOrThrow({ where: { id: request.id } });
+    expect(danach.decidedAt).toBeNull();
+  });
+
+  it('lässt nach einer Entscheidung im Dashboard keinen Discord-Knopf mehr wirken', async () => {
+    const discordId = '900000000000009334';
+    await bot.feuere('guildMemberAdd', mitglied(discordId));
+    await bot.feuere('messageCreate', nachricht(discordId, VERIFIKATIONSKANAL, 'Hoi', 'm-sync'));
+    await bisWahr(async () => {
+      const stand = await prisma.verificationRequest.findFirst({ where: { discordId } });
+      return stand?.status === 'WAITING_FOR_REVIEW';
+    });
+    const request = await prisma.verificationRequest.findFirstOrThrow({ where: { discordId } });
+
+    // Die WebApp entscheidet zuerst - derselbe Dienst, andere Oberfläche.
+    await verification.humanVerify(
+      {
+        discordId: MODERATOR,
+        username: 'dashboard',
+        roleIds: [MOD_ROLLE],
+        isOwner: false,
+        can: () => true,
+        source: 'WEBAPP',
+      },
+      request.id,
+    );
+
+    const { interaction, antworten } = bestaetigung(
+      `verification:confirm:0:${request.id}`,
+      MODERATOR,
+      [MOD_ROLLE],
+    );
+    await bot.feuere('interactionCreate', interaction);
+    await bisWahr(() => antworten.length > 0);
+
+    expect(texte(antworten)).toContain('bereits bearbeitet');
+    expect(discord.banns).toEqual([]);
+    const danach = await prisma.verificationRequest.findUniqueOrThrow({ where: { id: request.id } });
+    expect(danach.status).toBe('VERIFIED');
+    expect(danach.decidedSource).toBe('WEBAPP');
+  });
+
+  it('erzeugt nach einem Neustart des Bots kein zweites Review-Embed', async () => {
+    // Der Zustand steht in der Datenbank, nicht im Arbeitsspeicher: die
+    // Kennung der Meldung hängt am Vorgang.
+    const discordId = '900000000000009335';
+    await bot.feuere('guildMemberAdd', mitglied(discordId));
+    await bot.feuere('messageCreate', nachricht(discordId, VERIFIKATIONSKANAL, 'Hoi', 'm-neu-1'));
+    await bisWahr(() => discord.gesendet.some((eintrag) => eintrag.channelId === MOD_KANAL));
+
+    const request = await prisma.verificationRequest.findFirstOrThrow({ where: { discordId } });
+    expect(request.modChannelId).toBe(MOD_KANAL);
+    expect(request.modMessageId).not.toBeNull();
+
+    // Neustart: neue Behandler, derselbe Datenbestand.
+    bot = fakeClient();
+    registerVerification(bot.client as never);
+    registerRejectConfirmation(bot.client as never);
+
+    await bot.feuere('messageCreate', nachricht(discordId, VERIFIKATIONSKANAL, 'Nochmal', 'm-neu-2'));
+    await bisWahr(() => discord.bearbeitet.length > 0);
+
+    // Genau eine Meldung, danach nur noch Fortschreibungen.
+    expect(discord.gesendet.filter((eintrag) => eintrag.channelId === MOD_KANAL)).toHaveLength(1);
+    const danach = await prisma.verificationRequest.findUniqueOrThrow({ where: { id: request.id } });
+    expect(danach.modMessageId).toBe(request.modMessageId);
+    expect(danach.messageCount).toBe(2);
   });
 });

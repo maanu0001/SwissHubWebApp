@@ -2,7 +2,6 @@ import { prisma } from '@swisshub/database';
 import type { TemporaryVoiceChannel } from '@swisshub/database';
 import { resolveGuildId } from '@swisshub/discord';
 import { AppError } from '@swisshub/shared';
-import { getModuleSettings } from '../module-state';
 import {
   allowMember,
   clearMemberAccess,
@@ -13,13 +12,10 @@ import {
 import { deleteTemporaryVoice } from '../voice/lifecycle';
 import {
   renameTemporaryVoice,
-  setTemporaryVoiceBitrate,
   setTemporaryVoiceLimit,
-  setTemporaryVoiceHidden,
   setTemporaryVoiceLocked,
   type VoiceActor,
 } from '../voice/service';
-import { VOICE_HUB_MODULE_ID, type VoiceHubSettings } from './config';
 import { aktualisiereBedienfeld } from './control-panel';
 import { assertVoiceRecht, ladeKanalMitZugriff, type VoiceViewer } from './access';
 
@@ -43,10 +39,6 @@ export interface AktionsKontext {
 async function lade(kontext: AktionsKontext, kanalId: string) {
   const guildId = await resolveGuildId();
   return ladeKanalMitZugriff(kontext.viewer, kanalId, guildId);
-}
-
-async function einstellungen(): Promise<VoiceHubSettings> {
-  return getModuleSettings<VoiceHubSettings>(VOICE_HUB_MODULE_ID);
 }
 
 export async function renameTalk(
@@ -96,31 +88,6 @@ export async function setTalkLocked(
   const aktualisiert = await setTemporaryVoiceLocked(kanal, locked, kontext.actor);
   await aktualisiereBedienfeld(aktualisiert);
   return aktualisiert;
-}
-
-export async function setTalkHidden(
-  kontext: AktionsKontext,
-  kanalId: string,
-  hidden: boolean,
-): Promise<TemporaryVoiceChannel> {
-  const { kanal, zugriff } = await lade(kontext, kanalId);
-  assertVoiceRecht(zugriff, 'manage', 'Du kannst diesen Talk nicht verstecken.');
-
-  const aktualisiert = await setTemporaryVoiceHidden(kanal, hidden, kontext.actor);
-  await aktualisiereBedienfeld(aktualisiert);
-  return aktualisiert;
-}
-
-export async function setTalkBitrate(
-  kontext: AktionsKontext,
-  kanalId: string,
-  bitrate: number,
-): Promise<TemporaryVoiceChannel> {
-  const { kanal, zugriff } = await lade(kontext, kanalId);
-  assertVoiceRecht(zugriff, 'manage', 'Du kannst die Bitrate dieses Talks nicht ändern.');
-
-  const settings = await einstellungen();
-  return setTemporaryVoiceBitrate(kanal, bitrate, kontext.actor, settings.maxBitrate);
 }
 
 /** Setzt das Spiel als Metadatum - Discord-Aktivitaeten bleiben unberuehrt. */

@@ -13,6 +13,7 @@ import { disconnectDatabase } from '@swisshub/database';
 import { invalidateIdentity } from '@swisshub/auth';
 import { ensureBootstrapRoles } from '@swisshub/permissions';
 import {
+  backfillModuleViewPermissions,
   analytics,
   getGuildConfig,
   importGuildFromEnvironment,
@@ -90,6 +91,12 @@ async function main(): Promise<void> {
     return false;
   });
   await ensureBootstrapRoles();
+
+  // Derselbe Nachtrag wie in der WebApp - je nachdem, was zuerst startet.
+  // Er ist wiederholbar; der zweite Lauf findet nichts mehr zu tun.
+  await backfillModuleViewPermissions().catch((error: unknown) => {
+    log.error('«Modul sehen» konnte nicht nachgetragen werden', { error });
+  });
 
   const deprecated = listDeprecatedEnvKeys();
   if (deprecated.length > 0) {

@@ -203,6 +203,7 @@ export default async function MusikPage(): Promise<React.JSX.Element> {
               maxVolume={einstellungen.maxVolume}
               loopMode={zustand.session.loopMode}
               hatTitel={titel !== null}
+              wartende={zustand.queue.length}
               darfSteuern={betrachter.darfSteuern}
             />
           </div>

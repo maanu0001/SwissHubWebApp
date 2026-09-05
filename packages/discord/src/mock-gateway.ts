@@ -157,7 +157,15 @@ export function createMockGateway(): DiscordGateway {
         parentId: input.parentId,
         position: kanalZaehler,
         nsfw: false,
-        overwrites: [],
+        // Wie beim Textkanal: die Ausnahmen der Erstellung merken. Ohne sie
+        // saehe jeder Leser einen Kanal ohne Rechte - und ein Test, der
+        // prueft, was der Besitzer im eigenen Talk darf, saehe nichts.
+        overwrites: (input.overwrites ?? []).map((entry) => ({
+          id: entry.id,
+          type: entry.type,
+          allow: entry.allow.toString(),
+          deny: entry.deny.toString(),
+        })),
       };
       eigeneKanaele.set(channel.id, channel);
       log.info('Mock: Sprachkanal erstellt', { name: input.name, id: channel.id });

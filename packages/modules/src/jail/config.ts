@@ -637,7 +637,6 @@ export const jailModule: ModuleDefinition = registerModule({
       icon: 'Lock',
       group: 'moderation',
       order: 30,
-      counter: 'activeJails',
     },
   ],
 });

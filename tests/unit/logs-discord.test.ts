@@ -200,7 +200,8 @@ describe('Embed eines Ereignisses', () => {
   it('zeigt Kanal und Inhalt einer gelöschten Nachricht', () => {
     const text = alsText(logs.formatiereEreignis(ereignis()));
     expect(text).toContain('gelöscht');
-    expect(text).toContain('#general');
+    // Der Kanal als Erwaehnung: ein Klick, und man ist dort.
+    expect(text).toContain('<#300000000000000003>');
     expect(text).toContain('Hallo Welt');
   });
 
@@ -259,18 +260,120 @@ describe('Embed eines Ereignisses', () => {
         ereignis({
           category: 'VOICE',
           type: analytics.EVENT_TYPES.VOICE_MOVE,
+          channelId: '300000000000000099',
           channelName: 'CS2',
-          metadata: { von: '111', vonName: 'Lobby' },
+          metadata: { von: '300000000000000098', vonName: 'Lobby' },
         }),
       ),
     );
-    expect(text).toContain('Lobby');
-    expect(text).toContain('CS2');
+    expect(text).toContain('<#300000000000000098>');
+    expect(text).toContain('<#300000000000000099>');
   });
 
   it('nutzt Discords Zeitschreibweise statt fester Schweizer Zeit', () => {
     const text = alsText(logs.formatiereEreignis(ereignis()));
     expect(text).toMatch(/<t:\d+:F>/u);
+  });
+});
+
+/**
+ * Erwähnungen in Logs.
+ *
+ * Zwei Dinge, die zusammengehoeren und die man leicht auseinanderreisst:
+ * die Darstellung soll anklickbar sein, und sie soll niemanden
+ * benachrichtigen. Das eine steht im Text, das andere in `allowedMentions`
+ * der Nachricht. Beide werden hier festgehalten - ein Log, das bei jedem
+ * Eintrag den halben Server anpingt, wird abgeschaltet und nuetzt dann
+ * niemandem mehr.
+ */
+describe('Erwähnungen in Logs', () => {
+  it('stellt Ziel und Moderator als klickbare Erwähnung dar', () => {
+    const text = alsText(logs.formatiereMassnahme(massnahme()));
+    expect(text).toContain('<@200000000000000002>');
+    expect(text).toContain('<@100000000000000001>');
+  });
+
+  it('lässt die Discord-ID kopierbar stehen', () => {
+    // Die Erwaehnung zeigt den aktuellen Namen; die Kennung haelt.
+    const text = alsText(logs.formatiereMassnahme(massnahme()));
+    expect(text).toContain('`200000000000000002`');
+    expect(text).toContain('`100000000000000001`');
+  });
+
+  it('stellt auch ein nicht mehr vorhandenes Mitglied dar', () => {
+    // Gebannt, ausgetreten, nicht mehr gecacht: die Kennung genuegt. Es gibt
+    // hier keine Abfrage, ob jemand noch Mitglied ist.
+    const text = alsText(
+      logs.formatiereMassnahme(massnahme({ targetUsername: null as never, type: 'UNBAN' })),
+    );
+    expect(text).toContain('<@200000000000000002>');
+    expect(text).toContain('`200000000000000002`');
+  });
+
+  it('erfindet für einen unbelegten Handelnden keine Erwähnung', () => {
+    // `unknown` heisst «Discord hat ihn nicht genannt». Ein `<@unknown>`
+    // waere ein Link auf nichts und eine Behauptung obendrein.
+    const text = alsText(
+      logs.formatiereMassnahme(
+        massnahme({ actorType: 'UNKNOWN', actorDiscordId: 'unknown', actorUsername: 'Unbekannt' }),
+      ),
+    );
+    expect(text).not.toContain('<@unknown>');
+    expect(text).toContain('Unbekannt');
+  });
+
+  it('stellt Rollen als Erwähnung dar', () => {
+    const text = alsText(
+      logs.formatiereEreignis(
+        ereignis({
+          category: 'MEMBER',
+          type: analytics.EVENT_TYPES.MEMBER_ROLE_ADD,
+          metadata: { rollen: [{ id: '900000000000000042', name: 'Premium' }] },
+        }),
+      ),
+    );
+    expect(text).toContain('<@&900000000000000042>');
+  });
+
+  it('nennt eine Rolle beim Namen, wenn ihre Kennung fehlt', () => {
+    const text = alsText(
+      logs.formatiereEreignis(
+        ereignis({
+          category: 'MEMBER',
+          type: analytics.EVENT_TYPES.MEMBER_ROLE_REMOVE,
+          metadata: { rollen: [{ id: undefined, name: 'Premium' }] },
+        }),
+      ),
+    );
+    expect(text).toContain('@Premium');
+  });
+
+  it('erzeugt aus Benutzertext keine Erwähnung, die pingt', () => {
+    // Der Text steht sichtbar im Embed - benachrichtigen kann er niemanden,
+    // weil jede Lognachricht mit `parse: []` gesendet wird.
+    const text = alsText(
+      logs.formatiereEreignis(
+        ereignis({ contentBefore: '@everyone @here <@&123> kommt alle!' }),
+      ),
+    );
+    expect(text).toContain('@everyone');
+    expect(text).toContain('@here');
+  });
+
+  it('gibt die Helfer zentral heraus, damit neue Logtypen sie erben', () => {
+    expect(logs.formatDiscordUserReference('200000000000000002', 'spammer')).toBe(
+      '<@200000000000000002>\nspammer · `200000000000000002`',
+    );
+    expect(logs.formatDiscordChannelReference('300000000000000003', 'general')).toBe(
+      '<#300000000000000003>',
+    );
+    expect(logs.formatDiscordRoleReference('900000000000000042', 'Premium')).toBe(
+      '<@&900000000000000042>',
+    );
+    // Keine gueltige Kennung: der Name, oder gar nichts.
+    expect(logs.formatDiscordUserReference(null, 'spammer')).toBe('spammer');
+    expect(logs.formatDiscordUserReference(null, null)).toBeNull();
+    expect(logs.formatDiscordChannelReference('kaputt', 'general')).toBe('#general');
   });
 });
 

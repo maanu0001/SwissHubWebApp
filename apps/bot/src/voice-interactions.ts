@@ -34,13 +34,19 @@ const log = createLogger('bot:voice-interactions');
 
 const MODAL_RENAME = 'swisshub:voice:modal:rename:';
 const MODAL_LIMIT = 'swisshub:voice:modal:limit:';
-const MODAL_BITRATE = 'swisshub:voice:modal:bitrate:';
-const MODAL_GAME = 'swisshub:voice:modal:game:';
 const SELECT_ALLOW = 'swisshub:voice:select:allow:';
 const SELECT_DENY = 'swisshub:voice:select:deny:';
 const SELECT_KICK = 'swisshub:voice:select:kick:';
 const SELECT_OWNER = 'swisshub:voice:select:owner:';
-const SELECT_MORE = 'swisshub:voice:select:more:';
+/**
+ * Das Zugriffsmenue.
+ *
+ * Frueher hiess dieser Schluessel `...:more:` und trug zwei Menues: den
+ * Zugriff und die selten benutzten Zusatzeinstellungen. Das zweite gibt es
+ * nicht mehr, und ein Schluessel, der «mehr» heisst und nur noch eines
+ * bedeutet, waere eine Faehrte auf etwas, das es nicht gibt.
+ */
+const SELECT_ACCESS = 'swisshub:voice:select:access:';
 
 export function registerVoiceInteractions(client: Client): void {
   client.on(Events.InteractionCreate, (interaction) => {
@@ -67,9 +73,9 @@ export function registerVoiceInteractions(client: Client): void {
 
     if (
       interaction.isStringSelectMenu() &&
-      interaction.customId.startsWith(SELECT_MORE)
+      interaction.customId.startsWith(SELECT_ACCESS)
     ) {
-      void behandleMehr(interaction).catch((error: unknown) => melde(interaction, error));
+      void behandleZugriffsWahl(interaction).catch((error: unknown) => melde(interaction, error));
     }
   });
 }
@@ -125,15 +131,6 @@ async function behandleKnopf(interaction: ButtonInteraction): Promise<void> {
       );
     }
 
-    case 'hide': {
-      const kanal = await ladeFuerAnzeige(kontext, kanalId);
-      const neu = await voiceHub.setTalkHidden(kontext, kanalId, !kanal.hidden);
-      return kurzeAntwort(
-        interaction,
-        neu.hidden ? '👁 Dein Talk isch versteckt.' : '👁 Dein Talk isch wieder sichtbar.',
-      );
-    }
-
     case 'access':
       return zeigeZugriffsAuswahl(interaction, kanalId);
 
@@ -143,9 +140,6 @@ async function behandleKnopf(interaction: ButtonInteraction): Promise<void> {
         text: 'Wem söll de Talk ghöre?',
       });
 
-    case 'more':
-      return zeigeMehr(interaction, kanalId);
-
     case 'delete':
       return frageLoeschenNach(interaction, kanalId);
 
@@ -154,29 +148,15 @@ async function behandleKnopf(interaction: ButtonInteraction): Promise<void> {
       return kurzeAntwort(interaction, '🗑️ Dein Talk isch gschlosse.');
     }
 
-    case 'bitrate':
-      return zeigeTextModal(interaction, {
-        customId: MODAL_BITRATE + kanalId,
-        titel: 'Bitrate',
-        feld: 'bitrate',
-        label: 'Bitrate in kbit/s',
-        max: 3,
-        stil: TextInputStyle.Short,
-      });
-
-    case 'game':
-      return zeigeTextModal(interaction, {
-        customId: MODAL_GAME + kanalId,
-        titel: 'Spiel setzen',
-        feld: 'game',
-        label: 'Was spielt ihr? (leer = entfernen)',
-        max: 60,
-        stil: TextInputStyle.Short,
-        pflicht: false,
-      });
-
     default:
-      return;
+      // Ein Knopf aus einem alten Bedienfeld - «Verstecken» oder «Mehr» gibt
+      // es nicht mehr. Ohne Antwort zeigt Discord «Interaktion
+      // fehlgeschlagen», was nach einem Defekt aussieht statt nach einer
+      // Aenderung.
+      return kurzeAntwort(
+        interaction,
+        'Die Option gits nüm. Sobald öppis am Talk ändered, wird s Bedienfeld erneueret.',
+      );
   }
 }
 
@@ -249,25 +229,6 @@ async function behandleModal(interaction: ModalSubmitInteraction): Promise<void>
     );
   }
 
-  if (customId.startsWith(MODAL_BITRATE)) {
-    const kanalId = customId.slice(MODAL_BITRATE.length);
-    const kbit = Number.parseInt(interaction.fields.getTextInputValue('bitrate').trim(), 10);
-    if (!Number.isFinite(kbit)) {
-      return kurzeAntwort(interaction, '❌ Bitte e Zahl iigäh.');
-    }
-    await voiceHub.setTalkBitrate(kontext, kanalId, kbit * 1000);
-    return kurzeAntwort(interaction, `🎚️ Bitrate uf **${kbit} kbit/s** gsetzt.`);
-  }
-
-  if (customId.startsWith(MODAL_GAME)) {
-    const kanalId = customId.slice(MODAL_GAME.length);
-    const spiel = interaction.fields.getTextInputValue('game').trim();
-    await voiceHub.setTalkGame(kontext, kanalId, spiel === '' ? null : spiel);
-    return kurzeAntwort(
-      interaction,
-      spiel === '' ? '🎮 Spiel entfernt.' : `🎮 Spiel uf **${spiel}** gsetzt.`,
-    );
-  }
 }
 
 // --- Auswahl von Mitgliedern -----------------------------------------------
@@ -294,7 +255,7 @@ async function zeigeZugriffsAuswahl(
   kanalId: string,
 ): Promise<void> {
   const auswahl = new StringSelectMenuBuilder()
-    .setCustomId(SELECT_MORE + kanalId)
+    .setCustomId(SELECT_ACCESS + kanalId)
     .setPlaceholder('Was möchtsch mache?')
     .addOptions(
       { label: 'Mitglied zuelah', value: 'allow', emoji: { name: '✅' } },
@@ -309,61 +270,17 @@ async function zeigeZugriffsAuswahl(
   });
 }
 
-async function zeigeMehr(interaction: ButtonInteraction, kanalId: string): Promise<void> {
-  const auswahl = new StringSelectMenuBuilder()
-    .setCustomId(SELECT_MORE + kanalId)
-    .setPlaceholder('Wyteri Iistellige')
-    .addOptions(
-      { label: 'Bitrate ändere', value: 'bitrate', emoji: { name: '🎚️' } },
-      { label: 'Spiel setze', value: 'game', emoji: { name: '🎮' } },
-      { label: 'Bedienfeld erneuere', value: 'repair', emoji: { name: '🔄' } },
-    );
+/** Was im Zugriffsmenue gewaehlt wurde. */
+async function behandleZugriffsWahl(interaction: StringSelectMenuInteraction): Promise<void> {
+  const kanalId = interaction.customId.slice(SELECT_ACCESS.length);
 
-  await interaction.reply({
-    content: '⚙️ Wyteri Iistellige:',
-    components: [new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(auswahl)],
-    flags: MessageFlags.Ephemeral,
-  });
-}
-
-async function behandleMehr(interaction: StringSelectMenuInteraction): Promise<void> {
-  const kanalId = interaction.customId.slice(SELECT_MORE.length);
-  const wahl = interaction.values[0];
-  const kontext = await kontextVon(interaction);
-
-  switch (wahl) {
+  switch (interaction.values[0]) {
     case 'allow':
       return zeigeAuswahlNachWahl(interaction, SELECT_ALLOW + kanalId, 'Wär söll dörfe iine?');
     case 'deny':
       return zeigeAuswahlNachWahl(interaction, SELECT_DENY + kanalId, 'Wär söll gsperrt werde?');
     case 'kick':
       return zeigeAuswahlNachWahl(interaction, SELECT_KICK + kanalId, 'Wär söll use?');
-    case 'bitrate':
-      // Ein Modal laesst sich aus einer Auswahl heraus oeffnen - anders als
-      // aus einer bereits beantworteten Interaktion.
-      return zeigeTextModalAusAuswahl(interaction, {
-        customId: MODAL_BITRATE + kanalId,
-        titel: 'Bitrate',
-        feld: 'bitrate',
-        label: 'Bitrate in kbit/s',
-        max: 3,
-      });
-    case 'game':
-      return zeigeTextModalAusAuswahl(interaction, {
-        customId: MODAL_GAME + kanalId,
-        titel: 'Spiel setzen',
-        feld: 'game',
-        label: 'Was spielt ihr? (leer = entfernen)',
-        max: 60,
-        pflicht: false,
-      });
-    case 'repair': {
-      const ok = await voiceHub.repairTalkPanel(kontext, kanalId);
-      return kurzeAntwort(
-        interaction,
-        ok ? '🔄 Bedienfeld isch erneueret.' : '❌ Bedienfeld het nöd chöne erstellt werde.',
-      );
-    }
     default:
       return;
   }
@@ -384,25 +301,6 @@ async function zeigeAuswahlNachWahl(
     content: text,
     components: [new ActionRowBuilder<UserSelectMenuBuilder>().addComponents(auswahl)],
   });
-}
-
-async function zeigeTextModalAusAuswahl(
-  interaction: StringSelectMenuInteraction,
-  optionen: { customId: string; titel: string; feld: string; label: string; max: number; pflicht?: boolean },
-): Promise<void> {
-  const eingabe = new TextInputBuilder()
-    .setCustomId(optionen.feld)
-    .setLabel(optionen.label)
-    .setStyle(TextInputStyle.Short)
-    .setMaxLength(optionen.max)
-    .setRequired(optionen.pflicht ?? true);
-
-  await interaction.showModal(
-    new ModalBuilder()
-      .setCustomId(optionen.customId)
-      .setTitle(optionen.titel)
-      .addComponents(new ActionRowBuilder<TextInputBuilder>().addComponents(eingabe)),
-  );
 }
 
 async function behandleMitgliedAuswahl(interaction: UserSelectMenuInteraction): Promise<void> {

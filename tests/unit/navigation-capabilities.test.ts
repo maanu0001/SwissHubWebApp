@@ -12,7 +12,7 @@ import { resolvePermissions } from '@swisshub/permissions';
  */
 await import('@swisshub/modules');
 
-const { buildNavigation } = await import('@swisshub/modules');
+const { buildNavigation, moduleViewPermission } = await import('@swisshub/modules');
 const { jail, premium, level } = await import('@swisshub/modules');
 const { jailSections } = await import('@/server/jail');
 const { premiumSections } = await import('@/server/premium');
@@ -53,9 +53,20 @@ const eintrag = (permissions: string[], label: string) =>
 
 const P = jail.JAIL_PERMISSIONS;
 
+/**
+ * «Modul sehen» - der Schluessel, der einen Bereich ueberhaupt erscheinen
+ * laesst.
+ *
+ * Er steht in jedem Fall unten ausdruecklich dabei. Die Frage dieser Datei
+ * ist, *welcher* Eintrag jemandem gezeigt wird; dass ohne diesen Schluessel
+ * gar keiner erscheint, ist die Frage davor - und sie hat ihren eigenen Fall.
+ */
+const JAIL_SEHEN = moduleViewPermission('jail');
+const LEVEL_SEHEN = moduleViewPermission('level');
+
 describe('Jail-Navigation', () => {
   it('zeigt «Jail», wenn die Übersicht erlaubt ist', () => {
-    const eintraege = nav([P.view]);
+    const eintraege = nav([JAIL_SEHEN, P.view]);
 
     expect(eintraege.find((item) => item.label === 'Jail')?.href).toBe('/jail');
     expect(eintraege.filter((item) => item.moduleId === 'jail')).toHaveLength(1);
@@ -64,7 +75,7 @@ describe('Jail-Navigation', () => {
   it('zeigt «Vote Jail» statt «Jail», wenn nur Abstimmungen erlaubt sind', () => {
     // Der eigentliche Fehler: hier stand vorher «Jail» und dahinter eine
     // 403-Seite.
-    const eintraege = nav([P.voteStart]);
+    const eintraege = nav([JAIL_SEHEN, P.voteStart]);
     const jailEintraege = eintraege.filter((item) => item.moduleId === 'jail');
 
     expect(jailEintraege).toHaveLength(1);
@@ -73,7 +84,7 @@ describe('Jail-Navigation', () => {
   });
 
   it('zeigt bei beiden Rechten nur «Jail» - keinen zweiten Eintrag daneben', () => {
-    const jailEintraege = nav([P.view, P.voteStart]).filter((item) => item.moduleId === 'jail');
+    const jailEintraege = nav([JAIL_SEHEN, P.view, P.voteStart]).filter((item) => item.moduleId === 'jail');
 
     expect(jailEintraege).toHaveLength(1);
     expect(jailEintraege[0]?.label).toBe('Jail');
@@ -81,7 +92,7 @@ describe('Jail-Navigation', () => {
   });
 
   it('führt einen reinen Import-Berechtigten direkt zum Import', () => {
-    const eintraege = nav([P.import]).filter((item) => item.moduleId === 'jail');
+    const eintraege = nav([JAIL_SEHEN, P.import]).filter((item) => item.moduleId === 'jail');
 
     expect(eintraege[0]?.href).toBe('/jail/import');
   });
@@ -90,9 +101,17 @@ describe('Jail-Navigation', () => {
     expect(nav(['dashboard.view']).filter((item) => item.moduleId === 'jail')).toEqual([]);
   });
 
+  it('zeigt gar nichts ohne «Modul sehen» - auch mit Jail-Rechten', () => {
+    // Die Umkehrung der Faelle oben: Sichtbarkeit ist eine eigene
+    // Entscheidung und keine Nebenwirkung einer Handlungsbefugnis.
+    expect(nav([P.view, P.voteStart, P.import]).filter((item) => item.moduleId === 'jail')).toEqual(
+      [],
+    );
+  });
+
   it('behält den Titel-Präfix des Moduls, damit Unterseiten benannt bleiben', () => {
     // Ohne das trüge `/jail/votes` in der Kopfzeile keinen Modultitel mehr.
-    expect(eintrag([P.voteStart], 'Vote Jail')?.titlePrefix).toBe('/jail');
+    expect(eintrag([JAIL_SEHEN, P.voteStart], 'Vote Jail')?.titlePrefix).toBe('/jail');
   });
 });
 
@@ -166,7 +185,7 @@ describe('XP-Glücksrad in der Seitenleiste', () => {
   const SICHTBAR = level.LEVEL_PERMISSIONS.raffleView;
 
   it('hängt am dynamischen Zustand, nicht nur an der Berechtigung', () => {
-    const eintraege = nav([SICHTBAR]).filter((item) => item.href === '/xp-gluecksrad');
+    const eintraege = nav([LEVEL_SEHEN, SICHTBAR]).filter((item) => item.href === '/xp-gluecksrad');
 
     expect(eintraege).toHaveLength(1);
     // Die Registry fragt keine Datenbank; das Layout wertet diese Bedingung
@@ -176,6 +195,10 @@ describe('XP-Glücksrad in der Seitenleiste', () => {
 
   it('erscheint ohne die Berechtigung überhaupt nicht', () => {
     expect(nav(['dashboard.view']).some((item) => item.href === '/xp-gluecksrad')).toBe(false);
+  });
+
+  it('erscheint ohne «Modul sehen» nicht, auch mit der Berechtigung', () => {
+    expect(nav([SICHTBAR]).some((item) => item.href === '/xp-gluecksrad')).toBe(false);
   });
 });
 

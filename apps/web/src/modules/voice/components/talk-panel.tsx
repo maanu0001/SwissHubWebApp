@@ -7,8 +7,6 @@ import {
   Check,
   Crown,
   ExternalLink,
-  Eye,
-  EyeOff,
   Loader2,
   Lock,
   LockOpen,
@@ -33,7 +31,6 @@ import {
   kickMemberAction,
   renameTalkAction,
   repairPanelAction,
-  setHiddenAction,
   setLimitAction,
   setLockedAction,
   transferTalkAction,
@@ -184,28 +181,6 @@ export function TalkPanel({
                 <Lock aria-hidden="true" />
               )}
               {talk.locked ? 'Entsperren' : 'Sperren'}
-            </Button>
-
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={laeuft !== null}
-              onClick={() =>
-                fuehreAus(
-                  'hide',
-                  () => setHiddenAction({ csrfToken, kanalId: talk.id, hidden: !talk.hidden }),
-                  talk.hidden ? 'Talk ist wieder sichtbar.' : 'Talk ist versteckt.',
-                )
-              }
-            >
-              {laeuft === 'hide' ? (
-                <Loader2 className="animate-spin" aria-hidden="true" />
-              ) : talk.hidden ? (
-                <Eye aria-hidden="true" />
-              ) : (
-                <EyeOff aria-hidden="true" />
-              )}
-              {talk.hidden ? 'Sichtbar machen' : 'Verstecken'}
             </Button>
 
             {!talk.hatBedienfeld ? (

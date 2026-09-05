@@ -27,6 +27,7 @@ registerGuildResolver();
 
 export * from './registry';
 export * from './module-state';
+export * from './module-view';
 export * from './settings';
 export * from './settings/fields';
 export * from './settings/service';

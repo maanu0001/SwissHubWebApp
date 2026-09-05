@@ -74,22 +74,6 @@ export const setLockedAction = defineAction(
   },
 );
 
-export const setHiddenAction = defineAction(
-  {
-    name: 'voice.hide',
-    module: 'voiceHub',
-    selfService: true,
-    schema: kanalSchema.extend({ hidden: z.boolean() }),
-    rateLimit: 'voiceOwn',
-    freshness: 'critical',
-  },
-  async ({ ctx, input }) => {
-    const kanal = await voiceHub.setTalkHidden(voiceKontext(ctx), input.kanalId, input.hidden);
-    revalidatePath('/voice');
-    return { hidden: kanal.hidden };
-  },
-);
-
 export const setGameAction = defineAction(
   {
     name: 'voice.game',

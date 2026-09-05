@@ -11,6 +11,7 @@ import {
   EVERYONE_VERWALTET,
   TEILNEHMER_ERLAUBT,
   BESITZER_MODERATION,
+  BESITZER_VERWALTUNG,
 } from '../../packages/modules/src/voice/permissions';
 import { DISCORD_PERMISSIONS } from '@swisshub/discord';
 
@@ -71,18 +72,32 @@ describe('Kanalnamen', () => {
 });
 
 describe('Rechte im Talk', () => {
-  it('gibt dem Besitzer keine Kanalverwaltung', () => {
-    // Damit liesse sich der Kanal an der Anwendung vorbei umkonfigurieren -
-    // und sie verstuende ihn hinterher nicht mehr.
+  it('gibt dem Besitzer die Verwaltung seines eigenen Kanals', () => {
+    // Er soll seinen Talk direkt in Discord einstellen koennen - Name,
+    // Limit, Berechtigungen. «Berechtigungen verwalten» heisst auf
+    // Kanalebene MANAGE_ROLES.
     const rechte = besitzerRechte(true);
-    expect(rechte & DISCORD_PERMISSIONS.MANAGE_CHANNELS).toBe(0n);
-    expect(rechte & DISCORD_PERMISSIONS.MANAGE_ROLES).toBe(0n);
+    expect(rechte & DISCORD_PERMISSIONS.MANAGE_CHANNELS).toBe(DISCORD_PERMISSIONS.MANAGE_CHANNELS);
+    expect(rechte & DISCORD_PERMISSIONS.MANAGE_ROLES).toBe(DISCORD_PERMISSIONS.MANAGE_ROLES);
+  });
+
+  it('hängt die Verwaltung nicht am Moderationsschalter', () => {
+    // Der Schalter entscheidet, ob der Besitzer andere stummschalten und
+    // verschieben darf. Ob ihm sein eigener Kanal gehoert, ist eine andere
+    // Frage - und sie wird nicht mit demselben Schalter beantwortet.
+    expect(besitzerRechte(false) & BESITZER_VERWALTUNG).toBe(BESITZER_VERWALTUNG);
+    expect(besitzerRechte(true) & BESITZER_VERWALTUNG).toBe(BESITZER_VERWALTUNG);
   });
 
   it('gibt Moderationsrechte nur, wenn das Preset es erlaubt', () => {
     expect(besitzerRechte(true) & BESITZER_MODERATION).toBe(BESITZER_MODERATION);
     expect(besitzerRechte(false) & BESITZER_MODERATION).toBe(0n);
-    expect(besitzerRechte(false)).toBe(TEILNEHMER_ERLAUBT);
+    expect(besitzerRechte(false)).toBe(TEILNEHMER_ERLAUBT | BESITZER_VERWALTUNG);
+  });
+
+  it('gibt einem gewöhnlichen Teilnehmer keine Verwaltung', () => {
+    // Die Rechte gehoeren dem Besitzer, nicht jedem im Kanal.
+    expect(TEILNEHMER_ERLAUBT & BESITZER_VERWALTUNG).toBe(0n);
   });
 
   it('unterscheidet Sperre und Sichtbarkeit', () => {

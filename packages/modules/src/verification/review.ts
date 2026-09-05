@@ -6,7 +6,13 @@ import { conflict, forbidden } from '@swisshub/shared';
 import { banMember, type ModerationActor } from '../moderation/service';
 import { VERIFICATION_MODULE_ID, VERIFICATION_PERMISSIONS, type VerificationSettings } from './config';
 import { classify, reichtZumFreischalten, type AiAusgang, type AiClient } from './ai';
-import { entscheide, requireRequest, verificationSettings, verify } from './service';
+import {
+  entscheide,
+  requireRequest,
+  verificationSettings,
+  verify,
+  type Entscheidungsquelle,
+} from './service';
 
 const logger = createLogger('verification:review');
 
@@ -29,6 +35,14 @@ const logger = createLogger('verification:review');
 /** Wer im Namen eines Menschen handelt. */
 export interface HumanActor extends ModerationActor {
   can(permission: string): boolean;
+  /**
+   * Wo er handelt.
+   *
+   * Aendert an der Entscheidung nichts - beide Wege laufen durch diesen
+   * Dienst. Es steht anschliessend in der Meldung und in der Pruefspur, damit
+   * nachvollziehbar bleibt, wo entschieden wurde.
+   */
+  source?: Entscheidungsquelle;
 }
 
 function pruefeRecht(actor: HumanActor, permission: string, meldung: string): void {
@@ -65,7 +79,12 @@ export async function humanVerify(
   try {
     const ergebnis = await verify(
       requestId,
-      { by: 'HUMAN', discordId: actor.discordId, username: actor.username },
+      {
+        by: 'HUMAN',
+        discordId: actor.discordId,
+        username: actor.username,
+        source: actor.source ?? null,
+      },
       { gateway: options.gateway },
     );
     return {
@@ -131,9 +150,30 @@ export async function humanReject(
     actorDiscordId: actor.discordId,
     actorUsername: actor.username,
     reason: grund,
+    source: actor.source ?? null,
   });
   if (!entschieden) {
-    return { request: await requireRequest(requestId), gewonnen: false };
+    // Zwei Menschen - oder ein Mensch und die AI - waren gleichzeitig dran.
+    // Der Konflikt gehoert in die Pruefspur: sonst sieht man spaeter nur die
+    // eine Entscheidung und nicht, dass jemand das Gegenteil wollte.
+    const frisch = await requireRequest(requestId);
+    await safeRecordAudit({
+      action: AUDIT_ACTIONS.VERIFICATION_ERROR,
+      module: VERIFICATION_MODULE_ID,
+      actorDiscordId: actor.discordId,
+      actorUsername: actor.username,
+      targetDiscordId: vorher.discordId,
+      targetLabel: vorher.displayName ?? vorher.discordId,
+      success: false,
+      errorCode: 'CONFLICT',
+      metadata: {
+        requestId,
+        wollte: 'REJECTED',
+        wurde: frisch.status,
+        quelle: actor.source ?? null,
+      },
+    });
+    return { request: frisch, gewonnen: false };
   }
 
   try {
@@ -182,7 +222,7 @@ export async function humanReject(
     targetDiscordId: vorher.discordId,
     targetLabel: vorher.displayName ?? vorher.username ?? vorher.discordId,
     success: true,
-    metadata: { requestId, reason: grund },
+    metadata: { requestId, reason: grund, quelle: actor.source ?? null },
   });
 
   // Nur eine Meldung. Die Automation Engine hat den Bann weder ausgeloest

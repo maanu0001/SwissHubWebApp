@@ -18,11 +18,35 @@ export interface PickedMember {
   jailed: boolean;
 }
 
+/** Ein Treffer, wie ihn eine Suchaktion zurueckgibt. */
+interface SucheTreffer extends PickedMember {
+  isBot: boolean;
+}
+
+/**
+ * Die Suche, mit der dieser Picker arbeitet.
+ *
+ * Voreingestellt ist die allgemeine Mitgliedersuche. Der Vote-Jail-Ablauf
+ * uebergibt stattdessen seine eigene: sie verlangt nicht `members.view` und
+ * liefert nur, wogegen tatsaechlich abgestimmt werden darf. Der Picker
+ * bleibt derselbe - was er zeigt, entscheidet die Aktion, die ihn beliefert,
+ * und die prueft serverseitig.
+ */
+export type MemberSuche = (eingabe: {
+  csrfToken: string;
+  query: string;
+  limit?: number;
+}) => Promise<
+  { ok: true; data: SucheTreffer[] } | { ok: false; error: { message: string } }
+>;
+
 interface MemberPickerProps {
   csrfToken: string;
   value: PickedMember | null;
   onChange(member: PickedMember | null): void;
   label?: string;
+  /** Abweichende Suche - siehe `MemberSuche`. */
+  suche?: MemberSuche;
 }
 
 const DEBOUNCE_MS = 350;
@@ -36,6 +60,7 @@ export function MemberPicker({
   value,
   onChange,
   label = 'Benutzer',
+  suche,
 }: MemberPickerProps): React.JSX.Element {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<PickedMember[]>([]);
@@ -53,7 +78,7 @@ export function MemberPicker({
     }
     timer.current = setTimeout(() => {
       startTransition(async () => {
-        const response = await searchMembersAction({ csrfToken, query, limit: 20 });
+        const response = await (suche ?? searchMembersAction)({ csrfToken, query, limit: 20 });
         if (response.ok) {
           setResults(
             response.data
@@ -78,7 +103,7 @@ export function MemberPicker({
         clearTimeout(timer.current);
       }
     };
-  }, [query, csrfToken, touched]);
+  }, [query, csrfToken, touched, suche]);
 
   if (value) {
     return (

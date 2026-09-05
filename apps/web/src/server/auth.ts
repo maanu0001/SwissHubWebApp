@@ -130,7 +130,21 @@ export async function requirePagePermission(
 ): Promise<AuthContext> {
   const context = await requireMember();
   const erlaubte = Array.isArray(permission) ? permission : [permission];
-  if (!erlaubte.some((eintrag) => can(context, eintrag))) {
+
+  // «Modul sehen» gilt hier genauso wie in der Seitenleiste. Die Seitenleiste
+  // ist Darstellung; wer die Adresse kennt, umgeht sie. Der Schluessel wird
+  // aus dem Praefix der geforderten Berechtigung abgeleitet, damit keine
+  // Seite ihn mitgeben muss - und keine neue ihn vergessen kann.
+  const { moduleViewPermissionFor } = await import('@swisshub/modules');
+  const zugelassen = erlaubte.some((eintrag) => {
+    if (!can(context, eintrag)) {
+      return false;
+    }
+    const sehen = moduleViewPermissionFor(eintrag);
+    return sehen === null || can(context, sehen);
+  });
+
+  if (!zugelassen) {
     if (options.allowDuringSetup && (await hasSetupAccess())) {
       return context;
     }

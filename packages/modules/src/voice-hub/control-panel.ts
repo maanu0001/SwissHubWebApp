@@ -29,21 +29,29 @@ const log = createLogger('voice-hub:panel');
 /** Praefix aller Voice-Hub-Knoepfe. */
 export const VOICE_BUTTON_PREFIX = 'swisshub:voice:';
 
+/**
+ * Die Aktionen des Bedienfelds.
+ *
+ * «Verstecken» und «Mehr» stehen hier nicht mehr. Das Verstecken war ein
+ * Zustand, den ausser dem Besitzer niemand mehr erklaeren konnte - ein Talk,
+ * den man nicht sieht, ist fuer alle anderen kein Talk. Er entsteht weiterhin
+ * versteckt, wenn die Vorlage des Hubs es so vorsieht; nur der Schalter im
+ * laufenden Betrieb ist weg.
+ *
+ * «Mehr» war ein Menue mit drei selten benutzten Eintraegen und einem Klick
+ * Umweg fuer alle. Was daraus geblieben ist, steht in der Anwendung.
+ */
 export type VoiceButtonAction =
   | 'rename'
   | 'limit'
   | 'lock'
-  | 'hide'
   | 'access'
   | 'owner'
-  | 'more'
   | 'delete'
   | 'delete-confirm'
   | 'allow'
   | 'deny'
-  | 'kick'
-  | 'bitrate'
-  | 'game';
+  | 'kick';
 
 export function baueKnopfId(action: VoiceButtonAction, kanalId: string): string {
   return `${VOICE_BUTTON_PREFIX}${action}:${kanalId}`;
@@ -122,9 +130,9 @@ export function baueEmbed(kanal: TemporaryVoiceChannel, anzahlZugriff: number): 
 /**
  * Die Knoepfe.
  *
- * Discord erlaubt fuenf Knoepfe je Reihe und fuenf Reihen je Nachricht. Hier
- * sind es acht in zwei Reihen - mehr braeuchte niemand auf einen Blick, und
- * was selten vorkommt, liegt hinter «Mehr».
+ * Sechs in zwei Reihen. Discord erlaubt mehr, aber ein Bedienfeld, das man
+ * lesen muss, bevor man es benutzen kann, ist keines - und jeder Knopf hier
+ * ist einer, den Besitzer tatsaechlich brauchen.
  */
 export function baueKnoepfe(kanal: TemporaryVoiceChannel): DiscordActionRow[] {
   const id = kanal.id;
@@ -153,13 +161,6 @@ export function baueKnoepfe(kanal: TemporaryVoiceChannel): DiscordActionRow[] {
           emoji: { name: kanal.locked ? '🔓' : '🔒' },
           custom_id: baueKnopfId('lock', id),
         },
-        {
-          type: 2,
-          style: kanal.hidden ? BUTTON_STYLE.SUCCESS : BUTTON_STYLE.SECONDARY,
-          label: kanal.hidden ? 'Zeigen' : 'Verstecken',
-          emoji: { name: '👁' },
-          custom_id: baueKnopfId('hide', id),
-        },
       ],
     },
     {
@@ -178,13 +179,6 @@ export function baueKnoepfe(kanal: TemporaryVoiceChannel): DiscordActionRow[] {
           label: 'Übergeben',
           emoji: { name: '👑' },
           custom_id: baueKnopfId('owner', id),
-        },
-        {
-          type: 2,
-          style: BUTTON_STYLE.SECONDARY,
-          label: 'Mehr',
-          emoji: { name: '⚙️' },
-          custom_id: baueKnopfId('more', id),
         },
         {
           type: 2,

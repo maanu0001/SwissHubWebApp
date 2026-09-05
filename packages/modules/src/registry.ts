@@ -84,17 +84,12 @@ export interface ModuleNavigationItem {
   /** Statisches Label rechts im Navigationseintrag, z.B. `NEU`. */
   badge?: string;
   /**
-   * Dynamischer Zähler, den die Seitenleiste anzeigt.
-   * `activeJails` wird serverseitig befüllt.
-   */
-  counter?: 'activeJails';
-  /**
    * Bedingung, die zusaetzlich zur Berechtigung erfuellt sein muss.
    *
    * Die Registry selbst fragt keine Datenbank - sie wird an vielen Stellen
    * geladen, auch dort, wo keine Verbindung steht. Die Auswertung geschieht
    * deshalb im Layout, das die Daten ohnehin holt; hier steht nur, worauf es
-   * ankommt. Dasselbe Vorgehen wie bei `counter`.
+   * ankommt.
    */
   visibleWhen?: 'activeRaffle';
 }
@@ -141,9 +136,86 @@ export interface ModuleDefinition {
 
 const modules = new Map<string, ModuleDefinition>();
 
+/**
+ * «Modul sehen».
+ *
+ * Der eine Schluessel, der entscheidet, ob ein Bereich in der Seitenleiste
+ * ueberhaupt erscheint und ob seine Seiten sich oeffnen lassen. Er wird nicht
+ * von den Modulen einzeln gepflegt, sondern hier aus dem Praefix abgeleitet:
+ * ein Modul, das ihn vergisst, waere fuer niemanden sichtbar, und ein Modul,
+ * das ihn anders benennt, waere die Ausnahme, die die Regel wertlos macht.
+ *
+ * Er folgt dem bestehenden Schema `<praefix>.<aktion>` und faellt damit unter
+ * die vorhandene Wildcard-Semantik: `music.*` schliesst `music.module.view`
+ * ein, `admin.full` ohnehin alles.
+ *
+ * Bewusst nicht `<praefix>.view`: der Schluessel gibt es an vielen Stellen
+ * schon, und er bedeutet dort mal «Bereich oeffnen» und mal «diese Daten
+ * lesen». Beim Jail heisst `jail.view` «Strafakte einsehen» - wer nur eine
+ * Abstimmung starten darf, soll den Bereich sehen, ohne die Akte lesen zu
+ * duerfen. Ein zweiter, eindeutiger Schluessel trennt die beiden Fragen,
+ * statt eine bestehende Bedeutung stillschweigend zu erweitern.
+ */
+export function moduleViewPermission(permissionPrefix: string): string {
+  return `${permissionPrefix}.module.view`;
+}
+
+/**
+ * Der «Modul sehen»-Schluessel eines Moduls - oder `null`.
+ *
+ * `null` fuer Module ohne Seitenleisteneintrag: sie haben nichts zu zeigen,
+ * und ein Schluessel, der nichts sichtbar macht, waere im Berechtigungseditor
+ * nur eine Zeile mehr zum Raetseln.
+ */
+export function moduleViewPermissionOf(definition: ModuleDefinition): string | null {
+  return definition.navigation.length > 0 ? moduleViewPermission(definition.permissionPrefix) : null;
+}
+
+/**
+ * Der «Modul sehen»-Schluessel zum Praefix einer beliebigen Berechtigung.
+ *
+ * Damit findet der Seitenschutz den passenden Schluessel, ohne dass ihn 106
+ * Seiten einzeln mitgeben muessten - und ohne dass eine neue Seite ihn
+ * vergessen kann.
+ */
+export function moduleViewPermissionFor(permission: string): string | null {
+  const praefix = permission.split('.')[0];
+  if (praefix === undefined || permission === moduleViewPermission(praefix)) {
+    return null;
+  }
+  for (const definition of modules.values()) {
+    if (definition.permissionPrefix === praefix) {
+      const schluessel = moduleViewPermissionOf(definition);
+      if (schluessel) {
+        return schluessel;
+      }
+    }
+  }
+  return null;
+}
+
 export function registerModule(definition: ModuleDefinition): ModuleDefinition {
   modules.set(definition.id, definition);
   registerPermissions(definition.permissions);
+
+  const sehen = moduleViewPermissionOf(definition);
+  if (sehen) {
+    // Zwei Module koennen sich einen Praefix teilen - «Server» und
+    // «Einstellungen» tun es, damit `settings.*` beide abdeckt. Sie teilen
+    // sich dann auch diesen Schluessel; die Beschreibung sagt das, statt so
+    // zu tun, als gaebe es zwei.
+    registerPermissions([
+      {
+        key: sehen,
+        label: 'Modul sehen',
+        description:
+          'Diesen Bereich in der Seitenleiste sehen und öffnen. Erlaubt für sich genommen ' +
+          'keine einzige Aktion darin - dafür stehen die Berechtigungen darunter.',
+        module: definition.id,
+      },
+    ]);
+  }
+
   return definition;
 }
 
@@ -173,6 +245,15 @@ export function buildNavigation(
   const owned = new Set(permissionKeys);
   return listModuleDefinitions()
     .filter((definition) => definition.core || enabledModuleIds.has(definition.id))
+    // «Modul sehen» zuerst: fehlt der Schluessel, erscheint von diesem Modul
+    // nichts - unabhaengig davon, welche Aktionen jemand darin ausfuehren
+    // duerfte. Frueher genuegte irgendeine Berechtigung des Moduls, und der
+    // Eintrag entstand als Nebenwirkung einer Handlungsbefugnis. Sichtbarkeit
+    // ist jetzt eine eigene Entscheidung.
+    .filter((definition) => {
+      const sehen = moduleViewPermissionOf(definition);
+      return sehen === null || owned.has(sehen);
+    })
     .flatMap((definition) => definition.navigation.map((item) => ({ ...item, moduleId: definition.id })))
     .flatMap((item) => {
       if (owned.has(item.permission)) {

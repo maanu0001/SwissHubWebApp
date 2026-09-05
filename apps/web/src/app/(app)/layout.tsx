@@ -4,10 +4,10 @@ import { guildIconUrl } from '@swisshub/discord/cdn';
 import {
   branding as brandingModule,
   buildNavigation,
+  moduleViewPermission,
   enabledModuleIds,
   getGuildConfig,
   groupNavigation,
-  jail,
   level,
   premium as premiumModule,
   readBotStatus,
@@ -37,12 +37,11 @@ export default async function AppLayout({
 }): Promise<React.JSX.Element> {
   const context = await requireMember();
 
-  const [moduleIds, bot, guild, guildConfig, jailStats, logoUrl] = await Promise.all([
+  const [moduleIds, bot, guild, guildConfig, logoUrl] = await Promise.all([
     enabledModuleIds(),
     readBotStatus(),
     discord.guild.get().catch(() => null),
     getGuildConfig(),
-    jail.getJailStats().catch(() => null),
     brandingModule.currentLogoUrl(),
   ]);
 
@@ -86,7 +85,19 @@ export default async function AppLayout({
    */
   const setupAccess = await hasSetupAccess();
   const navigationKeys = setupAccess
-    ? [...new Set([...context.permissionKeys, 'settings.view', 'permissions.manage', 'modules.manage'])]
+    ? [
+        ...new Set([
+          ...context.permissionKeys,
+          'settings.view',
+          'permissions.manage',
+          'modules.manage',
+          // Ohne «Modul sehen» blieben die Konfigurationsbereiche trotz der
+          // Ergaenzung oben unsichtbar - und die Einrichtung liesse sich
+          // nicht abschliessen.
+          moduleViewPermission('settings'),
+          moduleViewPermission('modules'),
+        ]),
+      ]
     : context.permissionKeys;
 
   const navigation = buildNavigation(navigationKeys, moduleIds).filter(
@@ -103,7 +114,6 @@ export default async function AppLayout({
       moduleId: item.moduleId,
       group: item.group,
       badge: item.badge,
-      count: item.counter === 'activeJails' ? (jailStats?.active ?? 0) : undefined,
     })),
   }));
 

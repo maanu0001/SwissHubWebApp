@@ -13,3 +13,4 @@ export { buildJailEmbed, buildReleaseEmbed } from './notifications';
 export * from './vote/service';
 export * from './vote/embed';
 export * from './vote/queries';
+export * from './vote/targets';

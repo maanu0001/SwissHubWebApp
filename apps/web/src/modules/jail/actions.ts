@@ -1,5 +1,6 @@
 'use server';
 
+import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
 import { can } from '@swisshub/auth';
 import { jail } from '@swisshub/modules';
@@ -104,6 +105,59 @@ export const releaseJailAction = defineAction(
  * Ausführung übernimmt später `createJail`. Deshalb genügt hier die
  * Berechtigung `jail.vote.start`; alle weiteren Prüfungen macht der Service.
  */
+/**
+ * Zielsuche fuer eine Community-Abstimmung.
+ *
+ * Eigene Aktion statt `members.search`: jene verlangt `members.view` und
+ * oeffnet damit das Member Center. Wer eine Abstimmung starten darf, soll ein
+ * Ziel waehlen koennen, ohne dafuer fremde Profile, Notizen und die
+ * Moderationsakte lesen zu duerfen.
+ *
+ * Dieselbe Berechtigung wie das Starten selbst - und der Dienst filtert
+ * serverseitig nach derselben Policy, die beim Start greift.
+ */
+export const searchVoteJailTargetsAction = defineAction(
+  {
+    name: 'jail.vote.targets',
+    module: MODULE_ID,
+    permission: jail.JAIL_PERMISSIONS.voteStart,
+    schema: z.object({
+      query: z.string().max(100),
+      limit: z.number().int().min(1).max(50).optional(),
+    }),
+    rateLimit: 'memberSearch',
+    freshness: 'cached',
+  },
+  async ({ ctx, input }) => {
+    await assertModuleEnabled(MODULE_ID);
+
+    const ziele = await jail.searchVoteJailTargets(
+      input.query,
+      {
+        discordId: ctx.user.discordId,
+        username: ctx.user.username,
+        avatarHash: ctx.user.avatarHash,
+        roleIds: ctx.roleIds,
+        isOwner: ctx.user.isOwner,
+        moderationLevel: ctx.moderationLevel,
+      },
+      { limit: input.limit ?? 20 },
+    );
+
+    // Dieselbe Form wie die Mitgliedersuche, damit der Picker beide
+    // verwenden kann. `jailed` ist hier immer `false`: gejailte Mitglieder
+    // stehen gar nicht erst in der Liste.
+    return ziele.map((ziel) => ({
+      discordId: ziel.discordId,
+      username: ziel.username,
+      displayName: ziel.displayName,
+      avatarHash: ziel.avatarHash,
+      isBot: false,
+      jailed: false,
+    }));
+  },
+);
+
 export const startVoteJailAction = defineAction(
   {
     name: 'jail.vote.start',

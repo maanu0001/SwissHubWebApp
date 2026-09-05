@@ -18,7 +18,7 @@ import {
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/input';
 import { MemberPicker, type PickedMember } from '@/modules/members/components/member-picker';
-import { startVoteJailAction } from '@/modules/jail/actions';
+import { searchVoteJailTargetsAction, startVoteJailAction } from '@/modules/jail/actions';
 
 /**
  * Abstimmung starten.
@@ -102,7 +102,17 @@ export function StartVoteJailDialog({
         </DialogHeader>
 
         <div className="space-y-4">
-          <MemberPicker csrfToken={csrfToken} value={member} onChange={setMember} />
+          {/*
+            Eigene Suche statt der allgemeinen Mitgliedersuche: sie verlangt
+            nur `jail.vote.start` und zeigt ausschliesslich Mitglieder, gegen
+            die eine Abstimmung ueberhaupt zulaessig waere.
+          */}
+          <MemberPicker
+            csrfToken={csrfToken}
+            value={member}
+            onChange={setMember}
+            suche={searchVoteJailTargetsAction}
+          />
 
           <div className="space-y-2">
             <Label htmlFor="vote-reason">Grund (optional)</Label>

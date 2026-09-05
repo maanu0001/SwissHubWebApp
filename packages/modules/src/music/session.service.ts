@@ -171,6 +171,70 @@ export async function resume(sessionId: string, actor: SessionActor): Promise<st
   return befehl(session, 'RESUME', actor);
 }
 
+/**
+ * Innerhalb des laufenden Titels an eine Stelle springen.
+ *
+ * Die Fortschrittsleiste sah bisher aus wie etwas, worauf man klicken kann,
+ * und war doch nur eine Anzeige. Wer ein zweiminütiges Intro überspringen
+ * wollte, konnte den Titel überspringen - mehr nicht.
+ *
+ * Die Position wird hier gesetzt, nicht erst wenn die Laufzeit antwortet:
+ * `trackStartedAt` so weit zurückzudatieren, wie gesprungen wurde, ist genau
+ * das, was die Fortschrittsberechnung liest. Der Balken steht damit sofort
+ * richtig, statt bis zur nächsten Abfrage an der alten Stelle zu kleben.
+ * Scheitert der Befehl, holt die nächste Abfrage die Wahrheit zurück.
+ *
+ * Die Länge des Titels ist die Grenze. Ein Sprung ans Ende oder darüber
+ * hinaus wäre ein umständliches «Überspringen» - dafür gibt es `skip`.
+ */
+export async function seek(
+  sessionId: string,
+  sekunden: number,
+  actor: SessionActor,
+  jetzt = new Date(),
+): Promise<string> {
+  const session = await ladeSession(sessionId);
+  if (!session.currentItemId) {
+    throw new AppError('CONFLICT', { userMessage: 'Es läuft gerade kein Titel.' });
+  }
+
+  const titel = await prisma.musicQueueItem.findUnique({
+    where: { id: session.currentItemId },
+    select: { durationSeconds: true },
+  });
+  const laenge = titel?.durationSeconds ?? 0;
+
+  const ziel = Math.trunc(sekunden);
+  if (!Number.isFinite(ziel) || ziel < 0) {
+    throw new AppError('VALIDATION_FAILED', { userMessage: 'Diese Stelle gibt es nicht.' });
+  }
+  // Ohne bekannte Länge - ein Livestream etwa - lässt sich nichts begrenzen
+  // und auch nichts sinnvoll anspringen.
+  if (laenge <= 0) {
+    throw new AppError('CONFLICT', {
+      userMessage: 'Bei diesem Titel lässt sich nicht springen.',
+    });
+  }
+  // Die letzte Sekunde bleibt frei: ein Sprung genau ans Ende beendete den
+  // Titel sofort und sähe aus wie ein versehentliches Überspringen.
+  const begrenzt = Math.min(ziel, Math.max(0, laenge - 1));
+
+  await prisma.musicSession.update({
+    where: { id: sessionId },
+    data: {
+      trackStartedAt: new Date(jetzt.getTime() - begrenzt * 1000),
+      // Die bisher gesammelte Pausendauer bezog sich auf den alten
+      // Startzeitpunkt. Nach dem Sprung zählt sie doppelt, wenn sie
+      // stehenbleibt.
+      pausedMs: 0,
+      pausedAt: session.pausedAt ? jetzt : null,
+      lastActivityAt: jetzt,
+    },
+  });
+
+  return befehl(session, 'SEEK', actor, { positionSeconds: begrenzt });
+}
+
 export async function skip(sessionId: string, actor: SessionActor): Promise<string> {
   const session = await ladeSession(sessionId);
   await aktivitaet(sessionId);

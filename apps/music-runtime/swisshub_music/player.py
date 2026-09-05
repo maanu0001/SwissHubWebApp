@@ -33,6 +33,9 @@ class SessionPlayer:
         self._quelle: Optional[discord.PCMVolumeTransformer] = None
         self._begonnen_um = 0.0
         self._uebersprungen = False
+        # Gesetzt, solange ein Sprung ansteht. Der Titel bleibt dabei
+        # derselbe - deshalb ein eigenes Feld und nicht `_uebersprungen`.
+        self._sprungziel: Optional[int] = None
 
     async def verbinde(self, kanal: discord.VoiceChannel) -> None:
         if self.voice and self.voice.is_connected():
@@ -90,23 +93,41 @@ class SessionPlayer:
             await self.store.markiere_unspielbar(str(eintrag["id"]), str(fehler))
             return
 
-        self._weiter.clear()
         self._uebersprungen = False
-        self._begonnen_um = time.monotonic()
+        self._sprungziel = None
+        versatz = 0
 
-        quelle = discord.PCMVolumeTransformer(
-            discord.FFmpegPCMAudio(adresse, **provider.FFMPEG_OPTS), volume=self.volume
-        )
-        self._quelle = quelle
+        # Ein Sprung startet denselben Titel an einer anderen Stelle neu.
+        # discord.py kann eine laufende Quelle nicht umsetzen, also wird sie
+        # gestoppt und eine neue mit `-ss` gebaut. Ohne diese innere Schleife
+        # liefe der Ablauf nach dem Stoppen zum naechsten Titel weiter - und
+        # ein Sprung waere ein Ueberspringen.
+        while True:
+            self._weiter.clear()
+            # Zurueckdatiert um den Versatz: `gespielt` ist damit die Stelle,
+            # bis zu der der Titel lief, und nicht die Zeit seit dem letzten
+            # Sprung.
+            self._begonnen_um = time.monotonic() - versatz
 
-        if self.voice is None or not self.voice.is_connected():
-            raise asyncio.CancelledError
+            quelle = discord.PCMVolumeTransformer(
+                discord.FFmpegPCMAudio(adresse, **provider.ffmpeg_opts(versatz)),
+                volume=self.volume,
+            )
+            self._quelle = quelle
 
-        self.voice.play(
-            quelle,
-            after=lambda _f: self.client.loop.call_soon_threadsafe(self._weiter.set),
-        )
-        await self._weiter.wait()
+            if self.voice is None or not self.voice.is_connected():
+                raise asyncio.CancelledError
+
+            self.voice.play(
+                quelle,
+                after=lambda _f: self.client.loop.call_soon_threadsafe(self._weiter.set),
+            )
+            await self._weiter.wait()
+
+            if self._sprungziel is None:
+                break
+            versatz = self._sprungziel
+            self._sprungziel = None
 
         gespielt = int(time.monotonic() - self._begonnen_um)
         session = await self.store.session(self.session_id)
@@ -152,8 +173,23 @@ class SessionPlayer:
 
     def ueberspringe(self) -> None:
         self._uebersprungen = True
+        # Ein noch nicht ausgefuehrter Sprung wird hinfaellig - sonst setzte
+        # die Schleife den Titel neu auf, statt ihn zu verlassen.
+        self._sprungziel = None
         if self.voice and (self.voice.is_playing() or self.voice.is_paused()):
             self.voice.stop()
+
+    def springe(self, sekunden: int) -> None:
+        """An eine Stelle des laufenden Titels springen.
+
+        Gestoppt wird die Quelle, nicht der Titel: `_sprungziel` sagt der
+        Wiedergabeschleife, dass sie denselben Eintrag noch einmal aufsetzen
+        soll - mit `-ss` an der gewuenschten Stelle.
+        """
+        if not self.voice or not (self.voice.is_playing() or self.voice.is_paused()):
+            raise RuntimeError("Es läuft gerade kein Titel.")
+        self._sprungziel = max(0, int(sekunden))
+        self.voice.stop()
 
     def setze_lautstaerke(self, prozent: int) -> None:
         self.volume = max(0.0, min(prozent, 150)) / 100.0

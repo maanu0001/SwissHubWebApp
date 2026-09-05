@@ -32,6 +32,28 @@ FFMPEG_OPTS = {
     "options": "-vn",
 }
 
+
+def ffmpeg_opts(versatz: int = 0) -> dict:
+    """FFmpeg-Optionen, wahlweise mit Startversatz.
+
+    `-ss` steht vor der Eingabe, nicht danach: dort spult FFmpeg im Strom
+    vor, statt alles davor zu dekodieren und wegzuwerfen. Bei einem Sprung
+    in die Mitte eines langen Titels ist das der Unterschied zwischen
+    sofort und mehreren Sekunden Stille.
+
+    Der Wert wird als ganze Zahl eingesetzt und ist nach oben begrenzt. Er
+    kommt zwar aus der eigenen Anwendung und nicht von aussen, aber er landet
+    in einer Kommandozeile - eine Zahl bleibt eine Zahl, und mehr als ein Tag
+    ergibt bei keinem Titel Sinn.
+    """
+    sekunden = max(0, min(int(versatz), 24 * 3600))
+    if sekunden == 0:
+        return dict(FFMPEG_OPTS)
+    return {
+        "before_options": f"-ss {sekunden} {FFMPEG_OPTS['before_options']}",
+        "options": FFMPEG_OPTS["options"],
+    }
+
 # Nur diese Hosts. Dieselbe Liste wie in der WebApp - der Schutz gegen
 # SSRF darf nicht davon abhaengen, welche Seite gerade prueft.
 ERLAUBTE_HOSTS = {

@@ -1955,6 +1955,8 @@ enum MusicCommandKind {
   PAUSE
   RESUME
   SKIP
+  /// Innerhalb des laufenden Titels an eine Stelle springen.
+  SEEK
   STOP
   LEAVE
   JOIN

@@ -98,6 +98,36 @@ export const skipAction = defineAction(
   },
 );
 
+/**
+ * Innerhalb des laufenden Titels springen.
+ *
+ * Hängt an derselben Berechtigung wie «Überspringen»: wer den Titel ganz
+ * wegschalten darf, darf ihn erst recht vorspulen. Eine eigene Berechtigung
+ * wäre eine mehr zu pflegen, ohne dass sie je anders vergeben würde.
+ *
+ * Die Sekunde kommt aus dem Browser und wird deshalb hier geprüft und im
+ * Service noch einmal gegen die tatsächliche Titellänge begrenzt. Was der
+ * Browser schickt, ist ein Wunsch, keine Tatsache.
+ */
+export const seekAction = defineAction(
+  {
+    name: 'music.seek',
+    module: 'music',
+    permission: music.MUSIC_PERMISSIONS.skip,
+    schema: sessionSchema.extend({
+      positionSeconds: z.coerce.number().int().min(0).max(24 * 3600),
+    }),
+    rateLimit: 'musicControl',
+  },
+  async ({ ctx, input }) => {
+    await pruefeZugriff(ctx, input.sessionId);
+    const id = await music.sessionService.seek(input.sessionId, input.positionSeconds, actor(ctx));
+    const antwort = await warte(id);
+    revalidatePath('/musik');
+    return antwort;
+  },
+);
+
 export const stopAction = defineAction(
   {
     name: 'music.stop',

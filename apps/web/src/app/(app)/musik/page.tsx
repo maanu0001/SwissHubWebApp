@@ -193,6 +193,9 @@ export default async function MusikPage(): Promise<React.JSX.Element> {
               positionSeconds={zustand.positionSeconds}
               durationSeconds={titel?.durationSeconds ?? 0}
               isPaused={zustand.isPaused}
+              sessionId={zustand.session.id}
+              csrfToken={csrfToken}
+              darfSpringen={betrachter.darfSteuern && can(context, music.MUSIC_PERMISSIONS.skip)}
             />
 
             <PlayerControls

@@ -146,6 +146,11 @@ class MusicBot(discord.Client):
             self.player.fortsetzen()
         elif art == "SKIP":
             self.player.ueberspringe()
+        elif art == "SEEK":
+            # Die Stelle hat die WebApp bereits gegen die Titellänge geprüft
+            # und in die Session geschrieben. Hier wird sie nur noch
+            # angefahren - eine zweite Grenzprüfung wäre eine zweite Wahrheit.
+            self.player.springe(int(nutzlast.get("positionSeconds", 0)))
         elif art == "STOP":
             self.player.stoppe()
         elif art == "SET_VOLUME":

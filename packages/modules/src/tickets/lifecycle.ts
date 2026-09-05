@@ -11,8 +11,20 @@ import { ensureTranscripts } from './transcript';
 
 const logger = createLogger('tickets:lifecycle');
 
+/**
+ * Wie lange der Kanal nach dem Schliessen stehen bleibt.
+ *
+ * `DELETE_IMMEDIATELY` sind fuenf Sekunden, nicht null. Der Unterschied ist
+ * sichtbar: bei null verschwindet der Kanal im selben Moment, in dem jemand
+ * auf «Schliessen» klickt - die Abschlussmeldung liest dann niemand mehr, und
+ * es sieht nach einem Absturz aus. Fuenf Sekunden reichen, um zu sehen, dass
+ * das Ticket abgeschlossen wurde, und sind kurz genug, dass niemand darauf
+ * wartet.
+ */
+export const KANAL_LOESCHVERZOEGERUNG_MS = 5_000;
+
 const AUFBEWAHRUNG_MS: Record<TicketSettings['closeBehaviour'], number | null> = {
-  DELETE_IMMEDIATELY: 0,
+  DELETE_IMMEDIATELY: KANAL_LOESCHVERZOEGERUNG_MS,
   KEEP_24H: 24 * 3600_000,
   KEEP_7D: 7 * 24 * 3600_000,
   KEEP_FOREVER: null,
@@ -52,16 +64,27 @@ export async function closeTicket(
     },
   });
 
-  await prisma.ticketEvent.create({
-    data: {
-      ticketId,
-      kind: 'CLOSED',
-      actorDiscordId: actor.discordId,
-      actorUsername: actor.username,
-      actorSource: actor.source,
-      detail: { grund: reason ?? null } as never,
-    },
-  });
+  // Ab hier ist das Ticket geschlossen. Alles Weitere sind Folgearbeiten, und
+  // keine davon darf den Abschluss noch umstossen: ein Ticket, das in der
+  // Datenbank geschlossen ist und dem Klickenden trotzdem einen Fehler meldet,
+  // ist genau das, was «es liess sich nicht schliessen» heisst.
+  await prisma.ticketEvent
+    .create({
+      data: {
+        ticketId,
+        kind: 'CLOSED',
+        actorDiscordId: actor.discordId,
+        actorUsername: actor.username,
+        actorSource: actor.source,
+        detail: { grund: reason ?? null } as never,
+      },
+    })
+    .catch((fehler: unknown) => {
+      logger.warn('Abschluss-Ereignis konnte nicht geschrieben werden', {
+        ticketId,
+        grund: fehler instanceof Error ? fehler.message : 'unbekannt',
+      });
+    });
 
   // Zuerst die Meldung, dann die Sperre: nach dem Stummschalten koennte der
   // Bot je nach Rechtelage selbst nicht mehr schreiben.
@@ -85,7 +108,7 @@ export async function closeTicket(
   // Der Verlauf wird jetzt festgehalten, solange der Kanal noch steht. Wer
   // erst beim Aufraeumen sichert, sichert das, was das Aufraeumen uebrig
   // laesst.
-  await ensureTranscripts(ticketId);
+  await ensureTranscripts(ticketId).catch(() => undefined);
 
   // Kanal stummschalten statt loeschen.
   if (ticket.discordChannelId) {
@@ -101,7 +124,7 @@ export async function closeTicket(
   // unter dem Abschluss steht, und nur wenn die Einstellung es vorsieht.
   if (settings.feedbackEnabled) {
     const { frageNachBewertung } = await import('./support');
-    await frageNachBewertung(ticketId, ticket.ticketNumber);
+    await frageNachBewertung(ticketId, ticket.ticketNumber).catch(() => undefined);
   }
 
   const kategorie = ticket.categoryId
@@ -130,7 +153,43 @@ export async function closeTicket(
     },
   );
 
+  // Den faelligen Kanal zeitnah abraeumen. Der Zeitpunkt steht bereits in der
+  // Datenbank - dieser Wecker holt ihn nur frueher ein, als der
+  // Aufraeumauftrag es taete. Stirbt der Prozess dazwischen, macht es der
+  // Auftrag beim naechsten Durchlauf; das Ticket ist ohnehin schon
+  // geschlossen.
+  if (geschlossen.channelPurgeAt && geschlossen.discordChannelId) {
+    planeZeitnahesAufraeumen(geschlossen.channelPurgeAt.getTime() - Date.now());
+  }
+
   return geschlossen;
+}
+
+/**
+ * Ein kurzer Wecker fuer die Aufraeumung.
+ *
+ * Ausdruecklich nur eine Abkuerzung, keine Zusage: der Auftrag in der
+ * Datenbank ist die Zusage. Deshalb wird hier nichts nachgehalten, nichts
+ * wiederholt und nichts gemeldet - schlaegt es fehl, greift der regulaere
+ * Aufraeumauftrag.
+ *
+ * Nur fuer kurze Fristen. Wer einen Kanal 24 Stunden stehen laesst, bekommt
+ * keinen Wecker, der 24 Stunden im Speicher haengt.
+ */
+const WECKER_HOECHSTFRIST_MS = 60_000;
+
+function planeZeitnahesAufraeumen(inMs: number): void {
+  if (inMs > WECKER_HOECHSTFRIST_MS) {
+    return;
+  }
+  const timer = setTimeout(
+    () => {
+      void purgeDueChannels().catch(() => undefined);
+    },
+    Math.max(0, inMs) + 250,
+  );
+  // Ein offener Wecker darf den Prozess nicht am Beenden hindern.
+  timer.unref?.();
 }
 
 /** Nach dem Schliessen darf gelesen, aber nicht mehr geschrieben werden. */

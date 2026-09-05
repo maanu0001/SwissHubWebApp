@@ -32,8 +32,10 @@ export interface TicketAuthor {
  * aussieht als kaeme sie direkt von einer Person, waere eine Taeuschung, und
  * bei Support-Antworten faellt sie irgendwann jemandem auf die Fuesse.
  *
- * Erwaehnungen werden ausdruecklich unterbunden. Sonst genuegte ein
- * `@everyone` im Antwortfeld, um den ganzen Server zu benachrichtigen.
+ * Erwaehnungen aus dem Antworttext werden ausdruecklich unterbunden - sonst
+ * genuegte ein `@everyone` im Antwortfeld, um den ganzen Server zu
+ * benachrichtigen. Die einzige Erwaehnung, die durchkommt, schreibt diese
+ * Funktion selbst: bei einer Support-Antwort der Ticket-Ersteller.
  */
 export async function sendMessage(
   ticketId: string,
@@ -61,7 +63,18 @@ export async function sendMessage(
 
   if (ticket.discordChannelId && !ticket.channelMissing) {
     try {
+      // Antwortet das Team, wird der Ersteller erwaehnt - und zwar im
+      // `content`, nicht im Embed. Eine Erwaehnung innerhalb eines Embeds
+      // wird zwar verlinkt, loest bei Discord aber keine Benachrichtigung
+      // aus: die Person saehe die Antwort erst, wenn sie von selbst
+      // nachschaut. Genau darauf soll sie nicht angewiesen sein.
+      //
+      // Nicht, wenn das Team dem eigenen Ticket antwortet - sich selbst
+      // anzupingen ist nur Laerm.
+      const erwaehne = author.isStaff && ticket.creatorDiscordId !== author.discordId;
+
       const gesendet = await discord.channels.send(ticket.discordChannelId, {
+        ...(erwaehne ? { content: `<@${ticket.creatorDiscordId}>` } : {}),
         embeds: [
           {
             description: text,
@@ -77,8 +90,12 @@ export async function sendMessage(
             timestamp: new Date().toISOString(),
           },
         ],
-        // Kein Erwaehnen - auch nicht, wenn im Text etwas danach aussieht.
-        allowedMentions: { parse: [] },
+        // Genau eine Erwaehnung ist erlaubt, und zwar die, die wir selbst
+        // geschrieben haben. Der Text der Antwort steht im Embed und kann
+        // damit niemanden erreichen - auch nicht mit `@everyone` darin.
+        allowedMentions: erwaehne
+          ? { parse: [] as never[], users: [ticket.creatorDiscordId] }
+          : { parse: [] as never[] },
       });
       discordMessageId = gesendet.id;
     } catch (fehler) {

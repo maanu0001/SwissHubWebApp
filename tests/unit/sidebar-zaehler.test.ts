@@ -9,20 +9,18 @@ import {
 } from '@swisshub/modules';
 
 /**
- * Keine Zahlen in der Seitenleiste.
+ * Zahlen in der Seitenleiste - und wo keine hingehören.
  *
- * Am Jail-Eintrag stand die Anzahl aktiver Jails - eine Zahl, die dort
- * niemandem half: sie beantwortete keine Frage, die man vor dem Klick hat,
- * und sie liess die Navigation bei jedem Seitenaufruf wackeln. Sie ist weg,
- * und diese Datei hält fest, dass sie nicht zurückkommt.
+ * Am Jail-Eintrag stand die Anzahl aktiver Jails. Sie beantwortete keine
+ * Frage, die man vor dem Klick hat, und liess die Navigation bei jedem
+ * Seitenaufruf wackeln. Sie ist weg und soll nicht zurückkommen.
  *
- * Sie prüft auf drei Ebenen, weil die Zahl über drei Stationen lief und an
- * jeder einzelnen wieder entstehen könnte: die Registry beschrieb den Zähler,
- * das Layout füllte ihn, die Komponente stellte ihn dar. Ein Test nur auf der
- * letzten hätte übersehen, dass die Registry ihn weiterhin anbietet.
+ * Beim Ticket-Eintrag ist es umgekehrt: «wartet dort Arbeit auf mich?» ist
+ * genau die Frage, die man vor dem Klick hat. Dort steht deshalb eine Zahl.
  *
- * Ausdrücklich *nicht* geprüft wird die Zahl selbst - `getJailStats()` gibt
- * es weiterhin, und das Jail-Modul zeigt sie dort, wo sie hingehört.
+ * Der Unterschied ist der Punkt dieser Datei. Sie hält beides fest: dass der
+ * Mechanismus existiert und die Tickets ihn nutzen - und dass Jail und Vote
+ * Jail ihn nicht wiederbekommen.
  */
 
 const WURZEL = process.cwd();
@@ -116,12 +114,15 @@ describe('Vote Jail in der Seitenleiste', () => {
   });
 });
 
-describe('Kein Modul trägt eine Zahl in die Seitenleiste', () => {
-  it('beschreibt in der Registry keinen Zähler mehr', () => {
-    // Der Ursprung: die Registry kannte ein Feld `counter`, das Jail als
-    // einziges Modul setzte. Ohne das Feld kann es niemand mehr setzen.
+describe('Nur die Tickets tragen eine Zahl', () => {
+  it('lässt kein anderes Modul einen Zähler setzen', () => {
     for (const modul of listModuleDefinitions()) {
       for (const eintrag of modul.navigation) {
+        if (eintrag.counter !== undefined) {
+          // Genau ein Zähler im ganzen System, und er hat einen Namen.
+          expect(`${modul.id}:${eintrag.counter}`).toBe('tickets:openTickets');
+          continue;
+        }
         for (const feld of ZAEHLER_FELDER) {
           expect(eintrag, `${modul.id} → ${eintrag.href} trägt «${feld}»`).not.toHaveProperty(feld);
         }
@@ -129,21 +130,20 @@ describe('Kein Modul trägt eine Zahl in die Seitenleiste', () => {
     }
   });
 
-  it('füllt im Layout keine Zahl mehr ab', () => {
+  it('holt im Layout keine Jail-Statistik mehr', () => {
     // Die zweite Station: das Layout holte die Jail-Statistik und reichte sie
-    // als `count` an die Seitenleiste weiter.
+    // als `count` weiter. Die Ticket-Zahl steht jetzt dort - die Jail-Zahl
+    // nicht mehr.
     const layout = quelle('apps/web/src/app/(app)/layout.tsx');
-    expect(layout).not.toMatch(/count:/u);
     expect(layout).not.toContain('activeJails');
     expect(layout).not.toContain('getJailStats');
+    expect(layout).toContain('openTickets');
   });
 
-  it('stellt in der Komponente keine Zahl mehr dar', () => {
-    // Die dritte Station. Kein CSS-Trick: es gibt schlicht keinen Zweig mehr,
-    // der eine Zahl ausgäbe.
+  it('stellt keine Null und keine versteckte Hülle dar', () => {
+    // Kein CSS-Trick: bei null gibt es schlicht kein Element.
     const nav = quelle('apps/web/src/components/layout/sidebar-nav.tsx');
-    expect(nav).not.toContain('entry.count');
-    expect(nav).not.toMatch(/count\?:/u);
+    expect(nav).toContain('entry.count > 0');
     expect(nav).not.toMatch(/display:\s*none|opacity-0|invisible/u);
   });
 });

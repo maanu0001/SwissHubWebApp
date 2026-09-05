@@ -84,6 +84,21 @@ export interface ModuleNavigationItem {
   /** Statisches Label rechts im Navigationseintrag, z.B. `NEU`. */
   badge?: string;
   /**
+   * Eine Zahl rechts im Navigationseintrag.
+   *
+   * Die Registry fragt keine Datenbank - sie wird an vielen Stellen geladen,
+   * auch dort, wo keine Verbindung steht. Hier steht deshalb nur, *welche*
+   * Zahl gemeint ist; geholt wird sie im Layout, das die Daten ohnehin
+   * beschafft. Dasselbe Vorgehen wie bei `visibleWhen`.
+   *
+   * Sparsam einsetzen. Eine Zahl gehoert nur dann neben einen Eintrag, wenn
+   * sie eine Frage beantwortet, die man *vor* dem Klick hat - «wartet dort
+   * Arbeit auf mich?». Am Jail-Eintrag stand einmal die Anzahl aller
+   * Strafen; sie beantwortete keine solche Frage und liess die Navigation bei
+   * jedem Seitenaufruf wackeln.
+   */
+  counter?: 'openTickets';
+  /**
    * Bedingung, die zusaetzlich zur Berechtigung erfuellt sein muss.
    *
    * Die Registry selbst fragt keine Datenbank - sie wird an vielen Stellen

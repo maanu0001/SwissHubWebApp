@@ -11,9 +11,11 @@ import {
   level,
   premium as premiumModule,
   readBotStatus,
+  tickets as ticketsModule,
 } from '@swisshub/modules';
 import { AppShell } from '@/components/layout/app-shell';
 import { csrfTokenFor, hasSetupAccess, requireMember } from '@/server/auth';
+import { ticketViewer } from '@/server/tickets';
 
 const APP_ROLE_LABEL: Record<string, string> = {
   OWNER: 'Owner',
@@ -44,6 +46,17 @@ export default async function AppLayout({
     getGuildConfig(),
     brandingModule.currentLogoUrl(),
   ]);
+
+  /**
+   * Offene Tickets fuer die Zahl neben dem Eintrag.
+   *
+   * Nur, wenn das Modul laeuft, und faellt die Abfrage aus, bleibt die Zahl
+   * weg: eine Seitenleiste, die an einer Zaehlung scheitert, waere ein teurer
+   * Preis fuer eine Nebensaechlichkeit.
+   */
+  const offeneTickets = moduleIds.has(ticketsModule.TICKETS_MODULE_ID)
+    ? await ticketsModule.countOpenTickets(ticketViewer(context)).catch(() => null)
+    : null;
 
   /**
    * Laeuft gerade eine Verlosung?
@@ -114,6 +127,7 @@ export default async function AppLayout({
       moduleId: item.moduleId,
       group: item.group,
       badge: item.badge,
+      count: item.counter === 'openTickets' ? (offeneTickets ?? undefined) : undefined,
     })),
   }));
 

@@ -1,0 +1,335 @@
+import { mkdtemp } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { beforeAll, beforeEach, expect, it, vi } from 'vitest';
+import { describeWithDatabase, pushSchema, useTestSchema } from '../helpers/database';
+
+useTestSchema('test_ticket_abschluss');
+
+process.env.SWISSHUB_UPLOAD_DIR = await mkdtemp(join(tmpdir(), 'swisshub-abschluss-'));
+
+/**
+ * Was beim Schliessen und beim Antworten tatsächlich geschieht.
+ *
+ * Drei Zusagen, die sich nur gegen eine echte Datenbank und einen
+ * mitschreibenden Discord-Zugang prüfen lassen: dass der Abschluss steht,
+ * bevor irgendetwas auf Discord passiert; dass der Kanal danach verschwindet;
+ * und dass eine Antwort des Teams den Ersteller tatsächlich erreicht - also
+ * ausserhalb des Embeds erwähnt wird, wo Discord eine Benachrichtigung
+ * auslöst.
+ */
+const { prisma } = await import('@swisshub/database');
+const { tickets, setModuleEnabled, syncDiscord, writeModuleSettings } = await import(
+  '@swisshub/modules'
+);
+const { createMockGateway, setDiscordGateway, resolveGuildId, clearGuildIdCache } = await import(
+  '@swisshub/discord'
+);
+
+let GUILD = '';
+const ADMIN = { discordId: '100000000000000010', username: 'verwaltung' };
+const SUPPORT_ROLE = '900000000000000004';
+const KATEGORIE_KANAL = '700000000000000010';
+
+const ERSTELLER = '900000000000002001';
+const SUPPORTER = '900000000000002002';
+
+const actor = (discordId: string, username: string) =>
+  ({ discordId, username, source: 'WEBAPP' as const });
+
+/**
+ * Ein Discord-Zugang, der mitschreibt.
+ *
+ * Nur die beiden Aufrufe, um die es hier geht, werden abgefangen - alles
+ * andere bleibt der Mock, damit der Ablauf echt bleibt.
+ */
+function mitschrift() {
+  const echt = createMockGateway();
+  const gesendet: Array<{ channelId: string; payload: Record<string, unknown> }> = [];
+  const geloescht: string[] = [];
+
+  const gateway = {
+    ...echt,
+    channels: {
+      ...echt.channels,
+      send: vi.fn(async (channelId: string, payload: Record<string, unknown>) => {
+        gesendet.push({ channelId, payload });
+        return echt.channels.send(channelId, payload as never);
+      }),
+    },
+    managedChannels: {
+      ...echt.managedChannels,
+      remove: vi.fn(async (channelId: string, grund?: string) => {
+        geloescht.push(channelId);
+        return echt.managedChannels.remove(channelId, grund);
+      }),
+    },
+  };
+  return { gateway, gesendet, geloescht };
+}
+
+let discord: ReturnType<typeof mitschrift>;
+
+async function kategorie() {
+  return prisma.ticketCategory.create({
+    data: {
+      guildId: GUILD,
+      name: 'Allgemein',
+      active: true,
+      discordCategoryId: KATEGORIE_KANAL,
+      supportRoleIds: [SUPPORT_ROLE],
+      maxOpenPerUser: 0,
+    },
+  });
+}
+
+async function ticket() {
+  const k = await kategorie();
+  return tickets.createTicket({
+    categoryId: k.id,
+    subject: 'Mein Anliegen',
+    creatorDiscordId: ERSTELLER,
+    creatorUsername: 'manuel',
+    source: 'WEBAPP',
+    actor: actor(ERSTELLER, 'manuel'),
+  });
+}
+
+/** Der Betrachter, wie ihn die Zugriffsprüfung erwartet. */
+const viewer = (discordId: string, roleIds: string[], rechte: string[]) => ({
+  discordId,
+  roleIds,
+  can: (permission: string) => rechte.includes(permission),
+});
+
+describeWithDatabase('Ticket schliessen und antworten', () => {
+  beforeAll(() => {
+    pushSchema();
+  });
+
+  beforeEach(async () => {
+    await prisma.$executeRawUnsafe(
+      'TRUNCATE "TicketAttachment","TicketMessage","TicketEvent","TicketParticipant",' +
+        '"TicketTagAssignment","TicketTag","TicketTranscript","TicketFeedback","TicketBlockEntry",' +
+        '"TicketTemplate","TicketPanelCategory","TicketPanel","TicketFormField","Ticket",' +
+        '"TicketCategory","TicketCounter","ModuleState" RESTART IDENTITY CASCADE',
+    );
+    discord = mitschrift();
+    setDiscordGateway(discord.gateway as never);
+    await syncDiscord({ trigger: 'manual' });
+    clearGuildIdCache();
+    GUILD = await resolveGuildId();
+    await setModuleEnabled(tickets.TICKETS_MODULE_ID, true, ADMIN.discordId);
+    await writeModuleSettings(
+      tickets.TICKETS_MODULE_ID,
+      {
+        defaultDiscordCategoryId: KATEGORIE_KANAL,
+        defaultSupportRoleIds: [SUPPORT_ROLE],
+        maxOpenPerUser: 3,
+        // Der Fall, um den es geht: der Kanal verschwindet kurz nach dem
+        // Schliessen.
+        closeBehaviour: 'DELETE_IMMEDIATELY',
+        systemMessagesOnDiscord: true,
+        feedbackEnabled: false,
+        maintenanceMode: false,
+        transcriptRetentionDays: 0,
+      },
+      ADMIN,
+    );
+  });
+
+  // --- Schliessen --------------------------------------------------------
+
+  it('schliesst das Ticket wirklich - Status, Zeitpunkt und Person', async () => {
+    const offen = await ticket();
+    await tickets.closeTicket(offen.id, 'Erledigt', actor(SUPPORTER, 'nina'));
+
+    const danach = await prisma.ticket.findUniqueOrThrow({ where: { id: offen.id } });
+    expect(danach.status).toBe('CLOSED');
+    expect(danach.closedAt).not.toBeNull();
+    expect(danach.closedByDiscordId).toBe(SUPPORTER);
+    expect(danach.closeReason).toBe('Erledigt');
+  });
+
+  it('hält den Abschluss fest, bevor der Kanal fällig wird', async () => {
+    // Die Reihenfolge ist der Punkt: erst der Zustand in der Datenbank, dann
+    // Discord. Wer den Kanal zuerst löscht, hat bei einem Absturz ein offenes
+    // Ticket ohne Kanal.
+    const offen = await ticket();
+    const geschlossen = await tickets.closeTicket(offen.id, null, actor(SUPPORTER, 'nina'));
+
+    expect(geschlossen.closedAt).not.toBeNull();
+    expect(geschlossen.channelPurgeAt).not.toBeNull();
+    // Fällig, aber noch nicht gelöscht - der Kanal steht die fünf Sekunden.
+    expect(geschlossen.channelPurgeAt!.getTime()).toBeGreaterThan(Date.now());
+    expect(discord.geloescht).toEqual([]);
+  });
+
+  it('setzt die Fälligkeit auf fünf Sekunden', async () => {
+    const offen = await ticket();
+    const vorher = Date.now();
+    const geschlossen = await tickets.closeTicket(offen.id, null, actor(SUPPORTER, 'nina'));
+
+    const frist = geschlossen.channelPurgeAt!.getTime() - vorher;
+    expect(frist).toBeGreaterThan(3_000);
+    expect(frist).toBeLessThanOrEqual(6_000);
+  });
+
+  it('löscht den Kanal, sobald die Frist abgelaufen ist', async () => {
+    const offen = await ticket();
+    const kanalId = offen.discordChannelId!;
+    await tickets.closeTicket(offen.id, null, actor(SUPPORTER, 'nina'));
+
+    // Statt fünf Sekunden zu warten: die Fälligkeit vorziehen und den
+    // Aufräumauftrag laufen lassen - genau das tut der Wecker auch.
+    await prisma.ticket.update({
+      where: { id: offen.id },
+      data: { channelPurgeAt: new Date(Date.now() - 1000) },
+    });
+    const entfernt = await tickets.purgeDueChannels();
+
+    expect(entfernt).toBe(1);
+    expect(discord.geloescht).toContain(kanalId);
+
+    const danach = await prisma.ticket.findUniqueOrThrow({ where: { id: offen.id } });
+    expect(danach.discordChannelId).toBeNull();
+    expect(danach.status).toBe('ARCHIVED');
+  });
+
+  it('zählt ein geschlossenes Ticket nicht mehr als offen', async () => {
+    const betrachter = viewer(SUPPORTER, [SUPPORT_ROLE], [
+      tickets.TICKET_PERMISSIONS.admin,
+    ]);
+
+    const eins = await ticket();
+    expect(await tickets.countOpenTickets(betrachter)).toBe(1);
+
+    await tickets.closeTicket(eins.id, null, actor(SUPPORTER, 'nina'));
+    expect(await tickets.countOpenTickets(betrachter)).toBe(0);
+  });
+
+  it('zählt ein wieder geöffnetes Ticket erneut', async () => {
+    const betrachter = viewer(SUPPORTER, [SUPPORT_ROLE], [
+      tickets.TICKET_PERMISSIONS.admin,
+    ]);
+
+    const eins = await ticket();
+    await tickets.closeTicket(eins.id, null, actor(SUPPORTER, 'nina'));
+    expect(await tickets.countOpenTickets(betrachter)).toBe(0);
+
+    await tickets.reopenTicket(eins.id, actor(SUPPORTER, 'nina'));
+    expect(await tickets.countOpenTickets(betrachter)).toBe(1);
+  });
+
+  it('zählt nur, was der Betrachter sehen darf', async () => {
+    await ticket();
+    // Ein Mitglied, das nur die eigenen Tickets sieht - und dieses gehört
+    // jemand anderem.
+    const fremder = viewer('900000000000002099', [], [tickets.TICKET_PERMISSIONS.viewOwn]);
+    expect(await tickets.countOpenTickets(fremder)).toBe(0);
+
+    const eigener = viewer(ERSTELLER, [], [tickets.TICKET_PERMISSIONS.viewOwn]);
+    expect(await tickets.countOpenTickets(eigener)).toBe(1);
+  });
+
+  // --- Antworten ---------------------------------------------------------
+
+  it('erwähnt den Ersteller ausserhalb des Embeds', async () => {
+    const offen = await ticket();
+    discord.gesendet.length = 0;
+
+    await tickets.sendMessage(offen.id, 'Wir schauen uns das an.', {
+      discordId: SUPPORTER,
+      username: 'nina',
+      isStaff: true,
+    });
+
+    const antwort = discord.gesendet.at(-1)!;
+    // Im `content` - nur dort löst Discord eine Benachrichtigung aus.
+    expect(antwort.payload.content).toBe(`<@${ERSTELLER}>`);
+    const erlaubt = antwort.payload.allowedMentions as { parse?: string[]; users?: string[] };
+    expect(erlaubt.users).toEqual([ERSTELLER]);
+    expect(erlaubt.parse).toEqual([]);
+  });
+
+  it('erwähnt niemanden, wenn das Mitglied selbst schreibt', async () => {
+    const offen = await ticket();
+    discord.gesendet.length = 0;
+
+    await tickets.sendMessage(offen.id, 'Hier noch ein Nachtrag.', {
+      discordId: ERSTELLER,
+      username: 'manuel',
+      isStaff: false,
+    });
+
+    const antwort = discord.gesendet.at(-1)!;
+    expect(antwort.payload.content).toBeUndefined();
+    expect((antwort.payload.allowedMentions as { parse?: string[] }).parse).toEqual([]);
+  });
+
+  it('lässt aus dem Antworttext niemanden pingen', async () => {
+    const offen = await ticket();
+    discord.gesendet.length = 0;
+
+    await tickets.sendMessage(offen.id, '@everyone @here <@&123> schaut mal', {
+      discordId: SUPPORTER,
+      username: 'nina',
+      isStaff: true,
+    });
+
+    const antwort = discord.gesendet.at(-1)!;
+    // Der Text steht im Embed, nicht im content - und freigegeben ist
+    // ausschliesslich der Ersteller.
+    expect(antwort.payload.content).toBe(`<@${ERSTELLER}>`);
+    const erlaubt = antwort.payload.allowedMentions as { parse?: string[]; users?: string[] };
+    expect(erlaubt.parse).toEqual([]);
+    expect(erlaubt.users).toEqual([ERSTELLER]);
+  });
+
+  // --- Chat und Verlauf --------------------------------------------------
+
+  it('schreibt interne Vorgänge nicht in den Kanal', async () => {
+    const offen = await ticket();
+    discord.gesendet.length = 0;
+
+    await tickets.claimTicket(offen.id, actor(SUPPORTER, 'nina'));
+    await tickets.assignTicket(offen.id, { discordId: SUPPORTER, username: 'nina' }, actor(SUPPORTER, 'nina'));
+    await tickets.changeStatus(offen.id, 'IN_PROGRESS', actor(SUPPORTER, 'nina'));
+    await tickets.changePriority(offen.id, 'HIGH', actor(SUPPORTER, 'nina'));
+
+    // Kein einziges dieser vier Ereignisse gehört in ein Gespräch.
+    expect(discord.gesendet).toEqual([]);
+  });
+
+  it('hält dieselben Vorgänge trotzdem im Verlauf fest', async () => {
+    const offen = await ticket();
+    await tickets.claimTicket(offen.id, actor(SUPPORTER, 'nina'));
+    // Nicht IN_PROGRESS: das setzt die Übernahme bereits, und ein Wechsel auf
+    // denselben Wert ist zu Recht ein No-op.
+    await tickets.changeStatus(offen.id, 'WAITING_FOR_USER', actor(SUPPORTER, 'nina'));
+    await tickets.changePriority(offen.id, 'HIGH', actor(SUPPORTER, 'nina'));
+
+    const arten = (
+      await prisma.ticketEvent.findMany({ where: { ticketId: offen.id }, select: { kind: true } })
+    ).map((eintrag) => eintrag.kind);
+
+    expect(arten).toContain('CLAIMED');
+    expect(arten).toContain('STATUS_CHANGED');
+    expect(arten).toContain('PRIORITY_CHANGED');
+  });
+
+  it('meldet den Abschluss weiterhin im Kanal', async () => {
+    // Was an die Beteiligten gerichtet ist, bleibt: sonst stünde das Ticket
+    // kommentarlos still.
+    const offen = await ticket();
+    discord.gesendet.length = 0;
+
+    await tickets.closeTicket(offen.id, null, actor(SUPPORTER, 'nina'));
+
+    const texte = discord.gesendet
+      .flatMap((eintrag) => (eintrag.payload.embeds as Array<{ description?: string }>) ?? [])
+      .map((embed) => embed.description ?? '')
+      .join(' ');
+    expect(texte).toContain('geschlossen');
+  });
+});

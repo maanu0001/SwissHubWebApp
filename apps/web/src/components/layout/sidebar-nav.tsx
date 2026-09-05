@@ -14,6 +14,8 @@ export interface NavigationEntry {
   group: string;
   /** Statisches Label rechts im Eintrag, z.B. `NEU`. */
   badge?: string;
+  /** Zahl rechts im Eintrag - derzeit nur die offenen Tickets. */
+  count?: number;
 }
 
 export interface NavigationGroup {
@@ -25,12 +27,23 @@ export interface NavigationGroup {
 /**
  * Das Label rechts im Navigationseintrag.
  *
- * Nur noch statische Labels wie «NEU». Einen dynamischen Zaehler gab es
- * frueher am Jail-Eintrag; er stand fuer eine Zahl, die niemand von der
- * Seitenleiste aus brauchte, und liess die Navigation dauernd wackeln. Die
- * Zahl selbst steht weiterhin im Modul, wo sie hingehoert.
+ * Eine Zahl hat hier nur Platz, wenn sie vor dem Klick etwas beantwortet -
+ * bei den Tickets: wartet dort Arbeit? Am Jail-Eintrag stand einmal die
+ * Anzahl aller Strafen; die beantwortete keine solche Frage und liess die
+ * Navigation bei jedem Seitenaufruf wackeln. Sie steht weiterhin im Modul,
+ * wo sie hingehoert.
+ *
+ * Bei null erscheint nichts - eine Null neben einem Eintrag ist eine leere
+ * Huelse, die man trotzdem jedes Mal liest.
  */
 function ItemBadge({ entry }: { entry: NavigationEntry }): React.JSX.Element | null {
+  if (typeof entry.count === 'number' && entry.count > 0) {
+    return (
+      <span className="ml-auto grid h-5 min-w-5 place-items-center rounded-md bg-primary px-1.5 text-[0.7rem] font-semibold text-primary-foreground shadow-[0_0_12px_-2px_hsl(var(--primary-bright))]">
+        {entry.count > 99 ? '99+' : entry.count}
+      </span>
+    );
+  }
   if (entry.badge) {
     const highlight = entry.badge.toLowerCase() === 'neu';
     return (

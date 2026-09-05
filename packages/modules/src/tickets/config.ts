@@ -61,9 +61,18 @@ export const ticketSettingsSchema = z.object({
   ticketNumberPrefix: z.string().max(8).default('#'),
   channelNameTemplate: z.string().min(1).max(64).default('ticket-{number}-{username}'),
 
+  /**
+   * Wie lange der Discord-Kanal nach dem Schliessen stehen bleibt.
+   *
+   * `DELETE_IMMEDIATELY` heisst nicht «im selben Atemzug»: der Kanal
+   * verschwindet fuenf Sekunden spaeter. Das ist Absicht - wer gerade
+   * geschlossen hat, soll die Abschlussmeldung noch sehen, und ein Kanal, der
+   * beim Klick verschwindet, sieht nach einem Absturz aus statt nach einem
+   * Abschluss.
+   */
   closeBehaviour: z
     .enum(['DELETE_IMMEDIATELY', 'KEEP_24H', 'KEEP_7D', 'KEEP_FOREVER'])
-    .default('KEEP_24H'),
+    .default('DELETE_IMMEDIATELY'),
 
   /**
    * Warte-Status automatisch setzen?
@@ -354,6 +363,9 @@ export const ticketsModule: ModuleDefinition = registerModule({
       description: 'Support-Anfragen eröffnen, bearbeiten und nachschlagen.',
       group: 'moderation',
       order: 30,
+      // Die eine Zahl, die vor dem Klick etwas beantwortet: wartet Arbeit?
+      // Sie zaehlt nur, was der Betrachter auch sehen darf.
+      counter: 'openTickets',
     },
   ],
 });

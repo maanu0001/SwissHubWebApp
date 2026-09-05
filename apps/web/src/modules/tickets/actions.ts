@@ -163,7 +163,18 @@ export const closeAction = defineAction(
     selfService: true,
     schema: ticketSchema.extend({ reason: z.string().max(500).optional() }),
     rateLimit: 'ticketWrite',
-    freshness: 'critical',
+    // Bewusst ohne `freshness: 'critical'`.
+    //
+    // Das war die Ursache dafuer, dass ein Ticket sich manchmal nicht
+    // schliessen liess: `critical` holt die Discord-Identitaet frisch, und
+    // scheitert dieser Aufruf - Rate Limit, kurze Stoerung -, faellt die
+    // Aufloesung bewusst geschlossen aus: keine Mitgliedschaft, keine
+    // Rollen. Damit war der Schliessende kein Support mehr, der Zugriff fiel
+    // auf «Ticket existiert nicht», und das Ticket blieb offen.
+    //
+    // Fuer einen Bann ist dieser Preis richtig. Ein Ticket zu schliessen ist
+    // keine Sanktion: eine fuenf Minuten alte Rollenauskunft genuegt, und die
+    // Pruefung dahinter bleibt unveraendert serverseitig.
   },
   async ({ ctx, input, metadata }) => {
     const { ticket, zugriff } = await ladeTicketMitZugriff(ctx, input.ticketId);

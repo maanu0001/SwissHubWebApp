@@ -14,6 +14,31 @@ export interface TicketOverview {
 }
 
 /**
+ * Wie viele Tickets gerade offen sind.
+ *
+ * Fuer die Zahl neben dem Seitenleisteneintrag. Sie zaehlt, was Arbeit
+ * bedeutet: alles, was weder geschlossen noch archiviert ist. Ausdruecklich
+ * auch «wartet auf Mitglied» - das Ticket ist offen, nur liegt der Ball
+ * gerade woanders.
+ *
+ * Nicht mitgezaehlt werden Tickets, die es noch gar nicht gibt (`PENDING`)
+ * oder deren Anlage gescheitert ist: eine Zahl, die auf etwas zeigt, das man
+ * nicht bearbeiten kann, schickt jemanden ins Leere.
+ *
+ * Durch dieselbe Sichtbarkeit gefiltert wie alles andere: auch eine Zahl
+ * verraet etwas.
+ */
+export async function countOpenTickets(viewer: TicketViewer): Promise<number> {
+  const sichtbar = await ticketSichtbarkeitsFilter(viewer);
+  return prisma.ticket.count({
+    where: {
+      ...sichtbar,
+      status: { in: ['OPEN', 'IN_PROGRESS', 'WAITING_FOR_USER', 'WAITING_FOR_STAFF', 'RESOLVED'] },
+    },
+  });
+}
+
+/**
  * Kennzahlen - immer durch die Sichtbarkeit gefiltert.
  *
  * Auch eine Zahl verraet etwas: ein Supporter, der nicht fuer Moderation

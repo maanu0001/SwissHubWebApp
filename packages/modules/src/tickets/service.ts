@@ -27,25 +27,19 @@ export interface TicketActor {
 /** Discord erlaubt 50 Kanaele je Kategorie. */
 const KATEGORIE_LIMIT = 50;
 
-/** Deutsche Beschriftungen fuer die Systemmeldungen im Kanal. */
-const STATUS_TEXT: Record<string, string> = {
-  PENDING: 'Wird angelegt',
-  OPEN: 'Offen',
-  IN_PROGRESS: 'In Bearbeitung',
-  WAITING_FOR_USER: 'Wartet auf Mitglied',
-  WAITING_FOR_STAFF: 'Wartet auf Support',
-  RESOLVED: 'Gelöst',
-  CLOSED: 'Geschlossen',
-  ARCHIVED: 'Archiviert',
-  CREATION_FAILED: 'Erstellung fehlgeschlagen',
-};
-
-const PRIORITAET_TEXT: Record<string, string> = {
-  LOW: 'Niedrig',
-  NORMAL: 'Normal',
-  HIGH: 'Hoch',
-  URGENT: 'Dringend',
-};
+/**
+ * Was im Ticket-Kanal steht - und was nicht.
+ *
+ * Uebernahme, Zuweisung, Status und Prioritaet melden sich hier nicht mehr.
+ * Das sind interne Vorgaenge des Teams; im Kanal standen sie zwischen den
+ * Nachrichten und liessen ein Gespraech wie ein Protokoll aussehen. Sie sind
+ * deswegen nicht verschwunden: jeder dieser Vorgaenge schreibt weiterhin sein
+ * `TicketEvent`, und der Verlauf im Dashboard zeigt sie vollstaendig.
+ *
+ * Im Kanal bleibt, was an die Beteiligten gerichtet ist: die Abschlussmeldung,
+ * die Wiedereroeffnung, die Erinnerung an eine ausstehende Antwort und die
+ * Frage nach einer Bewertung.
+ */
 
 async function ereignis(
   ticketId: string,
@@ -380,7 +374,6 @@ export async function claimTicket(ticketId: string, actor: TicketActor): Promise
     return false;
   }
   await ereignis(ticketId, 'CLAIMED', actor);
-  await systemMeldung(ticketId, `**${actor.username}** bearbeitet dieses Ticket.`);
   return true;
 }
 
@@ -400,12 +393,6 @@ export async function assignTicket(
   await ereignis(ticketId, ziel ? 'ASSIGNED' : 'UNASSIGNED', actor, {
     zu: ziel?.username ?? null,
   });
-  await systemMeldung(
-    ticketId,
-    ziel
-      ? `**${actor.username}** hat dieses Ticket an **${ziel.username}** übergeben.`
-      : `**${actor.username}** hat die Zuweisung aufgehoben.`,
-  );
 }
 
 export async function changeStatus(
@@ -422,10 +409,6 @@ export async function changeStatus(
   }
   await prisma.ticket.update({ where: { id: ticketId }, data: { status } });
   await ereignis(ticketId, 'STATUS_CHANGED', actor, { von: vorher.status, zu: status });
-  await systemMeldung(
-    ticketId,
-    `**${actor.username}** hat den Status auf ${STATUS_TEXT[status] ?? status} gesetzt.`,
-  );
 }
 
 export async function changePriority(
@@ -442,10 +425,6 @@ export async function changePriority(
   }
   await prisma.ticket.update({ where: { id: ticketId }, data: { priority } });
   await ereignis(ticketId, 'PRIORITY_CHANGED', actor, { von: vorher.priority, zu: priority });
-  await systemMeldung(
-    ticketId,
-    `**${actor.username}** hat die Priorität auf ${PRIORITAET_TEXT[priority] ?? priority} gesetzt.`,
-  );
 }
 
 export async function addParticipant(

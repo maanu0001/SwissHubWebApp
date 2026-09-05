@@ -130,6 +130,23 @@ function fakeClient() {
  * sie - sonst hinge der Gateway-Strom an der Datenbank. Der Test muss das
  * Ergebnis deshalb abwarten statt es anzunehmen.
  */
+/**
+ * Warten, bis die Meldung an die Moderation *verbucht* ist.
+ *
+ * Nicht dasselbe wie «gesendet»: der Behandler schickt die Nachricht und
+ * schreibt erst danach ihre Kennung an den Vorgang. Wer auf das Senden
+ * wartet, liest den Vorgang in genau dem Fenster dazwischen - unter Last
+ * gross genug, dass die Prüfung darunter ein leeres Feld findet.
+ *
+ * Gewartet wird deshalb auf das, was danach geprüft wird.
+ */
+async function bisGemeldet(discordId: string): Promise<void> {
+  await bisWahr(async () => {
+    const vorgang = await prisma.verificationRequest.findFirst({ where: { discordId } });
+    return vorgang?.modChannelId !== null && vorgang?.modMessageId !== null;
+  });
+}
+
 async function bisWahr(pruefung: () => boolean | Promise<boolean>, ms = 4000): Promise<void> {
   const ende = Date.now() + ms;
   for (;;) {
@@ -404,7 +421,7 @@ describeWithDatabase('Verifikation über Discord', () => {
       'messageCreate',
       nachricht(discordId, VERIFIKATIONSKANAL, 'Hoi zäme, ich bi de Luca.', 'm-1'),
     );
-    await bisWahr(() => discord.gesendet.some((eintrag) => eintrag.channelId === MOD_KANAL));
+    await bisGemeldet(discordId);
 
     const meldung = discord.gesendet.find((eintrag) => eintrag.channelId === MOD_KANAL);
     // Beim ersten Mal wird die Moderation erwähnt.
@@ -609,7 +626,7 @@ describeWithDatabase('Verifikation über Discord', () => {
     const discordId = '900000000000009320';
     await bot.feuere('guildMemberAdd', mitglied(discordId));
     await bot.feuere('messageCreate', nachricht(discordId, VERIFIKATIONSKANAL, 'Hoi zäme', 'm-ping'));
-    await bisWahr(() => discord.gesendet.some((eintrag) => eintrag.channelId === MOD_KANAL));
+    await bisGemeldet(discordId);
 
     const meldung = discord.gesendet.find((eintrag) => eintrag.channelId === MOD_KANAL);
     const erlaubt = meldung?.payload.allowedMentions as {
@@ -633,7 +650,7 @@ describeWithDatabase('Verifikation über Discord', () => {
       'messageCreate',
       nachricht(discordId, VERIFIKATIONSKANAL, '@everyone @here hallo <@&999> ', 'm-evil'),
     );
-    await bisWahr(() => discord.gesendet.some((eintrag) => eintrag.channelId === MOD_KANAL));
+    await bisGemeldet(discordId);
 
     const meldung = discord.gesendet.find((eintrag) => eintrag.channelId === MOD_KANAL);
     const embed = (meldung?.payload.embeds as Array<{ fields: Array<{ value: string }> }>)[0]!;
@@ -651,7 +668,7 @@ describeWithDatabase('Verifikation über Discord', () => {
     const discordId = '900000000000009322';
     await bot.feuere('guildMemberAdd', mitglied(discordId));
     await bot.feuere('messageCreate', nachricht(discordId, VERIFIKATIONSKANAL, 'Hoi', 'm-embed'));
-    await bisWahr(() => discord.gesendet.some((eintrag) => eintrag.channelId === MOD_KANAL));
+    await bisGemeldet(discordId);
 
     const meldung = discord.gesendet.find((eintrag) => eintrag.channelId === MOD_KANAL);
     const embed = (
@@ -813,7 +830,7 @@ describeWithDatabase('Verifikation über Discord', () => {
     const discordId = '900000000000009335';
     await bot.feuere('guildMemberAdd', mitglied(discordId));
     await bot.feuere('messageCreate', nachricht(discordId, VERIFIKATIONSKANAL, 'Hoi', 'm-neu-1'));
-    await bisWahr(() => discord.gesendet.some((eintrag) => eintrag.channelId === MOD_KANAL));
+    await bisGemeldet(discordId);
 
     const request = await prisma.verificationRequest.findFirstOrThrow({ where: { discordId } });
     expect(request.modChannelId).toBe(MOD_KANAL);

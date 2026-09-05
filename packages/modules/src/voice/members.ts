@@ -3,6 +3,7 @@ import type { TemporaryVoiceChannel, VoiceAccessKind } from '@swisshub/database'
 import { discord, DISCORD_PERMISSIONS } from '@swisshub/discord';
 import { createLogger } from '@swisshub/logger';
 import { AppError } from '@swisshub/shared';
+import { besitzerVerwaltungsRechte } from './bot-rechte';
 import { besitzerRechte, TEILNEHMER_ERLAUBT } from './permissions';
 import { istEindeutigkeitsFehler, schreibeEreignis, type VoiceActor } from './service';
 
@@ -240,7 +241,7 @@ export async function transferOwnership(
     });
   }
 
-  const rechte = besitzerRechte(optionen.ownerModeration ?? true);
+  const rechte = besitzerRechte(optionen.ownerModeration ?? true, await besitzerVerwaltungsRechte());
   await discord.managedChannels.setOverwrite(
     kanal.discordChannelId,
     { id: neuerBesitzer.discordId, type: 1, allow: rechte, deny: 0n },

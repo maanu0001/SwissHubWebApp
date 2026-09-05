@@ -100,6 +100,28 @@ describe('Rechte im Talk', () => {
     expect(TEILNEHMER_ERLAUBT & BESITZER_VERWALTUNG).toBe(0n);
   });
 
+  it('vergibt nur, was der Bot selbst halten kann', () => {
+    // Discord weist die ganze Kanalerstellung ab, wenn eine Ausnahme ein
+    // Recht vergibt, das der Bot nicht hat. Lieber ein Talk ohne
+    // Zusatzrechte als gar keiner.
+    const nurKanaele = besitzerRechte(true, DISCORD_PERMISSIONS.MANAGE_CHANNELS);
+    expect(nurKanaele & DISCORD_PERMISSIONS.MANAGE_CHANNELS).toBe(
+      DISCORD_PERMISSIONS.MANAGE_CHANNELS,
+    );
+    expect(nurKanaele & DISCORD_PERMISSIONS.MANAGE_ROLES).toBe(0n);
+
+    // Gar nichts: der Talk entsteht trotzdem, mit den Teilnehmerrechten.
+    expect(besitzerRechte(false, 0n)).toBe(TEILNEHMER_ERLAUBT);
+    expect(besitzerRechte(true, 0n)).toBe(TEILNEHMER_ERLAUBT | BESITZER_MODERATION);
+  });
+
+  it('lässt sich über diesen Weg nichts Fremdes unterschieben', () => {
+    // Die Maske begrenzt auf die beiden Verwaltungsbits - ein Aufrufer, der
+    // versehentlich mehr durchreicht, vergibt trotzdem nicht mehr.
+    const alles = (1n << 40n) - 1n;
+    expect(besitzerRechte(false, alles)).toBe(TEILNEHMER_ERLAUBT | BESITZER_VERWALTUNG);
+  });
+
   it('unterscheidet Sperre und Sichtbarkeit', () => {
     const gesperrt = everyoneAusnahme('1', { locked: true, hidden: false });
     expect(gesperrt).not.toBeNull();

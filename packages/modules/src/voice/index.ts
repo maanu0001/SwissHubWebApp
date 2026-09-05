@@ -8,6 +8,7 @@
  * Neustart.
  */
 export * from './permissions';
+export * from './bot-rechte';
 export * from './naming';
 export * from './service';
 export * from './members';

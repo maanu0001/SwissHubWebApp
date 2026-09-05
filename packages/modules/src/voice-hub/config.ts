@@ -258,6 +258,12 @@ export const voiceHubModule: ModuleDefinition = registerModule({
   configVersion: 1,
   requiredDiscordPermissions: [
     'MANAGE_CHANNELS',
+    // «Rollen verwalten» heisst auf Kanalebene «Berechtigungen verwalten».
+    // Der Bot braucht es, um es dem Besitzer in dessen eigenem Kanal zu
+    // geben - niemand kann in einer Ausnahme ein Recht vergeben, das er
+    // selbst nicht hat. Fehlt es, entsteht der Talk trotzdem; der Besitzer
+    // verwaltet ihn dann nur über das Bedienfeld.
+    'MANAGE_ROLES',
     'VIEW_CHANNEL',
     'MOVE_MEMBERS',
     'CONNECT',

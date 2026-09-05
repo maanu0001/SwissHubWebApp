@@ -6,6 +6,18 @@ import type { GuildChannel, GuildMember, GuildRole } from './types';
 
 const log = createLogger('discord:mock');
 
+/** Der Mock-Bot darf alles, was die Module brauchen. */
+const MOCK_BOT_PERMISSIONS =
+  DISCORD_PERMISSIONS.VIEW_CHANNEL |
+  DISCORD_PERMISSIONS.SEND_MESSAGES |
+  DISCORD_PERMISSIONS.EMBED_LINKS |
+  DISCORD_PERMISSIONS.ADD_REACTIONS |
+  DISCORD_PERMISSIONS.READ_MESSAGE_HISTORY |
+  DISCORD_PERMISSIONS.MANAGE_ROLES |
+  DISCORD_PERMISSIONS.MANAGE_CHANNELS |
+  DISCORD_PERMISSIONS.CONNECT |
+  DISCORD_PERMISSIONS.MOVE_MEMBERS;
+
 /**
  * Deterministische Mock-Daten für die UI-Entwicklung ohne Discord-Zugang.
  *
@@ -52,7 +64,11 @@ const MOCK_ROLES: GuildRole[] = [
     color: 0x94a3b8,
     position: 80,
     managed: true,
-    permissions: '0',
+    // Die Rolle traegt, was `MOCK_BOT_PERMISSIONS` verspricht. Stuende hier
+    // `'0'`, saehe der Mock den Bot je nach Frage einmal als allmaechtig und
+    // einmal als rechtlos - und ein Test, der prueft, was der Bot
+    // weitergeben kann, bekaeme die falsche Antwort.
+    permissions: MOCK_BOT_PERMISSIONS.toString(),
   },
   { id: '900000000000000006', name: 'Jail', color: 0x475569, position: 10, managed: false, permissions: '0' },
   {
@@ -101,18 +117,6 @@ function buildMember(id: string, username: string, displayName: string, roleIds:
     timedOutUntil: null,
   };
 }
-
-/** Der Mock-Bot darf alles, was die Module brauchen. */
-const MOCK_BOT_PERMISSIONS =
-  DISCORD_PERMISSIONS.VIEW_CHANNEL |
-  DISCORD_PERMISSIONS.SEND_MESSAGES |
-  DISCORD_PERMISSIONS.EMBED_LINKS |
-  DISCORD_PERMISSIONS.ADD_REACTIONS |
-  DISCORD_PERMISSIONS.READ_MESSAGE_HISTORY |
-  DISCORD_PERMISSIONS.MANAGE_ROLES |
-  DISCORD_PERMISSIONS.MANAGE_CHANNELS |
-  DISCORD_PERMISSIONS.CONNECT |
-  DISCORD_PERMISSIONS.MOVE_MEMBERS;
 
 export function createMockGateway(): DiscordGateway {
   const state = new Map(MOCK_MEMBERS.map((member) => [member.discordId, { ...member }]));

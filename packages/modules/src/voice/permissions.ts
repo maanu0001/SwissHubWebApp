@@ -77,9 +77,13 @@ const EVERYONE_VERWALTET = DISCORD_PERMISSIONS.VIEW_CHANNEL | DISCORD_PERMISSION
  * Die Verwaltungsrechte haengen nicht am Schalter `ownerModeration`: der
  * entscheidet, ob der Besitzer andere stummschalten und verschieben darf, und
  * das ist eine andere Frage als die, ob ihm sein eigener Kanal gehoert.
+ *
+ * `verwaltung` sagt, welche der beiden Verwaltungsbits der Bot ueberhaupt
+ * weitergeben kann - siehe `bot-rechte.ts`. Ohne Angabe alle: die reine
+ * Rechenfunktion soll ohne Discord auskommen und bleibt so testbar.
  */
-export function besitzerRechte(moderation: boolean): bigint {
-  const grund = TEILNEHMER_ERLAUBT | BESITZER_VERWALTUNG;
+export function besitzerRechte(moderation: boolean, verwaltung = BESITZER_VERWALTUNG): bigint {
+  const grund = TEILNEHMER_ERLAUBT | (verwaltung & BESITZER_VERWALTUNG);
   return moderation ? grund | BESITZER_MODERATION : grund;
 }
 

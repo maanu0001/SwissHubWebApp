@@ -8,12 +8,12 @@ import {
 } from '@swisshub/discord';
 import { createLogger } from '@swisshub/logger';
 import { AppError } from '@swisshub/shared';
+import { besitzerVerwaltungsRechte } from './bot-rechte';
 import {
   BOT_ERLAUBT,
   EVERYONE_VERWALTET,
   besitzerRechte,
   everyoneAusnahme,
-
   verschmelze,
 } from './permissions';
 import { pruefeName } from './naming';
@@ -248,11 +248,14 @@ async function erstelleMitAusweich(
 /** Die Ausnahmen, mit denen ein neuer Kanal startet. */
 async function baueStartAusnahmen(input: CreateTemporaryVoiceInput): Promise<ChannelOverwrite[]> {
   const gateway = input.gateway ?? discord;
+  // Nur vergeben, was der Bot selbst hat: Discord weist sonst die ganze
+  // Kanalerstellung ab, nicht nur das eine Bit.
+  const verwaltung = await besitzerVerwaltungsRechte(gateway);
   const overwrites: ChannelOverwrite[] = [
     {
       id: input.ownerDiscordId,
       type: 1,
-      allow: besitzerRechte(input.ownerModeration ?? true),
+      allow: besitzerRechte(input.ownerModeration ?? true, verwaltung),
       deny: 0n,
     },
   ];

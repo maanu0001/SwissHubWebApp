@@ -55,48 +55,92 @@ export type AppealsPermission = (typeof APPEALS_PERMISSIONS)[keyof typeof APPEAL
  * einer Stelle stehen - Formular, Zusammenfassung und Fallansicht lesen
  * dieselbe Liste.
  */
+/**
+ * Was der Antragsteller ausfuellt: ein Feld.
+ *
+ * Vorher waren es fuenf, vier davon Pflicht. Gemeint war es gut - die Fragen
+ * fuehren jemanden durch das, was einen Antrag ueberzeugend macht. In der
+ * Praxis stand davor eine Wand: wer gerade gebannt wurde, schreibt selten
+ * viermal dreissig Zeichen, und was er zu sagen hat, verteilt sich ohnehin
+ * nicht sauber auf vier Ueberschriften. Dieselbe Antwort stand am Ende
+ * zweimal da, in zwei Feldern, weil sie zu beiden passte.
+ *
+ * Ein Feld, in dem alles Platz hat. Was das Team wissen muss, steht in der
+ * Frage - und wenn etwas fehlt, gibt es dafuer die Rueckfrage, die es
+ * ohnehin schon gibt.
+ */
 export const APPEAL_FRAGEN = [
   {
-    key: 'grund',
-    label: 'Warum möchtest du entbannt werden?',
-    hilfe: 'Erkläre in eigenen Worten, weshalb du zurück auf den Server möchtest.',
+    key: 'antrag',
+    label: 'Dein Antrag',
+    hilfe:
+      'Beschreibe hier, warum du entbannt werden möchtest und welche Informationen wir bei der erneuten Prüfung berücksichtigen sollen.',
+    // Dreissig Zeichen sind ungefaehr ein Satz. Weniger waere kein Antrag,
+    // mehr zu verlangen hiesse, jemanden nach Laenge statt nach Inhalt zu
+    // beurteilen.
     min: 30,
-    max: 2000,
+    // Vier Felder zu je zweitausend Zeichen sind zu einem geworden - die
+    // Obergrenze zieht mit, sonst waere die Vereinfachung eine Kuerzung.
+    max: 8000,
     pflicht: true,
-  },
-  {
-    key: 'hergang',
-    label: 'Was ist aus deiner Sicht passiert?',
-    hilfe: 'Schildere den Vorfall so, wie du ihn erlebt hast.',
-    min: 30,
-    max: 2000,
-    pflicht: true,
-  },
-  {
-    key: 'warumPruefen',
-    label: 'Warum sollte SwissHub die Entscheidung erneut prüfen?',
-    hilfe: 'Gibt es etwas, das beim ersten Mal nicht bekannt war?',
-    min: 20,
-    max: 2000,
-    pflicht: true,
-  },
-  {
-    key: 'anders',
-    label: 'Falls du gegen Regeln verstossen hast: Was würdest du heute anders machen?',
-    hilfe: 'Ein Antrag ohne diese Frage ist selten überzeugend.',
-    min: 20,
-    max: 2000,
-    pflicht: true,
-  },
-  {
-    key: 'weiteres',
-    label: 'Gibt es weitere Informationen, die wir berücksichtigen sollten?',
-    hilfe: 'Freiwillig. Leer lassen, wenn nichts offen ist.',
-    min: 0,
-    max: 2000,
-    pflicht: false,
   },
 ] as const;
+
+/**
+ * Die Fragen frueherer Antraege.
+ *
+ * Antraege werden nach dem Einreichen nicht mehr angefasst - ihre Antworten
+ * stehen unter den Schluesseln, die es damals gab. Ohne diese Liste zeigte
+ * die Fallakte eines alten Antrags gar nichts mehr, weil sie nur noch nach
+ * `antrag` suchte.
+ *
+ * Sie wird nicht mehr ausgefuellt und steht deshalb nicht im Formular. Sie
+ * dient allein dem Lesen.
+ */
+export const APPEAL_FRUEHERE_FRAGEN = [
+  { key: 'grund', label: 'Warum möchtest du entbannt werden?' },
+  { key: 'hergang', label: 'Was ist aus deiner Sicht passiert?' },
+  { key: 'warumPruefen', label: 'Warum sollte SwissHub die Entscheidung erneut prüfen?' },
+  { key: 'anders', label: 'Was würdest du heute anders machen?' },
+  { key: 'weiteres', label: 'Weitere Informationen' },
+] as const;
+
+/**
+ * Die Antworten eines Antrags in lesbarer Form - alt wie neu.
+ *
+ * Eine Stelle statt drei: die Fallakte des Teams, die Ansicht des
+ * Antragstellers und die Uebersicht zeigen denselben Antrag und sollen ihn
+ * gleich zeigen.
+ */
+export function appealAntwortFelder(
+  antworten: Record<string, string>,
+): Array<{ key: string; label: string; wert: string }> {
+  const felder: Array<{ key: string; label: string; wert: string }> = [];
+
+  for (const frage of APPEAL_FRAGEN) {
+    const wert = antworten[frage.key]?.trim();
+    if (wert) {
+      felder.push({ key: frage.key, label: frage.label, wert });
+    }
+  }
+  for (const frage of APPEAL_FRUEHERE_FRAGEN) {
+    const wert = antworten[frage.key]?.trim();
+    if (wert) {
+      felder.push({ key: frage.key, label: frage.label, wert });
+    }
+  }
+
+  // Ein Antrag aus einer Fassung, die es nie gab, waere ein Fehler - aber
+  // einer, der die Akte nicht leer aussehen lassen darf.
+  const bekannt = new Set(felder.map((feld) => feld.key));
+  for (const [key, wert] of Object.entries(antworten)) {
+    if (!bekannt.has(key) && !key.startsWith('__') && wert.trim()) {
+      felder.push({ key, label: key, wert: wert.trim() });
+    }
+  }
+
+  return felder;
+}
 
 export type AppealFrageKey = (typeof APPEAL_FRAGEN)[number]['key'];
 

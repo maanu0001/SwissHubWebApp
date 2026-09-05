@@ -3,7 +3,12 @@ import { AlertTriangle, ShieldCheck } from 'lucide-react';
 import { can } from '@swisshub/auth';
 import { bootstrapConfig } from '@swisshub/config';
 import { prisma } from '@swisshub/database';
-import { PERMISSION_PRESETS, isRecoveryNeeded, listPermissions } from '@swisshub/permissions';
+import {
+  PERMISSION_PRESETS,
+  findPresetDrift,
+  isRecoveryNeeded,
+  listPermissions,
+} from '@swisshub/permissions';
 import { listModuleDefinitions } from '@swisshub/modules';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { PermissionMatrix } from '@/modules/configuration/components/permission-matrix';
@@ -82,6 +87,14 @@ export default async function ServerPermissionsPage(): Promise<React.JSX.Element
             csrfToken={csrfToken}
             canEdit={can(context, 'permissions.manage') || setupAccess}
             roles={options.roles}
+            abweichungen={Object.fromEntries(
+              managedRoles.flatMap((role) => {
+                const drift = findPresetDrift(role.permissions.map((entry) => entry.permission));
+                return drift
+                  ? [[role.discordRoleId, { presetLabel: drift.preset.label, fehlend: drift.fehlend }] as const]
+                  : [];
+              }),
+            )}
             managed={managedRoles.map((role) => ({
               discordRoleId: role.discordRoleId,
               label: role.label,

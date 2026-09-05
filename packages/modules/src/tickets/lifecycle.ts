@@ -2,7 +2,7 @@ import { prisma } from '@swisshub/database';
 import type { Ticket } from '@swisshub/database';
 import { AppError } from '@swisshub/shared';
 import { createLogger } from '@swisshub/logger';
-import { discord, DISCORD_PERMISSIONS, resolveGuildId } from '@swisshub/discord';
+import { discord, DiscordApiError, DISCORD_PERMISSIONS, resolveGuildId } from '@swisshub/discord';
 import { getModuleSettings } from '../module-state';
 import { TICKETS_MODULE_ID, type TicketSettings } from './config';
 import type { TicketActor } from './service';
@@ -52,17 +52,35 @@ export async function closeTicket(
   const settings = await getModuleSettings<TicketSettings>(TICKETS_MODULE_ID);
   const aufbewahrung = AUFBEWAHRUNG_MS[settings.closeBehaviour];
 
-  const geschlossen = await prisma.ticket.update({
-    where: { id: ticketId },
+  // Der Abschluss wird beansprucht, nicht bloss geschrieben.
+  //
+  // Zwei Wege fuehren hierher - der Knopf im Dashboard und der Knopf auf
+  // Discord -, und sie koennen sich in derselben Sekunde treffen. Die
+  // Abfrage oben verhindert das nicht: beide lesen dann ein offenes Ticket
+  // und beide schreiben. Das Ergebnis waere zweimal alles - zwei
+  // Abschlussmeldungen im Kanal, zwei Ereignisse im Verlauf, zwei
+  // Aufraeumauftraege.
+  //
+  // `closedAt: null` in der Bedingung entscheidet das in der Datenbank: genau
+  // ein Aufruf aktualisiert eine Zeile, der andere keine und kehrt mit dem
+  // bereits geschlossenen Ticket zurueck, ohne etwas anzustossen.
+  const jetzt = new Date();
+  const beansprucht = await prisma.ticket.updateMany({
+    where: { id: ticketId, closedAt: null },
     data: {
       status: 'CLOSED',
-      closedAt: new Date(),
+      closedAt: jetzt,
       closedByDiscordId: actor.discordId,
       closeReason: reason?.slice(0, 500) ?? null,
-      channelPurgeAt:
-        aufbewahrung === null ? null : new Date(Date.now() + aufbewahrung),
+      channelPurgeAt: aufbewahrung === null ? null : new Date(jetzt.getTime() + aufbewahrung),
     },
   });
+  if (beansprucht.count === 0) {
+    // Jemand anders war schneller. Sein Durchgang erledigt die Folgearbeiten.
+    return prisma.ticket.findUniqueOrThrow({ where: { id: ticketId } });
+  }
+
+  const geschlossen = await prisma.ticket.findUniqueOrThrow({ where: { id: ticketId } });
 
   // Ab hier ist das Ticket geschlossen. Alles Weitere sind Folgearbeiten, und
   // keine davon darf den Abschluss noch umstossen: ein Ticket, das in der
@@ -335,6 +353,22 @@ export async function purgeDueChannels(jetzt = new Date()): Promise<number> {
 
   let entfernt = 0;
   for (const ticket of faellig) {
+    // Den Auftrag beanspruchen, ehe er ausgefuehrt wird.
+    //
+    // Der Wecker im Web-Prozess und der Aufraeumauftrag im Bot koennen
+    // denselben faelligen Kanal gleichzeitig aufgreifen. Ohne diesen Schritt
+    // schickte einer von beiden ein zweites DELETE an Discord und faenge sich
+    // dafuer einen Fehler ein - fuer nichts, denn der Kanal ist bereits weg.
+    //
+    // Wer null Zeilen aktualisiert, war zu spaet und laesst die Finger davon.
+    const zugeteilt = await prisma.ticket.updateMany({
+      where: { id: ticket.id, channelPurgeAt: { not: null } },
+      data: { channelPurgeAt: null },
+    });
+    if (zugeteilt.count === 0) {
+      continue;
+    }
+
     try {
       await discord.managedChannels.remove(
         ticket.discordChannelId!,
@@ -342,10 +376,17 @@ export async function purgeDueChannels(jetzt = new Date()): Promise<number> {
       );
       entfernt += 1;
     } catch (fehler) {
-      logger.warn('Ticket-Kanal konnte nicht entfernt werden', {
-        ticketId: ticket.id,
-        grund: fehler instanceof Error ? fehler.message : 'unbekannt',
-      });
+      // Ein Kanal, den es nicht mehr gibt, ist kein Fehlschlag - er ist das
+      // Ziel. Discord antwortet darauf mit 404, und genau so wird es hier
+      // behandelt: erledigt. Alles andere wird vermerkt, aendert aber nichts
+      // am weiteren Ablauf - der Kanal ist ohnehin nicht mehr zu retten.
+      const unbekannt = fehler instanceof DiscordApiError && fehler.status === 404;
+      if (!unbekannt) {
+        logger.warn('Ticket-Kanal konnte nicht entfernt werden', {
+          ticketId: ticket.id,
+          grund: fehler instanceof Error ? fehler.message : 'unbekannt',
+        });
+      }
     }
     // Auch bei einem Fehler die Markierung loesen - der Kanal ist entweder
     // weg oder von Hand geloescht worden; erneut zu versuchen brachte nichts.
@@ -359,6 +400,67 @@ export async function purgeDueChannels(jetzt = new Date()): Promise<number> {
     logger.info('Ticket-Kanäle aufgeräumt', { anzahl: entfernt });
   }
   return entfernt;
+}
+
+/**
+ * Geschlossene Tickets, deren Kanal stehengeblieben ist.
+ *
+ * Der Wecker im Prozess ist eine Abkuerzung und keine Zusage - stirbt der
+ * Prozess zwischen Abschluss und Loeschung, bleibt der Auftrag in der
+ * Datenbank stehen und der naechste Aufraeumdurchgang holt ihn nach. Das
+ * deckt den Regelfall ab.
+ *
+ * Es bleibt ein Fall, den es nicht deckt: ein Ticket, das geschlossen wurde,
+ * als die Einstellung «nie loeschen» galt, und dessen Kanal seither steht,
+ * obwohl inzwischen «sofort loeschen» eingestellt ist. Es traegt keinen
+ * Faelligkeitszeitpunkt, also sucht niemand danach, und der Kanal bleibt
+ * fuer immer - sichtbar fuer alle, die im Ticket waren.
+ *
+ * Dieser Durchgang traegt den fehlenden Zeitpunkt nach. Er loescht selbst
+ * nichts: das tut der bestehende Aufraeumer, und zwar nach derselben Regel
+ * wie bei jedem anderen Ticket.
+ */
+export async function scheduleOrphanedChannels(
+  aufbewahrungMs: number | null,
+  jetzt = new Date(),
+): Promise<number> {
+  if (aufbewahrungMs === null) {
+    // «Nie loeschen» ist eine Ansage und kein Versehen.
+    return 0;
+  }
+
+  const verwaist = await prisma.ticket.findMany({
+    where: {
+      closedAt: { not: null },
+      channelPurgeAt: null,
+      discordChannelId: { not: null },
+      channelMissing: false,
+      status: { in: ['CLOSED'] },
+    },
+    select: { id: true, closedAt: true },
+  });
+
+  let nachgetragen = 0;
+  for (const ticket of verwaist) {
+    // Ab dem Abschluss gerechnet, nicht ab jetzt: ein Ticket, das gestern
+    // geschlossen wurde, ist mit der heutigen Einstellung sofort faellig.
+    const faellig = new Date((ticket.closedAt ?? jetzt).getTime() + aufbewahrungMs);
+    const { count } = await prisma.ticket.updateMany({
+      where: { id: ticket.id, channelPurgeAt: null },
+      data: { channelPurgeAt: faellig },
+    });
+    nachgetragen += count;
+  }
+
+  if (nachgetragen > 0) {
+    logger.info('Liegengebliebene Ticket-Kanäle eingeplant', { anzahl: nachgetragen });
+  }
+  return nachgetragen;
+}
+
+/** Die Aufbewahrungsfrist der aktuellen Einstellung, in Millisekunden. */
+export function aufbewahrungsfristMs(behaviour: TicketSettings['closeBehaviour']): number | null {
+  return AUFBEWAHRUNG_MS[behaviour];
 }
 
 /**

@@ -196,8 +196,8 @@ export function AntragFormular({
       <CardHeader>
         <CardTitle className="text-lg">Dein Antrag</CardTitle>
         <CardDescription>
-          Alle Fragen mit * sind Pflicht. Schreib in eigenen Worten - abgeschriebene Texte erkennt
-          man.
+          Schreib in eigenen Worten - abgeschriebene Texte erkennt man. Was hier fehlt, können wir
+          später über die Nachrichten nachfragen.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
@@ -214,7 +214,7 @@ export function AntragFormular({
                 id={id}
                 value={wert}
                 maxLength={frage.max}
-                rows={5}
+                rows={fragen.length === 1 ? 12 : 5}
                 onChange={(event) => setzeAntwort(frage.key, event.target.value)}
                 className="flex w-full rounded-md border border-input bg-background/60 px-3 py-2 text-sm shadow-sm transition-colors focus:outline-none focus-visible:border-primary/60 focus-visible:ring-2 focus-visible:ring-ring/60"
               />

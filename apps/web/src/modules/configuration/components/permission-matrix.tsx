@@ -56,6 +56,7 @@ export function PermissionMatrix({
   csrfToken,
   roles,
   managed,
+  abweichungen,
   permissions,
   presets,
   moduleLabels,
@@ -64,6 +65,13 @@ export function PermissionMatrix({
   csrfToken: string;
   roles: RoleOption[];
   managed: ManagedRoleState[];
+  /**
+   * Rollen, deren Rechte hinter ihrer Vorlage zurueckliegen.
+   *
+   * Serverseitig berechnet, weil die Vorlagen dort aufgeloest werden - der
+   * Browser kennt die Registry nicht.
+   */
+  abweichungen: Record<string, { presetLabel: string; fehlend: string[] }>;
   permissions: PermissionView[];
   presets: PresetView[];
   moduleLabels: Record<string, string>;
@@ -71,6 +79,9 @@ export function PermissionMatrix({
 }): React.JSX.Element {
   const router = useRouter();
   const [selectedRoleId, setSelectedRoleId] = useState<string | null>(managed[0]?.discordRoleId ?? null);
+  // Die Abweichung der gerade gewaehlten Rolle - sie steht neben der
+  // Vorlagenauswahl, also genau dort, wo man sie beheben kann.
+  const abweichung = selectedRoleId ? (abweichungen[selectedRoleId] ?? null) : null;
   const [draft, setDraft] = useState<ManagedRoleState | null>(managed[0] ?? null);
   const [query, setQuery] = useState('');
   const [pending, setPending] = useState(false);
@@ -314,6 +325,25 @@ export function PermissionMatrix({
               <p className="text-xs text-muted-foreground">
                 Vorlagen werden sofort gespeichert und ersetzen die bisherige Auswahl.
               </p>
+              {/*
+                Eine Vorlage wird genau einmal angewendet - danach stehen die
+                Rechte in der Datenbank und ändern sich nie wieder von selbst.
+                Wird die Vorlage später ergänzt, erreicht das diese Rolle nie,
+                und niemand sieht es. Genau so ist der Vote Jail für Premium
+                liegengeblieben.
+              */}
+              {abweichung ? (
+                <p className="flex items-start gap-2 rounded-md border border-warning/40 bg-warning/10 px-2.5 py-2 text-xs text-warning">
+                  <AlertTriangle className="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
+                  <span>
+                    Diese Rolle stammt aus der Vorlage «{abweichung.presetLabel}». Die Vorlage hat
+                    inzwischen {abweichung.fehlend.length}{' '}
+                    {abweichung.fehlend.length === 1 ? 'Berechtigung' : 'Berechtigungen'} mehr:{' '}
+                    <span className="font-mono">{abweichung.fehlend.join(', ')}</span>. Erneutes
+                    Anwenden trägt sie nach.
+                  </span>
+                </p>
+              ) : null}
             </div>
           </div>
 

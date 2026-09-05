@@ -218,7 +218,7 @@ export default async function ModerationPage(): Promise<React.JSX.Element> {
       {can(context, jail.JAIL_PERMISSIONS.view) ? (
         <p className="text-sm text-muted-foreground">
           Jails werden im{' '}
-          <Link href="/jail" className="text-primary-bright hover:underline">
+          <Link href="/moderation/jail" className="text-primary-bright hover:underline">
             Jail-Modul
           </Link>{' '}
           verwaltet - sie erscheinen hier im gemeinsamen Verlauf.

@@ -57,35 +57,9 @@ function eintraege(permissions: string[]) {
   );
 }
 
-describe('Jail in der Seitenleiste', () => {
-  const jail = eintraege([JAIL_SEHEN, P.view]).filter((eintrag) => eintrag.moduleId === 'jail');
-
-  it('wird gerendert', () => {
-    expect(jail).toHaveLength(1);
-    expect(jail[0]?.label).toBe('Jail');
-    expect(jail[0]?.href).toBe('/jail');
-  });
-
-  it('trägt Icon, Label und Ziel - und sonst keine Zahl', () => {
-    const eintrag = jail[0]!;
-    expect(eintrag.icon).toBeTruthy();
-
-    for (const feld of ZAEHLER_FELDER) {
-      expect(eintrag, `«${feld}» ist wieder am Jail-Eintrag`).not.toHaveProperty(feld);
-    }
-  });
-
-  it('trägt auch keine Badge', () => {
-    // Die Badge-Möglichkeit bleibt bestehen - der Jail-Eintrag nutzt sie nur
-    // nicht. Ein `undefined` hier wäre schon zu viel: die Komponente würde
-    // dann eine leere Hülle rendern.
-    expect(jail[0]?.badge).toBeUndefined();
-  });
-});
-
 describe('Vote Jail in der Seitenleiste', () => {
-  // Wer nur abstimmen lassen darf, bekommt statt «Jail» den Eintrag, der zu
-  // seinem Recht passt - dieselbe Registry-Zeile, anderes Ziel.
+  // Das Jail-Modul stellt nur noch diesen einen Eintrag: die Strafakte ist
+  // eine Moderationsmassnahme und steht unter «Moderation».
   const vote = eintraege([JAIL_SEHEN, P.voteStart]).filter(
     (eintrag) => eintrag.moduleId === 'jail',
   );
@@ -93,24 +67,32 @@ describe('Vote Jail in der Seitenleiste', () => {
   it('wird gerendert', () => {
     expect(vote).toHaveLength(1);
     expect(vote[0]?.label).toBe('Vote Jail');
-    expect(vote[0]?.href).toBe('/jail/votes');
+    expect(vote[0]?.href).toBe('/vote-jail');
   });
 
-  it('trägt keine Zahl und keine Badge', () => {
+  it('trägt Icon, Label und Ziel - und sonst keine Zahl', () => {
     const eintrag = vote[0]!;
+    expect(eintrag.icon).toBeTruthy();
+
     for (const feld of ZAEHLER_FELDER) {
       expect(eintrag, `«${feld}» ist wieder am Vote-Jail-Eintrag`).not.toHaveProperty(feld);
     }
-    expect(eintrag.badge).toBeUndefined();
   });
 
-  it('gilt auch für den Import-Eintrag', () => {
-    const importEintrag = eintraege([JAIL_SEHEN, P.import]).filter(
+  it('trägt auch keine Badge', () => {
+    // Die Badge-Möglichkeit bleibt bestehen - dieser Eintrag nutzt sie nur
+    // nicht. Ein `undefined` hier wäre schon zu viel: die Komponente würde
+    // dann eine leere Hülle rendern.
+    expect(vote[0]?.badge).toBeUndefined();
+  });
+
+  it('bleibt auch für den Übersichts-Berechtigten der einzige Eintrag', () => {
+    const mitAkte = eintraege([JAIL_SEHEN, P.view]).filter(
       (eintrag) => eintrag.moduleId === 'jail',
-    )[0];
-    expect(importEintrag?.href).toBe('/jail/import');
-    expect(importEintrag?.badge).toBeUndefined();
-    expect(importEintrag).not.toHaveProperty('count');
+    );
+
+    expect(mitAkte).toHaveLength(1);
+    expect(mitAkte[0]?.href).toBe('/vote-jail');
   });
 });
 
@@ -184,7 +166,7 @@ describe('Was bleiben soll, bleibt', () => {
     // Die Berechtigungslogik ist unverändert: dieselben Rechte, dieselben
     // Ziele - nur ohne Zahl daneben.
     expect(eintraege([JAIL_SEHEN, P.view])[0]?.href).toBeTruthy();
-    expect(eintraege([JAIL_SEHEN, P.voteStart]).some((e) => e.href === '/jail/votes')).toBe(true);
+    expect(eintraege([JAIL_SEHEN, P.voteStart]).some((e) => e.href === '/vote-jail')).toBe(true);
     // Und ohne «Modul sehen» weiterhin gar nichts.
     expect(eintraege([P.view, P.voteStart]).filter((e) => e.moduleId === 'jail')).toEqual([]);
   });

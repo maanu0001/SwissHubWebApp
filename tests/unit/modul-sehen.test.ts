@@ -101,7 +101,7 @@ describe('«Modul sehen» - Sidebar', () => {
       ['jail.module.view', 'jail.vote.start'],
       new Set(['jail']),
     );
-    expect(mitEintrag.map((eintrag) => eintrag.href)).toEqual(['/jail/votes']);
+    expect(mitEintrag.map((eintrag) => eintrag.href)).toEqual(['/vote-jail']);
   });
 
   it('entfernt den ganzen Bereich, nicht nur einen Eintrag', () => {
@@ -182,11 +182,11 @@ describe('«Modul sehen» - bestehende Rollen', () => {
   it('kennt die Wege, über die ein Eintrag früher sichtbar wurde', () => {
     const jail = MODULE.find((modul) => modul.id === 'jail')!;
     const keys = alteSichtbarkeitsKeys(jail);
-    // Hauptberechtigung und beide Ausweichziele - genau das, was
-    // `buildNavigation` vorher gelten liess.
-    expect(keys).toContain('jail.view');
+    // Der Eintrag ist der Vote Jail: Hauptberechtigung «starten», Ausweichweg
+    // «einsehen». Die Strafakte selbst hat keinen Eintrag mehr - sie steht
+    // unter «Moderation».
     expect(keys).toContain('jail.vote.start');
-    expect(keys).toContain('jail.import');
+    expect(keys).toContain('jail.view');
   });
 
   it('nennt für jedes Modul mindestens einen alten Weg', () => {

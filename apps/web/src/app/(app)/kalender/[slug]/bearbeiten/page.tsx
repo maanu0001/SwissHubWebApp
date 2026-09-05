@@ -5,6 +5,7 @@ import { calendar, isModuleEnabled } from '@swisshub/modules';
 import { PageHeader } from '@/components/shared/page-header';
 import { ErrorState } from '@/components/shared/states';
 import { EventFormular } from '@/modules/calendar/components/event-formular';
+import { VeroeffentlichenKnopf } from '@/modules/calendar/components/veroeffentlichen-knopf';
 import { csrfTokenFor, requirePagePermission } from '@/server/auth';
 import { alsEingabewert, formularAuswahl } from '@/server/kalender';
 
@@ -69,7 +70,25 @@ export default async function EventBearbeitenPage({
     <>
       <PageHeader
         title={`${event.title} bearbeiten`}
-        description="Änderungen an Zeit oder Ort lassen sich anschliessend den Angemeldeten mitteilen."
+        description={
+          event.status === 'DRAFT'
+            ? 'Noch ein Entwurf - erst das Veröffentlichen macht ihn sichtbar und kündigt ihn an.'
+            : 'Änderungen an Zeit oder Ort lassen sich anschliessend den Angemeldeten mitteilen.'
+        }
+        actions={
+          /*
+            Nur beim Entwurf. Ein bereits veröffentlichter Termin wird
+            bearbeitet, nicht ein zweites Mal veröffentlicht - der Knopf wäre
+            dort eine Einladung zu einer Handlung, die es nicht gibt.
+          */
+          event.status === 'DRAFT' && can(context, P.publish) ? (
+            <VeroeffentlichenKnopf
+              csrfToken={csrfTokenFor(context)}
+              eventId={event.id}
+              slug={event.slug}
+            />
+          ) : null
+        }
       />
       <EventFormular
         csrfToken={csrfTokenFor(context)}

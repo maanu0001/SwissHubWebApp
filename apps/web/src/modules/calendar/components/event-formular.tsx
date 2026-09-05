@@ -118,7 +118,22 @@ export function EventFormular({
       }
       toast.success(werte.eventId ? 'Event gespeichert.' : 'Event als Entwurf angelegt.');
       const slug = (ergebnis.data as { slug?: string } | undefined)?.slug;
-      router.push(slug ? `/kalender/${slug}` : '/kalender/verwaltung');
+
+      // Nach dem Anlegen weiter am Entwurf, nicht auf die Detailseite.
+      //
+      // Ein frisch angelegtes Event ist ein Entwurf: es ist für niemanden
+      // sichtbar, es kündigt nichts an, und in aller Regel fehlt noch etwas.
+      // Die Detailseite zeigt genau das - einen leeren Termin, den man nicht
+      // von dort aus fertigstellen kann. Die Bearbeitungsseite trägt beides:
+      // die Felder und den Knopf zum Veröffentlichen.
+      //
+      // Beim Speichern eines bestehenden Termins bleibt es beim bisherigen
+      // Weg: wer bearbeitet hat, will sehen, was dabei herauskam.
+      if (!werte.eventId && slug) {
+        router.push(`/kalender/${slug}/bearbeiten`);
+      } else {
+        router.push(slug ? `/kalender/${slug}` : '/kalender/verwaltung');
+      }
     } finally {
       setPending(false);
     }

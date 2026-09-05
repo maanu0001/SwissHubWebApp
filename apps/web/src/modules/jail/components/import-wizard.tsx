@@ -65,7 +65,7 @@ export function ImportUploadStep({ csrfToken, maxBytes }: UploadStepProps): Reac
       }
 
       toast.success('Datei analysiert. Bitte die Vorschau prüfen.');
-      router.push(`/jail/import?id=${payload.data.importId}`);
+      router.push(`/moderation/jail/import?id=${payload.data.importId}`);
       router.refresh();
     } catch {
       setError('Die Datei konnte nicht übertragen werden. Besteht noch eine Verbindung?');
@@ -186,7 +186,7 @@ export function ImportConfirmStep({
     const response = await discardJailImportAction({ csrfToken, importId });
     if (response.ok) {
       toast.info('Analyse verworfen. Es wurde nichts übernommen.');
-      router.push('/jail/import');
+      router.push('/moderation/jail/import');
       router.refresh();
     } else {
       toast.error(response.error.message);

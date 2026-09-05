@@ -154,18 +154,17 @@ export default async function AppealDetailPage({
       <div className="grid gap-4 lg:grid-cols-2">
         <Panel title="Antrag" description="Unverändert seit der Einreichung.">
           <div className="space-y-4">
-            {appeals.APPEAL_FRAGEN.map((frage) => {
-              const wert = antworten[frage.key];
-              if (!wert) {
-                return null;
-              }
-              return (
-                <div key={frage.key} className="space-y-1">
-                  <p className="text-sm font-medium">{frage.label}</p>
-                  <p className="whitespace-pre-wrap text-sm text-muted-foreground">{wert}</p>
-                </div>
-              );
-            })}
+            {/*
+              Ältere Anträge tragen die Schlüssel der damaligen fünf Fragen.
+              `appealAntwortFelder` liest beide Fassungen - sonst stünde die
+              Akte eines alten Falls leer da.
+            */}
+            {appeals.appealAntwortFelder(antworten).map((feld) => (
+              <div key={feld.key} className="space-y-1">
+                <p className="text-sm font-medium">{feld.label}</p>
+                <p className="whitespace-pre-wrap text-sm text-muted-foreground">{feld.wert}</p>
+              </div>
+            ))}
           </div>
         </Panel>
 

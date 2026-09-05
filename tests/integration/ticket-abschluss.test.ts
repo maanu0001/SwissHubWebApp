@@ -332,4 +332,173 @@ describeWithDatabase('Ticket schliessen und antworten', () => {
       .join(' ');
     expect(texte).toContain('geschlossen');
   });
+  // --- Ein Abschluss, zwei Wege ------------------------------------------
+  //
+  // Dashboard und Discord rufen dieselbe Funktion auf. Was hier geprüft wird,
+  // ist nicht, dass beide funktionieren - sondern dass es beim einen Mal
+  // dasselbe tut wie beim anderen, und dass zwei gleichzeitige Versuche
+  // zusammen nicht mehr auslösen als einer.
+
+  it('schliesst über beide Wege gleich und plant beide Male dasselbe Aufräumen', async () => {
+    const ausDemBrowser = await ticket();
+    const ausDiscord = await ticket();
+
+    const a = await tickets.closeTicket(ausDemBrowser.id, null, {
+      discordId: SUPPORTER,
+      username: 'nina',
+      source: 'WEBAPP',
+    });
+    const b = await tickets.closeTicket(ausDiscord.id, null, {
+      discordId: SUPPORTER,
+      username: 'nina',
+      source: 'DISCORD',
+    });
+
+    for (const geschlossen of [a, b]) {
+      expect(geschlossen.status).toBe('CLOSED');
+      expect(geschlossen.closedAt).not.toBeNull();
+      expect(geschlossen.closedByDiscordId).toBe(SUPPORTER);
+      // Fünf Sekunden, aus derselben Konstante - nicht zweimal eine Zahl.
+      expect(geschlossen.channelPurgeAt).not.toBeNull();
+      const frist = geschlossen.channelPurgeAt!.getTime() - geschlossen.closedAt!.getTime();
+      expect(frist).toBe(tickets.KANAL_LOESCHVERZOEGERUNG_MS);
+    }
+  });
+
+  it('hält den Weg im Verlauf fest, ohne ihn fachlich anders zu behandeln', async () => {
+    const offen = await ticket();
+
+    await tickets.closeTicket(offen.id, null, {
+      discordId: SUPPORTER,
+      username: 'nina',
+      source: 'DISCORD',
+    });
+
+    const ereignis = await prisma.ticketEvent.findFirstOrThrow({
+      where: { ticketId: offen.id, kind: 'CLOSED' },
+    });
+    expect(ereignis.actorSource).toBe('DISCORD');
+  });
+
+  it('erzeugt bei zwei gleichzeitigen Abschlüssen nur einen', async () => {
+    // Der Knopf im Dashboard und der auf Discord können sich in derselben
+    // Sekunde treffen. Zweimal alles wäre: zwei Abschlussmeldungen im Kanal,
+    // zwei Einträge im Verlauf, zwei Aufräumaufträge.
+    const offen = await ticket();
+    discord.gesendet.length = 0;
+
+    const [erste, zweite] = await Promise.all([
+      tickets.closeTicket(offen.id, 'erledigt', actor(SUPPORTER, 'nina')),
+      tickets.closeTicket(offen.id, 'auch erledigt', {
+        discordId: ADMIN.discordId,
+        username: ADMIN.username,
+        source: 'DISCORD',
+      }),
+    ]);
+
+    // Beide bekommen ein geschlossenes Ticket zurück - keiner sieht einen
+    // Fehler, obwohl nur einer den Zuschlag hatte.
+    expect(erste.status).toBe('CLOSED');
+    expect(zweite.status).toBe('CLOSED');
+    expect(erste.closedAt!.getTime()).toBe(zweite.closedAt!.getTime());
+
+    const ereignisse = await prisma.ticketEvent.count({
+      where: { ticketId: offen.id, kind: 'CLOSED' },
+    });
+    expect(ereignisse).toBe(1);
+  });
+
+  it('löscht den Kanal beim Aufräumen und nur einmal', async () => {
+    const offen = await ticket();
+    await tickets.closeTicket(offen.id, null, actor(SUPPORTER, 'nina'));
+    discord.geloescht.length = 0;
+
+    // Fällig stellen, statt fünf Sekunden zu warten.
+    await prisma.ticket.update({
+      where: { id: offen.id },
+      data: { channelPurgeAt: new Date(Date.now() - 1000) },
+    });
+
+    // Zwei Durchgänge gleichzeitig: der Wecker im Web-Prozess und der
+    // Aufräumauftrag im Bot greifen denselben Kanal auf.
+    await Promise.all([tickets.purgeDueChannels(), tickets.purgeDueChannels()]);
+
+    expect(discord.geloescht).toHaveLength(1);
+    const danach = await prisma.ticket.findUniqueOrThrow({ where: { id: offen.id } });
+    expect(danach.status).toBe('ARCHIVED');
+    expect(danach.discordChannelId).toBeNull();
+    expect(danach.channelPurgeAt).toBeNull();
+  });
+
+  it('nimmt einen bereits gelöschten Kanal als erledigt hin', async () => {
+    const offen = await ticket();
+    await tickets.closeTicket(offen.id, null, actor(SUPPORTER, 'nina'));
+    await prisma.ticket.update({
+      where: { id: offen.id },
+      data: { channelPurgeAt: new Date(Date.now() - 1000) },
+    });
+
+    // Jemand hat den Kanal von Hand gelöscht - Discord antwortet mit 404.
+    const { DiscordApiError } = await import('@swisshub/discord');
+    discord.gateway.managedChannels.remove = vi.fn(async () => {
+      throw new DiscordApiError(404, 10003, 'DELETE /channels/x', 'Unknown Channel');
+    }) as never;
+
+    await expect(tickets.purgeDueChannels()).resolves.not.toThrow();
+
+    const danach = await prisma.ticket.findUniqueOrThrow({ where: { id: offen.id } });
+    expect(danach.status).toBe('ARCHIVED');
+    expect(danach.channelPurgeAt).toBeNull();
+  });
+
+  it('lässt das Ticket geschlossen, wenn Discord den Kanal nicht hergibt', async () => {
+    // Der Abschluss ist fachlich vollzogen. Dass Discord gerade nicht mag,
+    // macht ihn nicht rückgängig.
+    const offen = await ticket();
+    await tickets.closeTicket(offen.id, null, actor(SUPPORTER, 'nina'));
+    await prisma.ticket.update({
+      where: { id: offen.id },
+      data: { channelPurgeAt: new Date(Date.now() - 1000) },
+    });
+
+    discord.gateway.managedChannels.remove = vi.fn(async () => {
+      throw new Error('Discord ist nicht erreichbar');
+    }) as never;
+
+    await expect(tickets.purgeDueChannels()).resolves.not.toThrow();
+
+    const danach = await prisma.ticket.findUniqueOrThrow({ where: { id: offen.id } });
+    expect(danach.closedAt).not.toBeNull();
+    expect(danach.closedByDiscordId).toBe(SUPPORTER);
+  });
+
+  it('trägt einen liegengebliebenen Kanal nach, statt ihn stehen zu lassen', async () => {
+    // Geschlossen, als «nie löschen» galt. Ohne Fälligkeit sucht niemand
+    // danach - der Kanal bliebe für immer stehen.
+    const offen = await ticket();
+    await tickets.closeTicket(offen.id, null, actor(SUPPORTER, 'nina'));
+    await prisma.ticket.update({
+      where: { id: offen.id },
+      data: { channelPurgeAt: null, closedAt: new Date(Date.now() - 3600_000) },
+    });
+
+    const nachgetragen = await tickets.scheduleOrphanedChannels(
+      tickets.KANAL_LOESCHVERZOEGERUNG_MS,
+    );
+
+    expect(nachgetragen).toBe(1);
+    const danach = await prisma.ticket.findUniqueOrThrow({ where: { id: offen.id } });
+    // Ab dem Abschluss gerechnet: eine Stunde alt, fünf Sekunden Frist - fällig.
+    expect(danach.channelPurgeAt!.getTime()).toBeLessThan(Date.now());
+  });
+
+  it('trägt bei «nie löschen» nichts nach', async () => {
+    const offen = await ticket();
+    await tickets.closeTicket(offen.id, null, actor(SUPPORTER, 'nina'));
+    await prisma.ticket.update({ where: { id: offen.id }, data: { channelPurgeAt: null } });
+
+    expect(await tickets.scheduleOrphanedChannels(null)).toBe(0);
+    const danach = await prisma.ticket.findUniqueOrThrow({ where: { id: offen.id } });
+    expect(danach.channelPurgeAt).toBeNull();
+  });
 });

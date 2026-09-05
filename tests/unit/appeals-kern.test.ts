@@ -230,14 +230,28 @@ describe('Fallnummer', () => {
 });
 
 describe('Fragen des Formulars', () => {
-  it('hat Pflichtfragen mit sinnvollen Untergrenzen', () => {
-    expect(APPEAL_FRAGEN.length).toBeGreaterThanOrEqual(4);
-    const pflicht = APPEAL_FRAGEN.filter((frage) => frage.pflicht);
-    expect(pflicht.length).toBeGreaterThanOrEqual(3);
-    for (const frage of pflicht) {
-      expect(frage.min).toBeGreaterThan(0);
-      expect(frage.max).toBeGreaterThan(frage.min);
-    }
+  /*
+    Ein Feld, nicht fünf. Gemeint waren die fünf gut - sie führen jemanden
+    durch das, was einen Antrag überzeugend macht. Davor stand aber eine
+    Wand: wer gerade gebannt wurde, schreibt selten viermal dreissig Zeichen,
+    und dieselbe Antwort landete am Ende in zwei Feldern, weil sie zu beiden
+    passte.
+  */
+
+  it('stellt dem Antragsteller genau eine inhaltliche Frage', () => {
+    expect(APPEAL_FRAGEN).toHaveLength(1);
+  });
+
+  it('macht sie zur Pflicht, mit sinnvollen Grenzen', () => {
+    const frage = APPEAL_FRAGEN[0]!;
+
+    expect(frage.pflicht).toBe(true);
+    expect(frage.min).toBeGreaterThan(0);
+    // Dreissig Zeichen sind etwa ein Satz - mehr zu verlangen hiesse, nach
+    // Länge statt nach Inhalt zu urteilen.
+    expect(frage.min).toBeLessThanOrEqual(50);
+    // Das eine Feld trägt jetzt, was vorher auf vier verteilt war.
+    expect(frage.max).toBeGreaterThanOrEqual(4000);
   });
 
   it('vergibt jeden Schlüssel genau einmal', () => {

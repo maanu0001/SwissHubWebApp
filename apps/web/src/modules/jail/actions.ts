@@ -42,7 +42,7 @@ export const createJailAction = defineAction(
       { metadata },
     );
 
-    revalidatePath('/jail');
+    revalidatePath('/moderation/jail');
     revalidatePath('/dashboard');
     revalidatePath(`/members/${input.targetDiscordId}`);
 
@@ -84,7 +84,7 @@ export const releaseJailAction = defineAction(
       },
     });
 
-    revalidatePath('/jail');
+    revalidatePath('/moderation/jail');
     revalidatePath('/dashboard');
     revalidatePath(`/members/${result.jail.targetDiscordId}`);
 
@@ -185,8 +185,8 @@ export const startVoteJailAction = defineAction(
       { metadata },
     );
 
-    revalidatePath('/jail/votes');
-    revalidatePath('/jail');
+    revalidatePath('/vote-jail');
+    revalidatePath('/moderation/jail');
     return {
       voteJailId: vote.id,
       requiredVotes: vote.requiredVotes,
@@ -221,8 +221,8 @@ export const confirmJailImportAction = defineAction(
       { legacyBotStopped: input.legacyBotStopped },
     );
 
-    revalidatePath('/jail');
-    revalidatePath('/jail/import');
+    revalidatePath('/moderation/jail');
+    revalidatePath('/moderation/jail/import');
     revalidatePath('/dashboard');
 
     return {
@@ -249,7 +249,7 @@ export const discardJailImportAction = defineAction(
       discordId: ctx.user.discordId,
       username: ctx.user.username,
     });
-    revalidatePath('/jail/import');
+    revalidatePath('/moderation/jail/import');
     return { importId: input.importId };
   },
 );

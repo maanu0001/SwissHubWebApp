@@ -319,7 +319,7 @@ export default async function DashboardPage(): Promise<React.JSX.Element> {
             <Panel
               title="Aktive Jails"
               icon={<Lock />}
-              action={{ label: 'Alle anzeigen', href: '/jail' }}
+              action={{ label: 'Alle anzeigen', href: '/moderation/jail' }}
               bodyClassName="p-0"
             >
               {data.activeJails.length === 0 ? (

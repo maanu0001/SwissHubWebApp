@@ -144,18 +144,17 @@ export default async function MeinAntragPage({
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          {appeals.APPEAL_FRAGEN.map((frage) => {
-            const wert = sicht.antworten[frage.key];
-            if (!wert) {
-              return null;
-            }
-            return (
-              <div key={frage.key} className="space-y-1">
-                <p className="text-sm font-medium">{frage.label}</p>
-                <p className="whitespace-pre-wrap text-sm text-muted-foreground">{wert}</p>
-              </div>
-            );
-          })}
+          {/*
+            Über `appealAntwortFelder`, nicht über die Fragenliste: ein Antrag
+            aus der Zeit der fünf Fragen trägt noch deren Schlüssel, und der
+            soll weiterhin vollständig zu lesen sein.
+          */}
+          {appeals.appealAntwortFelder(sicht.antworten).map((feld) => (
+            <div key={feld.key} className="space-y-1">
+              <p className="text-sm font-medium">{feld.label}</p>
+              <p className="whitespace-pre-wrap text-sm text-muted-foreground">{feld.wert}</p>
+            </div>
+          ))}
         </CardContent>
       </Card>
 

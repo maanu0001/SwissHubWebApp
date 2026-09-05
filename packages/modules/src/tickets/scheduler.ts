@@ -4,7 +4,13 @@ import { createLogger } from '@swisshub/logger';
 import { getModuleSettings, isModuleEnabled } from '../module-state';
 import { TICKETS_MODULE_ID, type TicketSettings } from './config';
 import { systemMeldung } from './discord';
-import { closeTicket, purgeDueChannels, reconcileChannels } from './lifecycle';
+import {
+  aufbewahrungsfristMs,
+  closeTicket,
+  purgeDueChannels,
+  reconcileChannels,
+  scheduleOrphanedChannels,
+} from './lifecycle';
 import { reconcilePanels } from './panels';
 import { purgeExpiredTranscripts } from './transcript';
 
@@ -155,6 +161,10 @@ export async function runTicketMaintenance(): Promise<{
   transcriptsEntfernt: number;
 }> {
   const settings = await getModuleSettings<TicketSettings>(TICKETS_MODULE_ID);
+
+  // Zuerst nachtragen, dann aufraeumen: ein Kanal, dessen Frist in diesem
+  // Durchgang erst entsteht, soll im selben Durchgang verschwinden koennen.
+  await scheduleOrphanedChannels(aufbewahrungsfristMs(settings.closeBehaviour));
 
   const kanaeleEntfernt = await purgeDueChannels();
   const { fehlend: kanaeleFehlend } = await reconcileChannels();

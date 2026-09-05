@@ -66,12 +66,16 @@ function moderator(permissions: string[], discordId = MODERATOR) {
   };
 }
 
+/**
+ * Ein Antrag, wie er heute eingereicht wird: ein Feld.
+ *
+ * Vorher waren es fünf Fragen. Die alten Schlüssel gibt es weiterhin - in
+ * Anträgen, die damals eingereicht wurden -, sie werden nur nicht mehr
+ * ausgefüllt. Dass die weiterhin lesbar sind, prüft `appeal-ein-feld`.
+ */
 const VOLLE_ANTWORTEN = {
-  grund: 'Ich möchte gerne zurück auf den Server, weil mir die Community wichtig ist.',
-  hergang: 'Ich habe im Allgemein-Kanal mehrfach denselben Link geschickt und wurde gebannt.',
-  warumPruefen: 'Ich habe damals nicht verstanden, dass das als Spam gilt.',
-  anders: 'Ich würde heute erst fragen, ehe ich etwas mehrfach poste.',
-  weiteres: '',
+  antrag:
+    'Ich möchte gerne zurück auf den Server, weil mir die Community wichtig ist. Ich habe im Allgemein-Kanal mehrfach denselben Link geschickt und damals nicht verstanden, dass das als Spam gilt. Heute würde ich erst fragen.',
 };
 
 async function reicheEin(
@@ -229,7 +233,7 @@ describeWithDatabase('Entbannungsanträge', () => {
       appeals.reicheEin({
         guildId: GILDE,
         applicant: { discordId: GEBANNT, username: 'antragsteller' },
-        antworten: { grund: 'zu kurz' },
+        antworten: { antrag: 'zu kurz' },
         idempotencyKey: 'unvollstaendig',
         gateway,
       }),

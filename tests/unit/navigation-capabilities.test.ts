@@ -65,36 +65,52 @@ const JAIL_SEHEN = moduleViewPermission('jail');
 const LEVEL_SEHEN = moduleViewPermission('level');
 
 describe('Jail-Navigation', () => {
-  it('zeigt «Jail», wenn die Übersicht erlaubt ist', () => {
-    const eintraege = nav([JAIL_SEHEN, P.view]);
+  /*
+    Die Strafakte ist eine Moderationsmassnahme und steht jetzt unter
+    «Moderation» - sie hat keinen eigenen Hauptbereich mehr. Was das Modul
+    hier noch beisteuert, ist der Vote Jail, und der bewusst: eine Abstimmung
+    der Gemeinschaft ist etwas anderes als eine Massnahme des Teams, und wer
+    daran teilnimmt, sieht in aller Regel gar keine Moderation.
+  */
 
-    expect(eintraege.find((item) => item.label === 'Jail')?.href).toBe('/jail');
-    expect(eintraege.filter((item) => item.moduleId === 'jail')).toHaveLength(1);
+  it('gibt dem Jail-Modul keinen eigenen Staff-Eintrag mehr', () => {
+    const eintraege = nav([JAIL_SEHEN, P.view]).filter((item) => item.moduleId === 'jail');
+
+    expect(eintraege.map((item) => item.href)).not.toContain('/jail');
+    expect(eintraege.map((item) => item.href)).not.toContain('/moderation/jail');
   });
 
-  it('zeigt «Vote Jail» statt «Jail», wenn nur Abstimmungen erlaubt sind', () => {
-    // Der eigentliche Fehler: hier stand vorher «Jail» und dahinter eine
-    // 403-Seite.
-    const eintraege = nav([JAIL_SEHEN, P.voteStart]);
-    const jailEintraege = eintraege.filter((item) => item.moduleId === 'jail');
+  it('zeigt einem Abstimmungsberechtigten den Vote Jail', () => {
+    const eintraege = nav([JAIL_SEHEN, P.voteStart]).filter((item) => item.moduleId === 'jail');
 
-    expect(jailEintraege).toHaveLength(1);
-    expect(jailEintraege[0]?.label).toBe('Vote Jail');
-    expect(jailEintraege[0]?.href).toBe('/jail/votes');
+    expect(eintraege).toHaveLength(1);
+    expect(eintraege[0]?.label).toBe('Vote Jail');
+    expect(eintraege[0]?.href).toBe('/vote-jail');
   });
 
-  it('zeigt bei beiden Rechten nur «Jail» - keinen zweiten Eintrag daneben', () => {
-    const jailEintraege = nav([JAIL_SEHEN, P.view, P.voteStart]).filter((item) => item.moduleId === 'jail');
+  it('zeigt ihn auch dem, der die Abstimmungen nur einsehen darf', () => {
+    const eintraege = nav([JAIL_SEHEN, P.view]).filter((item) => item.moduleId === 'jail');
 
-    expect(jailEintraege).toHaveLength(1);
-    expect(jailEintraege[0]?.label).toBe('Jail');
-    expect(jailEintraege[0]?.href).toBe('/jail');
+    expect(eintraege).toHaveLength(1);
+    expect(eintraege[0]?.href).toBe('/vote-jail');
   });
 
-  it('führt einen reinen Import-Berechtigten direkt zum Import', () => {
+  it('bleibt bei beiden Rechten bei einem einzigen Eintrag', () => {
+    const eintraege = nav([JAIL_SEHEN, P.view, P.voteStart]).filter(
+      (item) => item.moduleId === 'jail',
+    );
+
+    expect(eintraege).toHaveLength(1);
+    expect(eintraege[0]?.href).toBe('/vote-jail');
+  });
+
+  it('gibt dem reinen Import-Berechtigten keinen Sidebar-Eintrag', () => {
+    // Der Import ist eine einmalige Übernahme aus dem alten Bot und steht
+    // innerhalb des Moderationsbereichs - ein eigener Hauptpunkt dafür wäre
+    // ein Dauerplatz für etwas, das man einmal braucht.
     const eintraege = nav([JAIL_SEHEN, P.import]).filter((item) => item.moduleId === 'jail');
 
-    expect(eintraege[0]?.href).toBe('/jail/import');
+    expect(eintraege).toEqual([]);
   });
 
   it('zeigt gar nichts ohne jede Jail-Berechtigung', () => {
@@ -109,28 +125,47 @@ describe('Jail-Navigation', () => {
     );
   });
 
-  it('behält den Titel-Präfix des Moduls, damit Unterseiten benannt bleiben', () => {
-    // Ohne das trüge `/jail/votes` in der Kopfzeile keinen Modultitel mehr.
-    expect(eintrag([JAIL_SEHEN, P.voteStart], 'Vote Jail')?.titlePrefix).toBe('/jail');
+  it('trägt den Vote Jail unter seiner eigenen Adresse, nicht unter der des Jails', () => {
+    // Der Eintrag ist jetzt der Haupteintrag des Moduls und keine
+    // Ausweichroute mehr - er braucht keinen fremden Präfix.
+    const gefunden = eintrag([JAIL_SEHEN, P.voteStart], 'Vote Jail');
+
+    expect(gefunden?.href).toBe('/vote-jail');
+    expect(gefunden?.titlePrefix ?? gefunden?.href).toBe('/vote-jail');
   });
 });
 
 describe('Jail-Bereichsnavigation', () => {
-  it('gibt einem Vote-Berechtigten nur den Abstimmungsbereich', () => {
-    const abschnitte = jailSections(betrachter([P.voteStart]));
+  /*
+    Innerhalb des Moderationsbereichs. Der Vote Jail steht nicht mehr darin -
+    er ist ein eigener Bereich für die Gemeinschaft und nicht ein Unterpunkt
+    der Strafakte.
+  */
 
-    expect(abschnitte.map((eintrag) => eintrag.label)).toEqual(['Vote Jail']);
-  });
-
-  it('gibt einem Übersichts-Berechtigten Übersicht und Abstimmungen', () => {
+  it('gibt einem Übersichts-Berechtigten den Jail-Bereich', () => {
     const abschnitte = jailSections(betrachter([P.view]));
 
-    expect(abschnitte.map((eintrag) => eintrag.label)).toEqual(['Übersicht', 'Vote Jail']);
+    expect(abschnitte.map((eintrag) => eintrag.label)).toEqual(['Jails']);
+    expect(abschnitte[0]?.href).toBe('/moderation/jail');
+  });
+
+  it('gibt einem reinen Vote-Berechtigten hier gar nichts', () => {
+    // Er hat mit der Strafakte nichts zu tun - sein Weg ist der eigene
+    // Sidebar-Eintrag.
+    expect(jailSections(betrachter([P.voteStart]))).toEqual([]);
   });
 
   it('zeigt den Import nur mit Import-Berechtigung', () => {
     expect(jailSections(betrachter([P.view])).some((e) => e.label === 'Import')).toBe(false);
     expect(jailSections(betrachter([P.view, P.import])).some((e) => e.label === 'Import')).toBe(true);
+  });
+
+  it('führt den Import unter die neue Adresse', () => {
+    const importEintrag = jailSections(betrachter([P.view, P.import])).find(
+      (e) => e.label === 'Import',
+    );
+
+    expect(importEintrag?.href).toBe('/moderation/jail/import');
   });
 });
 

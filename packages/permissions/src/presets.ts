@@ -371,6 +371,69 @@ export function matchPreset(permissions: readonly string[]): PermissionPreset | 
   return PERMISSION_PRESETS.find((preset) => resolvePreset(preset).sort().join(',') === selected);
 }
 
+/**
+ * Eine Rolle, die aus einer Vorlage stammt, aber nicht mehr alles hat.
+ *
+ * Der Grund, weshalb es das gibt: eine Vorlage wird genau einmal angewendet.
+ * Danach stehen die Rechte als Zeilen in der Datenbank, und die sind ab dann
+ * die Wahrheit. Wird die Vorlage spaeter ergaenzt, erreicht das die Rolle
+ * nie - sie behaelt still den alten Stand.
+ *
+ * Genau so ist der Vote Jail fuer Premium liegengeblieben: die Vorlage hatte
+ * das Recht, die Rolle nicht, und niemand konnte es sehen. Das hier macht es
+ * sichtbar.
+ *
+ * Erkannt wird nur der eindeutige Fall: die Rechte der Rolle sind eine echte
+ * Teilmenge genau einer Vorlage. Passt mehr als eine, ist es geraten - dann
+ * lieber nichts melden als das Falsche.
+ */
+export interface VorlagenAbweichung {
+  preset: PermissionPreset;
+  /** Was die Vorlage inzwischen hat und die Rolle nicht. */
+  fehlend: string[];
+}
+
+export function findPresetDrift(
+  permissions: readonly string[],
+): VorlagenAbweichung | null {
+  if (permissions.length === 0) {
+    return null;
+  }
+  const vorhanden = new Set(permissions);
+
+  const kandidaten = PERMISSION_PRESETS.map((preset) => {
+    const aufgeloest = resolvePreset(preset);
+    const fehlend = aufgeloest.filter((permission) => !vorhanden.has(permission));
+    const ueberzaehlig = permissions.filter((permission) => !aufgeloest.includes(permission));
+    return { preset, fehlend, ueberzaehlig };
+  }).filter(
+    // Eine echte Teilmenge: nichts Zusaetzliches, aber etwas fehlt. Wer der
+    // Rolle von Hand etwas hinzugefuegt hat, hat sie bewusst von der Vorlage
+    // geloest - dem wird nichts nachgetragen.
+    (kandidat) => kandidat.ueberzaehlig.length === 0 && kandidat.fehlend.length > 0,
+  );
+
+  if (kandidaten.length === 0) {
+    return null;
+  }
+
+  // Mehrere Vorlagen koennen passen, ohne dass die Aussage dadurch unklar
+  // wird: «Premium» und «Prestige» sind heute Zeichen fuer Zeichen gleich.
+  // Welche der beiden es war, weiss man dann nicht - was fehlt, aber schon,
+  // und genau darum geht es hier.
+  //
+  // Erst wenn sich die Kandidaten darin unterscheiden, ist es geraten. Dann
+  // lieber nichts melden als das Falsche.
+  const schluessel = (fehlend: string[]): string => [...fehlend].sort().join(',');
+  const ersteFehlend = schluessel(kandidaten[0]!.fehlend);
+  if (kandidaten.some((kandidat) => schluessel(kandidat.fehlend) !== ersteFehlend)) {
+    return null;
+  }
+
+  const treffer = kandidaten[0]!;
+  return { preset: treffer.preset, fehlend: treffer.fehlend };
+}
+
 /** Permissions für die Matrix-Darstellung, nach Modul gruppiert und sortiert. */
 export function permissionMatrixColumns(): PermissionDefinition[] {
   return listPermissions().filter((definition) => definition.key !== ADMIN_FULL);

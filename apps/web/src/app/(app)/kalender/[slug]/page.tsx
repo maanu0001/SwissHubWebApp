@@ -20,6 +20,7 @@ import { ErrorState } from '@/components/shared/states';
 import { Markdown } from '@/components/shared/markdown';
 import { StatCard } from '@/components/shared/stat-card';
 import { AnmeldeBereich } from '@/modules/calendar/components/anmelde-bereich';
+import { VeroeffentlichenKnopf } from '@/modules/calendar/components/veroeffentlichen-knopf';
 import { EventStatusBadge, KategorieBadge, datumLang, zeitspanne } from '@/modules/calendar/components/shared';
 import { csrfTokenFor, requirePagePermission } from '@/server/auth';
 
@@ -108,6 +109,19 @@ export default async function EventDetailPage({
         description={event.shortDescription ?? undefined}
         actions={
           <div className="flex flex-wrap gap-2">
+            {/*
+              Ein Entwurf ist für niemanden sichtbar und kündigt nichts an.
+              Der Weg dorthin gehört an die Stelle, an der man den Entwurf
+              ansieht - vorher stand er nur in der Verwaltungstabelle, und wer
+              die nicht kannte, fand keinen.
+            */}
+            {event.status === 'DRAFT' && can(context, P.publish) ? (
+              <VeroeffentlichenKnopf
+                csrfToken={csrfTokenFor(context)}
+                eventId={event.id}
+                slug={event.slug}
+              />
+            ) : null}
             {darfBearbeiten && event.status !== 'COMPLETED' && event.status !== 'CANCELLED' ? (
               <Button variant="outline" asChild>
                 <Link href={`/kalender/${event.slug}/bearbeiten`}>

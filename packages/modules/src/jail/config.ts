@@ -13,6 +13,29 @@ import type { ModuleHealthCheck, ModuleHealthContext } from '../health/types';
 
 export const JAIL_MODULE_ID = 'jail';
 
+/**
+ * Die Gruende, die ein frischer Server vorfindet.
+ *
+ * Vorgabe, keine Vorschrift: die Liste steht in den Einstellungen und laesst
+ * sich dort aendern, ergaenzen und leeren. Was hier steht, ist nur, womit
+ * jemand anfaengt, der noch nichts eingestellt hat.
+ *
+ * «Unter 16» und «Bot» sind nachgetragen. Beides kommt regelmaessig vor und
+ * wurde bis dahin jedes Mal von Hand getippt - mit jedes Mal einer anderen
+ * Schreibweise, was die Auswertung spaeter wertlos macht.
+ */
+export const JAIL_STANDARD_GRUENDE = [
+  'Spam',
+  'Beleidigung',
+  'Provokation',
+  'Regelverstoss',
+  'Unangemessenes Verhalten',
+  'Voice-Verhalten',
+  'Werbung',
+  'Unter 16',
+  'Bot',
+] as const;
+
 /** Permissions des Jail-Moduls. */
 export const JAIL_PERMISSIONS = {
   view: 'jail.view',
@@ -66,15 +89,7 @@ export const jailSettingsSchema = z.object({
     .string()
     .max(2000)
     .default(
-      [
-        'Spam',
-        'Beleidigung',
-        'Provokation',
-        'Regelverstoss',
-        'Unangemessenes Verhalten',
-        'Voice-Verhalten',
-        'Werbung',
-      ].join('\n'),
+      JAIL_STANDARD_GRUENDE.join('\n'),
     ),
 
   /** Zusätzliche Rollen, die während des Jails erhalten bleiben. */
@@ -661,38 +676,34 @@ export const jailModule: ModuleDefinition = registerModule({
     },
   ],
   navigation: [
-    // Ein Eintrag fuer das ganze Modul. Vote Jails und der Import standen
-    // frueher als eigene Eintraege daneben - drei Zeilen fuer einen Bereich,
-    // und die beiden hinteren nur fuer wenige sichtbar. Sie sind jetzt
-    // Bereiche innerhalb des Jail-Moduls.
+    /**
+     * Nur noch der Vote Jail.
+     *
+     * Die Strafakte selbst ist eine Moderationsmassnahme und steht dort, wo
+     * Bann, Kick und Timeout stehen - unter «Moderation». Ein eigener
+     * Hauptbereich daneben hiess fuer das Team, bei jedem Vorgang zwischen
+     * zwei Orten zu waehlen, an denen dasselbe passiert.
+     *
+     * Der Vote Jail bleibt hier, und zwar ausdruecklich: er ist keine
+     * Massnahme des Teams, sondern eine Abstimmung der Gemeinschaft. Wer
+     * mitstimmen oder eine starten darf, sieht in aller Regel gar keinen
+     * Moderationsbereich - und soll ihn auch nicht brauchen.
+     *
+     * Der Eintrag haengt deshalb an `voteStart`, nicht an `view`: die
+     * Moderationssicht auf alle Jails ist etwas anderes als die Teilnahme an
+     * einer Abstimmung.
+     */
     {
-      href: '/jail',
-      label: 'Jail',
-      description: 'Jail-Strafen, Community-Abstimmungen und Import',
-      permission: JAIL_PERMISSIONS.view,
-      // Wer abstimmen lassen darf, kommt ebenfalls hinein - er sieht dort
-      // die Abstimmungen, nicht die Strafakte.
-      // Wer die Uebersicht nicht sehen darf, aber Abstimmungen starten oder
-      // importieren: der bekommt den Eintrag, der zu seinem Recht passt -
-      // statt «Jail» und dahinter eine 403-Seite.
-      alternatives: [
-        {
-          permission: JAIL_PERMISSIONS.voteStart,
-          href: '/jail/votes',
-          label: 'Vote Jail',
-          description: 'Community-Abstimmungen starten und mitstimmen',
-          icon: 'Gavel',
-        },
-        {
-          permission: JAIL_PERMISSIONS.import,
-          href: '/jail/import',
-          label: 'Jail-Import',
-          description: 'Bestand aus dem alten Bot übernehmen',
-        },
-      ],
-      icon: 'Lock',
+      href: '/vote-jail',
+      label: 'Vote Jail',
+      description: 'Community-Abstimmungen starten und mitstimmen',
+      permission: JAIL_PERMISSIONS.voteStart,
+      // Wer die Abstimmungen einsehen, aber keine starten darf, kommt
+      // ebenfalls hinein - er sieht dort dieselbe Seite mit weniger Knoepfen.
+      altPermissions: [JAIL_PERMISSIONS.view],
+      icon: 'Gavel',
       group: 'moderation',
-      order: 30,
+      order: 45,
     },
   ],
 });

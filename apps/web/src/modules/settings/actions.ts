@@ -141,7 +141,7 @@ export const runJailReconciliationAction = defineAction(
     });
 
     revalidatePath('/settings');
-    revalidatePath('/jail');
+    revalidatePath('/moderation/jail');
     return {
       checked: summary.checked,
       drift: summary.drift.length,

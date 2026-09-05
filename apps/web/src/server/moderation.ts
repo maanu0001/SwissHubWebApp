@@ -4,6 +4,7 @@ import { bootstrapConfig } from '@swisshub/config';
 import { jail, moderation } from '@swisshub/modules';
 import type { ModerationAbilities } from '@/modules/moderation/abilities';
 import type { ModerationSection } from '@/modules/moderation/sections';
+import { jailSections } from './jail';
 
 /**
  * Die Uebersetzung vom Sitzungskontext in das, was das Moderation Center
@@ -41,8 +42,26 @@ export function moderationSections(context: AuthContext): ModerationSection[] {
   if (can(context, p.ban) || can(context, p.unban)) {
     sections.push({ href: '/moderation/banns', label: 'Banns' });
   }
+
+  // Jail steht hier, weil er hierher gehoert: eine Massnahme wie Bann, Kick
+  // und Timeout. Er hatte nur historisch ein eigenes Hauptmodul, und das hiess
+  // fuer das Team, bei jedem Vorgang zwischen zwei Bereichen zu waehlen.
+  //
+  // Die Eintraege haengen weiterhin an den Jail-Berechtigungen. Wer Moderation
+  // darf, aber keinen Jail, sieht sie nicht - die Navigation aendert sich, die
+  // Sicherheit nicht.
+  for (const eintrag of jailSections(context)) {
+    sections.push(eintrag);
+  }
+
   if (can(context, p.settingsManage) || can(context, 'modules.manage')) {
     sections.push({ href: '/modules/moderation', label: 'Einstellungen' });
+  }
+  // Die Jail-Einstellungen sind eigene Einstellungen und bleiben es - sie
+  // waeren in den Moderationseinstellungen ein Fremdkoerper. Erreichbar sind
+  // sie aber von hier, statt nur ueber die Moduluebersicht.
+  if (can(context, jail.JAIL_PERMISSIONS.settings) || can(context, 'modules.manage')) {
+    sections.push({ href: '/modules/jail', label: 'Jail-Einstellungen' });
   }
 
   return sections;

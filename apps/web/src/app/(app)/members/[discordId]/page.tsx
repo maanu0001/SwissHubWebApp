@@ -828,7 +828,7 @@ function Moderation({ daten }: { daten?: members.MemberModerationView }): React.
             {daten.jailHistory.map((eintrag) => (
               <li key={eintrag.id} className="py-2.5">
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <Link href={`/jail/${eintrag.id}`} className="font-medium hover:underline">
+                  <Link href={`/moderation/jail/${eintrag.id}`} className="font-medium hover:underline">
                     {formatDateTime(eintrag.startedAt)}
                   </Link>
                   {eintrag.releasedAt ? (

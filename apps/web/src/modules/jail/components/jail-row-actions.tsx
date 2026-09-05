@@ -70,7 +70,7 @@ export function JailRowActions({
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
           <DropdownMenuItem asChild>
-            <Link href={`/jail/${jailId}`}>
+            <Link href={`/moderation/jail/${jailId}`}>
               <Eye aria-hidden="true" />
               Details
             </Link>

@@ -112,7 +112,7 @@ describeWithDatabase('«Modul sehen» nachtragen', () => {
       (eintrag) => eintrag.moduleId === 'jail',
     );
     expect(eintraege).toHaveLength(1);
-    expect(eintraege[0]?.href).toBe('/jail/votes');
+    expect(eintraege[0]?.href).toBe('/vote-jail');
   });
 
   it('lässt admin.full unangetastet', async () => {

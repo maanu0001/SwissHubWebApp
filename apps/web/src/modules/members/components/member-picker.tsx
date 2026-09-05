@@ -30,12 +30,15 @@ interface SucheTreffer extends PickedMember {
   isBot: boolean;
   waehlbar?: boolean;
   grund?: string | null;
+  hinweis?: string | null;
 }
 
 /** Ein Eintrag in der Vorschlagsliste. */
 interface Vorschlag extends PickedMember {
   waehlbar: boolean;
   grund: string | null;
+  /** Was sich dagegen tun laesst - siehe `SucheTreffer`. */
+  hinweis: string | null;
 }
 
 /** Woran die Liste gerade ist. */
@@ -103,6 +106,7 @@ function alsVorschlag(member: SucheTreffer): Vorschlag {
     jailed: member.jailed,
     waehlbar: member.waehlbar ?? true,
     grund: member.grund ?? null,
+    hinweis: member.hinweis ?? null,
   };
 }
 
@@ -269,10 +273,23 @@ export function MemberPicker({
         sonst sucht jemand den Fehler bei den Mitgliedern.
       */}
       {stand.art === 'treffer' && gemeinsamerHinderungsgrund(stand.eintraege) ? (
-        <p className="rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-xs" role="status">
-          Keines der gefundenen Mitglieder lässt sich auswählen:{' '}
-          <strong>{gemeinsamerHinderungsgrund(stand.eintraege)}</strong>.
-        </p>
+        <div
+          className="space-y-1 rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-xs"
+          role="status"
+        >
+          <p>
+            Keines der gefundenen Mitglieder lässt sich auswählen:{' '}
+            <strong>{gemeinsamerHinderungsgrund(stand.eintraege)}</strong>.
+          </p>
+          {/*
+            Der Grund sagt «geht nicht». Der Hinweis sagt, woran es liegt und
+            wo es sich ändern lässt - sonst hält man eine Einstellung für
+            einen Fehler des Systems.
+          */}
+          {stand.eintraege[0]?.hinweis ? (
+            <p className="text-muted-foreground">{stand.eintraege[0].hinweis}</p>
+          ) : null}
+        </div>
       ) : null}
 
       {stand.art === 'treffer' ? (

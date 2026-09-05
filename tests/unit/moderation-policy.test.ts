@@ -159,3 +159,54 @@ describe('Moderation Policy', () => {
     expect(moderationLevelOf(['r-member'], baseInput.moderationLevels)).toBe(0);
   });
 });
+
+describe('Abstimmung und Moderationsstufe', () => {
+  /*
+    Bei einer Abstimmung entscheidet die Gemeinschaft, nicht der Rang dessen,
+    der sie anstösst. Für die Rollenposition galt das schon; für die
+    Moderationsstufe wurde weiterhin mit dem Antragsteller verglichen, und das
+    hatte zwei unerwünschte Folgen.
+  */
+
+  it('schützt jedes Teammitglied - auch vor einem höherrangigen Antragsteller', () => {
+    // Das Loch: 50 >= 70 ist falsch, also war die Abstimmung erlaubt. Damit
+    // durfte die Gemeinschaft doch über einen Moderator abstimmen, sofern nur
+    // der Richtige sie anstiess.
+    const entscheidung = evaluateModerationPolicy({
+      ...baseInput,
+      kind: 'COMMUNITY_VOTE',
+      actor: { ...moderator, roleIds: ['r-admin'], moderationLevel: 100 },
+      target: member('t-mod', ['r-mod', 'r-member']),
+    });
+
+    expect(entscheidung.allowed).toBe(false);
+    expect(entscheidung.code).toBe('TARGET_HIGHER_MODERATION_LEVEL');
+  });
+
+  it('lässt Gleichrangige ohne Stufe gegeneinander abstimmen', () => {
+    // Die zweite Folge: wegen `>=` kamen zwei Träger derselben Rolle nie
+    // aneinander vorbei. Wer keine Stufe trägt, gehört nicht zum Team - und
+    // ist damit wählbar.
+    const entscheidung = evaluateModerationPolicy({
+      ...baseInput,
+      kind: 'COMMUNITY_VOTE',
+      actor: { ...moderator, roleIds: ['r-member'], moderationLevel: 0 },
+      target: member('t-member', ['r-member']),
+    });
+
+    expect(entscheidung.allowed).toBe(true);
+  });
+
+  it('behält im Alleingang die Rangordnung', () => {
+    // Dort ist der Vergleich richtig: niemand moderiert nach oben oder zur
+    // Seite.
+    const entscheidung = evaluateModerationPolicy({
+      ...baseInput,
+      kind: 'UNILATERAL',
+      actor: { ...moderator, roleIds: ['r-admin'], moderationLevel: 100 },
+      target: member('t-mod', ['r-mod', 'r-member']),
+    });
+
+    expect(entscheidung.allowed).toBe(true);
+  });
+});

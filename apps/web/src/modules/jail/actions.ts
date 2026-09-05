@@ -112,6 +112,7 @@ const alsPickerEintrag = (ziel: jail.VoteJailTarget) => ({
   jailed: ziel.grund === 'Bereits gejailt',
   waehlbar: ziel.waehlbar,
   grund: ziel.grund,
+  hinweis: ziel.hinweis,
 });
 
 /**

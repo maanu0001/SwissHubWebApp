@@ -52,6 +52,15 @@ export interface VoteJailTarget {
   waehlbar: boolean;
   /** Kurze Begruendung, wenn `waehlbar` false ist. */
   grund: string | null;
+  /**
+   * Was man dagegen tun kann - wenn ueberhaupt etwas.
+   *
+   * Der Grund allein sagt «geht nicht». Bei einer Moderationsstufe ist das
+   * aber keine Eigenschaft der Person, sondern eine Einstellung an einer
+   * Rolle, und die laesst sich aendern. Wer das nicht weiss, haelt es fuer
+   * einen Fehler des Systems.
+   */
+  hinweis: string | null;
 }
 
 export interface VoteJailTargetOptions {
@@ -130,6 +139,7 @@ async function bewerteKandidaten(
       avatarHash: mitglied.avatarHash,
       waehlbar: grund === null,
       grund,
+      hinweis: grund === 'Moderationsstufe' ? stufenHinweis(mitglied, context) : null,
     };
   });
 }
@@ -186,7 +196,7 @@ function ablehnungsgrund(
     case 'TARGET_PROTECTED_ROLE':
       return 'Geschützte Rolle';
     case 'TARGET_HIGHER_MODERATION_LEVEL':
-      return 'Moderation';
+      return 'Moderationsstufe';
     case 'BOT_ROLE_TOO_LOW':
       // Der einzige Grund, der keine Eigenschaft des Ziels ist, sondern eine
       // der Einrichtung. Deshalb sagt er das auch: sonst suchte jemand den
@@ -195,6 +205,35 @@ function ablehnungsgrund(
     default:
       return 'Nicht möglich';
   }
+}
+
+/**
+ * Welche Rolle die Moderationsstufe mitbringt - und was das heisst.
+ *
+ * Ohne den Rollennamen bleibt «Moderationsstufe» ein Urteil ohne Begruendung.
+ * Mit ihm ist es ein Hinweis: die Stufe steht an einer bestimmten Rolle, sie
+ * ist eine Einstellung, und wer sie fuer falsch haelt, findet sie unter
+ * Server -> Berechtigungen.
+ *
+ * Das gibt nichts preis: welche Rollen jemand traegt, steht auf Discord
+ * ohnehin neben seinem Namen.
+ */
+function stufenHinweis(mitglied: GuildMember, context: JailExecutionContext): string | null {
+  let hoechste: { name: string; stufe: number } | null = null;
+  for (const roleId of mitglied.roleIds) {
+    const stufe = context.moderationLevels.get(roleId) ?? 0;
+    if (stufe > 0 && (hoechste === null || stufe > hoechste.stufe)) {
+      const rolle = context.guildRoles.find((eintrag) => eintrag.id === roleId);
+      hoechste = { name: rolle?.name ?? 'unbekannte Rolle', stufe };
+    }
+  }
+  if (!hoechste) {
+    return null;
+  }
+  return (
+    `Die Rolle «${hoechste.name}» trägt die Moderationsstufe ${hoechste.stufe} und gilt damit als Team. ` +
+    'Soll gegen ihre Träger abgestimmt werden können, ist die Stufe unter Server → Berechtigungen auf 0 zu setzen.'
+  );
 }
 
 /**

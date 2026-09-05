@@ -136,11 +136,33 @@ export function evaluateModerationPolicy(input: PolicyEvaluationInput): PolicyDe
     }
   }
 
-  // Diese Regel gilt immer. Sie schuetzt die Moderation - und zwar auch vor
-  // einer Abstimmung: wer eine Moderationsstufe traegt, laesst sich nicht
-  // von der Gemeinschaft wegvotieren.
+  // Die Moderationsstufe schuetzt das Team - aber nach zwei verschiedenen
+  // Massstaeben, je nachdem wer entscheidet.
   const targetLevel = moderationLevelOf(target.roleIds, moderationLevels);
-  if (targetLevel > 0 && targetLevel >= actor.moderationLevel) {
+
+  if ((input.kind ?? 'UNILATERAL') === 'COMMUNITY_VOTE') {
+    // Bei einer Abstimmung zaehlt allein, ob das Ziel zum Team gehoert. Die
+    // Stufe des Antragstellers ist hier die falsche Frage - genauso wie die
+    // Rollenposition weiter oben.
+    //
+    // Der Vergleich mit dem Antragsteller hatte zwei Folgen, beide
+    // unerwuenscht. Er riss ein Loch in den Schutz: ein Senior-Moderator
+    // (70) konnte eine Abstimmung gegen einen Moderator (50) starten, weil
+    // 50 nicht >= 70 ist - die Gemeinschaft durfte also doch ueber ein
+    // Teammitglied abstimmen, sofern nur der Richtige es anstiess. Und er
+    // sperrte Gleichrangige gegeneinander: zwei Traeger derselben Rolle
+    // kamen wegen `>=` nie aneinander vorbei, was jede Rolle mit einer Stufe
+    // faktisch unantastbar machte - auch eine, die gar nicht zum Team
+    // gehoert.
+    //
+    // Wer keine Stufe traegt, ist kein Team und damit waehlbar. Das ist die
+    // ganze Regel.
+    if (targetLevel > 0) {
+      return deny('TARGET_HIGHER_MODERATION_LEVEL');
+    }
+  } else if (targetLevel > 0 && targetLevel >= actor.moderationLevel) {
+    // Im Alleingang gilt weiterhin die Rangordnung: niemand moderiert nach
+    // oben oder zur Seite.
     return deny('TARGET_HIGHER_MODERATION_LEVEL');
   }
 

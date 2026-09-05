@@ -174,12 +174,37 @@ describe('Vote-Jail-Zielsuche', () => {
     }
   });
 
+  it('nennt die Rolle, an der die Moderationsstufe hängt', async () => {
+    /*
+      «Moderationsstufe» allein ist ein Urteil ohne Begründung - und wer eine
+      Rolle für falsch eingestuft hält, sucht den Fehler im System statt in
+      den Einstellungen. Der Hinweis nennt die Rolle, ihre Stufe und den Weg
+      dorthin.
+
+      Preisgegeben wird damit nichts: welche Rollen jemand trägt, steht auf
+      Discord ohnehin neben seinem Namen.
+    */
+    const [moderator] = await suche(MODERATOR_ID);
+
+    expect(moderator?.waehlbar).toBe(false);
+    expect(moderator?.hinweis).toContain('Moderationsstufe');
+    expect(moderator?.hinweis).toContain('Berechtigungen');
+  });
+
+  it('gibt einen Hinweis nur dort, wo sich etwas ändern lässt', async () => {
+    // Gegen sich selbst abzustimmen ist keine Einstellungsfrage.
+    const [ich] = await suche('alpenfuchs');
+
+    expect(ich?.grund).toBe('Du selbst');
+    expect(ich?.hinweis).toBeNull();
+  });
+
   it('begründet kurz und ohne Innenansicht', async () => {
     // «Moderation» sagt genug. «Trägt Rolle X mit Stufe 2» wäre eine Auskunft
     // über die Rollenordnung, und die gehört nicht in eine Zielsuche.
     const [moderator] = await suche(MODERATOR_ID);
 
-    expect(moderator?.grund).toBe('Moderation');
+    expect(moderator?.grund).toBe('Moderationsstufe');
     expect(moderator?.grund).not.toMatch(/\d/u);
   });
 
@@ -228,6 +253,7 @@ describe('Vote-Jail-Zielsuche', () => {
       'discordId',
       'displayName',
       'grund',
+      'hinweis',
       'username',
       'waehlbar',
     ]);

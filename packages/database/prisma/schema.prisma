@@ -2492,6 +2492,15 @@ model Ticket {
   /// Wann der Kanal geloescht werden darf. Vom Aufraeumer gelesen.
   channelPurgeAt DateTime?
 
+  /// Wie oft die Loeschung schon versucht wurde.
+  ///
+  /// Discord kann nein sagen - fehlendes Recht, ein 500er, ein Rate Limit
+  /// mitten im Deployment. Frueher galt der Versuch danach als erledigt und
+  /// der Kanal blieb fuer immer stehen. Jetzt zaehlt dieser Wert die
+  /// Fehlversuche, staffelt den naechsten Anlauf und macht im Systemstatus
+  /// sichtbar, wenn einer nicht mehr durchkommt.
+  channelPurgeAttempts Int @default(0)
+
   /// Wann zuletzt an eine Antwort erinnert wurde.
   ///
   /// Ohne diesen Zeitpunkt erinnerte jeder Durchgang erneut, solange das

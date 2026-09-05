@@ -199,14 +199,13 @@ describe('Vote-Jail-Zielsuche', () => {
 
 describe('Ein Ziel über seine Kennung', () => {
   /*
-    Der Weg für alle, die keine Mitgliedersuche haben. Wer eine Abstimmung
-    startet, kennt die Person - er sitzt mit ihr im Voice oder liest gerade
-    ihre Nachricht. Er braucht keine Liste des Servers, sondern diesen einen
-    Menschen.
+    Dieselbe Suche, nur mit einer Kennung statt einem Namen. Wer eine kennt,
+    tippt sie ein - es braucht dafür keinen zweiten Weg und keine zweite
+    Prüfung.
   */
 
   it('schlägt ein zulässiges Mitglied nach', async () => {
-    const treffer = await jail.resolveVoteJailTarget(SPAMMER, PREMIUM, { gateway });
+    const [treffer] = await suche(SPAMMER);
 
     expect(treffer?.discordId).toBe(SPAMMER);
     expect(treffer?.username).toBe('spammer99');
@@ -214,61 +213,50 @@ describe('Ein Ziel über seine Kennung', () => {
 
   it('gibt für ein geschütztes Mitglied dasselbe zurück wie für ein unbekanntes', async () => {
     // Sonst liesse sich an der Antwort ablesen, wer geschützt ist.
-    const geschuetzt = await jail.resolveVoteJailTarget(MODERATOR_ID, PREMIUM, { gateway });
-    const unbekannt = await jail.resolveVoteJailTarget('900000000000009999', PREMIUM, { gateway });
-
-    expect(geschuetzt).toBeNull();
-    expect(unbekannt).toBeNull();
+    expect(await suche(MODERATOR_ID)).toEqual([]);
+    expect(await suche('900000000000009999')).toEqual([]);
   });
 
-  it('weist alles ab, was keine Discord-Kennung ist', async () => {
-    for (const eingabe of ['spammer99', '', '12', 'spammer99 OR 1=1']) {
-      expect(await jail.resolveVoteJailTarget(eingabe, PREMIUM, { gateway }), eingabe).toBeNull();
-    }
+  it('zählt bei einer Kennung nichts auf - höchstens ein Treffer', async () => {
+    const treffer = await suche(SPAMMER);
+
+    expect(treffer).toHaveLength(1);
+    expect(Object.keys(treffer[0]!).sort()).toEqual(['avatarHash', 'discordId', 'displayName', 'username']);
   });
 
-  it('zählt nichts auf - eine Kennung, höchstens ein Treffer', async () => {
-    const treffer = await jail.resolveVoteJailTarget(SPAMMER, PREMIUM, { gateway });
-
-    expect(treffer).not.toBeInstanceOf(Array);
-    expect(Object.keys(treffer!).sort()).toEqual(['avatarHash', 'discordId', 'displayName', 'username']);
+  it('gibt auf eine leere Eingabe nicht den ganzen Server heraus', async () => {
+    // Eine leere Eingabe ist keine Anfrage nach der Mitgliederliste.
+    expect(await suche('')).toEqual([]);
+    expect(await suche('a')).toEqual([]);
   });
 });
 
 describe('Wer nach Namen suchen darf', () => {
   const quelle = readFileSync(join(process.cwd(), 'apps/web/src/modules/jail/actions.ts'), 'utf8');
-  const abschnitt = (von: string, bis: string): string =>
-    quelle.slice(quelle.indexOf(von), quelle.indexOf(bis));
-
-  const suchAbschnitt = abschnitt(
-    'export const searchVoteJailTargetsAction',
-    'export const resolveVoteJailTargetAction',
-  );
-  const kennungsAbschnitt = abschnitt(
-    'export const resolveVoteJailTargetAction',
-    'export const startVoteJailAction',
+  const suchAbschnitt = quelle.slice(
+    quelle.indexOf('export const searchVoteJailTargetsAction'),
+    quelle.indexOf('export const startVoteJailAction'),
   );
 
-  it('verlangt für die Namenssuche zusätzlich das Recht am Member Center', () => {
-    // Eine Namenssuche beantwortet «wer ist alles da?», und die Antwort ist
-    // eine Mitgliederliste. Wer sie ohnehin hat, sucht weiter; die Befugnis,
-    // eine Abstimmung zu starten, ist keine Befugnis, den Server zu
-    // durchsuchen.
+  it('verlangt genau das fachliche Recht - und nichts weiter', () => {
+    /*
+      Wer eine Abstimmung starten darf, darf ihr Ziel auch wählen. Ein
+      zusätzliches Recht am Member Center zu verlangen hiesse: Premium tippt
+      Kennungen ab, während das Team nebenan Namen eintippt - für dieselbe
+      Handlung.
+
+      Sicher ist das nicht über die Berechtigung, sondern über die Antwort:
+      zurück kommt nur, gegen wen dieser Handelnde tatsächlich abstimmen
+      lassen könnte, und von ihm nur Anzeigedaten. Das prüfen die Fälle oben.
+    */
     expect(suchAbschnitt).toContain('JAIL_PERMISSIONS.voteStart');
-    expect(suchAbschnitt).toContain("can(ctx, 'members.view')");
-  });
-
-  it('verlangt für die Kennung genau das fachliche Recht - und nichts weiter', () => {
-    expect(kennungsAbschnitt).toContain('JAIL_PERMISSIONS.voteStart');
-    expect(kennungsAbschnitt).not.toContain('members.view');
-    expect(kennungsAbschnitt).not.toContain('members.search');
-  });
-
-  it('nimmt für die Kennung nur eine Snowflake entgegen', () => {
-    expect(kennungsAbschnitt).toContain('z.string().regex(/^\\d{17,20}$/u)');
+    expect(suchAbschnitt).not.toContain("can(ctx, 'members.view')");
+    expect(suchAbschnitt).not.toContain('members.search');
   });
 
   it('lässt die allgemeine Mitgliedersuche unverändert geschützt', () => {
+    // Der Punkt, an dem sich beide unterscheiden: das Member Center bleibt
+    // hinter `members.view`, mit Profilen, Notizen und Akte dahinter.
     const mitglieder = readFileSync(join(process.cwd(), 'apps/web/src/modules/members/actions.ts'), 'utf8');
     const suche = mitglieder.slice(
       mitglieder.indexOf('searchMembersAction'),
@@ -300,26 +288,29 @@ describe('Was Premium dadurch nicht bekommt', () => {
     expect(premium).toContain('jail.vote.start');
   });
 
-  it('sieht im Dialog keine Namenssuche', () => {
-    const seite = readFileSync(join(process.cwd(), 'apps/web/src/app/(app)/vote-jail/page.tsx'), 'utf8');
+  it('bedient dieselbe Auswahl wie «Bannen» - mit der eigenen Suche dahinter', () => {
     const dialog = readFileSync(
       join(process.cwd(), 'apps/web/src/modules/jail/components/start-vote-jail-dialog.tsx'),
       'utf8',
     );
-
-    // Die Seite entscheidet es serverseitig und gibt es dem Dialog mit.
-    expect(seite).toContain("darfSuchen={can(context, 'members.view')}");
-    expect(dialog).toContain('{darfSuchen ? (');
-    expect(dialog).toContain('<ZielUeberKennung');
-  });
-
-  it('bekommt stattdessen den Weg über Discord genannt', () => {
-    const kennung = readFileSync(
-      join(process.cwd(), 'apps/web/src/modules/jail/components/ziel-ueber-kennung.tsx'),
+    const ban = readFileSync(
+      join(process.cwd(), 'apps/web/src/modules/moderation/components/moderation-dialog.tsx'),
       'utf8',
     );
 
-    expect(kennung).toContain('/vote_jail');
+    // Dieselbe Komponente - keine zweite, fast gleiche daneben.
+    expect(dialog).toContain('<MemberPicker');
+    expect(ban).toContain('<MemberPicker');
+    // Aber die Suche des Vote Jails, nicht die allgemeine.
+    expect(dialog).toContain('suche={searchVoteJailTargetsAction}');
+  });
+
+  it('bekommt keinen Zugang zum Member Center', () => {
+    // Die Suche im Dialog ist kontextgebunden; die Mitgliederseite selbst
+    // bleibt hinter ihrer eigenen Berechtigung.
+    const seite = readFileSync(join(process.cwd(), 'apps/web/src/app/(app)/members/page.tsx'), 'utf8');
+
+    expect(seite).toContain("'members.view'");
   });
 });
 

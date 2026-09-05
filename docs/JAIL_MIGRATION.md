@@ -238,26 +238,92 @@ ein Deployment oder ein Absturz verliert dadurch keine Freilassung.
 
 ## Vote Jail: wie das Ziel gewählt wird
 
-Wer eine Abstimmung starten darf, bekommt dadurch **keine Mitgliedersuche**.
-Eine Namenssuche beantwortet die Frage «wer ist alles da?», und die Antwort
-ist eine Mitgliederliste — die Befugnis, eine Abstimmung zu starten, ist keine
-Befugnis, den Server zu durchsuchen.
+Bedient wird das wie die Moderations-Massnahme **«Bannen»**: derselbe
+`MemberPicker`, dasselbe Tippen, dieselben Vorschläge mit Avatar und
+Anzeigename. Das ist Absicht — wer eine Abstimmung startet, soll nicht erst
+eine Discord-ID aus dem Profil klauben müssen, während das Team nebenan einen
+Namen eintippt.
 
-Drei Wege zum Ziel, je nachdem, was jemand ohnehin darf:
+Was sich unterscheidet, steht nicht im Formular, sondern in der **Antwort**.
 
-| Weg                               | Voraussetzung                                                                   |
-| --------------------------------- | ------------------------------------------------------------------------------- |
-| `/vote_jail` auf Discord          | `jail.vote.start` — das Ziel kommt aus Discords eigenem Auswahldialog           |
-| Discord-ID im Dashboard eintragen | `jail.vote.start` — genau eine Kennung wird nachgeschlagen, nichts aufgezählt   |
-| Namenssuche im Dashboard          | zusätzlich `members.view` — dieselbe Liste, die das Member Center ohnehin zeigt |
+|              | Mitgliedersuche («Bannen»)     | Zielsuche (Vote Jail)                    |
+| ------------ | ------------------------------ | ---------------------------------------- |
+| Berechtigung | `members.view`                 | `jail.vote.start`                        |
+| Beantwortet  | «wer ist alles da?»            | «gegen wen könnte ich abstimmen lassen?» |
+| Liefert      | alle Mitglieder                | nur zulässige Ziele                      |
+| Felder       | Profil, Rollen, Beitritt, Akte | Name, Anzeigename, Avatar                |
+| Öffnet       | das Member Center              | nichts weiter                            |
 
-Alle drei enden bei derselben Prüfung: `evaluateModerationPolicy` mit
-`kind: 'COMMUNITY_VOTE'`. Zurück kommt ausschliesslich, gegen wen dieser
-Handelnde tatsächlich eine Abstimmung starten könnte.
+Die Zielsuche gibt ausschliesslich Mitglieder zurück, gegen die dieser
+Handelnde tatsächlich eine Abstimmung starten könnte — geprüft mit
+`evaluateModerationPolicy` und `kind: 'COMMUNITY_VOTE'`, also demselben
+Massstab, den `startVoteJail` beim Klick anlegt. Ein Ziel, das dort abgelehnt
+würde, stünde in der Liste zugleich als Auskunft darüber, wer geschützt ist.
 
-Beim Nachschlagen einer Kennung ist die Antwort dieselbe für «gibt es nicht»
-und «gegen den darfst du nicht» — sonst liesse sich an ihr ablesen, wer
-geschützt ist.
+Eine Discord-ID wird durch dieselbe Suche aufgelöst wie ein Name — wer eine
+kennt, tippt sie einfach ein. Ohne Suchbegriff kommt nichts zurück: eine leere
+Eingabe ist keine Anfrage nach der Mitgliederliste des Servers.
+
+### Was Premium dadurch nicht bekommt
+
+Die Suche im Dialog ist kontextgebunden. Sie bedeutet **nicht**:
+
+- Zugang zum Member Center (`/members` bleibt hinter `members.view`)
+- `moderation.ban`, `moderation.kick`, `moderation.timeout`
+- `jail.create`, `jail.release`, `jail.view`
+- irgendein allgemeines Moderationsrecht
+
+Die Premium-Vorlage trägt aus diesem Bereich genau einen Schlüssel:
+`jail.vote.start`.
+
+### Der Weg über Discord
+
+`/vote_jail` bleibt unverändert und nimmt das Ziel aus Discords eigenem
+Auswahldialog — kein Suchendpunkt von uns.
+
+## Jail-Dauer: die Vorgaben und «Individuell»
+
+Die Massnahme **«Jailen»** im Moderations-Dialog bietet weiterhin ihre
+Vorgaben an — 30 Minuten, 1 Stunde, 6 Stunden, 12 Stunden, 1 Tag, 3 Tage,
+1 Woche, Permanent. Sie decken den Alltag ab, und genau deshalb sind sie eine
+Liste und kein Formular.
+
+Dazu kommt **«Individuell»**: drei Felder für Tage, Stunden und Minuten. Wer
+zwei Tage und drei Stunden meint, musste bisher die nächstbeste Vorgabe nehmen
+und jailte drei Tage.
+
+| Eingabe                       | Ergebnis   |
+| ----------------------------- | ---------- |
+| 0 Tage, 2 Stunden, 30 Minuten | 2 h 30 min |
+| 1 Tag, 4 Stunden, 0 Minuten   | 28 h       |
+| 3 Tage, 0 Stunden, 15 Minuten | 3 d 15 min |
+
+Stunden und Minuten bleiben unter ihrer jeweiligen Schwelle (0–23, 0–59), weil
+daneben ein eigenes Feld dafür steht: 25 Stunden wären nicht falsch, aber sie
+wären ein Tag und eine Stunde — zwei Schreibweisen für dieselbe Dauer sind
+eine zu viel.
+
+### Wo gerechnet und wo geprüft wird
+
+Umgerechnet wird mit `aufgeteilteDauerInSekunden()` aus `@swisshub/shared`.
+Die Funktion steht dort und nicht im Jail-Modul, weil die Maske im Browser
+läuft und das Jail-Modul die Datenbank hinter sich herzieht — beide Seiten
+brauchen dieselbe Antwort darauf, wie lang «1 Tag 2 Stunden» ist.
+
+Die Maske schickt die **drei Felder**, nicht das Ergebnis. Damit prüft der
+Server die tatsächliche Eingabe: `individuelleJailDauerSchema` weist
+Negativwerte, Bruchteile, `NaN`, Werte ausserhalb der Felder und `0/0/0` ab.
+Erst danach entsteht daraus eine Sekundenzahl.
+
+Ab dort ändert sich nichts: `durationSeconds` ist und bleibt die Währung von
+Dienst, Scheduler und Akte. «Individuell» ist eine Eingabeform, keine zweite
+Dauer-Engine.
+
+Die konfigurierte Höchstdauer (`maxDurationSeconds`) prüft dieselbe Stelle wie
+bei jeder Vorgabe — `assertDurationWithinLimit` im Jail-Service. Über
+«Individuell» lässt sie sich nicht umgehen. `releaseAt` berechnet weiterhin
+der Server aus seiner eigenen Uhr; ein Zeitstempel vom Client wird nicht
+angenommen.
 
 ## Jail-Gründe
 

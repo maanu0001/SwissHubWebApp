@@ -19,7 +19,6 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/input';
 import { MemberPicker, type PickedMember } from '@/modules/members/components/member-picker';
 import { searchVoteJailTargetsAction, startVoteJailAction } from '@/modules/jail/actions';
-import { ZielUeberKennung } from '@/modules/jail/components/ziel-ueber-kennung';
 
 /**
  * Abstimmung starten.
@@ -34,7 +33,6 @@ export function StartVoteJailDialog({
   resultSeconds,
   channelName,
   disabled,
-  darfSuchen,
 }: {
   csrfToken: string;
   requiredVotes: number;
@@ -50,7 +48,6 @@ export function StartVoteJailDialog({
    * anderen geben die Kennung ein, die sie ohnehin kennen. Serverseitig
    * entscheidet dasselbe noch einmal - hier steht nur, was gezeigt wird.
    */
-  darfSuchen: boolean;
 }): React.JSX.Element {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -113,23 +110,21 @@ export function StartVoteJailDialog({
         </DialogHeader>
 
         <div className="space-y-4">
-          {darfSuchen ? (
-            /*
-              Für das Team: eine eigene Suche statt der allgemeinen
-              Mitgliedersuche. Sie zeigt ausschliesslich Mitglieder, gegen die
-              eine Abstimmung überhaupt zulässig wäre - eine Liste mit Zielen,
-              die beim Klick abgelehnt würden, wäre zugleich eine Auskunft
-              darüber, wer geschützt ist.
-            */
-            <MemberPicker
-              csrfToken={csrfToken}
-              value={member}
-              onChange={setMember}
-              suche={searchVoteJailTargetsAction}
-            />
-          ) : (
-            <ZielUeberKennung csrfToken={csrfToken} value={member} onChange={setMember} />
-          )}
+          {/*
+            Dieselbe Auswahl wie bei «Bannen» - derselbe Picker, dasselbe
+            Tippen, dieselben Vorschläge. Was sich unterscheidet, ist die
+            Suche dahinter: sie verlangt nicht `members.view` und zeigt
+            ausschliesslich Mitglieder, gegen die eine Abstimmung überhaupt
+            zulässig wäre. Discord-Kennungen löst sie ebenso auf, wer also
+            eine kennt, tippt sie einfach ein.
+          */}
+          <MemberPicker
+            csrfToken={csrfToken}
+            value={member}
+            onChange={setMember}
+            label="Mitglied suchen"
+            suche={searchVoteJailTargetsAction}
+          />
 
           <div className="space-y-2">
             <Label htmlFor="vote-reason">Grund (optional)</Label>

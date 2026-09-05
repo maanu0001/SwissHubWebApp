@@ -147,3 +147,35 @@ function calendarDayDifference(date: Date, reference: Date, timezone: string): n
 export function discordTimestamp(value: Date, style: 'f' | 'F' | 'R' | 'd' | 't' = 'f'): string {
   return `<t:${Math.floor(value.getTime() / 1000)}:${style}>`;
 }
+
+/**
+ * Eine Dauer aus Tagen, Stunden und Minuten.
+ *
+ * Steht hier und nicht beim Jail-Modul, obwohl nur dieses sie heute braucht:
+ * die Maske, die sie eintippt, laeuft im Browser, und das Jail-Modul zieht
+ * die Datenbank hinter sich her. Was beide Seiten teilen muessen, gehoert in
+ * die client-sichere Schicht - sonst entstuende genau das, was es hier nicht
+ * geben soll: zwei Rechnungen dafuer, wie lang «1 Tag 2 Stunden» ist.
+ *
+ * Reine Umrechnung, keine Pruefung. Ob die Dauer zulaessig ist, entscheidet
+ * weiterhin der Dienst, der sie ausfuehrt.
+ */
+export interface AufgeteilteDauer {
+  tage: number;
+  stunden: number;
+  minuten: number;
+}
+
+/**
+ * Obergrenzen der einzelnen Felder.
+ *
+ * Stunden und Minuten bleiben unter ihrer jeweiligen Schwelle, weil daneben
+ * ein eigenes Feld dafuer steht: 25 Stunden waeren nicht falsch, aber sie
+ * waeren ein Tag und eine Stunde - und zwei Schreibweisen fuer dieselbe Dauer
+ * sind eine zu viel.
+ */
+export const AUFGETEILTE_DAUER_MAX = { tage: 365, stunden: 23, minuten: 59 } as const;
+
+export function aufgeteilteDauerInSekunden(dauer: AufgeteilteDauer): number {
+  return dauer.tage * 24 * 3600 + dauer.stunden * 3600 + dauer.minuten * 60;
+}

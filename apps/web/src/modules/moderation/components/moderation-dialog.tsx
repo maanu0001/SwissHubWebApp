@@ -4,7 +4,12 @@ import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Gavel } from 'lucide-react';
 import { toast } from 'sonner';
-import { formatDateTime, formatDuration } from '@swisshub/shared';
+import {
+  aufgeteilteDauerInSekunden,
+  AUFGETEILTE_DAUER_MAX,
+  formatDateTime,
+  formatDuration,
+} from '@swisshub/shared';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -16,7 +21,7 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/input';
+import { Input, Textarea } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { MemberPicker, type PickedMember } from '@/modules/members/components/member-picker';
 import type { ModerationAbilities } from '@/modules/moderation/abilities';
@@ -111,6 +116,25 @@ const JAIL_DAUERN = [
 
 const JAIL_PERMANENT = 'permanent';
 
+/**
+ * Die Dauer, die nicht in der Liste steht.
+ *
+ * Die Vorgaben darueber decken den Alltag ab - deshalb sind sie eine Liste.
+ * Was sie nicht abdecken, ist der Einzelfall, und wer den braucht, sollte
+ * nicht die naechstbeste Vorgabe nehmen muessen.
+ */
+const JAIL_INDIVIDUELL = 'individuell';
+
+/**
+ * Die kuerzeste Massnahme, die der Dienst annimmt.
+ *
+ * Nur fuer die Vorschau und die Vorpruefung im Formular - verbindlich
+ * bleibt `MIN_JAIL_DURATION_SECONDS` im Jail-Modul, das jede Dauer
+ * serverseitig prueft. Hier steht die Zahl, damit niemand erst nach der
+ * Bestaetigung erfaehrt, dass null Minuten keine Dauer sind.
+ */
+const MIN_JAIL_SEKUNDEN = 60;
+
 /** Wie weit zurück ein Bann Nachrichten löscht. Discord erlaubt 7 Tage. */
 const LOESCH_DAUERN = [
   { label: 'Keine Nachrichten löschen', seconds: 0 },
@@ -165,6 +189,7 @@ export function ModerationDialog({
   const [reason, setReason] = useState('');
   const [dauer, setDauer] = useState<string>('3600');
   const [jailDauer, setJailDauer] = useState<string>('3600');
+  const [eigeneDauer, setEigeneDauer] = useState({ tage: 0, stunden: 2, minuten: 0 });
   const [loeschen, setLoeschen] = useState<string>('0');
   const [fieldError, setFieldError] = useState<string | null>(null);
   const router = useRouter();
@@ -178,6 +203,15 @@ export function ModerationDialog({
     return null;
   }
   const dauerSekunden = Number(dauer);
+  /*
+    Die gewaehlte Jail-Dauer in Sekunden.
+
+    Umgerechnet wird mit derselben Funktion, die auch der Dienst benutzt -
+    eine zweite Rechnung hier waere eine zweite Wahrheit daruber, wie lang
+    «1 Tag 2 Stunden» ist.
+  */
+  const jailSekunden =
+    jailDauer === JAIL_INDIVIDUELL ? aufgeteilteDauerInSekunden(eigeneDauer) : Number(jailDauer);
   const endet = massnahme === 'TIMEOUT' ? new Date(Date.now() + dauerSekunden * 1000) : null;
 
   function reset(): void {
@@ -188,6 +222,7 @@ export function ModerationDialog({
     setReason('');
     setDauer('3600');
     setJailDauer('3600');
+    setEigeneDauer({ tage: 0, stunden: 2, minuten: 0 });
     setLoeschen('0');
     setFieldError(null);
   }
@@ -201,6 +236,15 @@ export function ModerationDialog({
     if (reason.trim().length < 3) {
       setFieldError('Bitte einen Grund mit mindestens 3 Zeichen angeben - er steht später in der Akte.');
       return;
+    }
+    // Die Eingabe hier abfangen, damit niemand erst nach der Bestaetigung
+    // erfaehrt, dass 0/0/0 keine Dauer ist. Verbindlich bleibt die Pruefung
+    // auf dem Server - diese hier erspart nur den Umweg.
+    if (massnahme === 'JAIL' && jailDauer === JAIL_INDIVIDUELL) {
+      if (jailSekunden < MIN_JAIL_SEKUNDEN) {
+        setFieldError('Bitte eine Dauer von mindestens einer Minute angeben.');
+        return;
+      }
     }
     setConfirming(true);
   }
@@ -231,7 +275,13 @@ export function ModerationDialog({
                   idempotencyKey: crypto.randomUUID(),
                   ...(jailDauer === JAIL_PERMANENT
                     ? { type: 'PERMANENT' as const }
-                    : { type: 'TEMPORARY' as const, durationSeconds: Number(jailDauer) }),
+                    : jailDauer === JAIL_INDIVIDUELL
+                      ? // Die drei Felder gehen so, wie sie eingetippt wurden.
+                        // Dann prueft der Server die tatsaechliche Eingabe und
+                        // nicht eine Sekundenzahl, aus der sich nicht mehr
+                        // ablesen laesst, was jemand gemeint hat.
+                        { type: 'TEMPORARY' as const, dauer: eigeneDauer }
+                      : { type: 'TEMPORARY' as const, durationSeconds: Number(jailDauer) }),
                 })
               : addModerationNoteAction(basis));
 
@@ -357,12 +407,60 @@ export function ModerationDialog({
                           {eintrag.label}
                         </SelectItem>
                       ))}
+                      <SelectItem value={JAIL_INDIVIDUELL}>Individuell</SelectItem>
                       <SelectItem value={JAIL_PERMANENT}>Permanent</SelectItem>
                     </SelectContent>
                   </Select>
-                  <p className="text-xs text-muted-foreground">
-                    Feinere Abstufungen und eigene Dauern gibt es im Jail-Bereich. Der Grund bleibt intern.
-                  </p>
+
+                  {jailDauer === JAIL_INDIVIDUELL ? (
+                    <div className="space-y-2 rounded-md border border-border bg-muted/40 p-3">
+                      <div className="grid grid-cols-3 gap-3">
+                        {(
+                          [
+                            { schluessel: 'tage', label: 'Tage', max: AUFGETEILTE_DAUER_MAX.tage },
+                            { schluessel: 'stunden', label: 'Stunden', max: AUFGETEILTE_DAUER_MAX.stunden },
+                            { schluessel: 'minuten', label: 'Minuten', max: AUFGETEILTE_DAUER_MAX.minuten },
+                          ] as const
+                        ).map((feld) => (
+                          <div key={feld.schluessel} className="space-y-1">
+                            <Label htmlFor={`jail-${feld.schluessel}`} className="text-xs">
+                              {feld.label}
+                            </Label>
+                            <Input
+                              id={`jail-${feld.schluessel}`}
+                              type="number"
+                              inputMode="numeric"
+                              min={0}
+                              max={feld.max}
+                              value={eigeneDauer[feld.schluessel]}
+                              onChange={(event) => {
+                                // Leeres Feld heisst null und nicht NaN - sonst
+                                // stuende «NaN» in der Vorschau, sobald jemand
+                                // eine Ziffer loescht, um eine neue zu tippen.
+                                const roh = Number.parseInt(event.target.value, 10);
+                                const wert = Number.isFinite(roh) ? roh : 0;
+                                setEigeneDauer((bisher) => ({
+                                  ...bisher,
+                                  [feld.schluessel]: Math.min(Math.max(wert, 0), feld.max),
+                                }));
+                              }}
+                            />
+                          </div>
+                        ))}
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        {jailSekunden >= MIN_JAIL_SEKUNDEN ? (
+                          <>
+                            Ergibt <strong>{formatDuration(jailSekunden * 1000)}</strong>.
+                          </>
+                        ) : (
+                          'Mindestens eine Minute - sonst wäre es keine Massnahme.'
+                        )}
+                      </p>
+                    </div>
+                  ) : null}
+
+                  <p className="text-xs text-muted-foreground">Der Grund bleibt intern.</p>
                 </div>
               ) : null}
 

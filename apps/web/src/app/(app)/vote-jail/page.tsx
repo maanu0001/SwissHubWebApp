@@ -165,7 +165,6 @@ export default async function VoteJailsPage(): Promise<React.JSX.Element> {
               ohnehin kennen, oder nehmen /vote_jail auf Discord. Die Aktion
               prüft dasselbe noch einmal.
             */
-            darfSuchen={can(context, 'members.view')}
           />
         ) : null}
       </PageToolbar>

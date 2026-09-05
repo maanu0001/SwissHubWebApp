@@ -1,5 +1,10 @@
 import { z } from 'zod';
-import { sanitizeText, snowflakeSchema } from '@swisshub/shared';
+import {
+  aufgeteilteDauerInSekunden,
+  AUFGETEILTE_DAUER_MAX,
+  sanitizeText,
+  snowflakeSchema,
+} from '@swisshub/shared';
 import { JAIL_MAX_DURATION_SECONDS } from './config';
 
 /** Vordefinierte Dauern der Jail-Maske. */
@@ -16,6 +21,31 @@ export const JAIL_DURATION_PRESETS = [
 ] as const;
 
 export const MIN_JAIL_DURATION_SECONDS = 60;
+
+/**
+ * Eine Dauer, die niemand in der Liste findet.
+ *
+ * Die Vorgaben oben decken den Alltag ab, und genau deshalb sind sie eine
+ * Liste und kein Formular. Was sie nicht abdecken, ist der Einzelfall - «bis
+ * Montagabend», «zwei Tage und ein bisschen». Wer den braucht, sollte nicht
+ * die naechstbeste Vorgabe nehmen muessen.
+ *
+ * Gerechnet wird mit `aufgeteilteDauerInSekunden` aus `@swisshub/shared`:
+ * dieselbe Funktion benutzt die Maske im Browser, und damit gibt es genau
+ * eine Antwort darauf, wie lang «1 Tag 2 Stunden» ist.
+ */
+export const individuelleJailDauerSchema = z
+  .object({
+    tage: z.number().int().min(0).max(AUFGETEILTE_DAUER_MAX.tage),
+    stunden: z.number().int().min(0).max(AUFGETEILTE_DAUER_MAX.stunden),
+    minuten: z.number().int().min(0).max(AUFGETEILTE_DAUER_MAX.minuten),
+  })
+  .refine(
+    (wert) => aufgeteilteDauerInSekunden(wert) >= MIN_JAIL_DURATION_SECONDS,
+    `Bitte eine Dauer von mindestens ${MIN_JAIL_DURATION_SECONDS / 60} Minute angeben.`,
+  );
+
+export type IndividuelleJailDauer = z.infer<typeof individuelleJailDauerSchema>;
 
 export const jailReasonSchema = z
   .string()
@@ -43,8 +73,18 @@ export const createJailSchema = z
   .object({
     targetDiscordId: snowflakeSchema,
     type: jailTypeSchema.default('TEMPORARY'),
-    /** Nur bei `TEMPORARY` erforderlich. */
+    /** Nur bei `TEMPORARY` erforderlich - oder stattdessen `dauer`. */
     durationSeconds: jailDurationSchema.optional(),
+    /**
+     * Eine individuell eingegebene Dauer.
+     *
+     * Die Maske schickt die drei Felder so, wie sie eingetippt wurden, statt
+     * eine fertige Sekundenzahl. Der Unterschied zaehlt: was der Server
+     * prueft, ist dann die tatsaechliche Eingabe - «0 Tage, 0 Stunden, 0
+     * Minuten» wird hier abgewiesen und nicht erst als Sekundenzahl, die
+     * zufaellig zu klein ist.
+     */
+    dauer: individuelleJailDauerSchema.optional(),
     reason: jailReasonSchema,
     /**
      * Still: keine öffentliche Ankündigung. Ohne Angabe entscheidet die
@@ -55,18 +95,37 @@ export const createJailSchema = z
     idempotencyKey: z.string().uuid('Ungültiger Idempotency Key'),
   })
   .superRefine((value, ctx) => {
-    if (value.type === 'TEMPORARY' && value.durationSeconds === undefined) {
+    if (value.type === 'TEMPORARY' && value.durationSeconds === undefined && value.dauer === undefined) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ['durationSeconds'],
         message: 'Bitte eine Dauer wählen.',
       });
     }
+    // Beides zugleich waere zweideutig, und die Antwort «wir nehmen halt
+    // eines davon» ist keine.
+    if (value.durationSeconds !== undefined && value.dauer !== undefined) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['durationSeconds'],
+        message: 'Entweder eine vorgegebene oder eine individuelle Dauer - nicht beides.',
+      });
+    }
   })
-  .transform((value) => ({
+  .transform(({ dauer, ...value }) => ({
     ...value,
-    // Ein permanenter Jail hat keine Dauer - kein künstliches Ersatzdatum.
-    durationSeconds: value.type === 'PERMANENT' ? null : (value.durationSeconds ?? null),
+    // Ab hier gibt es nur noch Sekunden. Die drei Felder sind eine Eingabe-
+    // form und keine zweite Waehrung: Dienst, Scheduler und Akte rechnen
+    // unveraendert mit `durationSeconds`.
+    //
+    // Ein permanenter Jail hat gar keine Dauer - kein kuenstliches
+    // Ersatzdatum.
+    durationSeconds:
+      value.type === 'PERMANENT'
+        ? null
+        : dauer !== undefined
+          ? aufgeteilteDauerInSekunden(dauer)
+          : (value.durationSeconds ?? null),
   }));
 
 export type CreateJailInput = z.infer<typeof createJailSchema>;

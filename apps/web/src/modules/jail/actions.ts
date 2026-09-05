@@ -4,7 +4,6 @@ import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
 import { can } from '@swisshub/auth';
 import { jail } from '@swisshub/modules';
-import { AppError } from '@swisshub/shared';
 import { defineAction } from '@/server/action';
 import { assertModuleEnabled } from '@/server/modules';
 
@@ -99,24 +98,6 @@ export const releaseJailAction = defineAction(
   },
 );
 
-/**
- * Vote Jail starten.
- *
- * Die Abstimmung ist eine Vorstufe des regulären Jails - die eigentliche
- * Ausführung übernimmt später `createJail`. Deshalb genügt hier die
- * Berechtigung `jail.vote.start`; alle weiteren Prüfungen macht der Service.
- */
-/**
- * Zielsuche fuer eine Community-Abstimmung.
- *
- * Eigene Aktion statt `members.search`: jene verlangt `members.view` und
- * oeffnet damit das Member Center. Wer eine Abstimmung starten darf, soll ein
- * Ziel waehlen koennen, ohne dafuer fremde Profile, Notizen und die
- * Moderationsakte lesen zu duerfen.
- *
- * Dieselbe Berechtigung wie das Starten selbst - und der Dienst filtert
- * serverseitig nach derselben Policy, die beim Start greift.
- */
 /** Wie der Picker ein Ziel beschreibt - dieselbe Form wie die Mitgliedersuche. */
 const alsPickerEintrag = (ziel: jail.VoteJailTarget) => ({
   discordId: ziel.discordId,
@@ -129,16 +110,24 @@ const alsPickerEintrag = (ziel: jail.VoteJailTarget) => ({
 });
 
 /**
- * Nach einem Namen suchen - für das Team.
+ * Das Ziel einer Abstimmung suchen.
  *
- * Eine Namenssuche beantwortet die Frage «wer ist alles da?», und die Antwort
- * ist eine Mitgliederliste. Sie bleibt deshalb denen vorbehalten, die sie
- * ohnehin haben: `members.view` öffnet das Member Center mit denselben Namen.
+ * Dieselbe Bedienung wie bei «Bannen» - derselbe Picker, dasselbe Tippen,
+ * dieselben Vorschläge -, aber ausdrücklich nicht dieselbe Auskunft. Die
+ * allgemeine Mitgliedersuche verlangt `members.view` und öffnet das Member
+ * Center: Profile, Notizen, Moderationsakte. Diese hier verlangt nur, was die
+ * Handlung selbst verlangt, und gibt nur her, was die Handlung braucht.
  *
- * Ein Premium-Mitglied bekommt sie nicht. Die Befugnis, eine Abstimmung zu
- * starten, ist keine Befugnis, den Server zu durchsuchen - vorher hing beides
- * am selben Schlüssel, und damit lieferte `jail.vote.start` still eine
- * Mitgliedersuche mit. Der Weg für alle anderen steht darunter.
+ * Der Unterschied steckt in der Antwort, nicht im Formular. Zurück kommen
+ * ausschliesslich Mitglieder, gegen die dieser Handelnde tatsächlich eine
+ * Abstimmung starten könnte - dieselbe Policy, die `startVoteJail` anwendet -,
+ * und von ihnen nur Name, Anzeigename und Avatar. Keine Rollen, kein
+ * Beitrittsdatum, keine Akte. Wer geschützt ist, taucht gar nicht erst auf;
+ * eine Liste mit Zielen, die beim Klick abgelehnt würden, wäre selbst schon
+ * die Auskunft darüber, wer geschützt ist.
+ *
+ * Und ohne Suchbegriff kommt nichts: eine leere Eingabe ist keine Anfrage
+ * nach der Mitgliederliste des Servers.
  */
 export const searchVoteJailTargetsAction = defineAction(
   {
@@ -154,16 +143,6 @@ export const searchVoteJailTargetsAction = defineAction(
   },
   async ({ ctx, input }) => {
     await assertModuleEnabled(MODULE_ID);
-
-    // Die zweite Bedingung steht hier und nicht oben: `defineAction` prüft
-    // einen Schlüssel, gebraucht werden aber beide - der fachliche für die
-    // Handlung und dieser für die Auskunft, die sie nebenbei gäbe.
-    if (!can(ctx, 'members.view')) {
-      throw new AppError('FORBIDDEN', {
-        userMessage:
-          'Du kannst keine Mitglieder durchsuchen. Gib die Discord-ID ein oder starte die Abstimmung auf Discord mit /vote_jail.',
-      });
-    }
 
     const ziele = await jail.searchVoteJailTargets(
       input.query,
@@ -183,43 +162,12 @@ export const searchVoteJailTargetsAction = defineAction(
 );
 
 /**
- * Genau eine bekannte Discord-Kennung nachschlagen.
+ * Vote Jail starten.
  *
- * Der Weg für alle, die keine Mitgliedersuche haben - und das sind die
- * meisten, die eine Abstimmung starten dürfen. Wer eine Abstimmung startet,
- * kennt die Person: er sitzt mit ihr im Voice oder liest gerade ihre
- * Nachricht. Er braucht keine Liste des Servers, sondern diesen einen
- * Menschen.
- *
- * Aufgezählt wird dabei nichts. Wer keine Kennung hat, bekommt hier auch
- * keine - und die Antwort ist dieselbe für «gibt es nicht» und «gegen den
- * darfst du nicht», damit sich an ihr nicht ablesen lässt, wer geschützt ist.
+ * Die Abstimmung ist eine Vorstufe des regulären Jails - die eigentliche
+ * Ausführung übernimmt später `createJail`. Deshalb genügt hier die
+ * Berechtigung `jail.vote.start`; alle weiteren Prüfungen macht der Service.
  */
-export const resolveVoteJailTargetAction = defineAction(
-  {
-    name: 'jail.vote.target.resolve',
-    module: MODULE_ID,
-    permission: jail.JAIL_PERMISSIONS.voteStart,
-    schema: z.object({ discordId: z.string().regex(/^\d{17,20}$/u) }),
-    rateLimit: 'memberSearch',
-    freshness: 'cached',
-  },
-  async ({ ctx, input }) => {
-    await assertModuleEnabled(MODULE_ID);
-
-    const ziel = await jail.resolveVoteJailTarget(input.discordId, {
-      discordId: ctx.user.discordId,
-      username: ctx.user.username,
-      avatarHash: ctx.user.avatarHash,
-      roleIds: ctx.roleIds,
-      isOwner: ctx.user.isOwner,
-      moderationLevel: ctx.moderationLevel,
-    });
-
-    return ziel ? alsPickerEintrag(ziel) : null;
-  },
-);
-
 export const startVoteJailAction = defineAction(
   {
     name: 'jail.vote.start',

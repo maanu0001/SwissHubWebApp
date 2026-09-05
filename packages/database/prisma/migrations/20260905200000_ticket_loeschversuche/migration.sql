@@ -1,0 +1,15 @@
+-- Wie oft die Loeschung eines Ticket-Kanals schon versucht wurde.
+--
+-- Der Aufraeumer hat bisher genau einen Anlauf genommen. Sagte Discord nein -
+-- fehlendes Recht, ein 500er, ein Rate Limit mitten im Deployment -, galt der
+-- Kanal trotzdem als erledigt: die Kennung wurde verworfen, das Ticket auf
+-- ARCHIVED gesetzt, und der Kanal stand danach fuer immer auf dem Server,
+-- ohne dass ihn noch irgendwer gesucht haette.
+--
+-- Dieser Zaehler traegt die Fehlversuche. Er staffelt den naechsten Anlauf
+-- und macht im Systemstatus sichtbar, wenn eine Loeschung nicht mehr
+-- durchkommt.
+--
+-- Rein additiv: neue Spalte mit Vorgabe 0, bestehende Tickets bleiben
+-- unveraendert.
+ALTER TABLE "Ticket" ADD COLUMN IF NOT EXISTS "channelPurgeAttempts" INTEGER NOT NULL DEFAULT 0;

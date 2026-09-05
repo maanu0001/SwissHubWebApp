@@ -347,7 +347,13 @@ export async function purgeDueChannels(jetzt = new Date()): Promise<number> {
       channelPurgeAt: { not: null, lte: jetzt },
       discordChannelId: { not: null },
     },
-    select: { id: true, discordChannelId: true, ticketNumber: true },
+    select: {
+      id: true,
+      discordChannelId: true,
+      ticketNumber: true,
+      channelPurgeAt: true,
+      channelPurgeAttempts: true,
+    },
   });
 
   let entfernt = 0;
@@ -359,10 +365,17 @@ export async function purgeDueChannels(jetzt = new Date()): Promise<number> {
     // schickte einer von beiden ein zweites DELETE an Discord und faenge sich
     // dafuer einen Fehler ein - fuer nichts, denn der Kanal ist bereits weg.
     //
-    // Wer null Zeilen aktualisiert, war zu spaet und laesst die Finger davon.
+    // Beansprucht wird durch Verschieben, nicht durch Loeschen: die
+    // Faelligkeit wandert um ein Retry-Fenster nach vorn. Wer als Zweiter
+    // kommt, findet sie in der Zukunft und laesst die Finger davon - und
+    // stirbt der Prozess mitten im Versuch, steht der Auftrag weiterhin da
+    // und wird spaeter nachgeholt. Frueher wurde hier auf `null` gesetzt;
+    // ein Absturz zwischen Anspruch und Loeschung liess den Kanal damit
+    // endgueltig stehen.
+    const versuch = ticket.channelPurgeAttempts + 1;
     const zugeteilt = await prisma.ticket.updateMany({
-      where: { id: ticket.id, channelPurgeAt: { not: null } },
-      data: { channelPurgeAt: null },
+      where: { id: ticket.id, channelPurgeAt: ticket.channelPurgeAt },
+      data: { channelPurgeAt: new Date(jetzt.getTime() + wartezeitMs(versuch)) },
     });
     if (zugeteilt.count === 0) {
       continue;
@@ -377,23 +390,41 @@ export async function purgeDueChannels(jetzt = new Date()): Promise<number> {
     } catch (fehler) {
       // Ein Kanal, den es nicht mehr gibt, ist kein Fehlschlag - er ist das
       // Ziel. Discord antwortet darauf mit 404, und genau so wird es hier
-      // behandelt: erledigt. Alles andere wird vermerkt, aendert aber nichts
-      // am weiteren Ablauf - der Kanal ist ohnehin nicht mehr zu retten.
-      const unbekannt = fehler instanceof DiscordApiError && fehler.status === 404;
-      if (!unbekannt) {
-        logger.warn('Ticket-Kanal konnte nicht entfernt werden', {
+      // behandelt: erledigt.
+      const bereitsWeg = fehler instanceof DiscordApiError && fehler.status === 404;
+      if (!bereitsWeg) {
+        // Alles andere ist ein offener Auftrag und kein abgeschlossener.
+        //
+        // Hier lag der Fehler, der Kanaele auf dem Server zurueckliess: der
+        // Fehlschlag wurde vermerkt, und danach lief der Ablauf weiter, als
+        // waere geloescht worden - Kennung verworfen, Ticket auf ARCHIVED.
+        // Damit suchte niemand mehr nach dem Kanal, und ein einziger
+        // Aussetzer von Discord genuegte, um ihn fuer immer stehen zu
+        // lassen.
+        //
+        // Jetzt bleibt der Auftrag stehen. Die Faelligkeit steht bereits ein
+        // Retry-Fenster in der Zukunft; vermerkt wird nur noch der Versuch.
+        await prisma.ticket.update({
+          where: { id: ticket.id },
+          data: { channelPurgeAttempts: versuch },
+        });
+        logger.warn('Ticket-Kanal konnte nicht entfernt werden - neuer Versuch folgt', {
           ticketId: ticket.id,
+          versuch,
+          naechsterVersuchInMs: wartezeitMs(versuch),
           grund: fehler instanceof Error ? fehler.message : 'unbekannt',
         });
+        continue;
       }
     }
-    // Auch bei einem Fehler die Markierung loesen - der Kanal ist entweder
-    // weg oder von Hand geloescht worden; erneut zu versuchen brachte nichts.
+
+    // Nur hier: der Kanal ist tatsaechlich weg.
     await prisma.ticket.update({
       where: { id: ticket.id },
       data: {
         discordChannelId: null,
         channelPurgeAt: null,
+        channelPurgeAttempts: 0,
         channelMissing: true,
         status: 'ARCHIVED',
         archivedAt: new Date(),
@@ -405,6 +436,43 @@ export async function purgeDueChannels(jetzt = new Date()): Promise<number> {
     logger.info('Ticket-Kanäle aufgeräumt', { anzahl: entfernt });
   }
   return entfernt;
+}
+
+/**
+ * Ab wann der naechste Anlauf sinnvoll ist.
+ *
+ * Verdoppelnd ab fuenfzehn Sekunden, gedeckelt bei zwei Stunden. Die kurzen
+ * Fristen fangen ab, was von selbst vergeht - ein Rate Limit, ein Neustart
+ * von Discord. Die Deckelung sorgt dafuer, dass ein Auftrag, der an einem
+ * fehlenden Recht haengt, nicht stuendlich hundertmal anklopft, aber auch nie
+ * ganz aufgibt: sobald jemand das Recht erteilt, raeumt der naechste Anlauf
+ * auf, ohne dass irgendwer etwas anstossen muesste.
+ */
+const RETRY_BASIS_MS = 15_000;
+const RETRY_HOECHSTFRIST_MS = 2 * 3600_000;
+
+export function wartezeitMs(versuch: number): number {
+  const roh = RETRY_BASIS_MS * 2 ** Math.max(0, versuch - 1);
+  return Math.min(roh, RETRY_HOECHSTFRIST_MS);
+}
+
+/**
+ * Ab wie vielen Fehlversuchen der Systemstatus es sagen soll.
+ *
+ * Zwei Versuche koennen ein Aussetzer sein. Drei sind ein Zustand, und der
+ * gehoert vor Augen - sonst haengt eine Loeschung wochenlang im Backoff und
+ * niemand weiss davon.
+ */
+export const LOESCHUNG_AUFFAELLIG_AB = 3;
+
+/** Tickets, deren Kanalloeschung wiederholt scheitert. */
+export async function zaehleHaengendeLoeschungen(): Promise<number> {
+  return prisma.ticket.count({
+    where: {
+      channelPurgeAttempts: { gte: LOESCHUNG_AUFFAELLIG_AB },
+      discordChannelId: { not: null },
+    },
+  });
 }
 
 /**

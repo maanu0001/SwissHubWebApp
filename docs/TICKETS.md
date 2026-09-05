@@ -396,9 +396,41 @@ gerechnet.
 
 Der Löschauftrag wird beansprucht, ehe er ausgeführt wird — sonst schickten
 der Wecker im Web-Prozess und der Auftrag im Bot zwei DELETE für denselben
-Kanal. Ein Kanal, den es nicht mehr gibt (Discord antwortet mit 404), gilt als
+Kanal.
+
+Beansprucht wird durch **Verschieben**, nicht durch Löschen: die Fälligkeit
+wandert um ein Retry-Fenster nach vorn. Wer als Zweiter kommt, findet sie in
+der Zukunft und lässt die Finger davon — und stirbt der Prozess mitten im
+Versuch, steht der Auftrag weiterhin da und wird nachgeholt.
+
+Ein Kanal, den es nicht mehr gibt (Discord antwortet mit 404), gilt als
 erledigt und nicht als Fehler.
+
+### Wenn Discord nein sagt
 
 Scheitert die Löschung aus einem anderen Grund, bleibt das Ticket
 **geschlossen**. Der Kanal ist die Discord-Darstellung des Tickets, nicht das
 Ticket.
+
+Und der Auftrag bleibt **offen**. Das war einmal anders, und es ist die
+Ursache dafür, dass Kanäle auf dem Server zurückblieben: der Fehlschlag wurde
+vermerkt, und danach lief der Ablauf weiter, als wäre gelöscht worden — die
+Kanalkennung wurde verworfen, das Ticket auf `ARCHIVED` gesetzt. Damit suchte
+niemand mehr nach dem Kanal. Ein einziger Aussetzer von Discord genügte, um
+ihn für immer stehen zu lassen.
+
+Jetzt zählt `channelPurgeAttempts` die Fehlversuche und staffelt den nächsten
+Anlauf: 15 s, 30 s, 1 min … gedeckelt bei zwei Stunden. Aufgegeben wird nie.
+Das ist Absicht — hängt es an einem fehlenden Recht, räumt der nächste Anlauf
+von selbst auf, sobald jemand das Recht erteilt hat.
+
+Ab drei Fehlversuchen sagt es der Systemstatus des Moduls. Der Aufräumer kann
+weiterprobieren, aber er kann die Ursache nicht beheben; ohne diesen Hinweis
+hinge eine Löschung wochenlang im Backoff, ohne dass jemand davon wüsste.
+
+### Rechte
+
+Zum Löschen braucht der Bot **«Channels verwalten»** im Ticket-Kanal — keine
+Administrator-Rechte. Das Recht steht in `requiredDiscordPermissions` des
+Moduls und wird beim Anlegen des Kanals mitgegeben; fehlt es, ist es genau der
+Fall, den der Systemstatus oben meldet.

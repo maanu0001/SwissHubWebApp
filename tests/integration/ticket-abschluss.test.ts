@@ -468,6 +468,145 @@ describeWithDatabase('Ticket schliessen und antworten', () => {
     expect(danach.closedByDiscordId).toBe(SUPPORTER);
   });
 
+  /*
+    Beide Wege bis zum Ende - nicht nur bis zum Abschluss.
+
+    Die Faelle darueber pruefen, dass Dashboard und Discord dasselbe planen.
+    Diese hier gehen einen Schritt weiter und lassen die Frist tatsaechlich
+    ablaufen: was zaehlt, ist nicht der Eintrag in der Datenbank, sondern der
+    Kanal, der danach weg ist.
+  */
+
+  for (const weg of ['WEBAPP', 'DISCORD'] as const) {
+    it(`löscht den Kanal auch am Ende des Wegs über ${weg}`, async () => {
+      const offen = await ticket();
+      const kanal = offen.discordChannelId;
+      expect(kanal).not.toBeNull();
+
+      const geschlossen = await tickets.closeTicket(offen.id, null, {
+        discordId: SUPPORTER,
+        username: 'nina',
+        source: weg,
+      });
+
+      // Fachlich geschlossen, bevor irgendetwas mit dem Kanal geschieht.
+      expect(geschlossen.status).toBe('CLOSED');
+      expect(geschlossen.closedAt).not.toBeNull();
+      expect(geschlossen.closedByDiscordId).toBe(SUPPORTER);
+      expect(discord.geloescht).not.toContain(kanal);
+
+      // Fünf Sekunden später - hier vorgezogen, statt sie abzuwarten.
+      await prisma.ticket.update({
+        where: { id: offen.id },
+        data: { channelPurgeAt: new Date(Date.now() - 1) },
+      });
+      await tickets.purgeDueChannels();
+
+      expect(discord.geloescht).toContain(kanal);
+      const danach = await prisma.ticket.findUniqueOrThrow({ where: { id: offen.id } });
+      expect(danach.discordChannelId).toBeNull();
+      expect(danach.status).toBe('ARCHIVED');
+    });
+  }
+
+  it('versucht es erneut, wenn Discord die Löschung einmal verweigert', async () => {
+    /*
+      Der Fehler, der Kanäle auf dem Server zurückliess.
+
+      Ein einziger Aussetzer - ein fehlendes Recht, ein 500er, ein Rate Limit
+      mitten im Deployment - genügte: der Fehlschlag wurde vermerkt, und
+      danach lief der Ablauf weiter, als wäre gelöscht worden. Die Kennung war
+      weg, das Ticket stand auf ARCHIVED, und der Kanal blieb für immer auf
+      dem Server, ohne dass ihn noch irgendwer gesucht hätte.
+    */
+    const offen = await ticket();
+    const kanal = offen.discordChannelId;
+    await tickets.closeTicket(offen.id, null, actor(SUPPORTER, 'nina'));
+
+    let versuche = 0;
+    discord.gateway.managedChannels.remove = vi.fn(async () => {
+      versuche += 1;
+      throw new Error('Missing Permissions');
+    }) as never;
+
+    await prisma.ticket.update({
+      where: { id: offen.id },
+      data: { channelPurgeAt: new Date(Date.now() - 1) },
+    });
+    await tickets.purgeDueChannels();
+
+    // Der Auftrag steht weiterhin: Kennung erhalten, neue Frist gesetzt.
+    const nachFehlschlag = await prisma.ticket.findUniqueOrThrow({ where: { id: offen.id } });
+    expect(versuche).toBe(1);
+    expect(nachFehlschlag.discordChannelId).toBe(kanal);
+    expect(nachFehlschlag.channelPurgeAt).not.toBeNull();
+    expect(nachFehlschlag.channelPurgeAttempts).toBe(1);
+    // Und nicht als erledigt abgehakt.
+    expect(nachFehlschlag.status).toBe('CLOSED');
+    expect(nachFehlschlag.channelMissing).toBe(false);
+
+    // Sobald Discord wieder mitmacht, räumt der nächste Durchgang auf.
+    discord.gateway.managedChannels.remove = vi.fn(async () => {
+      versuche += 1;
+    }) as never;
+    await prisma.ticket.update({
+      where: { id: offen.id },
+      data: { channelPurgeAt: new Date(Date.now() - 1) },
+    });
+    await tickets.purgeDueChannels();
+
+    const danach = await prisma.ticket.findUniqueOrThrow({ where: { id: offen.id } });
+    expect(versuche).toBe(2);
+    expect(danach.discordChannelId).toBeNull();
+    expect(danach.status).toBe('ARCHIVED');
+    expect(danach.channelPurgeAttempts).toBe(0);
+  });
+
+  it('wartet zwischen zwei Versuchen länger als zwischen den ersten beiden', async () => {
+    // Ein Auftrag, der an einem fehlenden Recht hängt, soll nicht im
+    // Sekundentakt anklopfen - aber auch nie ganz aufgeben.
+    expect(tickets.wartezeitMs(1)).toBeLessThan(tickets.wartezeitMs(2));
+    expect(tickets.wartezeitMs(2)).toBeLessThan(tickets.wartezeitMs(3));
+    // Gedeckelt: sonst läge der nächste Versuch irgendwann in Jahren.
+    expect(tickets.wartezeitMs(50)).toBe(tickets.wartezeitMs(40));
+  });
+
+  it('meldet eine Löschung, die wiederholt scheitert', async () => {
+    // Der Aufräumer gibt nicht auf - aber er kann die Ursache nicht beheben.
+    // Also muss sie jemandem auffallen.
+    const offen = await ticket();
+    await tickets.closeTicket(offen.id, null, actor(SUPPORTER, 'nina'));
+
+    expect(await tickets.zaehleHaengendeLoeschungen()).toBe(0);
+
+    await prisma.ticket.update({
+      where: { id: offen.id },
+      data: { channelPurgeAttempts: tickets.LOESCHUNG_AUFFAELLIG_AB },
+    });
+
+    expect(await tickets.zaehleHaengendeLoeschungen()).toBe(1);
+  });
+
+  it('behält die Ticketdaten, wenn der Kanal verschwindet', async () => {
+    // Der Kanal ist die Bühne, nicht die Akte.
+    const offen = await ticket();
+    await tickets.closeTicket(offen.id, 'Erledigt', actor(SUPPORTER, 'nina'));
+    await prisma.ticket.update({
+      where: { id: offen.id },
+      data: { channelPurgeAt: new Date(Date.now() - 1) },
+    });
+    await tickets.purgeDueChannels();
+
+    const danach = await prisma.ticket.findUniqueOrThrow({ where: { id: offen.id } });
+    expect(danach.subject).toBe(offen.subject);
+    expect(danach.ticketNumber).toBe(offen.ticketNumber);
+    expect(danach.creatorDiscordId).toBe(ERSTELLER);
+    expect(danach.closeReason).toBe('Erledigt');
+    expect(danach.closedByDiscordId).toBe(SUPPORTER);
+    // Und der Verlauf steht auch noch.
+    expect(await prisma.ticketEvent.count({ where: { ticketId: offen.id } })).toBeGreaterThan(0);
+  });
+
   it('trägt einen liegengebliebenen Kanal nach, statt ihn stehen zu lassen', async () => {
     // Geschlossen, als «nie löschen» galt. Ohne Fälligkeit sucht niemand
     // danach - der Kanal bliebe für immer stehen.

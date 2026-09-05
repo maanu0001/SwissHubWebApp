@@ -8,31 +8,27 @@ import type { VoteJailActor } from './service';
 /**
  * Wie ein Vote Jail zu seinem Ziel kommt.
  *
- * Zwei Wege, und der Unterschied ist Absicht.
+ * Bedient wird das wie bei «Bannen»: derselbe Picker, dasselbe Tippen,
+ * dieselben Vorschlaege. Das ist Absicht - wer eine Abstimmung startet, soll
+ * nicht erst eine Discord-Kennung aus dem Profil klauben muessen, waehrend
+ * das Team nebenan einfach einen Namen eintippt.
  *
- * **Eine bekannte Kennung aufloesen.** Wer eine Abstimmung starten darf,
- * kennt die Person, um die es geht - er sitzt mit ihr im selben Voice oder
- * liest gerade ihre Nachricht. Er braucht keine Liste des Servers, sondern
- * genau diesen einen Menschen. `resolveVoteJailTarget` schlaegt deshalb
- * hoechstens eine Kennung nach und gibt nichts zurueck, was nicht schon
- * feststand.
+ * Was sich unterscheidet, steht nicht im Formular, sondern in der Antwort.
+ * Die allgemeine Mitgliedersuche beantwortet «wer ist alles da?» und gehoert
+ * zum Member Center - mit Profilen, Notizen und Moderationsakte dahinter.
+ * Diese hier beantwortet nur «gegen wen koennte ich abstimmen lassen?».
  *
- * **Nach einem Namen suchen.** Das ist etwas anderes: es beantwortet die
- * Frage «wer ist alles da?», und die Antwort ist eine Mitgliederliste. Sie
- * bleibt deshalb dem Team vorbehalten, das sie ohnehin hat - `members.view`
- * oeffnet das Member Center mit denselben Namen. Ein Premium-Mitglied
- * bekommt sie nicht: die Befugnis, eine Abstimmung zu starten, ist keine
- * Befugnis, den Server zu durchsuchen.
+ * Zurueck kommt deshalb ausschliesslich, gegen wen dieser Handelnde
+ * tatsaechlich eine Abstimmung starten koennte - dieselbe Policy, die
+ * `startVoteJail` anwendet. Ein Ziel, das beim Klick abgelehnt wuerde, waere
+ * in der Liste zugleich eine Auskunft darueber, wer geschuetzt ist.
  *
- * Beide Wege enden bei derselben Pruefung. Zurueck kommt ausschliesslich,
- * gegen wen dieser Handelnde tatsaechlich eine Abstimmung starten koennte -
- * dieselbe Policy, die `startVoteJail` anwendet. Eine Antwort, die ein Ziel
- * nennt, das beim Klick abgelehnt wuerde, waere zugleich eine Auskunft
- * darueber, wer geschuetzt ist.
+ * Und es kommt wenig zurueck: Name, Anzeigename, Avatar. Keine Rollen, kein
+ * Beitrittsdatum, keine Moderationsakte. Was hier nicht steht, laesst sich
+ * ueber diesen Weg auch nicht erfragen.
  *
- * Und beide geben wenig zurueck: Name, Anzeigename, Avatar. Keine Rollen,
- * kein Beitrittsdatum, keine Moderationsakte. Was hier nicht steht, laesst
- * sich ueber diesen Weg auch nicht erfragen.
+ * Eine Kennung wird ebenso aufgeloest wie ein Name - durch dieselbe Suche,
+ * durch dieselbe Pruefung. Wer eine kennt, tippt sie einfach ein.
  */
 
 export interface VoteJailTarget {
@@ -62,34 +58,6 @@ export async function searchVoteJailTargets(
 
   const kandidaten = await ladeKandidaten(query, limit, gateway);
   return siebeZulaessige(kandidaten, actor, limit, gateway, options.context);
-}
-
-/**
- * Genau ein Ziel, anhand seiner Discord-Kennung.
- *
- * Der Weg fuer alle, die keine Mitgliedersuche haben - und das sind die
- * meisten, die eine Abstimmung starten duerfen. Aufgeloest wird eine Kennung,
- * die der Aufrufer bereits kennt; nichts wird aufgezaehlt, und wer keine
- * Kennung hat, bekommt hier auch keine.
- *
- * Die Antwort ist absichtlich dieselbe fuer «gibt es nicht» und «gegen den
- * darfst du nicht»: sonst liesse sich an ihr ablesen, wer geschuetzt ist.
- */
-export async function resolveVoteJailTarget(
-  discordId: string,
-  actor: VoteJailActor,
-  options: Omit<VoteJailTargetOptions, 'limit'> = {},
-): Promise<VoteJailTarget | null> {
-  if (!isSnowflake(discordId)) {
-    return null;
-  }
-  const gateway = options.gateway ?? defaultDiscord;
-  const mitglied = await gateway.members.get(discordId).catch(() => null);
-  if (!mitglied) {
-    return null;
-  }
-  const [treffer] = await siebeZulaessige([mitglied], actor, 1, gateway, options.context);
-  return treffer ?? null;
 }
 
 /**

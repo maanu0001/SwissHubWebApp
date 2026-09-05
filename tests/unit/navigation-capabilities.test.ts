@@ -62,7 +62,6 @@ const P = jail.JAIL_PERMISSIONS;
  * gar keiner erscheint, ist die Frage davor - und sie hat ihren eigenen Fall.
  */
 const JAIL_SEHEN = moduleViewPermission('jail');
-const LEVEL_SEHEN = moduleViewPermission('level');
 
 describe('Jail-Navigation', () => {
   /*
@@ -219,21 +218,32 @@ describe('Premium-Bereichsnavigation', () => {
 describe('XP-Glücksrad in der Seitenleiste', () => {
   const SICHTBAR = level.LEVEL_PERMISSIONS.raffleView;
 
-  it('hängt am dynamischen Zustand, nicht nur an der Berechtigung', () => {
-    const eintraege = nav([LEVEL_SEHEN, SICHTBAR]).filter((item) => item.href === '/xp-gluecksrad');
+  /*
+    Der Eintrag hängt an der Anmeldung, nicht an einer Zuteilung. Zwei Dinge
+    standen vorher im Weg, beide gut gemeint: `level.raffle.view` musste
+    vergeben werden, und ohne laufende Verlosung verschwand der Eintrag ganz -
+    womit niemand mehr sah, dass es das Glücksrad überhaupt gibt.
+  */
 
-    expect(eintraege).toHaveLength(1);
-    // Die Registry fragt keine Datenbank; das Layout wertet diese Bedingung
-    // aus. Ohne sie stünde der Eintrag dauerhaft dort.
-    expect(eintraege[0]?.visibleWhen).toBe('activeRaffle');
+  it('erscheint für jedes angemeldete Mitglied', () => {
+    const ohneJedesRecht = nav([]).filter((item) => item.href === '/xp-gluecksrad');
+
+    expect(ohneJedesRecht).toHaveLength(1);
   });
 
-  it('erscheint ohne die Berechtigung überhaupt nicht', () => {
-    expect(nav(['dashboard.view']).some((item) => item.href === '/xp-gluecksrad')).toBe(false);
+  it('erscheint auch ohne «Modul sehen» des Level-Moduls', () => {
+    // Sonst hinge der Bereich der ganzen Gemeinschaft an einer Berechtigung
+    // für die Verwaltungsseiten des Level-Systems.
+    expect(nav([SICHTBAR]).some((item) => item.href === '/xp-gluecksrad')).toBe(true);
+    expect(nav(['dashboard.view']).some((item) => item.href === '/xp-gluecksrad')).toBe(true);
   });
 
-  it('erscheint ohne «Modul sehen» nicht, auch mit der Berechtigung', () => {
-    expect(nav([SICHTBAR]).some((item) => item.href === '/xp-gluecksrad')).toBe(false);
+  it('bringt keine weiteren Level-Einträge mit', () => {
+    // Sichtbar ist nicht erlaubt: der Ausnahmeeintrag öffnet genau eine
+    // Seite und nicht das Modul dahinter.
+    const eintraege = nav([]).filter((item) => item.moduleId === 'level');
+
+    expect(eintraege.map((item) => item.href)).toEqual(['/xp-gluecksrad']);
   });
 });
 

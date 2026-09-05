@@ -190,7 +190,7 @@ Nur `ACTIVE` zählt zur Ziehung.
 
 | Berechtigung               | Für wen                                                    |
 | -------------------------- | ---------------------------------------------------------- |
-| `level.raffle.view`        | alle Mitglieder                                            |
+| `level.raffle.view`        | alle Mitglieder – **Sichtbarkeit hängt nicht daran**       |
 | `level.raffle.participate` | alle Mitglieder                                            |
 | `level.raffle.create`      | Verwaltung                                                 |
 | `level.raffle.edit`        | Verwaltung                                                 |
@@ -203,13 +203,37 @@ Nur `ACTIVE` zählt zur Ziehung.
 | `level.raffle.delete`      | **getrennt vergeben** – entfernt eine vergangene Verlosung |
 | `level.raffle.history`     | Einsicht in Ziehungen und Rückzahlungen                    |
 
-Es gibt keine Vorgabe-Berechtigung für Mitglieder: `level.raffle.view` und
-`level.raffle.participate` müssen der Mitglieder-Rolle unter
-**Server → Berechtigungen** ausdrücklich zugewiesen werden. Ohne Zuweisung
-sieht niemand die Seite – die Engine verweigert im Zweifel.
+### Sichtbarkeit ist keine Zuteilung
+
+Der Sidebar-Eintrag **XP-Glücksrad** und die Seite `/xp-gluecksrad` stehen
+jedem angemeldeten Mitglied offen, ohne dass ihm jemand ein Recht zuteilen
+muss. Der Navigationseintrag trägt dafür `baseline: true` in der Module
+Registry, und die Seite prüft mit `requireMember()` statt mit einer
+Berechtigung.
+
+Der Grund: für einen Bereich, der der ganzen Gemeinschaft gehört, ist die
+Zuteilung falsch herum – die Ausnahme wäre »sieht es nicht«, und niemand
+stellt sie ein. Vorher kam ein zweites Hindernis dazu: der Eintrag verschwand
+ganz, solange keine Verlosung lief, womit niemand mehr sah, dass es das
+Glücksrad überhaupt gibt.
+
+**Sichtbar ist nicht erlaubt.** `level.raffle.participate` entscheidet
+weiterhin über die Teilnahme, und wer es nicht hat, sieht die Seite mit
+einem deaktivierten Knopf. Alle Verwaltungsrechte bleiben getrennt vergeben,
+`redraw` und `cancel` ausdrücklich. `level.raffle.view` gibt es weiterhin –
+es steuert die Sichtbarkeit nicht mehr, aber die Zuweisung bleibt
+unverändert möglich und wirkt dort, wo die Berechtigung geprüft wird.
 
 Jede Prüfung erfolgt serverseitig. Dass ein Knopf im Browser fehlt, ist
 Bequemlichkeit und keine Absicherung.
+
+### Kein Wiederholen der Ziehung
+
+Die Ergebnisseite hatte einen Knopf »Animation erneut ansehen«. Er ist
+entfernt: eine Ziehung ist ein Moment und keine Aufzeichnung, und der Knopf
+liess die Seite jedes Mal so aussehen, als sei die Verlosung noch offen. Die
+erste Animation nach einer Ziehung läuft unverändert – auch für den, der
+gerade auf der Seite steht, während gezogen wird.
 
 ---
 

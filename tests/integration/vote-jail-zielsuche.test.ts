@@ -26,7 +26,9 @@ vi.mock('@swisshub/database', async () => {
 
 const { jail } = await import('@swisshub/modules');
 const { createMockGateway, setDiscordGateway } = await import('@swisshub/discord');
-const { invalidateRoleConfiguration } = await import('@swisshub/permissions');
+const { invalidateRoleConfiguration, PERMISSION_PRESETS, resolvePreset } = await import(
+  '@swisshub/permissions'
+);
 
 type State = ReturnType<typeof createFakeState>;
 
@@ -186,29 +188,83 @@ describe('Vote-Jail-Zielsuche', () => {
   });
 });
 
-describe('Vote-Jail-Zielsuche - Berechtigung', () => {
+describe('Ein Ziel über seine Kennung', () => {
+  /*
+    Der Weg für alle, die keine Mitgliedersuche haben. Wer eine Abstimmung
+    startet, kennt die Person - er sitzt mit ihr im Voice oder liest gerade
+    ihre Nachricht. Er braucht keine Liste des Servers, sondern diesen einen
+    Menschen.
+  */
+
+  it('schlägt ein zulässiges Mitglied nach', async () => {
+    const treffer = await jail.resolveVoteJailTarget(SPAMMER, PREMIUM, { gateway });
+
+    expect(treffer?.discordId).toBe(SPAMMER);
+    expect(treffer?.username).toBe('spammer99');
+  });
+
+  it('gibt für ein geschütztes Mitglied dasselbe zurück wie für ein unbekanntes', async () => {
+    // Sonst liesse sich an der Antwort ablesen, wer geschützt ist.
+    const geschuetzt = await jail.resolveVoteJailTarget(MODERATOR_ID, PREMIUM, { gateway });
+    const unbekannt = await jail.resolveVoteJailTarget('900000000000009999', PREMIUM, { gateway });
+
+    expect(geschuetzt).toBeNull();
+    expect(unbekannt).toBeNull();
+  });
+
+  it('weist alles ab, was keine Discord-Kennung ist', async () => {
+    for (const eingabe of ['spammer99', '', '12', 'spammer99 OR 1=1']) {
+      expect(await jail.resolveVoteJailTarget(eingabe, PREMIUM, { gateway }), eingabe).toBeNull();
+    }
+  });
+
+  it('zählt nichts auf - eine Kennung, höchstens ein Treffer', async () => {
+    const treffer = await jail.resolveVoteJailTarget(SPAMMER, PREMIUM, { gateway });
+
+    expect(treffer).not.toBeInstanceOf(Array);
+    expect(Object.keys(treffer!).sort()).toEqual([
+      'avatarHash',
+      'discordId',
+      'displayName',
+      'username',
+    ]);
+  });
+});
+
+describe('Wer nach Namen suchen darf', () => {
   const quelle = readFileSync(
     join(process.cwd(), 'apps/web/src/modules/jail/actions.ts'),
     'utf8',
   );
+  const abschnitt = (von: string, bis: string): string =>
+    quelle.slice(quelle.indexOf(von), quelle.indexOf(bis));
 
-  it('verlangt dieselbe Berechtigung wie das Starten einer Abstimmung', () => {
-    const abschnitt = quelle.slice(
-      quelle.indexOf('searchVoteJailTargetsAction'),
-      quelle.indexOf('export const startVoteJailAction'),
-    );
-    expect(abschnitt).toContain('JAIL_PERMISSIONS.voteStart');
+  const suchAbschnitt = abschnitt(
+    'export const searchVoteJailTargetsAction',
+    'export const resolveVoteJailTargetAction',
+  );
+  const kennungsAbschnitt = abschnitt(
+    'export const resolveVoteJailTargetAction',
+    'export const startVoteJailAction',
+  );
+
+  it('verlangt für die Namenssuche zusätzlich das Recht am Member Center', () => {
+    // Eine Namenssuche beantwortet «wer ist alles da?», und die Antwort ist
+    // eine Mitgliederliste. Wer sie ohnehin hat, sucht weiter; die Befugnis,
+    // eine Abstimmung zu starten, ist keine Befugnis, den Server zu
+    // durchsuchen.
+    expect(suchAbschnitt).toContain('JAIL_PERMISSIONS.voteStart');
+    expect(suchAbschnitt).toContain("can(ctx, 'members.view')");
   });
 
-  it('verlangt nicht members.view', () => {
-    // Der eigentliche Fehler: die Zielsuche hing an der Berechtigung des
-    // Member Center. Premium darf durch diese Aktion keinen Zugriff darauf
-    // bekommen.
-    const abschnitt = quelle.slice(
-      quelle.indexOf('searchVoteJailTargetsAction'),
-      quelle.indexOf('export const startVoteJailAction'),
-    );
-    expect(abschnitt).not.toContain('members.view');
+  it('verlangt für die Kennung genau das fachliche Recht - und nichts weiter', () => {
+    expect(kennungsAbschnitt).toContain('JAIL_PERMISSIONS.voteStart');
+    expect(kennungsAbschnitt).not.toContain('members.view');
+    expect(kennungsAbschnitt).not.toContain('members.search');
+  });
+
+  it('nimmt für die Kennung nur eine Snowflake entgegen', () => {
+    expect(kennungsAbschnitt).toContain('z.string().regex(/^\\d{17,20}$/u)');
   });
 
   it('lässt die allgemeine Mitgliedersuche unverändert geschützt', () => {
@@ -216,10 +272,77 @@ describe('Vote-Jail-Zielsuche - Berechtigung', () => {
       join(process.cwd(), 'apps/web/src/modules/members/actions.ts'),
       'utf8',
     );
-    const abschnitt = mitglieder.slice(
+    const suche = mitglieder.slice(
       mitglieder.indexOf('searchMembersAction'),
       mitglieder.indexOf('// --- Rollen'),
     );
-    expect(abschnitt).toContain("permission: 'members.view'");
+    expect(suche).toContain("permission: 'members.view'");
+  });
+});
+
+describe('Was Premium dadurch nicht bekommt', () => {
+  it('bekommt weder Mitgliedersicht noch Moderationsrechte', () => {
+    const premium = resolvePreset(PERMISSION_PRESETS.find((v) => v.id === 'premium')!);
+
+    for (const verboten of [
+      'members.view',
+      'members.view.basic.all',
+      'moderation.view',
+      'moderation.execute',
+      'moderation.ban',
+      'moderation.kick',
+      'moderation.timeout',
+      'jail.create',
+      'jail.release',
+      'jail.view',
+    ]) {
+      expect(premium, verboten).not.toContain(verboten);
+    }
+    // Was er hat, ist genau das eine: eine Abstimmung starten.
+    expect(premium).toContain('jail.vote.start');
+  });
+
+  it('sieht im Dialog keine Namenssuche', () => {
+    const seite = readFileSync(
+      join(process.cwd(), 'apps/web/src/app/(app)/vote-jail/page.tsx'),
+      'utf8',
+    );
+    const dialog = readFileSync(
+      join(process.cwd(), 'apps/web/src/modules/jail/components/start-vote-jail-dialog.tsx'),
+      'utf8',
+    );
+
+    // Die Seite entscheidet es serverseitig und gibt es dem Dialog mit.
+    expect(seite).toContain("darfSuchen={can(context, 'members.view')}");
+    expect(dialog).toContain('{darfSuchen ? (');
+    expect(dialog).toContain('<ZielUeberKennung');
+  });
+
+  it('bekommt stattdessen den Weg über Discord genannt', () => {
+    const kennung = readFileSync(
+      join(process.cwd(), 'apps/web/src/modules/jail/components/ziel-ueber-kennung.tsx'),
+      'utf8',
+    );
+
+    expect(kennung).toContain('/vote_jail');
+  });
+});
+
+describe('Der Weg über Discord bleibt bestehen', () => {
+  const befehle = readFileSync(
+    join(process.cwd(), 'apps/bot/src/commands/jail-commands.ts'),
+    'utf8',
+  );
+
+  it('nimmt das Ziel aus Discords eigenem Auswahldialog', () => {
+    // Kein Suchendpunkt von uns: die Person wählt jemanden, den sie auf
+    // Discord ohnehin vor sich hat.
+    expect(befehle).toContain("name: 'vote_jail'");
+    expect(befehle).toContain('ApplicationCommandOptionType.User');
+    expect(befehle).toContain("interaction.options.getUser('user', true)");
+  });
+
+  it('prüft dort dieselbe Berechtigung', () => {
+    expect(befehle).toContain('actor.can(jail.JAIL_PERMISSIONS.voteStart)');
   });
 });

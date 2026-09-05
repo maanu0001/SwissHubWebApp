@@ -501,4 +501,38 @@ describeWithDatabase('Ticket schliessen und antworten', () => {
     const danach = await prisma.ticket.findUniqueOrThrow({ where: { id: offen.id } });
     expect(danach.channelPurgeAt).toBeNull();
   });
+  it('holt eine Löschung nach, die der Wecker nicht mehr geschafft hat', async () => {
+    // Der Fall, den der Wecker im Prozess nicht abdeckt: zwischen Abschluss
+    // und Löschung wird neu gestartet. Die Zusage steht deshalb in der
+    // Datenbank und nicht im Arbeitsspeicher - der Aufräumlauf findet sie.
+    const offen = await ticket();
+    await tickets.closeTicket(offen.id, null, actor(SUPPORTER, 'nina'));
+
+    const geschlossen = await prisma.ticket.findUniqueOrThrow({ where: { id: offen.id } });
+    expect(geschlossen.channelPurgeAt).not.toBeNull();
+    discord.geloescht.length = 0;
+
+    // Die fünf Sekunden sind vorbei, der Wecker ist mit dem Prozess gestorben.
+    await prisma.ticket.update({
+      where: { id: offen.id },
+      data: { channelPurgeAt: new Date(Date.now() - 1000) },
+    });
+    await tickets.purgeDueChannels();
+
+    expect(discord.geloescht).toEqual([geschlossen.discordChannelId]);
+  });
+
+  it('lässt einen noch nicht fälligen Kanal in Ruhe', async () => {
+    // Die fünf Sekunden sind eine Zusage in beide Richtungen: der Kanal
+    // verschwindet nicht früher, damit die Abschlussmeldung lesbar bleibt.
+    const offen = await ticket();
+    await tickets.closeTicket(offen.id, null, actor(SUPPORTER, 'nina'));
+    discord.geloescht.length = 0;
+
+    await tickets.purgeDueChannels();
+
+    expect(discord.geloescht).toEqual([]);
+    const danach = await prisma.ticket.findUniqueOrThrow({ where: { id: offen.id } });
+    expect(danach.channelPurgeAt).not.toBeNull();
+  });
 });

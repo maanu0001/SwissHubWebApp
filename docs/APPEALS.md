@@ -349,12 +349,42 @@ die hier nicht entstehen soll. Stattdessen dasselbe, was Verifikation, Level und
 Automationen tun:
 
 - ein **Meldekanal** aus den Moduleinstellungen
-- die **Übersichtsseite** mit Ansichten «Offen», «Mir zugewiesen»,
-  «Unzugewiesen»
+- die **Übersichtsseite** mit genau zwei Reitern, «Offen» und «Entschieden»
 - die **Automation Engine** für alles Weitere
 
 Ebenso gibt es **keinen zentralen Notification-Service**. Jedes Modul meldet über
 Discord-Kanäle; dieses auch.
+
+### Die Fallliste: zwei Reiter
+
+Das Team hat genau zwei Fragen an die Liste — woran muss ich arbeiten, und was
+ist erledigt. Vorher standen dort sieben Reiter («Mir zugewiesen»,
+«Unzugewiesen», «Wartet auf Antragsteller», «Eskaliert» …). Jeder einzelne war
+nachvollziehbar; zusammen waren sie eine Sortieraufgabe vor der eigentlichen
+Arbeit, und mehrere zeigten dieselben Fälle noch einmal.
+
+Welche Status wohin gehören, entscheidet `statusFuerAnsicht()` im Modul —
+nicht die Seite. Die Statusliste stand vorher an drei Stellen ausgeschrieben,
+und eine Zahl, die anders zählt als die Liste darunter, ist schlimmer als
+keine Zahl. Die Zahl am Reiter kommt aus `zaehleAnsichten()` mit denselben
+Filtern wie die Liste, Bearbeitereinschränkung eingeschlossen.
+
+| Reiter | Status |
+| --- | --- |
+| **Offen** | `SUBMITTED`, `UNDER_REVIEW`, `WAITING_FOR_APPLICANT`, `WAITING_FOR_STAFF`, `ESCALATED`, `DECISION_PENDING` |
+| **Entschieden** | `APPROVED`, `REJECTED`, `WITHDRAWN`, `EXPIRED`, `RESOLVED_EXTERNALLY`, `CLOSED` |
+
+«Entschieden» heisst hier: nicht mehr offen. Das umfasst mehr als genehmigt
+und abgelehnt — auch zurückgezogen, abgelaufen und anderweitig erledigt. Sie
+eine »Entscheidung« zu nennen ist unsauber; sie aus beiden Reitern
+herauszuhalten wäre schlimmer, denn dann verschwänden sie ganz aus der Liste.
+Welcher Endzustand es war, steht an jeder Zeile.
+
+`DRAFT` gehört in keinen der beiden: ein angefangener, nie eingereichter
+Antrag ist für das Team noch nicht entstanden.
+
+Suche und die Einschränkung auf eigene Fälle wirken innerhalb der Reiter
+unverändert weiter — reduziert wurden nur die Status-Reiter selbst.
 
 ---
 

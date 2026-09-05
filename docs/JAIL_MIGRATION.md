@@ -233,3 +233,34 @@ ein Deployment oder ein Absturz verliert dadurch keine Freilassung.
 | „Dieser Import wurde bereits durchgeführt.“                     | Für einen erneuten Durchgang die Datei neu hochladen; bereits übernommene Zeilen werden erkannt.           |
 | Viele Zeilen als „Konflikt“                                     | Es laufen bereits Jails im Dashboard. Bestehende Einträge werden nie überschrieben.                        |
 | Zeilen als „unlesbar“                                           | Meist eine beschädigte `user_id` oder ein unlesbarer `jail_start`. Die Vorschau nennt den Grund pro Zeile. |
+
+---
+
+## Vote Jail: wie das Ziel gewählt wird
+
+Wer eine Abstimmung starten darf, bekommt dadurch **keine Mitgliedersuche**.
+Eine Namenssuche beantwortet die Frage «wer ist alles da?», und die Antwort
+ist eine Mitgliederliste — die Befugnis, eine Abstimmung zu starten, ist keine
+Befugnis, den Server zu durchsuchen.
+
+Drei Wege zum Ziel, je nachdem, was jemand ohnehin darf:
+
+| Weg | Voraussetzung |
+| --- | --- |
+| `/vote_jail` auf Discord | `jail.vote.start` — das Ziel kommt aus Discords eigenem Auswahldialog |
+| Discord-ID im Dashboard eintragen | `jail.vote.start` — genau eine Kennung wird nachgeschlagen, nichts aufgezählt |
+| Namenssuche im Dashboard | zusätzlich `members.view` — dieselbe Liste, die das Member Center ohnehin zeigt |
+
+Alle drei enden bei derselben Prüfung: `evaluateModerationPolicy` mit
+`kind: 'COMMUNITY_VOTE'`. Zurück kommt ausschliesslich, gegen wen dieser
+Handelnde tatsächlich eine Abstimmung starten könnte.
+
+Beim Nachschlagen einer Kennung ist die Antwort dieselbe für «gibt es nicht»
+und «gegen den darfst du nicht» — sonst liesse sich an ihr ablesen, wer
+geschützt ist.
+
+## Jail-Gründe
+
+Sie stehen seit der Zusammenführung bei der Moderation — siehe
+[MODERATION_GRUENDE.md](MODERATION_GRUENDE.md). Der Schlüssel `reasonPresets`
+im Jail-Schema bleibt als Altbestand erhalten, wird aber nicht mehr gelesen.

@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
 import { can } from '@swisshub/auth';
 import { jail } from '@swisshub/modules';
+import { AppError } from '@swisshub/shared';
 import { defineAction } from '@/server/action';
 import { assertModuleEnabled } from '@/server/modules';
 
@@ -116,6 +117,29 @@ export const releaseJailAction = defineAction(
  * Dieselbe Berechtigung wie das Starten selbst - und der Dienst filtert
  * serverseitig nach derselben Policy, die beim Start greift.
  */
+/** Wie der Picker ein Ziel beschreibt - dieselbe Form wie die Mitgliedersuche. */
+const alsPickerEintrag = (ziel: jail.VoteJailTarget) => ({
+  discordId: ziel.discordId,
+  username: ziel.username,
+  displayName: ziel.displayName,
+  avatarHash: ziel.avatarHash,
+  isBot: false,
+  // Gejailte Mitglieder stehen gar nicht erst in der Antwort.
+  jailed: false,
+});
+
+/**
+ * Nach einem Namen suchen - für das Team.
+ *
+ * Eine Namenssuche beantwortet die Frage «wer ist alles da?», und die Antwort
+ * ist eine Mitgliederliste. Sie bleibt deshalb denen vorbehalten, die sie
+ * ohnehin haben: `members.view` öffnet das Member Center mit denselben Namen.
+ *
+ * Ein Premium-Mitglied bekommt sie nicht. Die Befugnis, eine Abstimmung zu
+ * starten, ist keine Befugnis, den Server zu durchsuchen - vorher hing beides
+ * am selben Schlüssel, und damit lieferte `jail.vote.start` still eine
+ * Mitgliedersuche mit. Der Weg für alle anderen steht darunter.
+ */
 export const searchVoteJailTargetsAction = defineAction(
   {
     name: 'jail.vote.targets',
@@ -131,6 +155,16 @@ export const searchVoteJailTargetsAction = defineAction(
   async ({ ctx, input }) => {
     await assertModuleEnabled(MODULE_ID);
 
+    // Die zweite Bedingung steht hier und nicht oben: `defineAction` prüft
+    // einen Schlüssel, gebraucht werden aber beide - der fachliche für die
+    // Handlung und dieser für die Auskunft, die sie nebenbei gäbe.
+    if (!can(ctx, 'members.view')) {
+      throw new AppError('FORBIDDEN', {
+        userMessage:
+          'Du kannst keine Mitglieder durchsuchen. Gib die Discord-ID ein oder starte die Abstimmung auf Discord mit /vote_jail.',
+      });
+    }
+
     const ziele = await jail.searchVoteJailTargets(
       input.query,
       {
@@ -144,17 +178,45 @@ export const searchVoteJailTargetsAction = defineAction(
       { limit: input.limit ?? 20 },
     );
 
-    // Dieselbe Form wie die Mitgliedersuche, damit der Picker beide
-    // verwenden kann. `jailed` ist hier immer `false`: gejailte Mitglieder
-    // stehen gar nicht erst in der Liste.
-    return ziele.map((ziel) => ({
-      discordId: ziel.discordId,
-      username: ziel.username,
-      displayName: ziel.displayName,
-      avatarHash: ziel.avatarHash,
-      isBot: false,
-      jailed: false,
-    }));
+    return ziele.map(alsPickerEintrag);
+  },
+);
+
+/**
+ * Genau eine bekannte Discord-Kennung nachschlagen.
+ *
+ * Der Weg für alle, die keine Mitgliedersuche haben - und das sind die
+ * meisten, die eine Abstimmung starten dürfen. Wer eine Abstimmung startet,
+ * kennt die Person: er sitzt mit ihr im Voice oder liest gerade ihre
+ * Nachricht. Er braucht keine Liste des Servers, sondern diesen einen
+ * Menschen.
+ *
+ * Aufgezählt wird dabei nichts. Wer keine Kennung hat, bekommt hier auch
+ * keine - und die Antwort ist dieselbe für «gibt es nicht» und «gegen den
+ * darfst du nicht», damit sich an ihr nicht ablesen lässt, wer geschützt ist.
+ */
+export const resolveVoteJailTargetAction = defineAction(
+  {
+    name: 'jail.vote.target.resolve',
+    module: MODULE_ID,
+    permission: jail.JAIL_PERMISSIONS.voteStart,
+    schema: z.object({ discordId: z.string().regex(/^\d{17,20}$/u) }),
+    rateLimit: 'memberSearch',
+    freshness: 'cached',
+  },
+  async ({ ctx, input }) => {
+    await assertModuleEnabled(MODULE_ID);
+
+    const ziel = await jail.resolveVoteJailTarget(input.discordId, {
+      discordId: ctx.user.discordId,
+      username: ctx.user.username,
+      avatarHash: ctx.user.avatarHash,
+      roleIds: ctx.roleIds,
+      isOwner: ctx.user.isOwner,
+      moderationLevel: ctx.moderationLevel,
+    });
+
+    return ziel ? alsPickerEintrag(ziel) : null;
   },
 );
 

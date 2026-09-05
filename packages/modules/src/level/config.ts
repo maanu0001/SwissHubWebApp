@@ -940,21 +940,31 @@ registerModule({
       /**
        * Die Mitgliederseite des Glücksrads.
        *
-       * Bewusst im obersten Abschnitt statt unter "Module": sie richtet sich
-       * an alle Mitglieder, nicht an die Verwaltung. Wer nur
-       * `level.raffle.view` hat, sieht ausschliesslich diesen Eintrag.
+       * Bewusst im obersten Abschnitt statt unter «Module»: sie richtet sich
+       * an alle Mitglieder, nicht an die Verwaltung.
+       *
+       * `baseline` heisst: jedes angemeldete Mitglied sieht den Eintrag, ohne
+       * dass ihm jemand ein Recht zuteilen muss. Zwei Dinge standen vorher im
+       * Weg, und beide waren gut gemeint. `level.raffle.view` musste vergeben
+       * werden - für einen Bereich, der der ganzen Gemeinschaft gehört, ist
+       * das falsch herum: die Ausnahme wäre «sieht es nicht», und niemand
+       * stellt sie ein. Und `visibleWhen` liess den Eintrag verschwinden,
+       * sobald keine Verlosung lief - womit niemand mehr sah, dass es das
+       * Glücksrad überhaupt gibt, und die nächste Verlosung ohne Publikum
+       * begann.
+       *
+       * Sichtbar ist nicht erlaubt: Teilnehmen, Anlegen, Ziehen, Neuziehen
+       * und Abbrechen bleiben eigene Berechtigungen, und die Seite prüft sie
+       * weiterhin selbst.
        */
       href: '/xp-gluecksrad',
       label: 'XP-Glücksrad',
       description: 'Aktuelle XP-Verlosung, Teilnahme und vergangene Ziehungen',
       permission: LEVEL_PERMISSIONS.raffleView,
+      baseline: true,
       icon: 'Ticket',
       group: 'overview',
       order: 21,
-      // Nur solange es etwas zu gewinnen gibt. Ein Eintrag, der das ganze
-      // Jahr «keine aktive Verlosung» sagt, ist eine Zeile, die niemand mehr
-      // liest. Im Level-System bleibt das Gluecksrad dauerhaft erreichbar.
-      visibleWhen: 'activeRaffle',
     },
   ],
 });

@@ -99,14 +99,27 @@ export interface ModuleNavigationItem {
    */
   counter?: 'openTickets';
   /**
-   * Bedingung, die zusaetzlich zur Berechtigung erfuellt sein muss.
+   * Ein Eintrag, den jedes angemeldete Mitglied sieht.
    *
-   * Die Registry selbst fragt keine Datenbank - sie wird an vielen Stellen
-   * geladen, auch dort, wo keine Verbindung steht. Die Auswertung geschieht
-   * deshalb im Layout, das die Daten ohnehin holt; hier steht nur, worauf es
-   * ankommt.
+   * Die Ausnahme von der Regel, und sie braucht einen Grund. Der Regelfall
+   * ist: Sichtbarkeit wird vergeben, und zwar zweimal - «Modul sehen» oeffnet
+   * den Bereich, die Berechtigung darunter den Eintrag. Das ist richtig fuer
+   * alles, was Verwaltung ist oder interne Daten zeigt.
+   *
+   * Fuer einen Bereich, der sich an die ganze Gemeinschaft richtet, ist es
+   * falsch herum: dort ist «nicht sichtbar» der Sonderfall, den jemand
+   * einstellen muesste, und niemand tut das. Das Ergebnis war ein
+   * Mitgliederangebot, das die Mitglieder nicht fanden.
+   *
+   * `baseline` heisst deshalb: der Eintrag haengt an der Anmeldung, nicht an
+   * einer Zuteilung. Er sagt nichts darueber, was jemand dort *tun* darf -
+   * Teilnahme, Anlegen und Ziehen bleiben eigene Berechtigungen, und die
+   * Seite selbst prueft sie weiterhin. Sichtbar ist nicht erlaubt.
+   *
+   * Sparsam einsetzen: er umgeht die Rechtevergabe, und was ihn traegt, muss
+   * fuer jedes Mitglied gefahrlos zu oeffnen sein.
    */
-  visibleWhen?: 'activeRaffle';
+  baseline?: true;
 }
 
 export interface ModuleDefinition {
@@ -265,13 +278,19 @@ export function buildNavigation(
     // duerfte. Frueher genuegte irgendeine Berechtigung des Moduls, und der
     // Eintrag entstand als Nebenwirkung einer Handlungsbefugnis. Sichtbarkeit
     // ist jetzt eine eigene Entscheidung.
-    .filter((definition) => {
+    .flatMap((definition) => {
+      // «Modul sehen» zuerst - siehe oben. Ein Eintrag mit `baseline`
+      // ueberlebt das: er haengt an der Anmeldung und nicht an einer
+      // Zuteilung, und ein fehlendes «Modul sehen» ist genau so eine.
       const sehen = moduleViewPermissionOf(definition);
-      return sehen === null || owned.has(sehen);
+      const sichtbar = sehen === null || owned.has(sehen);
+      const eintraege = sichtbar
+        ? definition.navigation
+        : definition.navigation.filter((item) => item.baseline);
+      return eintraege.map((item) => ({ ...item, moduleId: definition.id }));
     })
-    .flatMap((definition) => definition.navigation.map((item) => ({ ...item, moduleId: definition.id })))
     .flatMap((item) => {
-      if (owned.has(item.permission)) {
+      if (item.baseline || owned.has(item.permission)) {
         return [item];
       }
 

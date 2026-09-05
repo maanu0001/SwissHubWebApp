@@ -129,6 +129,31 @@ export function istAbgeschlossen(status: AppealStatus): boolean {
   return ENDZUSTAENDE.includes(status);
 }
 
+/**
+ * Die zwei Ansichten der Fallliste.
+ *
+ * Das Team hat genau zwei Fragen an die Liste: «woran muss ich arbeiten?» und
+ * «was ist erledigt?». Vorher standen dort sieben Reiter - «Mir zugewiesen»,
+ * «Unzugewiesen», «Wartet auf Antragsteller», «Eskaliert» und so fort. Jeder
+ * einzelne war nachvollziehbar, zusammen waren sie eine Sortieraufgabe vor
+ * der eigentlichen Arbeit, und zwei davon zeigten dieselben Fälle noch
+ * einmal.
+ *
+ * `entschieden` heisst hier: nicht mehr offen. Das umfasst mehr als
+ * genehmigt und abgelehnt - auch zurückgezogen, abgelaufen, anderweitig
+ * erledigt und geschlossen. Sie eine «Entscheidung» zu nennen, wäre unsauber;
+ * sie aus beiden Reitern herauszuhalten wäre schlimmer, denn dann verschwänden
+ * sie ganz aus der Fallliste. Welcher Endzustand es war, steht an jeder Zeile.
+ *
+ * `DRAFT` gehört in keine der beiden: ein angefangener, nie eingereichter
+ * Antrag ist für das Team noch nicht entstanden.
+ */
+export type AppealAnsicht = 'offen' | 'entschieden';
+
+export function statusFuerAnsicht(ansicht: AppealAnsicht): readonly AppealStatus[] {
+  return ansicht === 'offen' ? OFFENE_STATUS : ENDZUSTAENDE;
+}
+
 /** Beschriftungen für die Oberfläche. */
 export const STATUS_LABEL: Record<AppealStatus, string> = {
   DRAFT: 'Entwurf',

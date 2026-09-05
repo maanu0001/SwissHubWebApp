@@ -23,9 +23,8 @@ useTestSchema('test_jail_unter_moderation');
  * in aller Regel gar keinen Moderationsbereich - und soll ihn nicht brauchen.
  */
 const { prisma } = await import('@swisshub/database');
-const { jail, buildNavigation, listModuleDefinitions, moduleViewPermission } = await import(
-  '@swisshub/modules'
-);
+const { jail, moderation, buildNavigation, listModuleDefinitions, moduleViewPermission } =
+  await import('@swisshub/modules');
 const { PERMISSION_PRESETS, resolvePreset } = await import('@swisshub/permissions');
 
 const P = jail.JAIL_PERMISSIONS;
@@ -172,22 +171,15 @@ describeWithDatabase('Jail unter Moderation', () => {
     expect(modul?.id).toBe('jail');
   });
 
-  // --- Die neuen Gründe ---------------------------------------------------
+  // --- Die Gründe stehen jetzt bei der Moderation -------------------------
 
-  it('kennt «Unter 16» und «Bot» als Vorgabe', () => {
-    const gruende = jail.jailReasonPresets({
-      reasonPresets: jail.JAIL_STANDARD_GRUENDE.join('\n'),
-    });
+  it('bietet beim Jailen dieselben Gründe an wie bei jeder anderen Massnahme', () => {
+    const jailGruende = moderation
+      .reasonTemplatesFor('JAIL', { reasonTemplates: '' })
+      .map((vorlage) => vorlage.reasonText);
 
-    expect(gruende).toContain('Unter 16');
-    expect(gruende).toContain('Bot');
-  });
-
-  it('behält die bisherigen Gründe', () => {
-    const gruende = jail.jailReasonPresets({
-      reasonPresets: jail.JAIL_STANDARD_GRUENDE.join('\n'),
-    });
-
+    expect(jailGruende).toContain('Unter 16');
+    expect(jailGruende).toContain('Bot');
     for (const bisher of [
       'Spam',
       'Beleidigung',
@@ -197,22 +189,20 @@ describeWithDatabase('Jail unter Moderation', () => {
       'Voice-Verhalten',
       'Werbung',
     ]) {
-      expect(gruende, bisher).toContain(bisher);
+      expect(jailGruende, bisher).toContain(bisher);
     }
   });
 
-  it('erzeugt keine Duplikate, wenn ein Grund doppelt dasteht', () => {
-    const gruende = jail.jailReasonPresets({
-      reasonPresets: ['Spam', 'Bot', 'Bot', ' Bot ', 'Unter 16'].join('\n'),
-    });
+  it('führt für den Jail keine eigene Liste mehr', () => {
+    // Der Schlüssel bleibt im Schema, damit bestehende Einträge nicht
+    // verlorengehen - gelesen wird er nicht mehr, und im Formular steht er
+    // auch nicht: ein Feld, das man ausfüllen kann und das nichts bewirkt,
+    // wäre schlimmer als keines.
+    expect(jail).not.toHaveProperty('jailReasonPresets');
 
-    expect(gruende.filter((grund) => grund === 'Bot')).toHaveLength(1);
-    expect(gruende).toEqual(['Spam', 'Bot', 'Unter 16']);
-  });
-
-  it('bleibt konfigurierbar - eine eigene Liste ersetzt die Vorgabe', () => {
-    const eigene = jail.jailReasonPresets({ reasonPresets: 'Nur dieser eine Grund' });
-
-    expect(eigene).toEqual(['Nur dieser eine Grund']);
+    const modul = listModuleDefinitions().find((eintrag) => eintrag.id === 'jail');
+    expect(
+      modul?.settingsFields?.some((feld) => feld.key === 'reasonPresets'),
+    ).toBe(false);
   });
 });

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { PartyPopper, RotateCcw, SkipForward, Ticket } from 'lucide-react';
+import { PartyPopper, SkipForward, Ticket } from 'lucide-react';
 import type { XpRaffleStatus } from '@swisshub/database';
 import { Button } from '@/components/ui/button';
 import { DiscordAvatar } from '@/components/shared/discord-avatar';
@@ -90,8 +90,6 @@ export function RaffleStage({
    * wieder abbricht, noch ein Gewinner, der kurz aufblitzt.
    */
   const [revealed, setRevealed] = useState(initialStatus === 'CANCELLED');
-  /** Zaehlt jedes «nochmal ansehen» - er stoesst die Drehung erneut an. */
-  const [durchgang, setDurchgang] = useState(0);
   /**
    * Hat der Stand sich geaendert, waehrend diese Seite offen war?
    *
@@ -246,17 +244,6 @@ export function RaffleStage({
     merkeGesehen();
   }, [merkeGesehen]);
 
-  /**
-   * Noch einmal ansehen.
-   *
-   * Der Vermerk bleibt bestehen - wer ausdruecklich darauf klickt, will die
-   * Drehung jetzt sehen und nicht bei jedem kuenftigen Aufruf.
-   */
-  const nochmal = useCallback(() => {
-    setRevealed(false);
-    setDurchgang((wert) => wert + 1);
-  }, []);
-
   const teilnehmen = async (): Promise<void> => {
     const result = await enterRaffleAction({ csrfToken, raffleId });
     if (!result.ok) {
@@ -286,7 +273,15 @@ export function RaffleStage({
         winnerEntryId={schonGesehen === null ? null : (winner?.entryId ?? null)}
         animationSeed={seed}
         spinning={spinning}
-        runId={durchgang}
+        /*
+          Ein Lauf je geladener Seite. Frueher zaehlte hier ein Knopf mit, der
+          die Drehung noch einmal anstiess - die Ziehung ist aber ein Moment
+          und keine Aufzeichnung: was einmal gelaufen ist, ist gelaufen, und
+          das Ergebnis steht ohnehin darunter. Der Knopf lud dazu ein, es
+          mehrfach anzusehen, und liess die Seite dabei jedes Mal so aussehen,
+          als sei die Ziehung noch offen.
+        */
+        runId={0}
         onSpinEnd={handleSpinEnd}
       />
 
@@ -331,12 +326,6 @@ export function RaffleStage({
             <p className="mt-3 text-xs text-muted-foreground">
               Noch nicht bestätigt – die Verwaltung prüft das Ergebnis.
             </p>
-          ) : null}
-          {status === 'COMPLETED' && (revealOnOpen || liveWechsel) ? (
-            <Button variant="outline" size="sm" className="mt-4" onClick={nochmal}>
-              <RotateCcw aria-hidden="true" />
-              Animation erneut ansehen
-            </Button>
           ) : null}
         </div>
       ) : null}

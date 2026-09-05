@@ -4,7 +4,6 @@ import { AlertTriangle, CheckCircle2, Clock, Gavel, Inbox, UserX } from 'lucide-
 import { can } from '@swisshub/auth';
 import { resolveGuildId } from '@swisshub/discord';
 import { appeals, isModuleEnabled } from '@swisshub/modules';
-import type { AppealStatus } from '@swisshub/database';
 import { Button } from '@/components/ui/button';
 import { Panel } from '@/components/shared/panel';
 import { StatCard } from '@/components/shared/stat-card';
@@ -16,30 +15,29 @@ export const dynamic = 'force-dynamic';
 
 const P = appeals.APPEALS_PERMISSIONS;
 
-/** Die Ansichten der Übersicht (§14). */
-const ANSICHTEN = {
-  offen: {
-    label: 'Offen',
-    status: [
-      'SUBMITTED',
-      'UNDER_REVIEW',
-      'WAITING_FOR_STAFF',
-      'ESCALATED',
-      'DECISION_PENDING',
-    ] as AppealStatus[],
-  },
-  meine: { label: 'Mir zugewiesen', status: [] as AppealStatus[] },
-  unzugewiesen: { label: 'Unzugewiesen', status: [] as AppealStatus[] },
-  wartet: { label: 'Wartet auf Antragsteller', status: ['WAITING_FOR_APPLICANT'] as AppealStatus[] },
-  eskaliert: { label: 'Eskaliert', status: ['ESCALATED'] as AppealStatus[] },
-  entschieden: { label: 'Entschieden', status: ['APPROVED', 'REJECTED'] as AppealStatus[] },
-  abgeschlossen: {
-    label: 'Abgeschlossen',
-    status: ['CLOSED', 'WITHDRAWN', 'EXPIRED', 'RESOLVED_EXTERNALLY'] as AppealStatus[],
-  },
-} as const;
+/**
+ * Zwei Reiter, und keiner mehr.
+ *
+ * Das Team hat genau zwei Fragen an diese Liste: «woran muss ich arbeiten?»
+ * und «was ist erledigt?». Vorher standen hier sieben Reiter. Jeder einzelne
+ * war nachvollziehbar - «Mir zugewiesen», «Wartet auf Antragsteller»,
+ * «Eskaliert» -, zusammen waren sie eine Sortieraufgabe vor der eigentlichen
+ * Arbeit, und mehrere zeigten dieselben Fälle noch einmal.
+ *
+ * Was sie geleistet haben, leisten jetzt die Filter darunter: Suche und
+ * Bearbeiter grenzen innerhalb der beiden Reiter weiter ein, und der Status
+ * jedes Falls steht an seiner Zeile.
+ *
+ * Welche Status wohin gehören, entscheidet das Modul und nicht diese Seite -
+ * die Statusliste stand vorher an drei Stellen, und eine Zahl, die anders
+ * zählt als die Liste darunter, ist schlimmer als keine Zahl.
+ */
+const ANSICHTEN: Record<appeals.AppealAnsicht, { label: string }> = {
+  offen: { label: 'Offen' },
+  entschieden: { label: 'Entschieden' },
+};
 
-type AnsichtKey = keyof typeof ANSICHTEN;
+type AnsichtKey = appeals.AppealAnsicht;
 
 const STATUS_FARBE: Record<string, string> = {
   SUBMITTED: 'text-primary',
@@ -93,25 +91,21 @@ export default async function AppealsPage({
    * dargestellt wird.
    */
   const darfAlles = can(context, P.viewAll);
-  const bearbeiterFilter =
-    ansicht === 'meine'
-      ? context.user.discordId
-      : ansicht === 'unzugewiesen'
-        ? null
-        : darfAlles
-          ? undefined
-          : context.user.discordId;
+  const bearbeiterFilter = darfAlles ? undefined : context.user.discordId;
 
-  const [{ zeilen, naechsterCursor }, zahlen] = await Promise.all([
+  const [{ zeilen, naechsterCursor }, zahlen, reiterZahlen] = await Promise.all([
     appeals.listeAppeals({
       guildId,
-      ...(ANSICHTEN[ansicht].status.length > 0 ? { status: [...ANSICHTEN[ansicht].status] } : {}),
+      status: [...appeals.statusFuerAnsicht(ansicht)],
       ...(bearbeiterFilter !== undefined ? { bearbeiter: bearbeiterFilter } : {}),
       ...(q ? { suche: q } : {}),
       ...(cursor ? { cursor } : {}),
       limit: 25,
     }),
     appeals.kennzahlen(guildId),
+    // Dieselbe Einschränkung wie die Liste - sonst zeigte die Zahl am Reiter
+    // Fälle mit, die darunter gar nicht erscheinen.
+    appeals.zaehleAnsichten(guildId, bearbeiterFilter),
   ]);
 
   const link = (key: AnsichtKey): string =>
@@ -167,7 +161,10 @@ export default async function AppealsPage({
               size="sm"
               asChild
             >
-              <Link href={link(key)}>{ANSICHTEN[key].label}</Link>
+              <Link href={link(key)}>
+                {ANSICHTEN[key].label}
+                <span className="ml-1.5 tabular-nums opacity-70">{reiterZahlen[key]}</span>
+              </Link>
             </Button>
           ))}
         </div>

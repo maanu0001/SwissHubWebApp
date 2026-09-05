@@ -1,6 +1,51 @@
+import { z } from 'zod';
 import { CORE_PERMISSIONS, MEMBER_CENTER_PERMISSIONS } from '@swisshub/permissions';
 import { MODERATION_CENTER_PERMISSIONS } from './moderation/permissions';
+import { STANDARD_REASON_TEMPLATES } from './moderation/reasons';
+import type { SettingsField } from './settings/fields';
 import { registerModule } from './registry';
+
+/**
+ * Einstellungen der Moderation.
+ *
+ * Bisher hatte das Modul keine - der Reiter «Einstellungen» führte auf eine
+ * leere Seite. Was hier steht, sind die Gründe: die Vorgaben lassen sich
+ * ergänzen und einzelne ausblenden, und beides an genau einer Stelle für alle
+ * Massnahmen. Das Jail-Modul führte dafür einmal eine eigene Liste; sie ist
+ * hier aufgegangen, weil Jail inzwischen eine Massnahme der Moderation ist.
+ */
+const moderationSettingsSchema = z.object({
+  /** Eigene Gründe, eine Zeile je Grund. Leer heisst: nur die Vorgaben. */
+  reasonTemplates: z.string().max(2000).default(''),
+  /**
+   * Vorgaben, die dieser Server nicht anbietet - je Kennung eine Zeile.
+   *
+   * Ausblenden statt loeschen: die Vorgaben stehen im Code, und ein Server,
+   * der «Voice-Verhalten» nicht braucht, soll deswegen nicht die ganze Liste
+   * abschreiben muessen.
+   */
+  disabledReasonTemplates: z.string().max(1000).default(''),
+});
+
+const moderationSettingsFields: SettingsField[] = [
+  {
+    key: 'reasonTemplates',
+    label: 'Eigene Gründe',
+    description:
+      'Eine Zeile je Grund. Sie erscheinen zusätzlich zu den Vorgaben als Schnellauswahl bei jeder Massnahme. Der Text lässt sich danach im Formular weiter anpassen.',
+    type: 'textarea',
+    group: 'Gründe',
+  },
+  {
+    key: 'disabledReasonTemplates',
+    label: 'Vorgaben ausblenden',
+    description: `Je Zeile eine Kennung. Verfügbar: ${STANDARD_REASON_TEMPLATES.map(
+      (vorlage) => vorlage.id,
+    ).join(', ')}.`,
+    type: 'textarea',
+    group: 'Gründe',
+  },
+];
 
 /**
  * Kernbereiche der Anwendung.
@@ -84,6 +129,8 @@ registerModule({
     ...CORE_PERMISSIONS.filter((entry) => entry.module === 'core' && entry.key.startsWith('moderation.')),
     ...MODERATION_CENTER_PERMISSIONS,
   ],
+  settingsSchema: moderationSettingsSchema,
+  settingsFields: moderationSettingsFields,
   navigation: [
     {
       href: '/moderation',

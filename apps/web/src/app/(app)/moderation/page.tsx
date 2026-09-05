@@ -10,7 +10,7 @@ import { Panel } from '@/components/shared/panel';
 import { EmptyState } from '@/components/shared/states';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { csrfTokenFor, requirePagePermission } from '@/server/auth';
-import { moderationAbilities, moderationOverviewScope, moderationSections } from '@/server/moderation';
+import { alleReasonTemplates, moderationAbilities, moderationOverviewScope, moderationSections } from '@/server/moderation';
 import { ModerationSectionNav } from '@/modules/moderation/components/section-nav';
 import { ModerationDialog } from '@/modules/moderation/components/moderation-dialog';
 import { ActionTypeBadge } from '@/modules/moderation/components/action-type-badge';
@@ -37,6 +37,7 @@ export default async function ModerationPage(): Promise<React.JSX.Element> {
 
   const scope = moderationOverviewScope(context);
   const abilities = moderationAbilities(context);
+  const grundVorlagen = await alleReasonTemplates();
   const darfHistorie = can(context, p.historyView);
 
   const [kennzahlen, letzte, timeouts, auffaellig, moderatoren] = await Promise.all([
@@ -57,7 +58,13 @@ export default async function ModerationPage(): Promise<React.JSX.Element> {
         <p className="text-sm text-muted-foreground">
           Massnahmen des Servers - Jail, Bann, Kick und Timeout in einer Akte.
         </p>
-        {abilities.any ? <ModerationDialog csrfToken={csrfToken} abilities={abilities} /> : null}
+        {abilities.any ? (
+          <ModerationDialog
+            csrfToken={csrfToken}
+            abilities={abilities}
+            grundVorlagen={grundVorlagen}
+          />
+        ) : null}
       </div>
 
       <div className="grid gap-4 [grid-template-columns:repeat(auto-fit,minmax(min(100%,15rem),1fr))]">

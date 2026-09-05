@@ -2517,6 +2517,10 @@ model Ticket {
   @@index([assignedToDiscordId, status])
   @@index([status, lastMessageAt])
   @@index([guildId, closedAt])
+  /// Faellige Kanalloeschungen. Der Aufraeumlauf fragt alle paar Sekunden
+  /// danach und findet fast immer nichts - ohne diesen Index waere das ein
+  /// Seq Scan ueber alle Tickets, mehrmals pro Minute.
+  @@index([channelPurgeAt])
 }
 
 /// Wer ausser dem Ersteller Zugriff auf ein Ticket hat.

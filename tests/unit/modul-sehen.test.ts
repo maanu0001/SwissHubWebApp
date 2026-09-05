@@ -109,10 +109,15 @@ describe('«Modul sehen» - Sidebar', () => {
       alleRechte.filter((recht) => recht !== 'level.module.view'),
       ALLE_MODULE,
     );
-    expect(ohne.some((eintrag) => eintrag.moduleId === 'level')).toBe(false);
+    // Übrig bleibt genau der eine Eintrag, der an der Anmeldung hängt und
+    // nicht an einer Zuteilung - das XP-Glücksrad gehört der ganzen
+    // Gemeinschaft. Alles andere aus dem Level-System ist weg.
+    expect(ohne.filter((eintrag) => eintrag.moduleId === 'level').map((e) => e.href)).toEqual([
+      '/xp-gluecksrad',
+    ]);
 
     const mit = buildNavigation(alleRechte, ALLE_MODULE);
-    expect(mit.filter((eintrag) => eintrag.moduleId === 'level').length).toBeGreaterThan(0);
+    expect(mit.filter((eintrag) => eintrag.moduleId === 'level').length).toBeGreaterThan(1);
   });
 
   it('lässt admin.full und Wildcards weiterhin alles sehen', () => {

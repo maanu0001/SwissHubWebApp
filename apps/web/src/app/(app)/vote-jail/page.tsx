@@ -158,6 +158,14 @@ export default async function VoteJailsPage(): Promise<React.JSX.Element> {
             resultSeconds={config.resultSeconds}
             channelName={channelName}
             disabled={!enabled || !config.enabled || !config.channelId}
+            /*
+              Nach Namen sucht nur, wer Mitglieder ohnehin einsehen darf. Für
+              alle anderen ist die Abstimmung kein Grund, den Server
+              durchsuchen zu können - sie geben die Kennung ein, die sie
+              ohnehin kennen, oder nehmen /vote_jail auf Discord. Die Aktion
+              prüft dasselbe noch einmal.
+            */
+            darfSuchen={can(context, 'members.view')}
           />
         ) : null}
       </PageToolbar>

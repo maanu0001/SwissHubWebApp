@@ -43,6 +43,7 @@ import { CreateJailDialog } from '@/modules/jail/components/create-jail-dialog';
 import { SetupProgress } from '@/modules/configuration/components/setup-progress';
 import { csrfTokenFor, requirePagePermission } from '@/server/auth';
 import { loadDashboardData } from '@/server/dashboard';
+import { moderationReasonTemplates } from '@/server/moderation';
 
 export const metadata: Metadata = { title: 'Dashboard' };
 export const dynamic = 'force-dynamic';
@@ -68,13 +69,15 @@ export default async function DashboardPage(): Promise<React.JSX.Element> {
   const darfNutzen = (permission: string, moduleId: string): boolean =>
     can(context, permission) && moduleIds.has(moduleId);
 
-  const [data, moduleStatus, moduleIds, jailSettings, health, logoUrl] = await Promise.all([
+  const [data, moduleStatus, moduleIds, jailSettings, health, logoUrl, grundVorlagen] =
+    await Promise.all([
     loadDashboardData({ canViewJails, canViewAudit, canViewModeration }),
     listModuleStatus(),
     enabledModuleIds(),
     getModuleSettings<jail.JailSettings>(jail.JAIL_MODULE_ID),
     canViewSettings ? getSystemHealth() : Promise.resolve(null),
     brandingModule.currentLogoUrl(),
+    moderationReasonTemplates('JAIL'),
   ]);
 
   /**
@@ -562,7 +565,7 @@ export default async function DashboardPage(): Promise<React.JSX.Element> {
                     csrfToken={csrfToken}
                     durationPresets={jail.JAIL_DURATION_PRESETS}
                     maxDurationSeconds={jailSettings.maxDurationSeconds}
-                    reasonPresets={jail.jailReasonPresets(jailSettings)}
+                    reasonPresets={grundVorlagen}
                     announceByDefault={!jailSettings.silentByDefault}
                     variant="quick-action"
                     triggerLabel="Mitglied jailen"

@@ -6,7 +6,7 @@ import { moderation } from '@swisshub/modules';
 import { DataTable } from '@/components/shared/data-table';
 import { EmptyState } from '@/components/shared/states';
 import { requirePagePermission, csrfTokenFor } from '@/server/auth';
-import { moderationAbilities, moderationSections } from '@/server/moderation';
+import { alleReasonTemplates, moderationAbilities, moderationSections } from '@/server/moderation';
 import { ModerationSectionNav } from '@/modules/moderation/components/section-nav';
 import { ModerationDialog } from '@/modules/moderation/components/moderation-dialog';
 import { UnbanButton } from '@/modules/moderation/components/unban-button';
@@ -35,6 +35,7 @@ export default async function ModerationBannsPage(): Promise<React.JSX.Element> 
   const context = await requirePagePermission([p.ban, p.unban]);
 
   const abilities = moderationAbilities(context);
+  const grundVorlagen = await alleReasonTemplates();
   const darfEntbannen = can(context, p.unban);
 
   // Faellt Discord aus, wird das gesagt - keine leere Liste, die aussieht wie
@@ -56,7 +57,12 @@ export default async function ModerationBannsPage(): Promise<React.JSX.Element> 
           ohne Eintrag in unserer Akte.
         </p>
         {abilities.ban ? (
-          <ModerationDialog csrfToken={csrfToken} abilities={abilities} triggerLabel="Bann aussprechen" />
+          <ModerationDialog
+            csrfToken={csrfToken}
+            abilities={abilities}
+            triggerLabel="Bann aussprechen"
+            grundVorlagen={grundVorlagen}
+          />
         ) : null}
       </div>
 

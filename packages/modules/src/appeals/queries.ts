@@ -1,7 +1,12 @@
 import { prisma } from '@swisshub/database';
 import type { AppealPriority, AppealStatus } from '@swisshub/database';
 import { formatFallnummer } from './numbering';
-import { STATUS_LABEL_ANTRAGSTELLER } from './status';
+import {
+  OFFENE_STATUS,
+  STATUS_LABEL_ANTRAGSTELLER,
+  statusFuerAnsicht,
+  type AppealAnsicht,
+} from './status';
 import type { BanSnapshot } from './eligibility';
 import { snapshotFuerAntragsteller } from './eligibility';
 
@@ -312,16 +317,35 @@ export interface AppealKennzahlen {
   entbannungOffen: number;
 }
 
+/**
+ * Wie viele Faelle in jedem der beiden Reiter stehen.
+ *
+ * Bewusst dieselben Filter wie die Liste - Reiter und Zahl daneben duerfen
+ * nicht auseinanderlaufen. Der Bearbeiterfilter geht mit ein: wer nur die
+ * eigenen Faelle sieht, soll auch nur die eigenen gezaehlt bekommen.
+ */
+export async function zaehleAnsichten(
+  guildId: string,
+  bearbeiter?: string | null,
+): Promise<Record<AppealAnsicht, number>> {
+  const wo = bearbeiter === undefined ? {} : { assignedToDiscordId: bearbeiter };
+  const [offen, entschieden] = await Promise.all([
+    prisma.appeal.count({
+      where: { guildId, status: { in: [...statusFuerAnsicht('offen')] }, ...wo },
+    }),
+    prisma.appeal.count({
+      where: { guildId, status: { in: [...statusFuerAnsicht('entschieden')] }, ...wo },
+    }),
+  ]);
+  return { offen, entschieden };
+}
+
 export async function kennzahlen(guildId: string, jetzt = new Date()): Promise<AppealKennzahlen> {
   const wocheZurueck = new Date(jetzt.getTime() - 7 * 24 * 3600_000);
-  const offeneStatus: AppealStatus[] = [
-    'SUBMITTED',
-    'UNDER_REVIEW',
-    'WAITING_FOR_APPLICANT',
-    'WAITING_FOR_STAFF',
-    'ESCALATED',
-    'DECISION_PENDING',
-  ];
+  // Dieselbe Liste, die auch die Fallliste filtert. Sie stand hier einmal ein
+  // zweites Mal ausgeschrieben - und eine Zahl, die anders zaehlt als die
+  // Liste darunter, ist schlimmer als keine Zahl.
+  const offeneStatus: AppealStatus[] = [...OFFENE_STATUS];
 
   const [offen, ohneBearbeiter, wartet, neu, genehmigt, abgelehnt, entbannungOffen, entschieden] =
     await Promise.all([

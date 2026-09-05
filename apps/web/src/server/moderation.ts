@@ -101,3 +101,43 @@ export function moderationAbilities(context: AuthContext): ModerationAbilities {
 }
 
 export type { ModerationAbilities, ModerationSection };
+
+/**
+ * Die Grundvorlagen einer Massnahme.
+ *
+ * Eine Stelle für alle Masken - die Gründe stehen in den Moduleinstellungen
+ * der Moderation, und jede Maske, die einen Grund erfragt, holt sie von hier.
+ * Vorher entschied jede für sich, welche sie anbietet, und bot deshalb andere
+ * an: das Jail-Modul hatte eine eigene Liste, das Moderation Center gar keine.
+ *
+ * Zurück kommen fertige Texte, keine Vorlagen-Objekte: die Maske füllt damit
+ * ein Feld, das danach frei bearbeitet wird. Welche Vorlage angeklickt wurde,
+ * ist für die Akte ohne Belang - dort steht, was am Ende dastand.
+ */
+export async function moderationReasonTemplates(
+  action: moderation.ModerationAction,
+): Promise<string[]> {
+  const { getModuleSettings } = await import('@swisshub/modules');
+  const settings = await getModuleSettings<moderation.ReasonTemplateQuelle>('moderation');
+  return moderation.reasonTemplatesFor(action, settings).map((vorlage) => vorlage.reasonText);
+}
+
+/**
+ * Die Vorlagen für jede Massnahme, die eine Maske anbietet.
+ *
+ * Ein Aufruf statt sechs: die Maske bekommt alles auf einmal, und wechselt
+ * jemand dort die Massnahme, stehen die passenden Gründe schon da.
+ */
+export async function alleReasonTemplates(): Promise<
+  Partial<Record<moderation.ModerationAction, string[]>>
+> {
+  const { getModuleSettings } = await import('@swisshub/modules');
+  const settings = await getModuleSettings<moderation.ReasonTemplateQuelle>('moderation');
+
+  return Object.fromEntries(
+    moderation.MODERATION_ACTIONS.map((action) => [
+      action,
+      moderation.reasonTemplatesFor(action, settings).map((vorlage) => vorlage.reasonText),
+    ]),
+  );
+}

@@ -83,9 +83,11 @@ describeWithDatabase('«Modul sehen» nachtragen', () => {
   });
 
   it('gibt jeder Rolle genau die Bereiche zurück, die sie vorher sah', async () => {
-    // Vor dem Nachtrag: die Seitenleiste ist leer, weil der neue Schlüssel
-    // niemandem gehört. Genau der Zustand, den der Nachtrag verhindern soll.
-    expect((await sichtbareModule(MODERATOR)).size).toBe(0);
+    // Vor dem Nachtrag: die Seitenleiste zeigt nichts, was zugeteilt werden
+    // muss - genau der Zustand, den der Nachtrag verhindern soll. Das
+    // XP-Glücksrad steht trotzdem da: es hängt an der Anmeldung und nicht an
+    // einer Zuteilung, und ein fehlender Schlüssel ist genau so eine.
+    expect(await sichtbareModule(MODERATOR)).toEqual(new Set(['level']));
 
     await backfillModuleViewPermissions();
 

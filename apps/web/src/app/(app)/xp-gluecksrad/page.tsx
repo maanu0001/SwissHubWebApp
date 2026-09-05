@@ -15,7 +15,7 @@ import {
   formatNumber,
   formatXp,
 } from '@/modules/level/components/raffle-shared';
-import { csrfTokenFor, requirePagePermission } from '@/server/auth';
+import { csrfTokenFor, requireMember } from '@/server/auth';
 
 export const metadata: Metadata = {
   title: 'SwissHub XP-Glücksrad',
@@ -30,7 +30,15 @@ export const dynamic = 'force-dynamic';
  * Layout: hier geht es um Teilnehmen und Zuschauen, nicht um Einstellungen.
  */
 export default async function PublicRafflePage(): Promise<React.JSX.Element> {
-  const context = await requirePagePermission(level.LEVEL_PERMISSIONS.raffleView);
+  // Die Seite gehört der ganzen Gemeinschaft: jedes angemeldete Mitglied darf
+  // sie öffnen, ohne dass ihm jemand ein Recht zuteilen muss. Dasselbe sagt
+  // `baseline` am Navigationseintrag - die Seitenleiste ist Darstellung, und
+  // wer die Adresse kennt, umgeht sie; deshalb steht es hier noch einmal.
+  //
+  // Sichtbar ist nicht erlaubt: was man hier tun kann, entscheiden weiterhin
+  // die einzelnen Berechtigungen, und zwar unten in dieser Datei und in jeder
+  // Server Action dahinter.
+  const context = await requireMember();
   const csrfToken = csrfTokenFor(context);
 
   if (!(await isModuleEnabled(level.LEVEL_MODULE_ID))) {

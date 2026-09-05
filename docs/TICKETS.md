@@ -348,3 +348,57 @@ Nach dem Start:
 | `apps/bot/src/ticket-messages.ts`              | Nachrichten aus Ticket-Kanälen übernehmen    |
 | `apps/web/src/app/(app)/tickets/`              | Seiten                                       |
 | `apps/web/src/modules/tickets/`                | Server Actions und Komponenten               |
+
+---
+
+## Abschluss und Kanallöschung
+
+Ein Ticket wird über **genau eine** Funktion geschlossen: `closeTicket()`.
+Dashboard, Discord-Knopf und der selbsttätige Abschluss rufen dieselbe auf —
+es gibt keinen zweiten Abschlussweg und keine zweite Löschlogik.
+
+Die Reihenfolge ist Absicht:
+
+1. **Fachlich schliessen.** Status `CLOSED`, `closedAt`, `closedByDiscordId`,
+   Grund und der Fälligkeitszeitpunkt der Kanallöschung — alles in einem
+   `updateMany` mit `closedAt: null` in der Bedingung. Genau ein Aufruf
+   bekommt den Zuschlag; ein zweiter, gleichzeitiger bekommt das geschlossene
+   Ticket zurück, ohne etwas anzustossen.
+2. **Folgearbeiten.** Ereignis im Verlauf, Abschlussmeldung im Kanal,
+   Transcript, Sperre, Bewertungsfrage. Keine davon darf den Abschluss noch
+   umstossen — ein Ticket, das in der Datenbank geschlossen ist und dem
+   Klickenden trotzdem einen Fehler meldet, ist genau das, was «es liess sich
+   nicht schliessen» heisst.
+3. **Kanal löschen**, fünf Sekunden später.
+
+### Warum fünf Sekunden und nicht null
+
+Bei null verschwindet der Kanal im selben Moment, in dem jemand auf
+«Schliessen» klickt. Die Abschlussmeldung liest dann niemand mehr, und es
+sieht nach einem Absturz aus.
+
+### Wie die fünf Sekunden überleben
+
+Die Zusage steht in der Datenbank (`channelPurgeAt`), nicht im
+Arbeitsspeicher. Den Regelfall erledigt ein `setTimeout` im schliessenden
+Prozess — er ist eine Abkürzung, keine Zusage, und wird nicht nachgehalten.
+
+Fällt er aus (Neustart, Deployment, Absturz), greift der Aufräumlauf
+`ticket-kanaele` alle 15 Sekunden. Er ist billig: die Fälligkeit ist
+indiziert, und fast immer findet er nichts.
+
+`scheduleOrphanedChannels()` deckt den letzten Fall ab: ein Ticket, das
+geschlossen wurde, als «nie löschen» galt, trägt keine Fälligkeit — sein
+Kanal stünde für immer. Der Wartungslauf trägt sie nach, ab dem Abschluss
+gerechnet.
+
+### Idempotenz
+
+Der Löschauftrag wird beansprucht, ehe er ausgeführt wird — sonst schickten
+der Wecker im Web-Prozess und der Auftrag im Bot zwei DELETE für denselben
+Kanal. Ein Kanal, den es nicht mehr gibt (Discord antwortet mit 404), gilt als
+erledigt und nicht als Fehler.
+
+Scheitert die Löschung aus einem anderen Grund, bleibt das Ticket
+**geschlossen**. Der Kanal ist die Discord-Darstellung des Tickets, nicht das
+Ticket.

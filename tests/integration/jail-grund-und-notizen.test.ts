@@ -206,19 +206,10 @@ describe('Dauer', () => {
 });
 
 describe('Vordefinierte Gründe', () => {
-  it('liest sie zeilenweise aus den Einstellungen', () => {
-    expect(jail.jailReasonPresets({ reasonPresets: 'Spam\nBeleidigung\nRegelverstoss' })).toEqual([
-      'Spam',
-      'Beleidigung',
-      'Regelverstoss',
-    ]);
-  });
-
-  it('lässt leere Zeilen, Doppelte und Unbrauchbares weg', () => {
-    expect(
-      jail.jailReasonPresets({ reasonPresets: ' Spam \n\n Spam\n  \nok\nBeleidigung ' }),
-    ).toEqual(['Spam', 'Beleidigung']);
-  });
+  // Die Liste selbst gehört jetzt der Moderation - Jail ist eine Massnahme
+  // darin, und zwei Listen für dieselbe Frage waren eine zu viel. Was sie
+  // leistet, prüft `moderation-gruende`; hier bleibt, was den Jail betrifft:
+  // dass eine Vorlage die freie Eingabe nicht ersetzt.
 
   it('ersetzt die freie Eingabe nicht', async () => {
     // Ein Grund, der in keiner Vorlage steht, geht trotzdem durch.

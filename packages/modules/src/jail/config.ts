@@ -85,6 +85,14 @@ export const jailSettingsSchema = z.object({
    * konfigurierbar statt fest verdrahtet - welche Gruende auf einem Server
    * vorkommen, weiss der Server und nicht diese Anwendung.
    */
+  /**
+   * @deprecated Altbestand.
+   *
+   * Die Gruende stehen jetzt bei der Moderation - Jail ist eine Massnahme
+   * darin, und zwei Listen fuer dieselbe Frage waren eine zu viel. Der
+   * Schluessel bleibt, damit bestehende Eintraege nicht verlorengehen; die
+   * Migration `moderation_gruende_zusammenfuehren` hat sie uebernommen.
+   */
   reasonPresets: z
     .string()
     .max(2000)
@@ -180,20 +188,6 @@ export type JailSettings = z.infer<typeof jailSettingsSchema>;
  * einer Stelle, damit nicht jede Oberflaeche ihr eigenes Trennen erfindet.
  * Leere Zeilen und Doppelte fallen weg; die Reihenfolge bleibt.
  */
-export function jailReasonPresets(settings: Pick<JailSettings, 'reasonPresets'>): string[] {
-  const gesehen = new Set<string>();
-  return settings.reasonPresets
-    .split('\n')
-    .map((zeile) => zeile.trim())
-    .filter((zeile) => {
-      if (zeile.length < 3 || zeile.length > 100 || gesehen.has(zeile)) {
-        return false;
-      }
-      gesehen.add(zeile);
-      return true;
-    })
-    .slice(0, 25);
-}
 
 /** Platzhalterhilfe - steht direkt am ersten Vorlagenfeld. */
 const PLACEHOLDER_HELP = `Verfügbare Platzhalter: ${JAIL_TEMPLATE_PLACEHOLDERS.map(
@@ -217,16 +211,6 @@ export const jailSettingsFields: SettingsField[] = [
     group: 'Discord',
     required: true,
     mustBeManageable: true,
-  },
-  {
-    key: 'reasonPresets',
-    type: 'textarea',
-    label: 'Vordefinierte Gründe',
-    description:
-      'Ein Grund je Zeile. Sie erscheinen beim Jailen zur Auswahl - getippt werden kann weiterhin frei. Der Grund bleibt intern.',
-    group: 'Verhalten',
-    maxLength: 2000,
-    placeholder: 'Spam\nBeleidigung\nRegelverstoss',
   },
   {
     key: 'keepRoleIds',

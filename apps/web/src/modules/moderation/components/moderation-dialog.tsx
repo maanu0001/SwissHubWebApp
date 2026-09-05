@@ -125,6 +125,14 @@ interface ModerationDialogProps {
   /** Vorausgewähltes Mitglied, z.B. aus dem Mitgliederprofil. */
   presetMember?: PickedMember;
   triggerLabel?: string;
+  /**
+   * Grundvorlagen je Massnahme.
+   *
+   * Serverseitig aus den Moduleinstellungen der Moderation - eine Liste für
+   * alle Masken. Was hier fehlt, zeigt die Maske schlicht nicht an; die
+   * freie Eingabe bleibt in jedem Fall.
+   */
+  grundVorlagen?: Partial<Record<Massnahme, readonly string[]>>;
   variant?: 'button' | 'outline';
 }
 
@@ -144,6 +152,7 @@ export function ModerationDialog({
   abilities,
   presetMember,
   triggerLabel = 'Massnahme ergreifen',
+  grundVorlagen = {},
   variant = 'button',
 }: ModerationDialogProps): React.JSX.Element | null {
   const verfuegbar = useMemo(() => MASSNAHMEN.filter((eintrag) => abilities[eintrag.darf]), [abilities]);
@@ -400,6 +409,36 @@ export function ModerationDialog({
 
               <div className="space-y-2">
                 <Label htmlFor="moderation-reason">Grund</Label>
+
+                {/*
+                  Vorlagen als Schnellauswahl. Sie füllen das Feld und sind
+                  damit fertig - danach lässt sich der Text ergänzen, kürzen
+                  oder ganz ersetzen. In die Akte kommt, was am Ende dasteht,
+                  nicht die Vorlage.
+
+                  Der Grund, weshalb es sie gibt: derselbe Sachverhalt stand
+                  vorher als «Spam», «spam» und «spammt seit Tagen» in der
+                  Akte, und keine Auswertung darüber war je etwas wert.
+                */}
+                {(grundVorlagen[massnahme] ?? []).length > 0 ? (
+                  <div className="flex flex-wrap gap-1.5">
+                    {(grundVorlagen[massnahme] ?? []).map((vorlage) => (
+                      <button
+                        key={vorlage}
+                        type="button"
+                        onClick={() => setReason(vorlage)}
+                        className={
+                          reason === vorlage
+                            ? 'min-h-8 rounded-lg border border-primary/40 bg-primary/10 px-2.5 text-xs text-primary'
+                            : 'min-h-8 rounded-lg border border-border px-2.5 text-xs text-muted-foreground hover:bg-muted'
+                        }
+                      >
+                        {vorlage}
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
+
                 <Textarea
                   id="moderation-reason"
                   value={reason}

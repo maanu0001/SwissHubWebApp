@@ -19,6 +19,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/input';
 import { MemberPicker, type PickedMember } from '@/modules/members/components/member-picker';
 import { searchVoteJailTargetsAction, startVoteJailAction } from '@/modules/jail/actions';
+import { ZielUeberKennung } from '@/modules/jail/components/ziel-ueber-kennung';
 
 /**
  * Abstimmung starten.
@@ -33,6 +34,7 @@ export function StartVoteJailDialog({
   resultSeconds,
   channelName,
   disabled,
+  darfSuchen,
 }: {
   csrfToken: string;
   requiredVotes: number;
@@ -40,6 +42,15 @@ export function StartVoteJailDialog({
   resultSeconds: number;
   channelName: string | null;
   disabled?: boolean;
+  /**
+   * Darf dieser Mensch nach Namen suchen?
+   *
+   * Eine Namenssuche beantwortet «wer ist alles da?», und die Antwort ist
+   * eine Mitgliederliste. Wer sie ohnehin hat, sucht hier weiter; alle
+   * anderen geben die Kennung ein, die sie ohnehin kennen. Serverseitig
+   * entscheidet dasselbe noch einmal - hier steht nur, was gezeigt wird.
+   */
+  darfSuchen: boolean;
 }): React.JSX.Element {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -102,17 +113,27 @@ export function StartVoteJailDialog({
         </DialogHeader>
 
         <div className="space-y-4">
-          {/*
-            Eigene Suche statt der allgemeinen Mitgliedersuche: sie verlangt
-            nur `jail.vote.start` und zeigt ausschliesslich Mitglieder, gegen
-            die eine Abstimmung ueberhaupt zulaessig waere.
-          */}
-          <MemberPicker
-            csrfToken={csrfToken}
-            value={member}
-            onChange={setMember}
-            suche={searchVoteJailTargetsAction}
-          />
+          {darfSuchen ? (
+            /*
+              Für das Team: eine eigene Suche statt der allgemeinen
+              Mitgliedersuche. Sie zeigt ausschliesslich Mitglieder, gegen die
+              eine Abstimmung überhaupt zulässig wäre - eine Liste mit Zielen,
+              die beim Klick abgelehnt würden, wäre zugleich eine Auskunft
+              darüber, wer geschützt ist.
+            */
+            <MemberPicker
+              csrfToken={csrfToken}
+              value={member}
+              onChange={setMember}
+              suche={searchVoteJailTargetsAction}
+            />
+          ) : (
+            <ZielUeberKennung
+              csrfToken={csrfToken}
+              value={member}
+              onChange={setMember}
+            />
+          )}
 
           <div className="space-y-2">
             <Label htmlFor="vote-reason">Grund (optional)</Label>

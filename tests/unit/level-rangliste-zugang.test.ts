@@ -17,8 +17,18 @@ import { PERMISSION_PRESETS, resolvePreset } from '@swisshub/permissions';
 const ALLE_MODULE = new Set(listModuleDefinitions().map((modul) => modul.id));
 const LEVEL_SEHEN = moduleViewPermission('level');
 
+/**
+ * Die Level-Eintraege - ohne den, der immer dasteht.
+ *
+ * Das XP-Gluecksrad haengt an der Anmeldung und nicht an einer Zuteilung: es
+ * gehoert der ganzen Gemeinschaft. Hier geht es um die Eintraege, die man
+ * zugeteilt bekommt, und die Frage «welchen Weg bekommt jemand» beantwortet
+ * es nicht mit.
+ */
 const eintraege = (permissions: string[]) =>
-  buildNavigation(permissions, ALLE_MODULE).filter((eintrag) => eintrag.moduleId === 'level');
+  buildNavigation(permissions, ALLE_MODULE).filter(
+    (eintrag) => eintrag.moduleId === 'level' && eintrag.href !== '/xp-gluecksrad',
+  );
 
 describe('Zugang zur Rangliste', () => {
   it('führt einen reinen Ranglisten-Berechtigten direkt dorthin', () => {

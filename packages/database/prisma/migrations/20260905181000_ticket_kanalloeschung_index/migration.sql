@@ -1,0 +1,11 @@
+-- Index für die fälligen Kanallöschungen.
+--
+-- Der Aufräumlauf fragt jetzt alle paar Sekunden nach fälligen Tickets statt
+-- alle fünf Minuten - so verschwindet ein Kanal auch dann nach wenigen
+-- Sekunden, wenn der Prozess zwischen Abschluss und Löschung neu gestartet
+-- ist. Er findet dabei fast immer nichts, und genau deshalb braucht die
+-- Abfrage einen Index: ohne ihn wäre sie ein vollständiger Durchlauf über
+-- alle Tickets, mehrmals pro Minute.
+--
+-- `IF NOT EXISTS`: rein additiv, ein zweiter Lauf tut nichts.
+CREATE INDEX IF NOT EXISTS "Ticket_channelPurgeAt_idx" ON "Ticket"("channelPurgeAt");

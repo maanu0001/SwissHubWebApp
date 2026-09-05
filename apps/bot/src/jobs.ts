@@ -387,6 +387,31 @@ export function createJobRunner(
     },
     {
       /**
+       * Geschlossene Ticket-Kanaele abraeumen.
+       *
+       * Eigener, sehr kurzer Durchgang - getrennt vom grossen Ticket-Lauf,
+       * weil er etwas anderes leistet. Nach dem Schliessen soll der Kanal
+       * nach fuenf Sekunden verschwinden; den Regelfall erledigt ein Wecker
+       * im schliessenden Prozess. Faellt der aus - Neustart, Deployment,
+       * Absturz zwischen Abschluss und Loeschung -, bliebe der Kanal bis zum
+       * naechsten grossen Lauf stehen, und das sind fuenf Minuten.
+       *
+       * Dieser Durchgang macht daraus fuenfzehn Sekunden. Er ist billig: die
+       * Faelligkeit steht in der Datenbank und ist indiziert, und fast immer
+       * findet er nichts.
+       */
+      name: 'ticket-kanaele',
+      intervalMs: 15 * 1000,
+      async run() {
+        const { isModuleEnabled } = await import('@swisshub/modules');
+        if (!(await isModuleEnabled(tickets.TICKETS_MODULE_ID))) {
+          return;
+        }
+        await tickets.purgeDueChannels();
+      },
+    },
+    {
+      /**
        * Tickets: erinnern, selbsttaetig schliessen, aufraeumen.
        *
        * Fuenf Minuten sind fein genug - Fristen zaehlen in Tagen. Der

@@ -19,7 +19,7 @@ import { csrfTokenFor, requirePagePermission } from '@/server/auth';
 import { cn } from '@/lib/utils';
 import type { JailEntry } from '@swisshub/database';
 import { ModerationSectionNav } from '@/modules/moderation/components/section-nav';
-import { moderationSections } from '@/server/moderation';
+import { moderationReasonTemplates, moderationSections } from '@/server/moderation';
 
 export const metadata: Metadata = { title: 'Jail' };
 export const dynamic = 'force-dynamic';
@@ -37,10 +37,11 @@ export default async function JailPage({ searchParams }: JailPageProps): Promise
     search: params.search,
   });
 
-  const [result, settings, enabled] = await Promise.all([
+  const [result, settings, enabled, grundVorlagen] = await Promise.all([
     jail.listJails(query),
     getModuleSettings<jail.JailSettings>(jail.JAIL_MODULE_ID),
     isModuleEnabled(jail.JAIL_MODULE_ID),
+    moderationReasonTemplates('JAIL'),
   ]);
 
   const csrfToken = csrfTokenFor(context);
@@ -221,7 +222,7 @@ export default async function JailPage({ searchParams }: JailPageProps): Promise
               csrfToken={csrfToken}
               durationPresets={jail.JAIL_DURATION_PRESETS}
               maxDurationSeconds={settings.maxDurationSeconds}
-              reasonPresets={jail.jailReasonPresets(settings)}
+              reasonPresets={grundVorlagen}
               announceByDefault={!settings.silentByDefault}
             />
           ) : null

@@ -32,7 +32,11 @@ import { CustomCardPanel } from '@/modules/level/components/custom-card-panel';
 import { RemoveCustomCardButton } from '@/modules/level/components/remove-custom-card-button';
 import { csrfTokenFor, requireMember } from '@/server/auth';
 import { memberViewer } from '@/server/members';
-import { moderationAbilities } from '@/server/moderation';
+import {
+  alleReasonTemplates,
+  moderationAbilities,
+  moderationReasonTemplates,
+} from '@/server/moderation';
 import { cn } from '@/lib/utils';
 
 export const metadata: Metadata = { title: 'Mitglied' };
@@ -110,9 +114,11 @@ export default async function MemberDetailPage({
   const aktiv = reiter.some((eintrag) => eintrag.id === gewaehlt) ? gewaehlt : 'uebersicht';
 
   const csrfToken = csrfTokenFor(context);
-  const [jailSettings, jailEnabled] = await Promise.all([
+  const [jailSettings, jailEnabled, grundVorlagen, alleVorlagen] = await Promise.all([
     getModuleSettings<jail.JailSettings>(jail.JAIL_MODULE_ID),
     isModuleEnabled(jail.JAIL_MODULE_ID),
+    moderationReasonTemplates('JAIL'),
+    alleReasonTemplates(),
   ]);
   const canJail = capabilities.canJail && jailEnabled;
   const selbst = basic.discordId === context.user.discordId;
@@ -152,6 +158,7 @@ export default async function MemberDetailPage({
             ) : null}
             {massnahmen?.any ? (
               <ModerationDialog
+                grundVorlagen={alleVorlagen}
                 csrfToken={csrfToken}
                 abilities={massnahmen}
                 presetMember={{
@@ -169,7 +176,7 @@ export default async function MemberDetailPage({
                 csrfToken={csrfToken}
                 durationPresets={jail.JAIL_DURATION_PRESETS}
                 maxDurationSeconds={jailSettings.maxDurationSeconds}
-                reasonPresets={jail.jailReasonPresets(jailSettings)}
+                reasonPresets={grundVorlagen}
                 announceByDefault={!jailSettings.silentByDefault}
                 presetMember={{
                   discordId: basic.discordId,

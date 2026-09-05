@@ -8,7 +8,6 @@ import {
   enabledModuleIds,
   getGuildConfig,
   groupNavigation,
-  level,
   premium as premiumModule,
   readBotStatus,
   tickets as ticketsModule,
@@ -59,16 +58,6 @@ export default async function AppLayout({
     ? await ticketsModule.countOpenTickets(ticketViewer(context)).catch(() => null)
     : null;
 
-  /**
-   * Laeuft gerade eine Verlosung?
-   *
-   * Entscheidet, ob «XP-Gluecksrad» neben «Mein Profil» steht. Faellt die
-   * Abfrage aus, bleibt der Eintrag weg - lieber ein fehlender Eintrag als
-   * einer, der ins Leere fuehrt.
-   */
-  const laufendeVerlosung = moduleIds.has(level.LEVEL_MODULE_ID)
-    ? await level.raffle.hatLaufendeVerlosung().catch(() => false)
-    : false;
 
   /**
    * Zustand für die Hinweiskarte in der Seitenleiste.
@@ -115,10 +104,7 @@ export default async function AppLayout({
       ]
     : context.permissionKeys;
 
-  const navigation = buildNavigation(navigationKeys, moduleIds).filter(
-    // Bedingte Eintraege - siehe `visibleWhen` in der Registry.
-    (item) => item.visibleWhen !== 'activeRaffle' || laufendeVerlosung,
-  );
+  const navigation = buildNavigation(navigationKeys, moduleIds);
   const groups = groupNavigation(navigation).map((group) => ({
     id: group.id,
     label: group.label,

@@ -571,6 +571,59 @@ describeWithDatabase('Ticket schliessen und antworten', () => {
     expect(tickets.wartezeitMs(50)).toBe(tickets.wartezeitMs(40));
   });
 
+  it('hält fest, was Discord gesagt hat', async () => {
+    // Der Zähler sagt, DASS es nicht geht. Ohne den Satz von Discord bleibt
+    // nur Raten, WARUM - und Raten hat diesen Fehler zweimal überlebt.
+    const offen = await ticket();
+    await tickets.closeTicket(offen.id, null, actor(SUPPORTER, 'nina'));
+
+    const { DiscordApiError } = await import('@swisshub/discord');
+    discord.gateway.managedChannels.remove = vi.fn(async () => {
+      throw new DiscordApiError(403, 50013, 'DELETE /channels/1', 'Missing Permissions');
+    }) as never;
+
+    await prisma.ticket.update({
+      where: { id: offen.id },
+      data: { channelPurgeAt: new Date(Date.now() - 1) },
+    });
+    await tickets.purgeDueChannels();
+
+    const danach = await prisma.ticket.findUniqueOrThrow({ where: { id: offen.id } });
+    expect(danach.channelPurgeLastError).toContain('403');
+    expect(danach.channelPurgeLastError).toContain('Channels verwalten');
+  });
+
+  it('nennt den Grund im Systemstatus, nicht nur die Anzahl', async () => {
+    const offen = await ticket();
+    await tickets.closeTicket(offen.id, null, actor(SUPPORTER, 'nina'));
+    await prisma.ticket.update({
+      where: { id: offen.id },
+      data: {
+        channelPurgeAttempts: tickets.LOESCHUNG_AUFFAELLIG_AB,
+        channelPurgeLastError: 'Discord verweigert das Löschen (403).',
+      },
+    });
+
+    const befund = await tickets.haengendeLoeschungen();
+    expect(befund.anzahl).toBe(1);
+    expect(befund.letzterFehler).toContain('403');
+  });
+
+  it('vergisst den Fehler, sobald die Löschung durchkommt', async () => {
+    const offen = await ticket();
+    await tickets.closeTicket(offen.id, null, actor(SUPPORTER, 'nina'));
+    await prisma.ticket.update({
+      where: { id: offen.id },
+      data: { channelPurgeAttempts: 2, channelPurgeLastError: 'irgendetwas', channelPurgeAt: new Date(0) },
+    });
+
+    await tickets.purgeDueChannels();
+
+    const danach = await prisma.ticket.findUniqueOrThrow({ where: { id: offen.id } });
+    expect(danach.channelPurgeLastError).toBeNull();
+    expect(danach.channelPurgeAttempts).toBe(0);
+  });
+
   it('meldet eine Löschung, die wiederholt scheitert', async () => {
     // Der Aufräumer gibt nicht auf - aber er kann die Ursache nicht beheben.
     // Also muss sie jemandem auffallen.

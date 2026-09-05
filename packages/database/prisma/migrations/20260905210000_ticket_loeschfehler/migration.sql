@@ -1,0 +1,13 @@
+-- Was Discord beim letzten Loeschversuch gesagt hat.
+--
+-- Der Zaehler daneben sagt, DASS eine Loeschung nicht durchkommt. Er sagt
+-- nicht, warum - und ohne das Warum bleibt nur Raten: fehlendes Recht, Rate
+-- Limit, falsche Kategorie, geloeschte Guild. Im Log steht es, aber an das
+-- Log kommt im Zweifel niemand.
+--
+-- Diese Spalte traegt den Satz, den Discord geantwortet hat, und der
+-- Systemstatus des Ticket-Moduls zeigt ihn an. Damit ist ein haengender Kanal
+-- in Sekunden diagnostiziert statt in einer Debugging-Sitzung.
+--
+-- Rein additiv: nullable, ohne Vorgabe, bestehende Tickets unveraendert.
+ALTER TABLE "Ticket" ADD COLUMN IF NOT EXISTS "channelPurgeLastError" TEXT;

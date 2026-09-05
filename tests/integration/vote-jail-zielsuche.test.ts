@@ -145,28 +145,53 @@ describe('Vote-Jail-Zielsuche', () => {
     expect(treffer.map((eintrag) => eintrag.discordId)).toEqual([ROESCHTI]);
   });
 
-  it('zeigt keine geschützten Ziele', async () => {
-    // Alle auf einmal suchen: die Mock-Mitglieder tragen alle ein «e» im
-    // Anzeigenamen oder Benutzernamen - ausser dem Bot.
+  it('markiert geschützte Ziele als nicht wählbar', async () => {
+    /*
+      Sie stehen jetzt in der Liste - ausgegraut, mit dem Grund daneben.
+
+      Weggelassen wurden sie früher, und das war der Fehler: die Suche fand
+      jemanden, die Policy sortierte ihn aus, und übrig blieb eine leere
+      Liste, die aussah wie «gibt es nicht». Wer wusste, dass die Person auf
+      dem Server ist, stand vor einem Rätsel.
+
+      Preisgegeben wird damit nichts: eine Rolle ist auf Discord öffentlich.
+      Was zählt, ist dass sie nicht wählbar sind - und das prüft dieser Fall.
+    */
     const alle = await Promise.all(['Nina', 'Manuel', 'Lars', 'SwissHub'].map((name) => suche(name)));
-    const ids = alle.flat().map((eintrag) => eintrag.discordId);
+    const nachId = new Map(alle.flat().map((eintrag) => [eintrag.discordId, eintrag]));
 
-    // Moderator: trägt eine Moderationsstufe.
-    expect(ids).not.toContain(MODERATOR_ID);
-    // Serverleitung: geschützte Rolle und höchste Stufe.
-    expect(ids).not.toContain(OWNER_ID);
-    // Supporter: ebenfalls eine Stufe.
-    expect(ids).not.toContain('100000000000000003');
-    // Bots werden nicht moderiert.
-    expect(ids).not.toContain(BOT_ID);
+    for (const [wer, id] of [
+      ['Moderator', MODERATOR_ID],
+      ['Serverleitung', OWNER_ID],
+      ['Supporter', '100000000000000003'],
+      ['Bot', BOT_ID],
+    ] as const) {
+      const eintrag = nachId.get(id);
+      if (eintrag) {
+        expect(eintrag.waehlbar, `${wer} darf nicht wählbar sein`).toBe(false);
+        expect(eintrag.grund, `${wer} braucht eine Begründung`).toBeTruthy();
+      }
+    }
   });
 
-  it('zeigt niemanden gegen sich selbst', async () => {
-    const treffer = await suche('alpenfuchs');
-    expect(treffer.map((eintrag) => eintrag.discordId)).not.toContain(PREMIUM.discordId);
+  it('begründet kurz und ohne Innenansicht', async () => {
+    // «Moderation» sagt genug. «Trägt Rolle X mit Stufe 2» wäre eine Auskunft
+    // über die Rollenordnung, und die gehört nicht in eine Zielsuche.
+    const [moderator] = await suche(MODERATOR_ID);
+
+    expect(moderator?.grund).toBe('Moderation');
+    expect(moderator?.grund).not.toMatch(/\d/u);
   });
 
-  it('lässt bereits gejailte Mitglieder weg', async () => {
+  it('markiert einen selbst als nicht wählbar', async () => {
+    const [ich] = await suche('alpenfuchs');
+
+    expect(ich?.discordId).toBe(PREMIUM.discordId);
+    expect(ich?.waehlbar).toBe(false);
+    expect(ich?.grund).toBe('Du selbst');
+  });
+
+  it('markiert bereits gejailte Mitglieder', async () => {
     state.jails.push({
       id: 'jail-1',
       targetDiscordId: SPAMMER,
@@ -175,10 +200,12 @@ describe('Vote-Jail-Zielsuche', () => {
       releasedAt: null,
     } as never);
 
-    expect(await suche('spammer')).toEqual([]);
+    const [eintrag] = await suche('spammer');
+    expect(eintrag?.waehlbar).toBe(false);
+    expect(eintrag?.grund).toBe('Bereits gejailt');
   });
 
-  it('lässt Mitglieder mit laufender Abstimmung weg', async () => {
+  it('markiert Mitglieder mit laufender Abstimmung', async () => {
     state.voteJails.push({
       id: 'vote-1',
       targetDiscordId: ROESCHTI,
@@ -186,14 +213,50 @@ describe('Vote-Jail-Zielsuche', () => {
       status: 'ACTIVE',
     } as never);
 
-    expect(await suche('roeschti')).toEqual([]);
+    const [eintrag] = await suche('roeschti');
+    expect(eintrag?.waehlbar).toBe(false);
+    expect(eintrag?.grund).toBe('Abstimmung läuft bereits');
   });
 
   it('gibt ausschliesslich Anzeigedaten heraus', async () => {
     // Kein Rollen-, Beitritts- oder Moderationsdatum: was hier nicht steht,
-    // laesst sich ueber diesen Weg auch nicht abfragen.
+    // laesst sich ueber diesen Weg auch nicht abfragen. `waehlbar` und
+    // `grund` sind Aussagen ueber die Handlung, keine ueber die Person.
     const [treffer] = await suche('spammer');
-    expect(Object.keys(treffer!).sort()).toEqual(['avatarHash', 'discordId', 'displayName', 'username']);
+    expect(Object.keys(treffer!).sort()).toEqual([
+      'avatarHash',
+      'discordId',
+      'displayName',
+      'grund',
+      'username',
+      'waehlbar',
+    ]);
+  });
+
+  it('reicht einen Fehler von Discord durch, statt ihn zu leeren Treffern zu machen', async () => {
+    /*
+      DAS war die Ursache der leeren Suche.
+
+      Hier stand `.catch(() => [])`. Damit sah jeder Fehler von Discord aus
+      wie ein Ergebnis: keine Berechtigung, ein Rate Limit, ein Aussetzer -
+      alles wurde zur leeren Liste. Im Browser blieb davon ein Ladekringel,
+      der kurz erscheint und wieder verschwindet, und ein leeres Feld.
+
+      Ein Fehler ist kein leeres Ergebnis.
+    */
+    const kaputt = {
+      ...gateway,
+      members: {
+        ...gateway.members,
+        search: async () => {
+          throw new Error('403 Missing Access');
+        },
+      },
+    };
+
+    await expect(
+      jail.searchVoteJailTargets('manu', PREMIUM, { gateway: kaputt as never, limit: 20 }),
+    ).rejects.toThrow();
   });
 });
 
@@ -211,17 +274,19 @@ describe('Ein Ziel über seine Kennung', () => {
     expect(treffer?.username).toBe('spammer99');
   });
 
-  it('gibt für ein geschütztes Mitglied dasselbe zurück wie für ein unbekanntes', async () => {
-    // Sonst liesse sich an der Antwort ablesen, wer geschützt ist.
-    expect(await suche(MODERATOR_ID)).toEqual([]);
+  it('gibt ein geschütztes Mitglied heraus, aber nicht wählbar', async () => {
+    const [geschuetzt] = await suche(MODERATOR_ID);
+
+    expect(geschuetzt?.waehlbar).toBe(false);
+    expect(geschuetzt?.grund).toBeTruthy();
+  });
+
+  it('liefert zu einer unbekannten Kennung nichts', async () => {
     expect(await suche('900000000000009999')).toEqual([]);
   });
 
   it('zählt bei einer Kennung nichts auf - höchstens ein Treffer', async () => {
-    const treffer = await suche(SPAMMER);
-
-    expect(treffer).toHaveLength(1);
-    expect(Object.keys(treffer[0]!).sort()).toEqual(['avatarHash', 'discordId', 'displayName', 'username']);
+    expect(await suche(SPAMMER)).toHaveLength(1);
   });
 
   it('gibt auf eine leere Eingabe nicht den ganzen Server heraus', async () => {

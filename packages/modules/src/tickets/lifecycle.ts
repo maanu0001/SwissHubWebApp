@@ -177,7 +177,19 @@ export async function closeTicket(
   // Auftrag beim naechsten Durchlauf; das Ticket ist ohnehin schon
   // geschlossen.
   if (geschlossen.channelPurgeAt && geschlossen.discordChannelId) {
+    logger.info('ticket.cleanup.scheduled', {
+      ticketId,
+      inMs: geschlossen.channelPurgeAt.getTime() - Date.now(),
+    });
     planeZeitnahesAufraeumen(geschlossen.channelPurgeAt.getTime() - Date.now());
+  } else {
+    // Der Fall, den man sonst nirgends sieht: geschlossen, aber nichts
+    // eingeplant. Entweder gilt «nie loeschen», oder es gab nie einen Kanal.
+    logger.info('ticket.cleanup.skipped', {
+      ticketId,
+      aufbewahrung: settings.closeBehaviour,
+      hatKanal: geschlossen.discordChannelId !== null,
+    });
   }
 
   return geschlossen;
@@ -382,10 +394,12 @@ export async function purgeDueChannels(jetzt = new Date()): Promise<number> {
     }
 
     try {
+      logger.debug('ticket.cleanup.executing', { ticketId: ticket.id, versuch });
       await discord.managedChannels.remove(
         ticket.discordChannelId!,
         `Ticket #${ticket.ticketNumber} abgeschlossen`,
       );
+      logger.info('ticket.cleanup.deleted', { ticketId: ticket.id, versuch });
       entfernt += 1;
     } catch (fehler) {
       // Ein Kanal, den es nicht mehr gibt, ist kein Fehlschlag - er ist das
@@ -404,15 +418,16 @@ export async function purgeDueChannels(jetzt = new Date()): Promise<number> {
         //
         // Jetzt bleibt der Auftrag stehen. Die Faelligkeit steht bereits ein
         // Retry-Fenster in der Zukunft; vermerkt wird nur noch der Versuch.
+        const meldung = beschreibeFehler(fehler);
         await prisma.ticket.update({
           where: { id: ticket.id },
-          data: { channelPurgeAttempts: versuch },
+          data: { channelPurgeAttempts: versuch, channelPurgeLastError: meldung },
         });
-        logger.warn('Ticket-Kanal konnte nicht entfernt werden - neuer Versuch folgt', {
+        logger.warn('ticket.cleanup.failed', {
           ticketId: ticket.id,
           versuch,
           naechsterVersuchInMs: wartezeitMs(versuch),
-          grund: fehler instanceof Error ? fehler.message : 'unbekannt',
+          grund: meldung,
         });
         continue;
       }
@@ -425,6 +440,7 @@ export async function purgeDueChannels(jetzt = new Date()): Promise<number> {
         discordChannelId: null,
         channelPurgeAt: null,
         channelPurgeAttempts: 0,
+        channelPurgeLastError: null,
         channelMissing: true,
         status: 'ARCHIVED',
         archivedAt: new Date(),
@@ -465,6 +481,26 @@ export function wartezeitMs(versuch: number): number {
  */
 export const LOESCHUNG_AUFFAELLIG_AB = 3;
 
+/**
+ * Was Discord gesagt hat, in einem Satz.
+ *
+ * Ein fehlendes Recht ist der mit Abstand haeufigste Fall und der einzige,
+ * den nur ein Mensch beheben kann - deshalb steht er ausgeschrieben da und
+ * nicht als Statuscode.
+ */
+function beschreibeFehler(fehler: unknown): string {
+  if (fehler instanceof DiscordApiError) {
+    if (fehler.status === 403) {
+      return 'Discord verweigert das Löschen (403). Dem Bot fehlt «Channels verwalten» in diesem Kanal.';
+    }
+    if (fehler.status === 429) {
+      return 'Discord bremst den Bot gerade aus (429). Der nächste Versuch läuft von selbst.';
+    }
+    return `Discord antwortete mit ${fehler.status}: ${fehler.message}`.slice(0, 300);
+  }
+  return (fehler instanceof Error ? fehler.message : 'Unbekannter Fehler').slice(0, 300);
+}
+
 /** Tickets, deren Kanalloeschung wiederholt scheitert. */
 export async function zaehleHaengendeLoeschungen(): Promise<number> {
   return prisma.ticket.count({
@@ -473,6 +509,28 @@ export async function zaehleHaengendeLoeschungen(): Promise<number> {
       discordChannelId: { not: null },
     },
   });
+}
+
+/**
+ * Der Befund fuer den Systemstatus.
+ *
+ * Nicht nur «wie viele», sondern «warum»: ohne den Satz von Discord bliebe
+ * die Meldung eine Aufforderung zum Raten.
+ */
+export async function haengendeLoeschungen(): Promise<{ anzahl: number; letzterFehler: string | null }> {
+  const [anzahl, juengstes] = await Promise.all([
+    zaehleHaengendeLoeschungen(),
+    prisma.ticket.findFirst({
+      where: {
+        channelPurgeAttempts: { gte: LOESCHUNG_AUFFAELLIG_AB },
+        discordChannelId: { not: null },
+        channelPurgeLastError: { not: null },
+      },
+      orderBy: { updatedAt: 'desc' },
+      select: { channelPurgeLastError: true },
+    }),
+  ]);
+  return { anzahl, letzterFehler: juengstes?.channelPurgeLastError ?? null };
 }
 
 /**

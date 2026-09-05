@@ -4,10 +4,14 @@ import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
 import { can } from '@swisshub/auth';
 import { jail } from '@swisshub/modules';
+import { AppError } from '@swisshub/shared';
+import { createLogger } from '@swisshub/logger';
 import { defineAction } from '@/server/action';
 import { assertModuleEnabled } from '@/server/modules';
 
 const MODULE_ID = jail.JAIL_MODULE_ID;
+
+const logger = createLogger('jail:actions');
 
 /**
  * Server Actions des Jail-Moduls.
@@ -105,8 +109,9 @@ const alsPickerEintrag = (ziel: jail.VoteJailTarget) => ({
   displayName: ziel.displayName,
   avatarHash: ziel.avatarHash,
   isBot: false,
-  // Gejailte Mitglieder stehen gar nicht erst in der Antwort.
-  jailed: false,
+  jailed: ziel.grund === 'Bereits gejailt',
+  waehlbar: ziel.waehlbar,
+  grund: ziel.grund,
 });
 
 /**
@@ -144,20 +149,39 @@ export const searchVoteJailTargetsAction = defineAction(
   async ({ ctx, input }) => {
     await assertModuleEnabled(MODULE_ID);
 
-    const ziele = await jail.searchVoteJailTargets(
-      input.query,
-      {
-        discordId: ctx.user.discordId,
-        username: ctx.user.username,
-        avatarHash: ctx.user.avatarHash,
-        roleIds: ctx.roleIds,
-        isOwner: ctx.user.isOwner,
-        moderationLevel: ctx.moderationLevel,
-      },
-      { limit: input.limit ?? 20 },
-    );
+    try {
+      const ziele = await jail.searchVoteJailTargets(
+        input.query,
+        {
+          discordId: ctx.user.discordId,
+          username: ctx.user.username,
+          avatarHash: ctx.user.avatarHash,
+          roleIds: ctx.roleIds,
+          isOwner: ctx.user.isOwner,
+          moderationLevel: ctx.moderationLevel,
+        },
+        { limit: input.limit ?? 20 },
+      );
 
-    return ziele.map(alsPickerEintrag);
+      return ziele.map(alsPickerEintrag);
+    } catch (fehler) {
+      // Ein Fehler von Discord darf nicht als leeres Ergebnis durchgehen.
+      //
+      // Genau das ist hier passiert: die Suche fing jeden Fehler ab und gab
+      // eine leere Liste zurueck. Im Browser blieb davon ein Ladekringel, der
+      // verschwindet, und ein leeres Feld - ohne jeden Hinweis darauf, dass
+      // ueberhaupt etwas schiefging.
+      //
+      // Der technische Grund gehoert ins Log, nicht in den Browser.
+      logger.error('Zielsuche für den Vote Jail fehlgeschlagen', {
+        actorId: ctx.user.discordId,
+        grund: fehler instanceof Error ? fehler.message : 'unbekannt',
+      });
+      throw new AppError('DISCORD_UNAVAILABLE', {
+        userMessage:
+          'Die Mitgliedersuche ist gerade nicht erreichbar. Bitte in einem Moment erneut versuchen.',
+      });
+    }
   },
 );
 

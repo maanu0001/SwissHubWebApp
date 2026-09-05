@@ -2501,6 +2501,14 @@ model Ticket {
   /// sichtbar, wenn einer nicht mehr durchkommt.
   channelPurgeAttempts Int @default(0)
 
+  /// Was Discord beim letzten Loeschversuch gesagt hat.
+  ///
+  /// Ohne diesen Satz ist ein haengender Kanal nicht zu diagnostizieren: im
+  /// Log steht er, aber an das Log kommt im Zweifel niemand, und der
+  /// Systemstatus koennte nur «geht nicht» melden. Mit ihm steht dort, ob es
+  /// ein fehlendes Recht, ein Rate Limit oder etwas Drittes ist.
+  channelPurgeLastError String?
+
   /// Wann zuletzt an eine Antwort erinnert wurde.
   ///
   /// Ohne diesen Zeitpunkt erinnerte jeder Durchgang erneut, solange das

@@ -290,16 +290,17 @@ async function ticketHealthChecks(context: ModuleHealthContext): Promise<ModuleH
   // gibt also nichts verloren. Was er nicht kann, ist die Ursache beheben:
   // haengt es an einem fehlenden Recht, klopft er bis in alle Ewigkeit an,
   // ohne dass jemand davon erfaehrt. Deshalb steht es hier.
-  const { zaehleHaengendeLoeschungen } = await import('./lifecycle');
-  const haengend = await zaehleHaengendeLoeschungen();
-  if (haengend > 0) {
+  const { haengendeLoeschungen } = await import('./lifecycle');
+  const haengend = await haengendeLoeschungen();
+  if (haengend.anzahl > 0) {
     checks.push({
       label: 'Kanal-Löschung',
       status: 'warning',
       detail:
-        `${haengend} geschlossene${haengend === 1 ? 's Ticket' : ' Tickets'} - der Kanal liess sich ` +
-        'mehrfach nicht löschen. Meist fehlt dem Bot «Channels verwalten» im Ticket-Kanal. ' +
-        'Der Aufräumer versucht es weiter; sobald das Recht steht, verschwinden die Kanäle von selbst.',
+        `${haengend.anzahl} geschlossene${haengend.anzahl === 1 ? 's Ticket' : ' Tickets'} - der Kanal ` +
+        'liess sich mehrfach nicht löschen. ' +
+        (haengend.letzterFehler ? `Zuletzt: ${haengend.letzterFehler} ` : '') +
+        'Der Aufräumer versucht es weiter; sobald die Ursache behoben ist, verschwinden die Kanäle von selbst.',
     });
   }
 

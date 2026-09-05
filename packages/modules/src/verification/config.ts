@@ -62,6 +62,18 @@ export const verificationSettingsSchema = z.object({
   unverifiedRoleId: z.string().nullable().default(null),
   /** Rolle nach erfolgreicher Verifikation. */
   memberRoleId: z.string().nullable().default(null),
+  /**
+   * Zweite Rolle nach erfolgreicher Verifikation.
+   *
+   * Getrennt von der Mitgliederrolle, weil die beiden verschiedene Fragen
+   * beantworten: «Mitglied» oeffnet den Server, «Verifiziert» sagt, dass
+   * jemand die Pruefung bestanden hat. Auf vielen Servern haengen daran
+   * verschiedene Rechte, und wer beides in eine Rolle zwingt, kann sie
+   * spaeter nicht mehr trennen.
+   *
+   * Freiwillig: wer nur eine Rolle vergibt, laesst sie leer.
+   */
+  verifiedRoleId: z.string().nullable().default(null),
   /** Kanal, in dem sich neue Mitglieder melden. */
   verificationChannelId: z.string().nullable().default(null),
   /** Wohin die Moderation benachrichtigt wird. */
@@ -152,11 +164,20 @@ const verificationSettingsFields: SettingsField[] = [
   },
   {
     key: 'memberRoleId',
-    label: 'Mitgliederrolle',
+    label: 'Rolle «Mitglied»',
     description: 'Wird nach erfolgreicher Verifikation vergeben.',
     type: 'discord-role',
     mustBeManageable: true,
     required: true,
+    group: 'Rollen & Kanäle',
+  },
+  {
+    key: 'verifiedRoleId',
+    label: 'Rolle «Verifiziert»',
+    description:
+      'Wird zusätzlich zur Mitgliederrolle vergeben. Optional - leer lassen, wenn eine Rolle genügt.',
+    type: 'discord-role',
+    mustBeManageable: true,
     group: 'Rollen & Kanäle',
   },
   {
@@ -321,8 +342,18 @@ async function verificationHealthChecks(
   const settings = await getModuleSettings<VerificationSettings>(VERIFICATION_MODULE_ID);
   const fix = `/modules/${VERIFICATION_MODULE_ID}`;
 
-  const rolle = (id: string | null, label: string, mussVergebbarSein: boolean): void => {
+  const rolle = (
+    id: string | null,
+    label: string,
+    mussVergebbarSein: boolean,
+    options: { pflicht?: boolean } = {},
+  ): void => {
     if (!id) {
+      if (options.pflicht === false) {
+        // Freiwillig: keine Meldung. Eine Warnung fuer etwas, das man
+        // bewusst leer laesst, ist Laerm.
+        return;
+      }
       checks.push({ label, status: 'error', detail: 'Nicht gesetzt - der Ablauf startet nicht.', fixHref: fix });
       return;
     }
@@ -347,7 +378,11 @@ async function verificationHealthChecks(
   };
 
   rolle(settings.unverifiedRoleId, 'Rolle «Noch nicht verifiziert»', true);
-  rolle(settings.memberRoleId, 'Mitgliederrolle', true);
+  rolle(settings.memberRoleId, 'Rolle «Mitglied»', true);
+  // Die zweite Rolle ist freiwillig - aber wenn sie eingestellt ist, muss der
+  // Bot sie vergeben koennen. Sonst faellt es erst auf, wenn das erste
+  // Mitglied halb verifiziert dasteht.
+  rolle(settings.verifiedRoleId, 'Rolle «Verifiziert»', true, { pflicht: false });
 
   const kanal = (id: string | null, label: string, pflicht: boolean): void => {
     if (!id) {

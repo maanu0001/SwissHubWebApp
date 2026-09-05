@@ -433,24 +433,38 @@ export function RaffleForm({
                 value={values.entryEndsAt}
                 onChange={(event) => set('entryEndsAt', event.target.value)}
               />
+              <p className="text-xs text-muted-foreground">Leer: du schliesst die Teilnahme selbst.</p>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="drawScheduledAt">Auslosung</Label>
-              <Input
-                id="drawScheduledAt"
-                type="datetime-local"
-                value={values.drawScheduledAt}
-                onChange={(event) => set('drawScheduledAt', event.target.value)}
-              />
-            </div>
+            {/*
+              Der Auslosungszeitpunkt gehoert zur automatischen Ziehung und
+              nur zu ihr. Wer selbst zieht, startet die Auslosung dann, wenn
+              Publikum da ist - ein Feld fuer einen Zeitpunkt, den es nicht
+              gibt, ist eine Huerde ohne Zweck. Umgekehrt ist er dann Pflicht:
+              eine automatische Verlosung ohne ihn zoege nie.
+            */}
+            {values.autoDraw ? (
+              <div className="space-y-2">
+                <Label htmlFor="drawScheduledAt">Auslosung</Label>
+                <Input
+                  id="drawScheduledAt"
+                  type="datetime-local"
+                  required
+                  value={values.drawScheduledAt}
+                  onChange={(event) => set('drawScheduledAt', event.target.value)}
+                />
+                <p className="text-xs text-muted-foreground">Fruehestens zum Ende der Teilnahme.</p>
+              </div>
+            ) : null}
           </div>
 
           <label className="flex items-start gap-3 rounded-lg border border-border p-3">
             <Switch checked={values.autoDraw} onCheckedChange={(next) => set('autoDraw', next)} />
             <span className="space-y-1">
-              <span className="block text-sm font-medium">Auslosung selbst starten</span>
+              <span className="block text-sm font-medium">Auslosung automatisch starten</span>
               <span className="block text-xs text-muted-foreground">
-                Standardmässig aus: so lässt sich die Ziehung bewusst starten, wenn Publikum da ist.
+                Aus: du startest die Ziehung selbst, wenn Publikum da ist - dann braucht es keinen
+                Zeitpunkt. Ein: das System zieht zur eingetragenen Zeit, sobald die Teilnahme
+                geschlossen ist.
               </span>
             </span>
           </label>

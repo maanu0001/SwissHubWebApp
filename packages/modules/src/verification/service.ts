@@ -323,6 +323,17 @@ export async function tauscheRollen(
 
   const rollen = new Set(mitglied.roleIds);
   rollen.add(settings.memberRoleId);
+  // Die zweite Rolle, wenn eine eingestellt ist. Beide in derselben Menge -
+  // dadurch gibt es hier keinen Teilerfolg: entweder Discord nimmt den einen
+  // Aufruf an und beide Rollen sitzen, oder es nimmt ihn nicht an und keine
+  // sitzt. Ein Zwischenstand «verifiziert, aber kein Mitglied» kann gar nicht
+  // entstehen.
+  //
+  // Ist eine Rolle bereits vorhanden, aendert `add` nichts - der Vorgang ist
+  // damit ohne Zusatzaufwand wiederholbar.
+  if (settings.verifiedRoleId) {
+    rollen.add(settings.verifiedRoleId);
+  }
   if (settings.unverifiedRoleId) {
     rollen.delete(settings.unverifiedRoleId);
   }

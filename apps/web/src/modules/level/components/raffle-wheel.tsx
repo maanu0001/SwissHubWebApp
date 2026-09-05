@@ -36,6 +36,33 @@ export interface WheelSegment {
  */
 const MAX_SEGMENTS = 20;
 
+/**
+ * Wie lange das Rad dreht.
+ *
+ * Zehn Sekunden statt sechs. Eine Ziehung ist der Moment, auf den alle
+ * gewartet haben - sie darf sich Zeit nehmen. Kuerzer war sie vorbei, ehe
+ * jemand hingeschaut hat.
+ *
+ * Am Ergebnis aendert das nichts: der Gewinner steht fest, bevor sich das Rad
+ * bewegt. Diese Zahlen bestimmen nur, wie lange man ihn nicht sieht.
+ */
+const DREHDAUER_MS = 10_000;
+
+/** Ein Moment Ruhe, ehe der Gewinner benannt wird. */
+const NACHLAUF_MS = 400;
+
+/** Mindestens acht volle Umdrehungen, aus dem Wert des Servers bis zwoelf. */
+const MIN_UMDREHUNGEN = 8;
+
+/**
+ * Schnell los, lange aus.
+ *
+ * Der lange Schwanz der Kurve ist der Punkt: die letzten Grade vergehen
+ * spuerbar langsamer als die ersten, und dadurch entsteht die Spannung kurz
+ * vor dem Stillstand.
+ */
+const DREH_KURVE = 'cubic-bezier(0.12, 0.72, 0.06, 1)';
+
 const PALETTE = ['#83060a', '#a81419', '#c92a2a', '#6d0508', '#b02025', '#8f1114', '#d13a3a', '#5c0406'];
 
 interface DisplaySegment {
@@ -210,7 +237,7 @@ export function RaffleWheel({
     // Zusätzliche volle Umdrehungen, damit es nach einer Ziehung aussieht.
     // Die Zahl stammt aus dem Wert des Servers, nicht aus Zufall im Browser.
     const seedNumber = animationSeed ? Number.parseInt(animationSeed.slice(0, 4), 16) : 0;
-    const extraTurns = 4 + (seedNumber % 3);
+    const extraTurns = MIN_UMDREHUNGEN + (seedNumber % 5);
     const target = extraTurns * 360 + (360 - middle);
 
     if (reducedMotion || !spinning) {
@@ -226,7 +253,7 @@ export function RaffleWheel({
     timer.current = window.setTimeout(() => {
       setSettled(target);
       onSpinEnd?.();
-    }, 6200);
+    }, DREHDAUER_MS + NACHLAUF_MS);
 
     return () => {
       if (timer.current !== null) {
@@ -283,7 +310,7 @@ export function RaffleWheel({
           style={{
             transform: `rotate(${rotation}deg)`,
             transformOrigin: '50% 50%',
-            transition: animate ? 'transform 6s cubic-bezier(0.16, 1, 0.3, 1)' : 'none',
+            transition: animate ? `transform ${DREHDAUER_MS}ms ${DREH_KURVE}` : 'none',
           }}
         >
           {display.map((segment) => {

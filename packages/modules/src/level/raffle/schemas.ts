@@ -129,6 +129,38 @@ export const raffleSchema = z
     if (input.prizeKind === 'ROLE_PRIZE' && !input.prizeRoleId) {
       ctx.addIssue({ code: 'custom', path: ['prizeRoleId'], message: 'Bitte die Rolle auswählen.' });
     }
+
+    // Wer die Ziehung dem System ueberlaesst, muss sagen wann.
+    //
+    // Das war ein stiller Fehlschlag: eine Verlosung mit `autoDraw`, aber
+    // ohne `drawScheduledAt`, wurde gespeichert und nie gezogen. Der
+    // Aufraeumauftrag sucht nach einer faelligen Auslosungszeit und fand
+    // keine - die Verlosung stand fuer immer auf «Teilnahme geschlossen»,
+    // und niemand erfuhr warum.
+    //
+    // Ein Ende der Teilnahme verlangt das ausdruecklich nicht: es ist
+    // zulaessig, die Teilnahme von Hand zu schliessen und nur die Ziehung
+    // dem System zu ueberlassen. Wer beides von Hand macht, braucht keines
+    // der beiden Felder.
+    if (input.autoDraw && !input.drawScheduledAt) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['drawScheduledAt'],
+        message: 'Bei automatischer Ziehung braucht es einen Zeitpunkt für die Auslosung.',
+      });
+    }
+
+    // Gezogen wird erst, wenn die Teilnahme geschlossen ist. Eine Auslosung
+    // vor dem Ende der Teilnahme faende deshalb nicht statt - sie kaeme erst
+    // beim naechsten Lauf nach dem Schliessen, also nicht dann, wann es im
+    // Formular steht.
+    if (input.entryEndsAt && input.drawScheduledAt && input.drawScheduledAt < input.entryEndsAt) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['drawScheduledAt'],
+        message: 'Die Auslosung kann nicht vor dem Ende der Teilnahme liegen.',
+      });
+    }
   });
 
 export type RaffleInput = z.infer<typeof raffleSchema>;

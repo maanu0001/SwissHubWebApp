@@ -20,6 +20,7 @@ import { Textarea } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { MemberPicker, type PickedMember } from '@/modules/members/components/member-picker';
 import type { ModerationAbilities } from '@/modules/moderation/abilities';
+import { createJailAction } from '@/modules/jail/actions';
 import {
   banMemberAction,
   kickMemberAction,
@@ -29,7 +30,7 @@ import {
 } from '@/modules/moderation/actions';
 
 /** Die Massnahmen, die diese Maske anbietet. */
-type Massnahme = 'BAN' | 'KICK' | 'TIMEOUT' | 'TIMEOUT_REMOVE' | 'NOTE';
+type Massnahme = 'BAN' | 'KICK' | 'TIMEOUT' | 'TIMEOUT_REMOVE' | 'JAIL' | 'NOTE';
 
 interface MassnahmeBeschreibung {
   wert: Massnahme;
@@ -65,6 +66,13 @@ const MASSNAHMEN: MassnahmeBeschreibung[] = [
     darf: 'ban',
   },
   {
+    wert: 'JAIL',
+    label: 'Jailen',
+    folge:
+      'Die Person bekommt die Jail-Rolle und verliert ihre übrigen Rollen, bis die Zeit abläuft oder jemand sie freilässt.',
+    darf: 'jail',
+  },
+  {
     wert: 'NOTE',
     label: 'Notiz hinterlegen',
     folge: 'Nur ein Eintrag in der Akte. Die Person merkt nichts davon.',
@@ -83,6 +91,25 @@ const TIMEOUT_DAUERN = [
   { label: '1 Tag', seconds: 86_400 },
   { label: '1 Woche', seconds: 604_800 },
 ] as const;
+
+/**
+ * Dauern fuer den Jail.
+ *
+ * Bewusst andere als beim Timeout: Discord begrenzt einen Timeout auf 28
+ * Tage, der Jail ist eine eigene Rolle und kennt diese Grenze nicht. Die
+ * Obergrenze steht in den Jail-Einstellungen und wird serverseitig geprueft.
+ */
+const JAIL_DAUERN = [
+  { label: '30 Minuten', seconds: 1800 },
+  { label: '1 Stunde', seconds: 3600 },
+  { label: '6 Stunden', seconds: 21_600 },
+  { label: '12 Stunden', seconds: 43_200 },
+  { label: '1 Tag', seconds: 86_400 },
+  { label: '3 Tage', seconds: 259_200 },
+  { label: '1 Woche', seconds: 604_800 },
+] as const;
+
+const JAIL_PERMANENT = 'permanent';
 
 /** Wie weit zurück ein Bann Nachrichten löscht. Discord erlaubt 7 Tage. */
 const LOESCH_DAUERN = [
@@ -128,6 +155,7 @@ export function ModerationDialog({
   const [massnahme, setMassnahme] = useState<Massnahme>(verfuegbar[0]?.wert ?? 'NOTE');
   const [reason, setReason] = useState('');
   const [dauer, setDauer] = useState<string>('3600');
+  const [jailDauer, setJailDauer] = useState<string>('3600');
   const [loeschen, setLoeschen] = useState<string>('0');
   const [fieldError, setFieldError] = useState<string | null>(null);
   const router = useRouter();
@@ -150,6 +178,7 @@ export function ModerationDialog({
     setMassnahme(verfuegbar[0]?.wert ?? 'NOTE');
     setReason('');
     setDauer('3600');
+    setJailDauer('3600');
     setLoeschen('0');
     setFieldError(null);
   }
@@ -182,7 +211,20 @@ export function ModerationDialog({
           ? timeoutMemberAction({ ...basis, seconds: dauerSekunden })
           : massnahme === 'TIMEOUT_REMOVE'
             ? removeTimeoutAction(basis)
-            : addModerationNoteAction(basis));
+            : massnahme === 'JAIL'
+              ? // Dieselbe Aktion wie die Jail-Maske: Policy, Rollen-Snapshot,
+                // Discord, Audit und Historie liegen im Jail-Service. Diese
+                // Maske sammelt nur die Eingabe.
+                createJailAction({
+                  csrfToken,
+                  targetDiscordId: member.discordId,
+                  reason: reason.trim(),
+                  idempotencyKey: crypto.randomUUID(),
+                  ...(jailDauer === JAIL_PERMANENT
+                    ? { type: 'PERMANENT' as const }
+                    : { type: 'TEMPORARY' as const, durationSeconds: Number(jailDauer) }),
+                })
+              : addModerationNoteAction(basis));
 
     if (antwort.ok) {
       const beschriftung = MASSNAHMEN.find((eintrag) => eintrag.wert === massnahme)?.label ?? 'Massnahme';
@@ -292,6 +334,29 @@ export function ModerationDialog({
                 </Select>
                 <p className="text-xs text-muted-foreground">{gewaehlt.folge}</p>
               </div>
+
+              {massnahme === 'JAIL' ? (
+                <div className="space-y-2">
+                  <Label htmlFor="moderation-jail-duration">Dauer</Label>
+                  <Select value={jailDauer} onValueChange={setJailDauer}>
+                    <SelectTrigger id="moderation-jail-duration">
+                      <SelectValue placeholder="Dauer wählen" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {JAIL_DAUERN.map((eintrag) => (
+                        <SelectItem key={eintrag.seconds} value={String(eintrag.seconds)}>
+                          {eintrag.label}
+                        </SelectItem>
+                      ))}
+                      <SelectItem value={JAIL_PERMANENT}>Permanent</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    Feinere Abstufungen und eigene Dauern gibt es im Jail-Bereich. Der Grund bleibt
+                    intern.
+                  </p>
+                </div>
+              ) : null}
 
               {massnahme === 'TIMEOUT' ? (
                 <div className="space-y-2">

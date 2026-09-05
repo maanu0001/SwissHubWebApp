@@ -169,6 +169,7 @@ export default async function MemberDetailPage({
                 csrfToken={csrfToken}
                 durationPresets={jail.JAIL_DURATION_PRESETS}
                 maxDurationSeconds={jailSettings.maxDurationSeconds}
+                reasonPresets={jail.jailReasonPresets(jailSettings)}
                 announceByDefault={!jailSettings.silentByDefault}
                 presetMember={{
                   discordId: basic.discordId,

@@ -125,6 +125,8 @@ async function vermerke(input: {
   /** Geplantes Ende - nur bei befristeten Massnahmen. */
   expiresAt?: Date | null;
   metadata?: Record<string, unknown>;
+  /** Verweis auf den Datensatz, der die Sache traegt - z.B. die Notiz. */
+  referenceId?: string | null;
   auditAction: string;
   errorMessage?: string;
   /**
@@ -148,6 +150,7 @@ async function vermerke(input: {
       expiresAt: input.status === 'COMPLETED' ? (input.expiresAt ?? null) : null,
       source: input.source ?? 'WEBAPP',
       actorType: 'HUMAN',
+      referenceId: input.referenceId ?? null,
       metadata: { source: input.source ?? 'WEBAPP', ...(input.metadata ?? {}) },
     },
   });
@@ -402,16 +405,33 @@ export async function addModerationNote(
   }
   const grund = pruefeGrund(eingabe.reason);
   const ziel = await ladeZiel(eingabe.targetDiscordId, gateway);
+  const zielName = ziel.member?.displayName ?? 'Unbekannt';
 
+  // Die Notiz gehoert in die Mitgliederakte - dort sucht man sie, und dort
+  // zeigt das Profil sie an. Frueher stand sie ausschliesslich in der
+  // Moderationshistorie: nicht verloren, aber am falschen Ort, und deshalb
+  // fuer die Schreibenden verschwunden.
+  const { schreibeNotiz } = await import('../members/notes');
+  const notiz = await schreibeNotiz(
+    { discordId: eingabe.actor.discordId, username: eingabe.actor.username },
+    {
+      targetDiscordId: eingabe.targetDiscordId,
+      targetLabel: zielName,
+      content: grund,
+      category: 'Moderation',
+    },
+  );
+
+  // Der Eintrag in der Moderationshistorie bleibt - er haelt fest, *dass*
+  // notiert wurde, und verweist auf die Notiz. Der Text steht nur an einer
+  // Stelle.
   return vermerke({
     type: 'NOTE',
     actor: eingabe.actor,
-    target: {
-      discordId: eingabe.targetDiscordId,
-      username: ziel.member?.displayName ?? 'Unbekannt',
-    },
+    target: { discordId: eingabe.targetDiscordId, username: zielName },
     reason: grund,
     status: 'COMPLETED',
+    referenceId: notiz.id,
     auditAction: AUDIT_ACTIONS.MODERATION_NOTE,
   });
 }

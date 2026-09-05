@@ -125,6 +125,33 @@ export async function createMemberNote(
   if (!viewer.can(MEMBER_PERMISSIONS.notesCreate)) {
     throw new AppError('FORBIDDEN', { userMessage: 'Du darfst keine Notizen schreiben.' });
   }
+  const notiz = await schreibeNotiz(autor, eingabe);
+  return ansicht(notiz, viewer);
+}
+
+/**
+ * Eine Notiz anlegen - ohne Berechtigungspruefung.
+ *
+ * Die macht der Aufrufer, und zwar mit *seinem* Schluessel: das Member Center
+ * verlangt `members.notes.create`, die Moderation `moderation.notes.create`.
+ * Zwei Berechtigungen, ein Speicher.
+ *
+ * Genau daran hing der Fehler: die Moderation legte ihre Notizen in der
+ * Moderationsakte ab, das Mitgliederprofil las aus dieser Tabelle - und die
+ * Notiz, die jemand ueber «Massnahme ergreifen» geschrieben hatte, tauchte
+ * beim Mitglied nie auf. Sie war nicht verloren, sie stand nur woanders.
+ * Jetzt gibt es einen Ort.
+ */
+export async function schreibeNotiz(
+  autor: NotizAutor,
+  eingabe: {
+    targetDiscordId: string;
+    targetLabel?: string | null;
+    content: string;
+    category?: string | null;
+    pinned?: boolean;
+  },
+): Promise<MemberNote> {
   const guildId = await resolveGuildId();
   const { content, category } = pruefeInhalt(eingabe.content, eingabe.category);
 
@@ -152,7 +179,7 @@ export async function createMemberNote(
     metadata: { noteId: notiz.id, category, laenge: content.length },
   });
 
-  return ansicht(notiz, viewer);
+  return notiz;
 }
 
 /** Aendert eine Notiz. Fremde nur mit der ausdruecklichen Berechtigung. */

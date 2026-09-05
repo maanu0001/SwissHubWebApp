@@ -12,6 +12,13 @@ export interface ModerationAbilities {
   kick: boolean;
   timeout: boolean;
   timeoutRemove: boolean;
+  /**
+   * Jail als regulaere Massnahme.
+   *
+   * Haengt an der Berechtigung des Jail-Moduls, nicht an einer eigenen: es
+   * ist derselbe Jail, nur ein anderer Weg dorthin.
+   */
+  jail: boolean;
   note: boolean;
   /** Mindestens eine Massnahme - sonst braucht es gar keine Maske. */
   any: boolean;

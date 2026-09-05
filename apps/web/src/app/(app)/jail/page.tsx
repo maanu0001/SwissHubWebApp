@@ -221,6 +221,7 @@ export default async function JailPage({ searchParams }: JailPageProps): Promise
               csrfToken={csrfToken}
               durationPresets={jail.JAIL_DURATION_PRESETS}
               maxDurationSeconds={settings.maxDurationSeconds}
+              reasonPresets={jail.jailReasonPresets(settings)}
               announceByDefault={!settings.silentByDefault}
             />
           ) : null

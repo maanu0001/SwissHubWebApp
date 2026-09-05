@@ -23,7 +23,6 @@ export interface JailTemplateData {
   targetLabel: string;
   moderatorLabel: string;
   moderatorDiscordId?: string | null;
-  reason: string;
   /** `null` bei einem permanenten Jail. */
   durationSeconds: number | null;
   /** `null` bei einem permanenten Jail. */
@@ -33,11 +32,18 @@ export interface JailTemplateData {
 
 export const PERMANENT_TEXT = 'permanent';
 
-/** Vorlagen, die ohne Konfiguration verwendet werden. */
+/**
+ * Vorlagen, die ohne Konfiguration verwendet werden.
+ *
+ * Ohne Grund. Der Grund einer Strafe geht die Allgemeinheit nichts an: er
+ * stand frueher in der oeffentlichen Ankuendigung und im Jail-Kanal, wo ihn
+ * jeder mitlesen konnte. Er bleibt vollstaendig erhalten - in der Akte, im
+ * Moderationslog und im Audit Log, also dort, wo das Team ihn braucht.
+ */
 export const DEFAULT_PUBLIC_TEMPLATE =
-  '{mention} isch {duration} im Jail. Grund: {reason} — {gendered:Er chunnt|Si chunnt|Er/Si chunnt} {end_relative} wieder use.';
-export const DEFAULT_PERMANENT_PUBLIC_TEMPLATE = '{mention} isch permanent im Jail. Grund: {reason}';
-export const DEFAULT_PING_TEMPLATE = '{mention} — du bisch im Jail. Grund: {reason}';
+  '{mention} isch {duration} im Jail. {gendered:Er chunnt|Si chunnt|Er/Si chunnt} {end_relative} wieder use.';
+export const DEFAULT_PERMANENT_PUBLIC_TEMPLATE = '{mention} isch permanent im Jail.';
+export const DEFAULT_PING_TEMPLATE = '{mention} — du bisch im Jail.';
 export const DEFAULT_RELEASE_TEMPLATE = '{mention} isch wieder frei.';
 
 /**
@@ -48,7 +54,6 @@ export const JAIL_TEMPLATE_PLACEHOLDERS: ReadonlyArray<{ token: string; descript
   { token: '{mention}', description: 'Erwähnung des Mitglieds (@Name)' },
   { token: '{user}', description: 'Anzeigename des Mitglieds ohne Erwähnung' },
   { token: '{moderator}', description: 'Name des Moderators' },
-  { token: '{reason}', description: 'Angegebener Grund' },
   { token: '{duration}', description: 'Dauer, z.B. "2 Stunden" oder "permanent"' },
   { token: '{end_time}', description: 'Enddatum als Discord-Zeitstempel' },
   { token: '{end_relative}', description: 'Verbleibende Zeit ("in 2 Stunden")' },
@@ -108,7 +113,6 @@ export function renderJailTemplate(template: string, data: JailTemplateData): st
     mention: `<@${data.targetDiscordId}>`,
     user: truncate(escapeDiscordMarkdown(data.targetLabel), 100),
     moderator: truncate(escapeDiscordMarkdown(data.moderatorLabel), 100),
-    reason: truncate(escapeDiscordMarkdown(data.reason), 500),
     duration: permanent ? PERMANENT_TEXT : formatDuration((data.durationSeconds ?? 0) * 1000),
     end_time: permanent ? PERMANENT_TEXT : discordTimestamp(data.endsAt as Date, 'f'),
     end_relative: permanent ? PERMANENT_TEXT : discordTimestamp(data.endsAt as Date, 'R'),
@@ -116,11 +120,23 @@ export function renderJailTemplate(template: string, data: JailTemplateData): st
   };
 
   const rendered = template
+    // `{reason}` gibt es nicht mehr. Diese Vorlagen sind oeffentlich, und der
+    // Grund einer Strafe ist es nicht.
+    //
+    // Er wird nicht durch Leerzeichen ersetzt, sondern samt seiner
+    // Beschriftung entfernt: in allen bisherigen Vorlagen stand «Grund:
+    // {reason}», und ein uebrig gebliebenes «Grund:» ohne Grund waere
+    // schlimmer als beides. Wer die Vorlage angepasst hat, findet danach
+    // keinen halben Satz vor.
+    .replace(/[\s—-]*\bGrund:?\s*\{reason\}/giu, '')
+    .replace(/\{reason\}/gu, '')
     .replace(/\{gendered:([^{}]*)\}/gu, (_match, body: string) => renderGendered(body, data.gender ?? null))
     // Unbekannte Platzhalter bleiben unveraendert stehen - das macht einen
     // Tippfehler in der Vorlage sichtbar, statt ihn stillschweigend zu
     // verschlucken.
-    .replace(/\{([a-z_]+)\}/gu, (match, token: string) => values[token] ?? match);
+    .replace(/\{([a-z_]+)\}/gu, (match, token: string) => values[token] ?? match)
+    // Nach dem Entfernen koennen doppelte Leerzeichen stehen bleiben.
+    .replace(/[ \t]{2,}/gu, ' ');
 
   return truncate(rendered.trim(), MAX_RENDERED_LENGTH);
 }
@@ -137,7 +153,6 @@ export function previewJailTemplate(template: string, options: { permanent?: boo
     targetDiscordId: '000000000000000000',
     targetLabel: 'Beispiel',
     moderatorLabel: 'Moderator',
-    reason: 'Spam im Chat',
     durationSeconds: permanent ? null : 2 * 60 * 60,
     endsAt: permanent ? null : new Date(Date.now() + 2 * 60 * 60 * 1000),
     gender: null,

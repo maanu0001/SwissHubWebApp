@@ -387,34 +387,31 @@ export async function createJail(
     }),
   ]);
 
+  const embedDaten = {
+    targetDiscordId: target.discordId,
+    targetLabel: target.displayName,
+    moderatorDiscordId: actor.discordId,
+    moderatorLabel: actor.username,
+    reason: input.reason,
+    durationSeconds: input.durationSeconds,
+    endsAt,
+  };
+
   if (context.settings.postModerationLog) {
+    // Das Moderationslog liest nur das Team - hier steht der Grund.
     await postNotification(
       gateway,
       context.moderationLogChannelId,
-      buildJailEmbed({
-        targetDiscordId: target.discordId,
-        targetLabel: target.displayName,
-        moderatorDiscordId: actor.discordId,
-        moderatorLabel: actor.username,
-        reason: input.reason,
-        durationSeconds: input.durationSeconds,
-        endsAt,
-      }),
+      buildJailEmbed(embedDaten, { zeigeGrund: true }),
     );
   }
   if (context.settings.notifyInJailChannel) {
+    // Der Jail-Kanal nicht: dort liest die betroffene Person mit, und alle
+    // anderen Gejailten ebenso.
     await postNotification(
       gateway,
       context.jailChannelId,
-      buildJailEmbed({
-        targetDiscordId: target.discordId,
-        targetLabel: target.displayName,
-        moderatorDiscordId: actor.discordId,
-        moderatorLabel: actor.username,
-        reason: input.reason,
-        durationSeconds: input.durationSeconds,
-        endsAt,
-      }),
+      buildJailEmbed(embedDaten),
       `<@${target.discordId}>`,
     );
   }
@@ -815,7 +812,6 @@ export async function releaseJail(jailId: string, options: ReleaseJailOptions): 
         targetDiscordId: jail.targetDiscordId,
         targetLabel: jail.targetDisplayName ?? jail.targetUsername,
         moderatorLabel: actor?.username ?? 'System',
-        reason: jail.reason,
         durationSeconds: jail.durationSeconds,
         endsAt: jail.endsAt,
         gender: resolveGender(member.roleIds, context.genderRoles),

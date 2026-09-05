@@ -54,6 +54,29 @@ export const jailSettingsSchema = z.object({
     .min(60)
     .max(JAIL_MAX_DURATION_SECONDS)
     .default(7 * 24 * 60 * 60),
+  /**
+   * Vordefinierte Gruende - eine Zeile je Grund.
+   *
+   * Nur eine Abkuerzung fuer das Team: die freie Eingabe bleibt, und der
+   * gewaehlte Grund landet im selben Feld wie ein getippter. Bewusst
+   * konfigurierbar statt fest verdrahtet - welche Gruende auf einem Server
+   * vorkommen, weiss der Server und nicht diese Anwendung.
+   */
+  reasonPresets: z
+    .string()
+    .max(2000)
+    .default(
+      [
+        'Spam',
+        'Beleidigung',
+        'Provokation',
+        'Regelverstoss',
+        'Unangemessenes Verhalten',
+        'Voice-Verhalten',
+        'Werbung',
+      ].join('\n'),
+    ),
+
   /** Zusätzliche Rollen, die während des Jails erhalten bleiben. */
   keepRoleIds: z
     .array(z.string().regex(/^\d{17,20}$/u))
@@ -134,6 +157,29 @@ export const jailSettingsSchema = z.object({
 
 export type JailSettings = z.infer<typeof jailSettingsSchema>;
 
+/**
+ * Die vordefinierten Gruende als Liste.
+ *
+ * Gespeichert wird ein Text mit einer Zeile je Grund - das ist im Dashboard
+ * die Eingabe, die man ohne Erklaerung versteht. Gelesen wird er hier an
+ * einer Stelle, damit nicht jede Oberflaeche ihr eigenes Trennen erfindet.
+ * Leere Zeilen und Doppelte fallen weg; die Reihenfolge bleibt.
+ */
+export function jailReasonPresets(settings: Pick<JailSettings, 'reasonPresets'>): string[] {
+  const gesehen = new Set<string>();
+  return settings.reasonPresets
+    .split('\n')
+    .map((zeile) => zeile.trim())
+    .filter((zeile) => {
+      if (zeile.length < 3 || zeile.length > 100 || gesehen.has(zeile)) {
+        return false;
+      }
+      gesehen.add(zeile);
+      return true;
+    })
+    .slice(0, 25);
+}
+
 /** Platzhalterhilfe - steht direkt am ersten Vorlagenfeld. */
 const PLACEHOLDER_HELP = `Verfügbare Platzhalter: ${JAIL_TEMPLATE_PLACEHOLDERS.map(
   (entry) => entry.token,
@@ -156,6 +202,16 @@ export const jailSettingsFields: SettingsField[] = [
     group: 'Discord',
     required: true,
     mustBeManageable: true,
+  },
+  {
+    key: 'reasonPresets',
+    type: 'textarea',
+    label: 'Vordefinierte Gründe',
+    description:
+      'Ein Grund je Zeile. Sie erscheinen beim Jailen zur Auswahl - getippt werden kann weiterhin frei. Der Grund bleibt intern.',
+    group: 'Verhalten',
+    maxLength: 2000,
+    placeholder: 'Spam\nBeleidigung\nRegelverstoss',
   },
   {
     key: 'keepRoleIds',

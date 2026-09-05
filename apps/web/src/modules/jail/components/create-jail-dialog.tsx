@@ -27,6 +27,13 @@ interface CreateJailDialogProps {
   csrfToken: string;
   durationPresets: ReadonlyArray<{ label: string; seconds: number }>;
   maxDurationSeconds: number;
+  /**
+   * Vordefinierte Gründe aus den Jail-Einstellungen.
+   *
+   * Nur eine Abkürzung: der gewählte Grund landet im selben Feld wie ein
+   * getippter, und tippen bleibt möglich.
+   */
+  reasonPresets?: readonly string[];
   /** Vorausgewähltes Mitglied (z.B. aus dem Mitgliederprofil). */
   presetMember?: PickedMember;
   triggerLabel?: string;
@@ -53,6 +60,7 @@ export function CreateJailDialog({
   csrfToken,
   durationPresets,
   maxDurationSeconds,
+  reasonPresets = [],
   presetMember,
   triggerLabel = 'Jail erstellen',
   variant = 'button',
@@ -64,7 +72,12 @@ export function CreateJailDialog({
   const [pending, setPending] = useState(false);
   const [member, setMember] = useState<PickedMember | null>(presetMember ?? null);
   const [preset, setPreset] = useState<string>(String(durationPresets[3]?.seconds ?? 3600));
-  const [customMinutes, setCustomMinutes] = useState('90');
+  // Benutzerdefinierte Dauer in drei Feldern. Minuten allein zwang dazu,
+  // «2 Tage» als 2880 auszurechnen - eine Rechnung, die niemand im Kopf
+  // machen will und bei der man sich vertippt.
+  const [customDays, setCustomDays] = useState('0');
+  const [customHours, setCustomHours] = useState('1');
+  const [customMinutes, setCustomMinutes] = useState('30');
   const [reason, setReason] = useState('');
   const [idempotencyKey, setIdempotencyKey] = useState<string | null>(null);
   const [fieldError, setFieldError] = useState<string | null>(null);
@@ -81,9 +94,12 @@ export function CreateJailDialog({
     if (preset !== CUSTOM) {
       return Number(preset);
     }
-    const minutes = Number(customMinutes);
-    return Number.isFinite(minutes) ? Math.round(minutes * 60) : 0;
-  }, [permanent, preset, customMinutes]);
+    const zahl = (wert: string): number => {
+      const gelesen = Number(wert);
+      return Number.isFinite(gelesen) && gelesen >= 0 ? Math.floor(gelesen) : 0;
+    };
+    return zahl(customDays) * 86_400 + zahl(customHours) * 3_600 + zahl(customMinutes) * 60;
+  }, [permanent, preset, customDays, customHours, customMinutes]);
 
   // Ein permanenter Jail hat kein geplantes Ende - deshalb auch keins anzeigen.
   const endsAt = useMemo(
@@ -291,20 +307,75 @@ export function CreateJailDialog({
 
               {preset === CUSTOM ? (
                 <div className="space-y-2">
-                  <Label htmlFor="jail-custom">Dauer in Minuten</Label>
-                  <Input
-                    id="jail-custom"
-                    type="number"
-                    min={1}
-                    max={Math.floor(maxDurationSeconds / 60)}
-                    value={customMinutes}
-                    onChange={(event) => setCustomMinutes(event.target.value)}
-                  />
+                  <Label>Eigene Dauer</Label>
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="space-y-1">
+                      <Label htmlFor="jail-custom-days" className="text-xs font-normal text-muted-foreground">
+                        Tage
+                      </Label>
+                      <Input
+                        id="jail-custom-days"
+                        type="number"
+                        min={0}
+                        max={365}
+                        value={customDays}
+                        onChange={(event) => setCustomDays(event.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label htmlFor="jail-custom-hours" className="text-xs font-normal text-muted-foreground">
+                        Stunden
+                      </Label>
+                      <Input
+                        id="jail-custom-hours"
+                        type="number"
+                        min={0}
+                        max={23}
+                        value={customHours}
+                        onChange={(event) => setCustomHours(event.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label
+                        htmlFor="jail-custom-minutes"
+                        className="text-xs font-normal text-muted-foreground"
+                      >
+                        Minuten
+                      </Label>
+                      <Input
+                        id="jail-custom-minutes"
+                        type="number"
+                        min={0}
+                        max={59}
+                        value={customMinutes}
+                        onChange={(event) => setCustomMinutes(event.target.value)}
+                      />
+                    </div>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {durationSeconds > 0
+                      ? `Ergibt ${formatDuration(durationSeconds * 1000)}.`
+                      : 'Mindestens eine Minute.'}
+                  </p>
                 </div>
               ) : null}
 
               <div className="space-y-2">
                 <Label htmlFor="jail-reason">Grund</Label>
+                {reasonPresets.length > 0 ? (
+                  <Select value="" onValueChange={(gewaehlt) => setReason(gewaehlt)}>
+                    <SelectTrigger id="jail-reason-preset" aria-label="Vordefinierten Grund wählen">
+                      <SelectValue placeholder="Vordefinierten Grund wählen …" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {reasonPresets.map((eintrag) => (
+                        <SelectItem key={eintrag} value={eintrag}>
+                          {eintrag}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : null}
                 <Textarea
                   id="jail-reason"
                   value={reason}
@@ -312,7 +383,10 @@ export function CreateJailDialog({
                   maxLength={500}
                   placeholder="z.B. Spam im Chat"
                 />
-                <p className="text-xs text-muted-foreground">{reason.length}/500 Zeichen</p>
+                <p className="text-xs text-muted-foreground">
+                  {reason.length}/500 Zeichen · Der Grund bleibt intern und erscheint nicht in der
+                  öffentlichen Ankündigung.
+                </p>
               </div>
 
               <div className="flex items-start justify-between gap-4 rounded-md border border-border bg-secondary/30 px-3 py-2.5">

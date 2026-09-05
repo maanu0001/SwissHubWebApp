@@ -70,6 +70,21 @@ export interface FakeVoteJailCooldown {
   expiresAt: Date;
 }
 
+/** Eine Notiz in der Mitgliederakte. */
+export interface FakeMemberNote {
+  id: string;
+  guildId: string;
+  targetDiscordId: string;
+  authorDiscordId: string;
+  authorUsername: string;
+  content: string;
+  category: string | null;
+  pinned: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+  editedAt: Date | null;
+}
+
 export interface FakeManagedRole {
   discordRoleId: string;
   label: string;
@@ -158,6 +173,7 @@ export interface FakeState {
   communicationMessages: Array<Record<string, unknown>>;
   communicationDrafts: Array<Record<string, unknown>>;
   managedRoles: FakeManagedRole[];
+  memberNotes: FakeMemberNote[];
   rolePermissions: Array<{ discordRoleId: string; permission: string }>;
   moduleSettings: Record<string, unknown>;
   moduleEnabled: Record<string, boolean>;
@@ -179,6 +195,7 @@ export function createFakeState(): FakeState {
   return {
     jails: [],
     managedRoles: [],
+    memberNotes: [],
     rolePermissions: [],
     moduleSettings: {},
     moduleEnabled: {},
@@ -724,6 +741,46 @@ export function createFakeDatabaseModule(state: FakeState) {
       async create({ data }: { data: { key: string; value: unknown } }) {
         state.systemConfig[data.key] = data.value;
         return data;
+      },
+    },
+
+    memberNote: {
+      async create({ data }: { data: Partial<FakeMemberNote> }) {
+        const jetzt = new Date();
+        const eintrag: FakeMemberNote = {
+          id: `note-${state.memberNotes.length + 1}`,
+          guildId: '',
+          targetDiscordId: '',
+          authorDiscordId: '',
+          authorUsername: '',
+          content: '',
+          category: null,
+          pinned: false,
+          createdAt: jetzt,
+          updatedAt: jetzt,
+          editedAt: null,
+          ...data,
+        };
+        state.memberNotes.push(eintrag);
+        return { ...eintrag };
+      },
+      async findMany({ where }: { where?: Filter } = {}) {
+        return state.memberNotes
+          .filter((eintrag) =>
+            where ? matchesGeneric(eintrag as unknown as Record<string, unknown>, where) : true,
+          )
+          .map((eintrag) => ({ ...eintrag }));
+      },
+      async findFirst({ where }: { where?: Filter } = {}) {
+        const eintrag = state.memberNotes.find((zeile) =>
+          where ? matchesGeneric(zeile as unknown as Record<string, unknown>, where) : true,
+        );
+        return eintrag ? { ...eintrag } : null;
+      },
+      async count({ where }: { where?: Filter } = {}) {
+        return state.memberNotes.filter((eintrag) =>
+          where ? matchesGeneric(eintrag as unknown as Record<string, unknown>, where) : true,
+        ).length;
       },
     },
 

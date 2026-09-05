@@ -73,6 +73,9 @@ export function moderationAbilities(context: AuthContext): ModerationAbilities {
     kick: can(context, p.kick),
     timeout: can(context, p.timeout),
     timeoutRemove: can(context, p.timeoutRemove),
+    // Derselbe Schluessel wie in der Jail-Maske - ein zweiter waere ein
+    // zweites Regelwerk fuer dieselbe Handlung.
+    jail: can(context, jail.JAIL_PERMISSIONS.create),
     note: can(context, p.notesCreate),
   };
   return { ...abilities, any: Object.values(abilities).some(Boolean) };

@@ -12,7 +12,6 @@ const BASE = {
   targetDiscordId: '100000000000000004',
   targetLabel: 'spammer99',
   moderatorLabel: 'nina.mod',
-  reason: 'Spam im Chat',
   durationSeconds: 2 * 60 * 60,
   endsAt: new Date('2026-08-20T18:30:00Z'),
   gender: null,
@@ -21,11 +20,11 @@ const BASE = {
 describe('Platzhalter', () => {
   it('setzt die bekannten Werte ein', () => {
     const text = jail.renderJailTemplate(
-      '{mention} ({user}) · {duration} · {reason} · von {moderator}',
+      '{mention} ({user}) · {duration} · von {moderator}',
       BASE,
     );
 
-    expect(text).toBe('<@100000000000000004> (spammer99) · 2 Std. · Spam im Chat · von nina.mod');
+    expect(text).toBe('<@100000000000000004> (spammer99) · 2 Std. · von nina.mod');
   });
 
   it('nutzt Discord-Zeitstempel statt fest formatierter Daten', () => {
@@ -45,7 +44,7 @@ describe('Platzhalter', () => {
 
   it('lässt unbekannte Platzhalter unverändert stehen', () => {
     // Ein Tippfehler soll sichtbar sein, nicht stillschweigend verschwinden.
-    expect(jail.renderJailTemplate('{mentionn} {reason}', BASE)).toBe('{mentionn} Spam im Chat');
+    expect(jail.renderJailTemplate('{mentionn} {duration}', BASE)).toBe('{mentionn} 2 Std.');
   });
 });
 
@@ -77,15 +76,25 @@ describe('Anrede', () => {
 });
 
 describe('Sicherheit', () => {
-  it('entschärft Markdown im Grund und im Namen', () => {
-    const text = jail.renderJailTemplate('{user}: {reason}', {
-      ...BASE,
-      targetLabel: '**fett**',
-      reason: '# Überschrift `code`',
-    });
+  it('entschärft Markdown im Namen', () => {
+    const text = jail.renderJailTemplate('{user}', { ...BASE, targetLabel: '**fett**' });
 
     expect(text).not.toContain('**fett**');
     expect(text).toContain('\\*\\*fett\\*\\*');
+  });
+
+  it('gibt den Grund über eine Vorlage nicht mehr aus', () => {
+    // Öffentliche Vorlagen kennen den Grund nicht mehr - und eine alte
+    // Vorlage, die ihn noch enthält, gibt ihn auch nicht preis.
+    expect(jail.renderJailTemplate('{user}: {reason}', BASE)).toBe('spammer99:');
+    expect(jail.renderJailTemplate('{mention} isch im Jail. Grund: {reason}', BASE)).toBe(
+      `<@${BASE.targetDiscordId}> isch im Jail.`,
+    );
+    // Auch die Beschriftung verschwindet mit - «Grund:» ohne Grund wäre
+    // schlimmer als beides.
+    expect(jail.renderJailTemplate('{mention} — Grund: {reason}', BASE)).toBe(
+      `<@${BASE.targetDiscordId}>`,
+    );
   });
 
   it('kann über die Vorlage niemanden zusätzlich anpingen', () => {

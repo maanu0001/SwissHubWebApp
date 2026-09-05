@@ -40,8 +40,17 @@ function safe(value: string): string {
 /**
  * Ein permanenter Jail zeigt statt Countdown und Enddatum klar "Permanent" -
  * so ist auf Discord sofort erkennbar, dass er nicht von selbst endet.
+ *
+ * `zeigeGrund` entscheidet, ob der Grund im Embed steht. Er gehoert ins
+ * Moderationslog, das nur das Team liest - nicht in den Jail-Kanal, wo die
+ * betroffene Person und alle anderen Gejailten mitlesen. Der Grund ist damit
+ * nicht verschwunden: er steht in der Akte, im Moderationslog und im Audit
+ * Log.
  */
-export function buildJailEmbed(data: JailNotificationData): DiscordEmbed {
+export function buildJailEmbed(
+  data: JailNotificationData,
+  options: { zeigeGrund?: boolean } = {},
+): DiscordEmbed {
   const permanent = data.endsAt === null;
   return {
     title: 'Mitglied gejailt',
@@ -61,7 +70,9 @@ export function buildJailEmbed(data: JailNotificationData): DiscordEmbed {
           : formatDateTime(data.endsAt as Date, { timezone: data.timezone ?? branding.timezone }),
         inline: true,
       },
-      { name: 'Grund', value: truncate(escapeDiscordMarkdown(data.reason), 1000) },
+      ...(options.zeigeGrund
+        ? [{ name: 'Grund', value: truncate(escapeDiscordMarkdown(data.reason), 1000) }]
+        : []),
     ],
     timestamp: new Date().toISOString(),
     footer: { text: `${branding.name} ${branding.productName}` },

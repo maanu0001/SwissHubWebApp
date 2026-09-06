@@ -91,6 +91,61 @@ const MOCK_ROLES: GuildRole[] = [
 
 const BOT_ID = '800000000000000001';
 
+/**
+ * Die Kanaele des Mocks.
+ *
+ * Als Konstante und nicht im Rumpf von `list()`, weil `channelsOf()` sie
+ * ebenfalls braucht - fuer eine zweite Guild mit denselben Namen und
+ * anderen Kennungen.
+ */
+const MOCK_CHANNELS: GuildChannel[] = [
+  {
+    id: '700000000000000010',
+    name: 'Moderation',
+    type: 4,
+    parentId: null,
+    position: 0,
+    nsfw: false,
+    overwrites: [],
+  },
+  {
+    id: '700000000000000001',
+    name: 'moderation-log',
+    type: 0,
+    parentId: '700000000000000010',
+    position: 1,
+    nsfw: false,
+    overwrites: [],
+  },
+  {
+    id: '700000000000000002',
+    name: 'jail',
+    type: 0,
+    parentId: '700000000000000010',
+    position: 2,
+    nsfw: false,
+    overwrites: [],
+  },
+  {
+    id: '700000000000000003',
+    name: 'allgemein',
+    type: 0,
+    parentId: null,
+    position: 3,
+    nsfw: false,
+    overwrites: [],
+  },
+  {
+    id: '700000000000000004',
+    name: 'Lounge',
+    type: 2,
+    parentId: null,
+    position: 4,
+    nsfw: false,
+    overwrites: [],
+  },
+];
+
 const MOCK_MEMBERS: GuildMember[] = [
   buildMember('100000000000000001', 'manuel', 'Manuel', ['900000000000000001', '900000000000000008']),
   buildMember('100000000000000002', 'nina.mod', 'Nina', ['900000000000000003', '900000000000000008']),
@@ -349,53 +404,7 @@ export function createMockGateway(): DiscordGateway {
     },
     channels: {
       async list() {
-        return [
-          {
-            id: '700000000000000010',
-            name: 'Moderation',
-            type: 4,
-            parentId: null,
-            position: 0,
-            nsfw: false,
-            overwrites: [],
-          },
-          {
-            id: '700000000000000001',
-            name: 'moderation-log',
-            type: 0,
-            parentId: '700000000000000010',
-            position: 1,
-            nsfw: false,
-            overwrites: [],
-          },
-          {
-            id: '700000000000000002',
-            name: 'jail',
-            type: 0,
-            parentId: '700000000000000010',
-            position: 2,
-            nsfw: false,
-            overwrites: [],
-          },
-          {
-            id: '700000000000000003',
-            name: 'allgemein',
-            type: 0,
-            parentId: null,
-            position: 3,
-            nsfw: false,
-            overwrites: [],
-          },
-          {
-            id: '700000000000000004',
-            name: 'Lounge',
-            type: 2,
-            parentId: null,
-            position: 4,
-            nsfw: false,
-            overwrites: [],
-          },
-        ];
+        return MOCK_CHANNELS.map((kanal) => ({ ...kanal }));
       },
       async send(channelId, payload) {
         messageCounter += 1;
@@ -448,7 +457,44 @@ export function createMockGateway(): DiscordGateway {
       async listBotGuilds() {
         return [
           { id: '000000000000000000', name: 'SwissHub (Mock)', iconHash: null, memberCount: state.size },
+          // Eine zweite Guild, damit sich eine Uebertragung ueberhaupt
+          // nachstellen laesst - mit einer einzigen gaebe es kein Ziel.
+          { id: '000000000000000001', name: 'SwissHub Zweitserver (Mock)', iconHash: null, memberCount: 3 },
         ];
+      },
+      async rolesOf(guildId: string) {
+        // Der Mock kennt nur seine eigenen Rollen. Fuer eine fremde Guild
+        // liefert er dieselben mit anderen Kennungen - so laesst sich eine
+        // Zuordnung nach Namen pruefen, ohne dass die IDs zufaellig passen.
+        const eigene = MOCK_ROLES.map((rolle) => ({ ...rolle }));
+        if (guildId === '000000000000000000') {
+          return eigene;
+        }
+        return eigene.map((rolle) => ({ ...rolle, id: `9${rolle.id.slice(1)}` }));
+      },
+      async channelsOf(guildId: string) {
+        const eigene = MOCK_CHANNELS.map((kanal) => ({ ...kanal }));
+        if (guildId === '000000000000000000') {
+          return eigene;
+        }
+        return eigene.map((kanal) => ({ ...kanal, id: `9${kanal.id.slice(1)}` }));
+      },
+      async summaryOf(guildId: string) {
+        const alle = [
+          { id: '000000000000000000', name: 'SwissHub (Mock)' },
+          { id: '000000000000000001', name: 'SwissHub Zweitserver (Mock)' },
+        ];
+        const treffer = alle.find((eintrag) => eintrag.id === guildId);
+        return treffer
+          ? {
+              id: treffer.id,
+              name: treffer.name,
+              iconHash: null,
+              approximateMemberCount: state.size,
+              approximatePresenceCount: 0,
+              ownerId: '100000000000000001',
+            }
+          : null;
       },
       async auditLog() {
         // Der Mock kennt kein Audit Log. Eine leere Liste ist die richtige

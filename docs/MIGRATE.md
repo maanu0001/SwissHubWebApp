@@ -181,10 +181,39 @@ Jeder Schritt: angelegt, exportiert, eingelesen, zugeordnet, Probelauf,
 gestartet, angewendet, abgeschlossen, gescheitert, zurückgenommen. Ohne
 Zugangsdaten, weil keine im Paket stehen.
 
-## Bekannte Grenze
+## Die Ziel-Guild
 
-Der Bot spricht in einer Installation mit **genau einer** Guild. Eine
-Ziel-Guild, auf der er nicht verbunden ist, lässt sich von hier aus nicht
-prüfen — und was sich nicht prüfen lässt, wird nicht angenommen. Der Weg für
-einen echten Umzug ist deshalb: Bot auf den Zielserver einladen, die Guild in
-den Einstellungen verbinden, dann übertragen.
+Zur Auswahl stehen die Server, auf denen der Bot **Mitglied** ist — gefragt
+wird Discord (`GET /users/@me/guilds`), nicht die eigene Konfiguration. Der
+Bot-Token gilt für jede dieser Guilds; die Anwendung _spricht_ zwar mit einer,
+_lesen_ kann sie alle.
+
+Deshalb ist es eine Auswahlliste und kein Eingabefeld für eine Zahl. Wer eine
+ID abtippt, tippt sie falsch und erfährt es erst, wenn er nicht weiterkommt.
+
+Rollen und Kanäle des Ziels werden über `guild.rolesOf()` und
+`guild.channelsOf()` gelesen — ausdrücklich benannte, guild-übergreifende
+Abfragen. Der Alltag der Anwendung bleibt bei `roles.list()` und der
+verbundenen Guild; eine Abfrage über Guild-Grenzen soll man im Code sehen.
+
+Zwei Prüfungen vor dem Anlegen, mit zwei verschiedenen Meldungen: «Der Bot ist
+dort kein Mitglied» (einladen) und «Die Guild antwortet gerade nicht» (später
+nochmal). Beides in einen Satz zu packen hiesse, den Suchenden auf die falsche
+Fährte zu setzen.
+
+## Nach der Übertragung
+
+Die Übertragung schreibt die Konfiguration **dieser** Installation so um, dass
+sie auf die Rollen und Kanäle des Zielservers zeigt. Der Bot spricht danach
+aber weiterhin mit dem alten Server.
+
+Zwei Schritte fehlen noch, und beide stehen nach dem Abschluss auch im
+Assistenten:
+
+1. Unter **Server → Einstellungen** den verbundenen Discord-Server auf den
+   Zielserver umstellen.
+2. Die importierten Automationen durchsehen und einzeln einschalten.
+
+Das ist der Umzug einer Installation, nicht das Klonen auf eine zweite.
+Sollen beide Server parallel laufen, braucht der zweite eine eigene
+Installation — dorthin führt der Weg über Export und Import.

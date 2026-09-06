@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { ArrowRightLeft, Download } from 'lucide-react';
@@ -14,10 +14,15 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import { Input, Textarea } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { erstellePaketAction, legeUebertragungAnAction } from '@/modules/migration/actions';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  erstellePaketAction,
+  legeUebertragungAnAction,
+  listeZielGuildsAction,
+} from '@/modules/migration/actions';
 
 /**
  * Eine Übertragung beginnen.
@@ -30,10 +35,36 @@ import { erstellePaketAction, legeUebertragungAnAction } from '@/modules/migrati
 export function NeueUebertragung({ csrfToken }: { csrfToken: string }): React.JSX.Element {
   const [open, setOpen] = useState(false);
   const [ziel, setZiel] = useState('');
+  /**
+   * Die Guilds, auf denen der Bot Mitglied ist.
+   *
+   * Eine Auswahl und kein Eingabefeld: wer eine ID abtippt, tippt sie falsch -
+   * und erfährt es erst, wenn er nicht weiterkommt.
+   */
+  const [guilds, setGuilds] = useState<Array<{
+    id: string;
+    name: string;
+    memberCount: number | null;
+    istQuelle: boolean;
+  }> | null>(null);
   const [paketJson, setPaketJson] = useState('');
   const [gleicheGuild, setGleicheGuild] = useState(false);
   const [pending, setPending] = useState(false);
   const router = useRouter();
+
+  useEffect(() => {
+    if (!open || guilds !== null) {
+      return;
+    }
+    void listeZielGuildsAction({ csrfToken }).then((antwort) => {
+      setGuilds(antwort.ok ? antwort.data : []);
+      if (!antwort.ok) {
+        toast.error(antwort.error.message);
+      }
+    });
+  }, [open, guilds, csrfToken]);
+
+  const gewaehlt = guilds?.find((guild) => guild.id === ziel) ?? null;
 
   const exportieren = async (): Promise<void> => {
     const antwort = await erstellePaketAction({ csrfToken });
@@ -57,7 +88,7 @@ export function NeueUebertragung({ csrfToken }: { csrfToken: string }): React.JS
     try {
       const antwort = await legeUebertragungAnAction({
         csrfToken,
-        targetGuildId: ziel.trim(),
+        targetGuildId: ziel,
         ...(paketJson.trim() ? { paketJson: paketJson.trim() } : {}),
         gleicheGuildErlaubt: gleicheGuild,
       });
@@ -96,16 +127,25 @@ export function NeueUebertragung({ csrfToken }: { csrfToken: string }): React.JS
 
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="migrate-ziel">Ziel-Guild (Discord-ID)</Label>
-              <Input
-                id="migrate-ziel"
-                value={ziel}
-                onChange={(event) => setZiel(event.target.value)}
-                placeholder="z.B. 123456789012345678"
-                inputMode="numeric"
-              />
+              <Label htmlFor="migrate-ziel">Ziel-Guild</Label>
+              <Select value={ziel} onValueChange={setZiel} disabled={guilds === null}>
+                <SelectTrigger id="migrate-ziel">
+                  <SelectValue placeholder={guilds === null ? 'Wird geladen …' : 'Zielserver wählen'} />
+                </SelectTrigger>
+                <SelectContent>
+                  {(guilds ?? []).map((guild) => (
+                    <SelectItem key={guild.id} value={guild.id}>
+                      {guild.name}
+                      {guild.istQuelle ? ' (diese Installation)' : ''}
+                      {guild.memberCount !== null ? ` · ${guild.memberCount} Mitglieder` : ''}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               <p className="text-xs text-muted-foreground">
-                Der Bot muss auf dieser Guild bereits Mitglied und verbunden sein.
+                {guilds !== null && guilds.length <= 1
+                  ? 'Der Bot ist nur auf diesem Server. Lade ihn zuerst auf den Zielserver ein - danach erscheint er hier.'
+                  : 'Nur Server, auf denen der Bot bereits Mitglied ist.'}
               </p>
             </div>
 
@@ -124,23 +164,29 @@ export function NeueUebertragung({ csrfToken }: { csrfToken: string }): React.JS
               </p>
             </div>
 
-            <label className="flex items-start gap-2 text-sm">
-              <Switch
-                checked={gleicheGuild}
-                onCheckedChange={setGleicheGuild}
-                aria-label="Auf dieselbe Guild schreiben"
-              />
-              <span className="text-muted-foreground">
-                Ziel ist dieselbe Guild wie die Quelle. Nur ankreuzen, wenn das Absicht ist.
-              </span>
-            </label>
+            {gewaehlt?.istQuelle ? (
+              <label className="flex items-start gap-2 text-sm">
+                <Switch
+                  checked={gleicheGuild}
+                  onCheckedChange={setGleicheGuild}
+                  aria-label="Auf dieselbe Guild schreiben"
+                />
+                <span className="text-muted-foreground">
+                  Ziel ist dieselbe Guild wie die Quelle. Nur bestätigen, wenn das Absicht ist.
+                </span>
+              </label>
+            ) : null}
           </div>
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)} disabled={pending}>
               Abbrechen
             </Button>
-            <Button onClick={() => void anlegen()} loading={pending} disabled={ziel.trim().length < 17}>
+            <Button
+              onClick={() => void anlegen()}
+              loading={pending}
+              disabled={ziel === '' || (gewaehlt?.istQuelle === true && !gleicheGuild)}
+            >
               Anlegen
             </Button>
           </DialogFooter>

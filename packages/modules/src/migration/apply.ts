@@ -169,9 +169,10 @@ export async function wendeAn(
   paket: MigrationPackage,
   mappings: Mappings,
   actor: Handelnder,
-  options: { gateway?: DiscordGateway } = {},
+  options: { gateway?: DiscordGateway; targetGuildId?: string } = {},
 ): Promise<AnwendungsErgebnis> {
   const gateway = options.gateway ?? defaultDiscord;
+  const zielGuild = options.targetGuildId ?? null;
   const tabelle = alsTabelle(mappings);
   const phasen: PhasenErgebnis[] = [];
 
@@ -179,7 +180,7 @@ export async function wendeAn(
     await prisma.migrationRun.update({ where: { id: runId }, data: { phase } });
 
     try {
-      const ergebnis = await fuehrePhaseAus(phase, runId, paket, tabelle, actor, gateway);
+      const ergebnis = await fuehrePhaseAus(phase, runId, paket, tabelle, actor, gateway, zielGuild);
       phasen.push(ergebnis);
       if (!ergebnis.ok) {
         return { status: 'PARTIAL', phasen };
@@ -202,12 +203,15 @@ async function fuehrePhaseAus(
   tabelle: { roles: Record<string, string>; channels: Record<string, string> },
   actor: Handelnder,
   gateway: DiscordGateway,
+  zielGuild: string | null,
 ): Promise<PhasenErgebnis> {
   switch (phase) {
     case 'PREPARE': {
-      // Ist das Ziel überhaupt noch erreichbar? Lieber hier scheitern als
-      // nach der halben Übertragung.
-      const guild = await gateway.guild.get().catch(() => null);
+      // Ist das ZIEL noch erreichbar - nicht die verbundene Guild. Lieber
+      // hier scheitern als nach der halben Übertragung.
+      const guild = zielGuild
+        ? await gateway.guild.summaryOf(zielGuild).catch(() => null)
+        : await gateway.guild.get().catch(() => null);
       return {
         phase,
         ok: guild !== null,
@@ -237,7 +241,7 @@ async function fuehrePhaseAus(
       return uebertrageModule(paket, tabelle, actor);
 
     case 'IMPORT_AUTOMATIONS':
-      return importiereAutomationen(paket, actor);
+      return importiereAutomationen(paket, actor, zielGuild);
 
     case 'VERIFY': {
       const offen = paket.modules.filter((modul) => !getModuleDefinition(modul.id)).length;
@@ -368,9 +372,16 @@ async function uebertrageModule(
  * Wiedererkannt wird an Name und Guild: ein zweiter Anlauf legt dieselbe
  * Automation nicht noch einmal an.
  */
-async function importiereAutomationen(paket: MigrationPackage, actor: Handelnder): Promise<PhasenErgebnis> {
+async function importiereAutomationen(
+  paket: MigrationPackage,
+  actor: Handelnder,
+  zielGuild: string | null,
+): Promise<PhasenErgebnis> {
   const eintraege: string[] = [];
-  const guildId = await aktuelleGuild();
+  // Die Automationen gehoeren zur Ziel-Guild. Traegen sie die Kennung der
+  // alten, laufen sie nach dem Umschalten nie wieder an - der Verteiler
+  // sucht je Guild.
+  const guildId = zielGuild ?? (await aktuelleGuild());
 
   for (const automation of paket.automations) {
     const vorhanden = await prisma.automation.findFirst({

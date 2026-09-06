@@ -32,8 +32,11 @@ export default async function UebertragungPage({
     notFound();
   }
 
-  const [zielRollen, zielKanaele] = await Promise.all([
-    discord.roles.list().catch(() => []),
+  // Rollen und Kanäle des Ziels - dorthin wird zugeordnet. Dazu die eigenen
+  // Kanäle, damit in der linken Spalte Namen stehen und keine Zahlen.
+  const [zielRollen, zielKanaele, eigeneKanaele] = await Promise.all([
+    discord.guild.rolesOf(lauf.targetGuildId).catch(() => []),
+    discord.guild.channelsOf(lauf.targetGuildId).catch(() => []),
     discord.channels.list().catch(() => []),
   ]);
 
@@ -49,7 +52,7 @@ export default async function UebertragungPage({
           channels: migration.schlageKanaeleVor(
             migration.kanaeleImPaket(paket).map((kanalId) => ({
               id: kanalId,
-              name: zielKanaele.find((kanal) => kanal.id === kanalId)?.name ?? kanalId,
+              name: eigeneKanaele.find((kanal) => kanal.id === kanalId)?.name ?? kanalId,
             })),
             zielKanaele,
           ),

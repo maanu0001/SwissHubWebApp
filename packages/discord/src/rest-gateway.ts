@@ -655,6 +655,70 @@ export function createRestGateway(): DiscordGateway {
      * Guilds, in denen der Bot Mitglied ist. Grundlage der automatischen
      * Server-Erkennung im Einrichtungsassistenten.
      */
+    /**
+     * Rollen einer anderen Guild.
+     *
+     * Ohne Zwischenspeicher: der Speicher gehoert der verbundenen Guild, und
+     * eine fremde dort abzulegen hiesse, sie beim naechsten `roles.list()`
+     * zurueckzubekommen.
+     */
+    async rolesOf(guildId: string): Promise<GuildRole[]> {
+      const raw = await discordRequest<unknown[]>(`/guilds/${guildId}/roles`);
+      return (Array.isArray(raw) ? raw : [])
+        .map((entry) => discordRoleSchema.safeParse(entry))
+        .filter((result) => result.success)
+        .map((result) => ({
+          id: result.data.id,
+          name: result.data.name,
+          color: result.data.color,
+          position: result.data.position,
+          managed: result.data.managed,
+          permissions: result.data.permissions,
+        }));
+    },
+
+    async channelsOf(guildId: string): Promise<GuildChannel[]> {
+      const raw = await discordRequest<unknown[]>(`/guilds/${guildId}/channels`);
+      return (Array.isArray(raw) ? raw : [])
+        .map((entry) => discordChannelSchema.safeParse(entry))
+        .filter((result) => result.success)
+        .map((result) => result.data)
+        .map((channel) => ({
+          id: channel.id,
+          name: channel.name ?? 'unbenannt',
+          type: channel.type,
+          parentId: channel.parent_id ?? null,
+          position: channel.position ?? 0,
+          nsfw: channel.nsfw ?? false,
+          overwrites: channel.permission_overwrites ?? [],
+        }));
+    },
+
+    async summaryOf(guildId: string): Promise<GuildSummary | null> {
+      try {
+        const raw = await discordRequest<unknown>(`/guilds/${guildId}`, {
+          query: { with_counts: 'true' },
+        });
+        const parsed = botGuildSchema.safeParse(raw);
+        if (!parsed.success) {
+          return null;
+        }
+        return {
+          id: parsed.data.id,
+          name: parsed.data.name,
+          iconHash: parsed.data.icon ?? null,
+          approximateMemberCount: parsed.data.approximate_member_count ?? null,
+        } as GuildSummary;
+      } catch (error) {
+        // Kein Zugriff heisst hier: der Bot ist dort nicht. Das ist eine
+        // Antwort und kein Fehler.
+        if (isNotFound(error) || (error instanceof DiscordApiError && error.status === 403)) {
+          return null;
+        }
+        throw error;
+      }
+    },
+
     async listBotGuilds(): Promise<BotGuild[]> {
       const raw = await discordRequest<unknown[]>('/users/@me/guilds', {
         query: { with_counts: 'true' },

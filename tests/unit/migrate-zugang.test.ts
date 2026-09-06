@@ -109,8 +109,39 @@ describe('Die Aktionen prüfen serverseitig', () => {
     expect(quelle).toContain('resolveGuildId()');
   });
 
-  it('prüft die Ziel-Guild, statt eine beliebige ID zu übernehmen', () => {
-    expect(quelle).toContain('pruefeZielGuild');
+  it('prüft die Ziel-Guild bei Discord, nicht gegen die eigene Konfiguration', () => {
+    /*
+      Der Fehler, an dem das Modul zuerst scheiterte: hier stand ein Vergleich
+      mit der verbundenen Guild, und damit wurde jedes echte Ziel abgewiesen -
+      also genau der Fall, für den es dieses Modul gibt.
+
+      Der Bot-Token gilt für jede Guild, auf der der Bot Mitglied ist. Welche
+      das sind, weiss Discord.
+    */
+    const pruefung = quelle.slice(
+      quelle.indexOf('async function pruefeZielGuild'),
+      quelle.indexOf('export const listeZielGuildsAction'),
+    );
+    expect(pruefung).toContain('listBotGuilds()');
+    expect(pruefung).toContain('summaryOf(');
+    expect(pruefung).not.toContain('targetGuildId === eigene');
+  });
+
+  it('bietet die Guilds des Bots zur Auswahl an', () => {
+    // Eine Auswahl und kein Eingabefeld für eine Zahl.
+    expect(quelle).toContain("name: 'migration.targets'");
+    const maske = readFileSync(
+      join(process.cwd(), 'apps/web/src/modules/migration/components/neue-uebertragung.tsx'),
+      'utf8',
+    );
+    expect(maske).toContain('listeZielGuildsAction');
+    expect(maske).toContain('<Select');
+  });
+
+  it('liest Rollen und Kanäle des Ziels, nicht die der eigenen Guild', () => {
+    // Zugeordnet wird auf das, was es dort gibt.
+    expect(quelle).toContain('rolesOf(lauf.targetGuildId)');
+    expect(quelle).toContain('channelsOf(lauf.targetGuildId)');
   });
 
   it('beansprucht den Lauf, ehe es losgeht', () => {

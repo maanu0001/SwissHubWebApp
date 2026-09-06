@@ -103,7 +103,7 @@ export const legeUebertragungAnAction = defineAction(
 
     // Ist der Bot dort überhaupt? Eine freie Guild-ID ohne Prüfung wäre ein
     // Weg, die Konfiguration irgendwohin zu schreiben.
-    await pruefeZielGuild(input.targetGuildId);
+    const ziel = await pruefeZielGuild(input.targetGuildId);
 
     const guild = await discord.guild.get().catch(() => null);
     const paket = input.paketJson
@@ -116,7 +116,7 @@ export const legeUebertragungAnAction = defineAction(
         module: MODULE_ID,
         actorDiscordId: ctx.user.discordId,
         actorUsername: ctx.user.username,
-        targetLabel: `Paket eingelesen (${paket.sourceGuild.name})`,
+        targetLabel: `Paket eingelesen (${paket.sourceGuild.name} → ${ziel.name})`,
         metadata: { module: paket.modules.length, fassung: paket.schemaVersion },
       });
     }
@@ -137,24 +137,68 @@ export const legeUebertragungAnAction = defineAction(
 /**
  * Ist das Ziel benutzbar?
  *
- * Der Bot muss dort sein, und die Guild muss antworten. Eine ID, hinter der
- * nichts steht, wird hier abgewiesen und nicht erst mitten in der
- * Übertragung.
+ * Gefragt wird Discord, nicht die eigene Konfiguration. Hier stand einmal ein
+ * Vergleich mit der verbundenen Guild - und damit wurde jedes echte Ziel
+ * abgewiesen, also genau der Fall, für den es dieses Modul gibt. Der
+ * Bot-Token gilt für jede Guild, auf welcher der Bot Mitglied ist; welche das
+ * sind, sagt `listBotGuilds()`.
+ *
+ * Zwei Antworten, zwei Meldungen: «kenne ich nicht» heisst, der Bot ist dort
+ * nicht - «antwortet nicht» heisst, er ist dort, aber die Guild ist gerade
+ * nicht erreichbar. Beides in einen Satz zu packen hiesse, den Suchenden auf
+ * die falsche Fährte zu setzen.
  */
-async function pruefeZielGuild(targetGuildId: string): Promise<void> {
-  const eigene = await resolveGuildId();
-  if (targetGuildId === eigene) {
-    return;
+async function pruefeZielGuild(targetGuildId: string): Promise<{ id: string; name: string }> {
+  const guilds = await discord.guild.listBotGuilds().catch(() => []);
+  const treffer = guilds.find((guild) => guild.id === targetGuildId);
+
+  if (!treffer) {
+    throw new AppError('VALIDATION_FAILED', {
+      userMessage:
+        'Der Bot ist auf dieser Guild kein Mitglied. Zuerst den Bot auf den Zielserver einladen - danach erscheint er in der Auswahl.',
+    });
   }
 
-  // Der Bot spricht in dieser Installation mit genau einer Guild. Eine
-  // fremde Guild-ID lässt sich von hier aus nicht prüfen - und was sich
-  // nicht prüfen lässt, wird nicht angenommen.
-  throw new AppError('VALIDATION_FAILED', {
-    userMessage:
-      'Der Bot ist auf dieser Guild nicht verbunden. Zuerst den Bot auf den Zielserver einladen und die Guild in den Einstellungen verbinden.',
-  });
+  // Mitglied zu sein genügt nicht: ohne Lesezugriff auf Rollen und Kanäle
+  // liesse sich nichts zuordnen, und das fiele erst mitten im Ablauf auf.
+  const zusammenfassung = await discord.guild.summaryOf(targetGuildId).catch(() => null);
+  if (!zusammenfassung) {
+    throw new AppError('DISCORD_UNAVAILABLE', {
+      userMessage: 'Die Ziel-Guild antwortet gerade nicht. Bitte in einem Moment erneut versuchen.',
+    });
+  }
+
+  return { id: treffer.id, name: treffer.name };
 }
+
+/**
+ * Die Guilds, auf denen der Bot Mitglied ist.
+ *
+ * Damit die Auswahl eine Auswahl ist und kein Eingabefeld für eine Zahl. Wer
+ * eine ID abtippt, tippt sie falsch - und erfährt es erst, wenn er nicht
+ * weiterkommt.
+ */
+export const listeZielGuildsAction = defineAction(
+  {
+    name: 'migration.targets',
+    module: MODULE_ID,
+    permission: P.view,
+    schema: z.object({}),
+    rateLimit: 'migration',
+    freshness: 'cached',
+  },
+  async () => {
+    await assertModuleEnabled(MODULE_ID);
+    const [guilds, eigene] = await Promise.all([discord.guild.listBotGuilds().catch(() => []), quellGuild()]);
+
+    return guilds.map((guild) => ({
+      id: guild.id,
+      name: guild.name,
+      memberCount: guild.memberCount,
+      istQuelle: guild.id === eigene,
+    }));
+  },
+);
 
 /** Vorschläge für die Zuordnung - nach Namen, exakt. */
 export const schlageZuordnungVorAction = defineAction(
@@ -171,12 +215,20 @@ export const schlageZuordnungVorAction = defineAction(
     const lauf = await migration.holeLauf(input.runId, await quellGuild());
     const paket = migration.paketVon(lauf);
 
+    // Die Rollen und Kanäle des ZIELS, nicht der verbundenen Guild. Das ist
+    // der ganze Zweck: hier wird zugeordnet, was es dort gibt.
     const [zielRollen, zielKanaele] = await Promise.all([
-      discord.roles.list({ force: true }).catch(() => []),
-      discord.channels.list().catch(() => []),
+      discord.guild.rolesOf(lauf.targetGuildId).catch(() => []),
+      discord.guild.channelsOf(lauf.targetGuildId).catch(() => []),
     ]);
 
-    const quellKanaele = migration.kanaeleImPaket(paket).map((id) => ({ id, name: id }));
+    // Die Namen der Quellkanäle kommen aus der eigenen Guild - sonst stünde
+    // in der Zuordnung eine Zahl, und niemand wüsste, was er zuordnet.
+    const eigeneKanaele = await discord.channels.list().catch(() => []);
+    const quellKanaele = migration.kanaeleImPaket(paket).map((id) => ({
+      id,
+      name: eigeneKanaele.find((kanal) => kanal.id === id)?.name ?? id,
+    }));
 
     return {
       roles: migration.schlageRollenVor(paket.roles, zielRollen),
@@ -339,6 +391,7 @@ export const wendeAnAction = defineAction(
       migration.paketVon(lauf),
       migration.zuordnungVon(lauf),
       { discordId: ctx.user.discordId, username: ctx.user.username },
+      { targetGuildId: lauf.targetGuildId },
     );
 
     await prisma.migrationRun.update({

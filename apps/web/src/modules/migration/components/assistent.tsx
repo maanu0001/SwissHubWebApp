@@ -250,6 +250,28 @@ export function MigrationsAssistent(props: AssistentProps): React.JSX.Element {
 
       {props.bericht ? <BerichtAnsicht bericht={props.bericht} phase={props.phase} /> : null}
 
+      {props.bericht?.status === 'COMPLETED' ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>Ein Schritt fehlt noch</CardTitle>
+            <CardDescription>
+              Die Konfiguration zeigt jetzt auf die Rollen und Kanäle des Zielservers - aber der Bot spricht
+              weiterhin mit dem alten. Erst das Umschalten macht die Übertragung wirksam.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-2 text-sm text-muted-foreground">
+            <p>
+              Unter <strong className="text-foreground">Server → Einstellungen</strong> den verbundenen
+              Discord-Server auf den Zielserver umstellen.
+            </p>
+            <p>
+              Danach die importierten Automationen durchsehen und einzeln einschalten - sie sind absichtlich
+              alle aus.
+            </p>
+          </CardContent>
+        </Card>
+      ) : null}
+
       {props.hatSnapshot && props.darfZurueck && abgeschlossen && props.status !== 'ROLLED_BACK' ? (
         <Card>
           <CardHeader>

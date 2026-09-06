@@ -183,6 +183,24 @@ export interface DiscordGateway {
     /** Guilds, in denen der Bot Mitglied ist (automatische Server-Erkennung). */
     listBotGuilds(): Promise<BotGuild[]>;
     /**
+     * Rollen einer *anderen* Guild.
+     *
+     * Der Alltag dieser Anwendung spielt in genau einer Guild - `roles.list()`
+     * fragt deshalb immer die verbundene. Fuer eine Uebertragung reicht das
+     * nicht: dort muss man die Rollen des Ziels kennen, ohne dorthin zu
+     * wechseln.
+     *
+     * Ausdruecklich benannt und nicht als stiller Zusatzparameter an
+     * `roles.list()`: eine guild-uebergreifende Abfrage soll man im Code
+     * sehen. Der Bot-Token gilt fuer jede Guild, auf der der Bot ist -
+     * gepruerft wird das ueber `listBotGuilds()`.
+     */
+    rolesOf(guildId: string): Promise<GuildRole[]>;
+    /** Kanaele einer anderen Guild - siehe `rolesOf`. */
+    channelsOf(guildId: string): Promise<GuildChannel[]>;
+    /** Kurzangaben zu einer anderen Guild, oder `null`, wenn unerreichbar. */
+    summaryOf(guildId: string): Promise<GuildSummary | null>;
+    /**
      * Discords eigenes Audit Log.
      *
      * Gebraucht, um bei einem Gateway-Ereignis herauszufinden, wer es

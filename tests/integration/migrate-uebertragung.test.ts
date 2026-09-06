@@ -331,6 +331,65 @@ describeWithDatabase('Übertragung auf eine andere Guild', () => {
     expect(await prisma.automationRun.count()).toBe(vorher);
   });
 
+  it('trägt die Automationen mit der Kennung der ZIEL-Guild ein', async () => {
+    /*
+      Sonst laufen sie nach dem Umschalten nie wieder an: der Verteiler sucht
+      je Guild, und eine Automation mit der Kennung der alten Guild findet er
+      dort nicht mehr.
+    */
+    const lauf = await legeLaufAn();
+    await migration.wendeAn(lauf.id, paket(), zuordnung(), ACTOR, {
+      gateway: zielGateway(),
+      targetGuildId: ZIEL,
+    });
+
+    const automation = await prisma.automation.findFirstOrThrow();
+    expect(automation.guildId).toBe(ZIEL);
+  });
+
+  it('prüft in der ersten Phase das Ziel und nicht die verbundene Guild', async () => {
+    // Der Fehler, an dem das Modul zuerst scheiterte: geprüft wurde die
+    // eigene Guild, und damit war jedes echte Ziel «nicht erreichbar».
+    const gateway = {
+      guild: {
+        get: vi.fn(async () => ({ id: QUELLE, name: 'Quelle' })),
+        summaryOf: vi.fn(async (guildId: string) =>
+          guildId === ZIEL ? { id: ZIEL, name: 'Zielserver' } : null,
+        ),
+      },
+      roles: { list: vi.fn(async () => ZIEL_ROLLEN) },
+      channels: { list: vi.fn(async () => ZIEL_KANAELE) },
+    } as never;
+
+    const lauf = await legeLaufAn();
+    const ergebnis = await migration.wendeAn(lauf.id, paket(), zuordnung(), ACTOR, {
+      gateway,
+      targetGuildId: ZIEL,
+    });
+
+    expect(ergebnis.status).toBe('COMPLETED');
+    expect(ergebnis.phasen[0]?.detail).toContain('Zielserver');
+  });
+
+  it('bricht ab, wenn das Ziel nicht antwortet', async () => {
+    const gateway = {
+      guild: { get: vi.fn(async () => null), summaryOf: vi.fn(async () => null) },
+      roles: { list: vi.fn(async () => []) },
+      channels: { list: vi.fn(async () => []) },
+    } as never;
+
+    const lauf = await legeLaufAn();
+    const ergebnis = await migration.wendeAn(lauf.id, paket(), zuordnung(), ACTOR, {
+      gateway,
+      targetGuildId: ZIEL,
+    });
+
+    // Und zwar bevor irgendetwas geschrieben wurde.
+    expect(ergebnis.status).toBe('PARTIAL');
+    expect(await prisma.managedRole.count()).toBe(0);
+    expect(await prisma.automation.count()).toBe(0);
+  });
+
   // --- Rücknahme ----------------------------------------------------------
 
   it('dreht die Konfiguration auf den gesicherten Stand zurück', async () => {
@@ -414,7 +473,10 @@ describeWithDatabase('Übertragung auf eine andere Guild', () => {
 /** Ein Discord-Zugang, der die Ziel-Guild vorgibt. */
 function zielGateway() {
   return {
-    guild: { get: vi.fn(async () => ({ id: ZIEL, name: 'SwissHub' })) },
+    guild: {
+      get: vi.fn(async () => ({ id: ZIEL, name: 'SwissHub' })),
+      summaryOf: vi.fn(async () => ({ id: ZIEL, name: 'SwissHub' })),
+    },
     roles: { list: vi.fn(async () => ZIEL_ROLLEN) },
     channels: { list: vi.fn(async () => ZIEL_KANAELE) },
   } as never;

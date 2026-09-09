@@ -299,3 +299,102 @@ registerTrigger({
   // Weder `matches` noch `nextRunAt`: dieser Trigger wird von niemandem
   // ausgelöst ausser von einem Menschen mit der nötigen Berechtigung.
 });
+
+// --- Aus Discord ------------------------------------------------------------
+
+/**
+ * Wie viele Rollen eine Automation freigeben darf.
+ *
+ * Eine Zahl, damit die Liste nicht unbegrenzt waechst - und keine kleinere,
+ * weil ein Server durchaus mehrere Teamrollen hat, die dasselbe duerfen
+ * sollen.
+ */
+export const MAX_DISCORD_ROLLEN = 25;
+
+export const discordTriggerConfigSchema = z.object({
+  /**
+   * Discord-Rollen, die diese Automation ausloesen duerfen.
+   *
+   * **Leer heisst niemand**, nicht «alle». Das ist die wichtigste Zeile
+   * dieser Datei: die umgekehrte Lesart waere die naheliegende Bequemlichkeit
+   * und machte aus jeder unfertig eingerichteten Automation einen Befehl, den
+   * der ganze Server ausfuehren darf. Der Bot lehnt eine leere Liste deshalb
+   * ab, und die Pruefung vor dem Einschalten meldet sie als Fehler.
+   */
+  rollen: z
+    .array(z.string().regex(/^\d{17,20}$/u))
+    .max(MAX_DISCORD_ROLLEN)
+    .default([]),
+  /** Kurztext, der im Befehl neben dem Namen steht. */
+  hinweis: z.string().max(100).optional(),
+});
+
+export type DiscordTriggerConfig = z.infer<typeof discordTriggerConfigSchema>;
+
+registerTrigger({
+  id: 'discord',
+  label: 'Aus Discord starten',
+  description: 'Läuft, wenn jemand mit einer freigegebenen Rolle sie per /automation startet.',
+  icon: 'terminal',
+  configSchema: discordTriggerConfigSchema,
+  fields: [
+    {
+      key: 'rollen',
+      label: 'Freigegebene Rollen',
+      description: 'Nur wer eine dieser Rollen trägt, kann die Automation in Discord starten.',
+      type: 'discord-role-multi',
+      required: true,
+    },
+    {
+      key: 'hinweis',
+      label: 'Hinweis im Befehl',
+      description: 'Steht in der Auswahlliste neben dem Namen.',
+      type: 'text',
+      supportsTemplate: false,
+    },
+  ],
+  // Kein `matches` und kein `nextRunAt`: dieser Trigger reagiert auf kein
+  // Ereignis und auf keine Uhrzeit. Er wartet auf einen Menschen - nur eben
+  // auf einen in Discord statt einen im Dashboard.
+  async validate(config): Promise<ValidationIssue[]> {
+    const geprueft = discordTriggerConfigSchema.safeParse(config);
+    if (!geprueft.success) {
+      return [{ severity: 'error', message: 'Die Discord-Freigabe ist unvollständig.', path: 'trigger' }];
+    }
+    if (geprueft.data.rollen.length === 0) {
+      return [
+        {
+          severity: 'error',
+          message:
+            'Es ist keine Rolle freigegeben - damit könnte niemand die Automation starten. Bitte mindestens eine Rolle wählen.',
+          path: 'trigger',
+        },
+      ];
+    }
+    return [];
+  },
+});
+
+/**
+ * Darf diese Person die Automation aus Discord starten?
+ *
+ * Die eine Stelle, an der das entschieden wird - Autocomplete und Ausfuehrung
+ * fragen beide hier. Zwei Pruefungen waeren zwei Gelegenheiten, sie
+ * auseinanderlaufen zu lassen, und die Liste im Autocomplete ist keine
+ * Sicherheitsgrenze: wer den Namen kennt, kann ihn tippen.
+ */
+export function darfAusDiscordStarten(
+  triggerType: string,
+  triggerConfig: unknown,
+  rollenDesMitglieds: readonly string[],
+): boolean {
+  if (triggerType !== 'discord') {
+    return false;
+  }
+  const geprueft = discordTriggerConfigSchema.safeParse(triggerConfig);
+  if (!geprueft.success || geprueft.data.rollen.length === 0) {
+    return false;
+  }
+  const eigene = new Set(rollenDesMitglieds);
+  return geprueft.data.rollen.some((rolle) => eigene.has(rolle));
+}

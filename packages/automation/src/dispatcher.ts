@@ -1,6 +1,11 @@
 import { prisma } from '@swisshub/database';
 import type { Automation, AutomationJob } from '@swisshub/database';
-import { discord as defaultDiscord, type DiscordGateway } from '@swisshub/discord';
+import {
+  DISCORD_ERROR_CODES,
+  DiscordApiError,
+  discord as defaultDiscord,
+  type DiscordGateway,
+} from '@swisshub/discord';
 import { createLogger } from '@swisshub/logger';
 import { beanspruche, holeUnverarbeitete } from './bus';
 import { LIMITS, type EventEnvelope } from './contract';
@@ -256,6 +261,11 @@ export async function verarbeiteJobs(
 }
 
 async function fuehreJobAus(job: AutomationJob, gateway: DiscordGateway): Promise<void> {
+  if (job.kind === 'DELETE_MESSAGE') {
+    await loescheNachricht(job, gateway);
+    return;
+  }
+
   if (job.kind === 'RESUME') {
     if (!job.runId) {
       return;
@@ -424,11 +434,84 @@ export async function planeZeitTrigger(von = new Date()): Promise<number> {
   return geplant;
 }
 
+/**
+ * Der Text, der am gescheiterten Auftrag stehen bleibt.
+ *
+ * Er stand bisher nur fuer `AppError` zur Verfuegung - alles andere wurde zu
+ * «Unbekannter Fehler», und damit auch jeder Discord-Fehler. Im Dashboard
+ * stand dann an einem Auftrag, der wegen eines fehlenden Rechts scheiterte,
+ * nichts ausser dass er gescheitert ist. Genau die behebbaren Faelle waren
+ * die, ueber die man am wenigsten erfuhr.
+ *
+ * Reihenfolge nach Aussagekraft: die gepflegte Meldung zuerst, dann der
+ * Discord-Fehler mit Status und Code, dann die gewoehnliche Fehlermeldung.
+ * Gekuerzt, weil der Text in eine Spalte und auf eine Seite passt.
+ */
 function beschreibe(error: unknown): string {
   const userMessage = (error as { userMessage?: string })?.userMessage;
   if (typeof userMessage === 'string' && userMessage !== '') {
-    return userMessage;
+    return userMessage.slice(0, 300);
+  }
+  if (error instanceof DiscordApiError) {
+    return `Discord ${error.status}${error.discordCode ? ` (${error.discordCode})` : ''}: ${error.message}`.slice(
+      0,
+      300,
+    );
+  }
+  if (error instanceof Error && error.message !== '') {
+    return error.message.slice(0, 300);
   }
   const code = (error as { code?: string })?.code;
   return typeof code === 'string' ? `Fehler (${code})` : 'Unbekannter Fehler';
+}
+
+/**
+ * Eine Nachricht loeschen, deren Frist abgelaufen ist.
+ *
+ * Der Auftrag steht seit dem Senden in der Job-Tabelle. Das ist der ganze
+ * Grund fuer diesen Umweg: ein `setTimeout` ueber zwoelf Stunden waere nach
+ * dem naechsten Deployment weg, und die Nachricht bliebe stehen - ohne dass
+ * irgendwo etwas fehlte, das jemandem auffiele.
+ *
+ * **Eine bereits verschwundene Nachricht ist ein Erfolg, kein Fehler.**
+ * Jemand kann sie von Hand geloescht haben, oder der ganze Kanal ist weg. Das
+ * Ziel des Auftrags - diese Nachricht steht nicht mehr da - ist dann
+ * erreicht. Es als Fehler zu werten hiesse, dreimal zu wiederholen, was schon
+ * erledigt ist, und den Auftrag anschliessend als gescheitert zu fuehren.
+ *
+ * Ein fehlendes Recht dagegen wird geworfen: es ist eine Einstellung, die
+ * jemand beheben kann, und `meldeJobFehler` haelt sie im Auftrag fest.
+ */
+async function loescheNachricht(job: AutomationJob, gateway: DiscordGateway): Promise<void> {
+  const payload = (job.payload ?? {}) as { channelId?: unknown; messageId?: unknown };
+  const channelId = typeof payload.channelId === 'string' ? payload.channelId : null;
+  const messageId = typeof payload.messageId === 'string' ? payload.messageId : null;
+
+  if (!channelId || !messageId) {
+    logger.warn('Löschauftrag ohne Nachricht', { jobId: job.id });
+    return;
+  }
+
+  try {
+    await gateway.channels.delete(channelId, messageId, 'Automation: Nachricht mit Frist');
+    logger.debug('Nachricht nach Frist gelöscht', { channelId, messageId });
+  } catch (error) {
+    if (istSchonWeg(error)) {
+      logger.debug('Nachricht war bereits weg', { channelId, messageId });
+      return;
+    }
+    throw error;
+  }
+}
+
+/** Nachricht oder Kanal existieren nicht mehr - das Ziel ist damit erreicht. */
+function istSchonWeg(error: unknown): boolean {
+  if (!(error instanceof DiscordApiError)) {
+    return false;
+  }
+  return (
+    error.status === 404 ||
+    error.discordCode === DISCORD_ERROR_CODES.UNKNOWN_MESSAGE ||
+    error.discordCode === DISCORD_ERROR_CODES.UNKNOWN_CHANNEL
+  );
 }

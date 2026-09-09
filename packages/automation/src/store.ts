@@ -2,6 +2,7 @@ import { AUDIT_ACTIONS, Prisma, prisma, recordAudit } from '@swisshub/database';
 import type { Automation, AutomationConcurrency, AutomationKind } from '@swisshub/database';
 import { createLogger } from '@swisshub/logger';
 import { conditionNodeSchema } from './conditions';
+import { darfAusDiscordStarten } from './core-triggers';
 import { planeNaechsten } from './dispatcher';
 import { verwerfeJobs } from './scheduler';
 import { stepsSchema } from './steps';
@@ -52,6 +53,37 @@ export async function holeAutomation(guildId: string, id: string): Promise<Autom
   // Die Gilde steht in der Abfrage, nicht in einer Nachprüfung: eine ID aus
   // einer fremden Gilde darf nicht einmal gelesen werden.
   return prisma.automation.findFirst({ where: { id, guildId } });
+}
+
+/**
+ * Automationen, die diese Person aus Discord starten darf.
+ *
+ * Die Rollenpruefung passiert **hier**, nicht in der Oberflaeche des Befehls:
+ * die Autocomplete-Liste ist keine Sicherheitsgrenze - wer einen Namen kennt,
+ * kann ihn tippen, und Discord schickt ihn dann trotzdem. Deshalb fragen die
+ * Vorschlagsliste und die Ausfuehrung dieselbe Funktion.
+ *
+ * Nur eingeschaltete, nicht archivierte Automationen mit dem Trigger
+ * `discord`. Eine ausgeschaltete waere in der Liste eine Einladung zu einem
+ * Befehl, der nichts tut.
+ */
+export async function listeDiscordStartbare(
+  guildId: string,
+  rollenDesMitglieds: readonly string[],
+): Promise<Automation[]> {
+  if (rollenDesMitglieds.length === 0) {
+    // Ohne Rolle gibt es nichts zu pruefen. Die Abfrage zu sparen ist hier
+    // nicht Sparsamkeit, sondern die richtige Antwort.
+    return [];
+  }
+  const kandidaten = await prisma.automation.findMany({
+    where: { guildId, archivedAt: null, enabled: true, triggerType: 'discord' },
+    orderBy: { name: 'asc' },
+    take: 200,
+  });
+  return kandidaten.filter((automation) =>
+    darfAusDiscordStarten(automation.triggerType, automation.triggerConfig, rollenDesMitglieds),
+  );
 }
 
 export async function listeAutomationen(

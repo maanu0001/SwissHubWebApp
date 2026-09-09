@@ -36,6 +36,8 @@ export interface AutomationField {
     | 'select'
     | 'duration'
     | 'discord-role'
+    /** Mehrere Rollen - etwa die Freigabe des Discord-Triggers. */
+    | 'discord-role-multi'
     | 'discord-channel'
     | 'discord-user'
     | 'time'

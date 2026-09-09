@@ -132,9 +132,13 @@ export {
 } from './dispatcher';
 
 export {
+  MAX_DISCORD_ROLLEN,
   STANDARD_ZEITZONE,
+  darfAusDiscordStarten,
+  discordTriggerConfigSchema,
   naechsterTermin,
   scheduleTriggerConfigSchema,
+  type DiscordTriggerConfig,
   type ScheduleTriggerConfig,
 } from './core-triggers';
 
@@ -155,6 +159,7 @@ export {
   holeAutomation,
   legeAn,
   listeAutomationen,
+  listeDiscordStartbare,
   schalte,
   stelleSystemautomationSicher,
   type Akteur,

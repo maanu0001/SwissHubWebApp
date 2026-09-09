@@ -45,6 +45,7 @@ export function FeldZeile({
   const id = `automation-feld-${feld.key}`;
   const text = typeof wert === 'string' ? wert : '';
   const liste = Array.isArray(wert) ? wert.filter((eintrag) => typeof eintrag === 'number') : [];
+  const rollenListe = Array.isArray(wert) ? wert.filter((eintrag) => typeof eintrag === 'string') : [];
 
   return (
     <div className="space-y-1.5">
@@ -145,6 +146,54 @@ export function FeldZeile({
           onChange={(naechster) => onChange(naechster ?? '')}
           disabled={disabled}
         />
+      ) : null}
+
+      {feld.type === 'discord-role-multi' ? (
+        <div className="space-y-2">
+          <RoleSelect
+            id={id}
+            value=""
+            roles={roles.filter((rolle) => !rollenListe.includes(rolle.id))}
+            onChange={(naechster) => {
+              if (naechster) {
+                onChange([...rollenListe, naechster]);
+              }
+            }}
+            disabled={disabled}
+          />
+          {rollenListe.length === 0 ? (
+            /*
+              Ausdrücklich, weil die umgekehrte Lesart naheliegt: eine leere
+              Liste heisst «niemand», nicht «alle». Ohne diesen Satz könnte
+              man eine Automation für freigegeben halten, die niemand starten
+              kann - oder schlimmer: sie für gesperrt halten, wenn es anders
+              wäre.
+            */
+            <p className="text-xs text-warning">
+              Noch keine Rolle freigegeben - so kann niemand die Automation aus Discord starten.
+            </p>
+          ) : (
+            <ul className="flex flex-wrap gap-1.5">
+              {rollenListe.map((rolleId) => {
+                const rolle = roles.find((eintrag) => eintrag.id === rolleId);
+                return (
+                  <li key={rolleId}>
+                    <button
+                      type="button"
+                      disabled={disabled}
+                      onClick={() => onChange(rollenListe.filter((eintrag) => eintrag !== rolleId))}
+                      className="flex items-center gap-1.5 rounded-full border border-border px-2.5 py-1 text-xs transition-colors hover:border-destructive/60 hover:text-destructive disabled:cursor-not-allowed disabled:opacity-70"
+                    >
+                      {rolle?.name ?? rolleId}
+                      <span aria-hidden="true">×</span>
+                      <span className="sr-only">entfernen</span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
       ) : null}
 
       {feld.type === 'discord-channel' ? (

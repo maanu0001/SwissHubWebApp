@@ -204,6 +204,38 @@ Speichern, beim Einschalten und beim Starten von Hand.
 **Backend-Durchsetzung ist Pflicht (§21).** Die Oberfläche kennzeichnet eine
 Aktion, für die die Berechtigung fehlt - abgewiesen wird sie serverseitig.
 
+### `/automation` - Start aus Discord
+
+Der Trigger **«Aus Discord starten»** gibt eine Automation für bestimmte
+Discord-Rollen frei. Wer eine davon trägt, startet sie mit `/automation`.
+
+Das ist der eine Weg im System, auf dem **nicht** die Permission Engine
+entscheidet, sondern die Automation selbst. Absicht: eine Automation soll
+einem Team ohne Dashboard-Zugang genau einen Knopf geben dürfen, ohne dass
+dieses Team dafür `automations.execute` und damit Zugriff auf _alle_
+Automationen bekommt.
+
+Drei Regeln tragen das:
+
+1. **Leer heisst niemand.** Eine Freigabe ohne Rolle sperrt die Automation -
+   sie öffnet sie nicht. Die umgekehrte Lesart wäre die bequeme und machte aus
+   jeder halbfertigen Automation einen Befehl für den ganzen Server. Die
+   Prüfung vor dem Einschalten meldet eine leere Liste als Fehler.
+2. **Die Vorschlagsliste ist keine Grenze.** Discord schickt den getippten
+   Wert, auch wenn er nie vorgeschlagen wurde. Autocomplete und Ausführung
+   fragen deshalb dieselbe Funktion (`darfAusDiscordStarten`) - zwei Prüfungen
+   wären zwei Gelegenheiten, sie auseinanderlaufen zu lassen.
+3. **Nicht gefunden und nicht freigegeben sehen gleich aus.** Sonst verriete
+   die Antwort die Existenz einer Automation, die diese Person nichts angeht.
+
+Nur eingeschaltete, nicht archivierte Automationen mit diesem Trigger
+erscheinen. Der Lauf wird als `trigger: 'discord'` geführt - nicht als
+`manual`: im Verlauf soll erkennbar bleiben, welcher der beiden Wege benutzt
+wurde. In der Prüfspur steht er als `DISCORD_COMMAND`.
+
+Die Antwort ist ephemer. Eine Automation zu starten ist eine Handlung des
+Teams, keine Ankündigung an den Kanal; was sie bewirkt, sagt sie selbst.
+
 ---
 
 ## 8. Schleifenschutz (§17)
@@ -368,6 +400,63 @@ aussagekräftigste Zahl - steht sie bei Stunden, läuft der Takt nicht mehr, und
 das sieht man an keiner anderen.
 
 ---
+
+## 14a. Nachrichten mit Frist
+
+Die Aktion «Nachricht senden» kennt ein Feld **«Danach löschen nach»**. Leer
+oder `0` heisst: die Nachricht bleibt - das ist die Vorgabe, weil eine
+Nachricht, die sich unerwartet selbst löscht, die schlechtere Überraschung
+wäre.
+
+Gelöscht wird über einen Auftrag in `AutomationJob` (`DELETE_MESSAGE`), nicht
+über `setTimeout`. Der Grund ist derselbe wie bei den Wartezeiten in Abschnitt
+3: ein Zeitgeber über zwölf Stunden wäre nach dem nächsten Deployment weg, und
+die Nachricht bliebe stehen - ohne dass irgendwo etwas fehlte, das jemandem
+auffiele.
+
+- **Grenzen:** mindestens 5 Sekunden, höchstens 30 Tage. Eine Frist unter der
+  Untergrenze wird beim Einschalten als Fehler gemeldet statt stillschweigend
+  ignoriert.
+- **Ein Probelauf plant nichts** - er hat auch nichts gesendet.
+- **Der Schlüssel enthält die Nachricht.** Läuft ein Schritt nach einem
+  Absturz erneut, entsteht kein zweiter Auftrag für dieselbe Nachricht.
+- **Eine bereits verschwundene Nachricht ist ein Erfolg.** Jemand kann sie von
+  Hand gelöscht haben. Das Ziel des Auftrags - sie steht nicht mehr da - ist
+  dann erreicht; es als Fehler zu werten hiesse, dreimal zu wiederholen, was
+  schon erledigt ist.
+- **Ein fehlendes Recht ist ein Fehler.** Es ist eine Einstellung, die jemand
+  beheben kann, und steht deshalb am Auftrag.
+
+## 14b. Jedes Ereignis braucht eine Quelle
+
+Ein angemeldetes Ereignis, das niemand auslöst, ist im Baukasten ein
+Auswahlfeld, das nie etwas sendet. Das ist schlimmer als ein fehlendes Feld:
+ein fehlendes sieht man, ein stummes sieht aus wie ein Server, auf dem nichts
+passiert.
+
+Genau so lagen fünf davon im System - angemeldet, beschrieben, wählbar, und
+von keiner Stelle je gemeldet:
+
+| Ereignis                | wird jetzt gemeldet von                            |
+| ----------------------- | -------------------------------------------------- |
+| `appeal.status_changed` | `setzeStatus()` und der Fristprüfung               |
+| `appeal.escalated`      | `setzeStatus()`, wenn der Zustand `ESCALATED` wird |
+| `appeal.closed`         | jedem Wechsel in einen Endzustand                  |
+| `appeal.assigned`       | `weiseZu()` - auch beim Entziehen                  |
+| `automation.failed`     | `beendeLauf()` bei `FAILED` und `DEAD_LETTER`      |
+
+`tests/unit/ereignisse-mit-quelle.test.ts` hält das fest: es prüft für jedes
+angemeldete Ereignis, dass es irgendwo ausgelöst wird - und in der
+Gegenrichtung, dass jedes gemeldete auch angemeldet ist (`publish` verwirft ein
+unbekanntes mit einer Warnung, das Modul hätte gemeldet und angekommen wäre
+nichts).
+
+**`automation.failed` und die Schleife.** Eine Automation, die auf
+Fehlschläge reagiert und dabei selbst scheitert, wäre eine endlose Kette. Zwei
+Riegel: ein Lauf, der selbst aus `automation.failed` entstanden ist, meldet
+seinen Fehlschlag nicht weiter; und die Meldung trägt die Herkunft des Laufs,
+womit die bestehende Tiefenprüfung aus Abschnitt 8 greift. Ein Probelauf
+meldet nichts.
 
 ## 15. Ein neues Modul anschliessen
 

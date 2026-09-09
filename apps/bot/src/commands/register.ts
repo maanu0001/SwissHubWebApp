@@ -14,6 +14,12 @@ import {
   handleCommunicationModal,
   isCommunicationModal,
 } from './communication-commands';
+import {
+  AUTOMATION_COMMAND_DEFINITIONS,
+  AUTOMATION_COMMAND_NAMES,
+  handleAutomationAutocomplete,
+  handleAutomationCommand,
+} from './automation-commands';
 
 const log = createLogger('bot:commands:register');
 
@@ -23,6 +29,7 @@ const ALL_COMMANDS = [
   ...SPIELERSUCHE_COMMAND_DEFINITIONS,
   ...LEVEL_COMMAND_DEFINITIONS,
   ...COMMUNICATION_COMMAND_DEFINITIONS,
+  ...AUTOMATION_COMMAND_DEFINITIONS,
 ];
 
 const SPIELERSUCHE_COMMANDS = new Set(
@@ -81,6 +88,10 @@ export function registerCommandHandler(client: Client): void {
     if (interaction.isAutocomplete()) {
       if (SPIELERSUCHE_COMMANDS.has(interaction.commandName)) {
         void handleSpielersucheAutocomplete(interaction);
+        return;
+      }
+      if (AUTOMATION_COMMAND_NAMES.has(interaction.commandName)) {
+        void handleAutomationAutocomplete(interaction);
       }
       return;
     }
@@ -97,6 +108,10 @@ export function registerCommandHandler(client: Client): void {
     }
     if (COMMUNICATION_COMMAND_NAMES.has(interaction.commandName)) {
       void handleCommunicationCommand(interaction);
+      return;
+    }
+    if (AUTOMATION_COMMAND_NAMES.has(interaction.commandName)) {
+      void handleAutomationCommand(interaction);
       return;
     }
     void handleJailCommand(interaction);

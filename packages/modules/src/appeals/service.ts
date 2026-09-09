@@ -338,7 +338,48 @@ export async function setzeStatus(eingabe: StatusEingabe): Promise<Appeal> {
     metadata: { appealId: appeal.id, von: appeal.status, nach: eingabe.nach },
   });
 
+  await meldeStatusEreignisse(appeal, eingabe.nach);
+
   return { ...appeal, status: eingabe.nach, version: appeal.version + 1 };
+}
+
+/**
+ * Die Ereignisse eines Statuswechsels.
+ *
+ * `appeal.status_changed`, `appeal.escalated` und `appeal.closed` waren
+ * angemeldet und waehlbar - ausgeloest hat sie nie jemand. Wer im Baukasten
+ * «wenn ein Antrag eskaliert wird, ruf das Team» eingerichtet hatte, bekam
+ * nichts, und das sah aus, als eskaliere nie einer.
+ *
+ * Alle drei kommen aus derselben Stelle, weil sie derselbe Vorgang sind: ein
+ * Wechsel des Zustands. Sie an drei Aufrufstellen zu verteilen hiesse, beim
+ * naechsten neuen Zustand eine davon zu vergessen.
+ */
+async function meldeStatusEreignisse(appeal: Appeal, nach: AppealStatus): Promise<void> {
+  const { meldeEreignis } = await import('../automation/emit');
+  const kopf = {
+    guildId: appeal.guildId,
+    subjectId: appeal.applicantDiscordId,
+    entityId: appeal.id,
+  };
+  const basis = {
+    appealId: appeal.id,
+    fallnummer: formatFallnummer(appeal.caseYear, appeal.caseNumber),
+    discordId: appeal.applicantDiscordId,
+    displayName: appeal.applicantUsername,
+  };
+
+  await meldeEreignis('appeal.status_changed', { ...basis, von: appeal.status, nach }, kopf);
+
+  if (nach === 'ESCALATED') {
+    await meldeEreignis('appeal.escalated', basis, kopf);
+  }
+  if (!istOffen(nach)) {
+    // «Abgeschlossen» heisst hier: aus diesem Zustand geht es nicht weiter.
+    // Welcher es ist, steht als Ergebnis dabei - genehmigt und abgelaufen
+    // sind beides Enden, aber nicht dasselbe.
+    await meldeEreignis('appeal.closed', { ...basis, ergebnis: nach }, kopf);
+  }
 }
 
 // --- Zuweisung (§17) --------------------------------------------------------
@@ -386,6 +427,22 @@ export async function weiseZu(
     targetLabel: formatFallnummer(appeal.caseYear, appeal.caseNumber),
     metadata: { appealId, zielDiscordId: ziel?.discordId ?? null },
   });
+
+  // Auch das Entziehen einer Zuweisung ist eine Zuweisung - mit `null` als
+  // Ziel. Ein eigenes Ereignis dafuer waere ein zweites, das dieselbe Frage
+  // beantwortet.
+  const { meldeEreignis } = await import('../automation/emit');
+  await meldeEreignis(
+    'appeal.assigned',
+    {
+      appealId,
+      fallnummer: formatFallnummer(appeal.caseYear, appeal.caseNumber),
+      discordId: appeal.applicantDiscordId,
+      displayName: appeal.applicantUsername,
+      bearbeiterDiscordId: ziel?.discordId ?? null,
+    },
+    { guildId: appeal.guildId, subjectId: appeal.applicantDiscordId, entityId: appealId },
+  );
 
   return geaendert;
 }

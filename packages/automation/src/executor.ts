@@ -4,6 +4,7 @@ import type { Automation, AutomationRun } from '@swisshub/database';
 import { discord as defaultDiscord, type DiscordGateway } from '@swisshub/discord';
 import { createLogger } from '@swisshub/logger';
 import { LIMITS } from './contract';
+import { publish } from './bus';
 import type { AutomationContext } from './context';
 import { renderConfig } from './context';
 import { werteBaumAus, type ConditionNode } from './conditions';
@@ -13,6 +14,9 @@ import { planeJob } from './scheduler';
 import { loeseSchluesselAuf, pruefeGleichzeitigkeit, pruefeKette, pruefeRate } from './limits';
 
 const logger = createLogger('automation:executor');
+
+/** Der Ereignistyp, unter dem sich ein gescheiterter Lauf meldet. */
+const AUTOMATION_FEHLGESCHLAGEN = 'automation.failed';
 
 /**
  * Der Ausführer.
@@ -32,8 +36,16 @@ const logger = createLogger('automation:executor');
 
 export interface StartEingabe {
   automation: Automation;
-  /** Woher der Lauf kommt. */
-  trigger: 'event' | 'schedule' | 'manual' | 'retry';
+  /**
+   * Woher der Lauf kommt.
+   *
+   * `discord` ist der Start ueber `/automation` - er zaehlt bewusst nicht als
+   * `manual`. Im Verlauf soll erkennbar bleiben, ob jemand im Dashboard
+   * gedrueckt oder in Discord getippt hat: die beiden Wege haben
+   * verschiedene Berechtigungen, und wer einer Automation nachgeht, will
+   * wissen, welcher benutzt wurde.
+   */
+  trigger: 'event' | 'schedule' | 'manual' | 'discord' | 'retry';
   guildId: string;
   event?: {
     id: string;
@@ -608,7 +620,16 @@ async function beendeLauf(
 ): Promise<void> {
   const lauf = await prisma.automationRun.findUnique({
     where: { id: runId },
-    select: { startedAt: true, automationId: true },
+    select: {
+      startedAt: true,
+      automationId: true,
+      guildId: true,
+      correlationId: true,
+      depth: true,
+      dryRun: true,
+      eventType: true,
+      automation: { select: { name: true } },
+    },
   });
   const dauer = lauf?.startedAt ? Date.now() - lauf.startedAt.getTime() : null;
 
@@ -630,6 +651,66 @@ async function beendeLauf(
       })
       .catch(() => undefined);
   }
+
+  if (lauf) {
+    await meldeFehlschlag(runId, status, lauf, fehler);
+  }
+}
+
+/**
+ * Ein gescheiterter Lauf meldet sich.
+ *
+ * `automation.failed` war angemeldet, waehlbar - und wurde von niemandem
+ * ausgeloest. Wer im Baukasten «wenn eine Automation scheitert, schreib ins
+ * Team-Log» eingerichtet hat, bekam nie etwas, und das sah aus, als waere nie
+ * eine gescheitert. Ein Auswahlfeld ohne Quelle ist schlimmer als ein
+ * fehlendes, weil jemand darauf vertraut.
+ *
+ * Zwei Riegel gegen die Schleife, die hier naheliegt - eine Automation, die
+ * auf Fehlschlaege reagiert und dabei selbst scheitert:
+ *
+ * 1. Ein Lauf, der **selbst** aus `automation.failed` entstanden ist, meldet
+ *    seinen Fehlschlag nicht weiter. Das beendet die Kette sofort statt erst
+ *    an der Tiefengrenze.
+ * 2. Die Meldung traegt die Herkunft des Laufs. Damit greift die bestehende
+ *    Tiefenpruefung des Busses - dieselbe wie bei jedem anderen Ereignis.
+ *
+ * Ein Probelauf meldet nichts: er soll gefahrlos sein, und ein Ereignis, das
+ * andere Automationen startet, waere das Gegenteil.
+ */
+async function meldeFehlschlag(
+  runId: string,
+  status: AutomationRun['status'],
+  lauf: {
+    automationId: string;
+    guildId: string;
+    correlationId: string;
+    depth: number;
+    dryRun: boolean;
+    eventType: string | null;
+    automation: { name: string } | null;
+  },
+  fehler: string | null,
+): Promise<void> {
+  if (status !== 'FAILED' && status !== 'DEAD_LETTER') {
+    return;
+  }
+  if (lauf.dryRun || lauf.eventType === AUTOMATION_FEHLGESCHLAGEN) {
+    return;
+  }
+
+  await publish({
+    type: AUTOMATION_FEHLGESCHLAGEN,
+    guildId: lauf.guildId,
+    payload: {
+      automationId: lauf.automationId,
+      automationName: lauf.automation?.name ?? 'Unbekannte Automation',
+      runId,
+      fehler: (fehler ?? 'Unbekannter Fehler').slice(0, 300),
+    },
+    entityId: lauf.automationId,
+    causation: { correlationId: lauf.correlationId, causationId: runId, depth: lauf.depth },
+  }).catch(() => undefined);
 }
 
 /**

@@ -5063,6 +5063,12 @@ enum AutomationJobKind {
   RESUME
   /// Ein gescheiterter Schritt wird erneut versucht.
   RETRY
+  /// Eine gesendete Nachricht wird spaeter geloescht.
+  ///
+  /// Ueber die Job-Tabelle und nicht ueber `setTimeout`: eine Nachricht, die
+  /// in zwoelf Stunden verschwinden soll, ueberlebt sonst kein Deployment -
+  /// und niemand merkt es, weil sie einfach stehen bleibt.
+  DELETE_MESSAGE
 }
 
 enum AutomationJobStatus {

@@ -3,8 +3,9 @@ import type { DiscordEmbed } from '@swisshub/discord';
 import { createLogger } from '@swisshub/logger';
 import { publish } from './bus';
 import { eventTypeSchema, getEventDefinition } from './contract';
-import { render } from './context';
+import { render, type AutomationContext } from './context';
 import { darfEreignisAusloesen } from './limits';
+import { planeJob } from './scheduler';
 import { registerAction, type ActionResult, type ValidationIssue } from './registry';
 import { pruefeZieladresse, sendeWebhook } from './webhook';
 
@@ -72,9 +73,27 @@ function baueNutzlast(config: {
 
 // --- Nachricht in einen Kanal -----------------------------------------------
 
+/**
+ * Kuerzeste und laengste Frist bis zum automatischen Loeschen.
+ *
+ * Unten fuenf Sekunden, damit die Nachricht ueberhaupt jemand sieht - und
+ * damit der Takt des Bots sie zuverlaessig erwischt. Oben dreissig Tage:
+ * laenger ist keine Frist mehr, sondern eine Zeile in der Job-Tabelle, die
+ * niemand mehr erwartet.
+ */
+export const LOESCHEN_MIN_SEKUNDEN = 5;
+export const LOESCHEN_MAX_SEKUNDEN = 30 * 24 * 3600;
+
 export const kanalNachrichtConfigSchema = z.object({
   channelId: z.string().regex(/^\d{17,20}$/u, 'muss eine Discord-Kanal-ID sein'),
   ...nachrichtBasis,
+  /**
+   * Nach wie vielen Sekunden die Nachricht wieder verschwindet.
+   *
+   * `0` oder nichts heisst: sie bleibt. Das ist die Vorgabe - eine Nachricht,
+   * die sich unerwartet selbst loescht, waere die schlechtere Ueberraschung.
+   */
+  loeschenNachSekunden: z.number().int().min(0).max(LOESCHEN_MAX_SEKUNDEN).optional(),
 });
 
 registerAction({
@@ -90,6 +109,15 @@ registerAction({
     { key: 'titel', label: 'Titel (Embed)', type: 'text', supportsTemplate: true },
     { key: 'beschreibung', label: 'Beschreibung (Embed)', type: 'textarea', supportsTemplate: true },
     { key: 'farbe', label: 'Farbe', type: 'text', placeholder: '#5865F2' },
+    {
+      key: 'loeschenNachSekunden',
+      label: 'Danach löschen nach',
+      description: 'Leer oder 0 lassen, damit die Nachricht stehen bleibt.',
+      type: 'number',
+      min: 0,
+      max: LOESCHEN_MAX_SEKUNDEN,
+      unit: 'Sekunden',
+    },
   ],
   async execute(config, context): Promise<ActionResult> {
     const geprueft = config as z.infer<typeof kanalNachrichtConfigSchema>;
@@ -104,16 +132,29 @@ registerAction({
       // mit Publikum.
       allowedMentions: { parse: [] },
     });
+
+    const frist = geprueft.loeschenNachSekunden ?? 0;
+    const geplant =
+      frist >= LOESCHEN_MIN_SEKUNDEN
+        ? await planeLoeschung(context, gesendet.channelId, gesendet.id, frist)
+        : false;
+
     return {
       status: 'SUCCESS',
-      detail: 'Nachricht gesendet.',
-      output: { messageId: gesendet.id, channelId: gesendet.channelId },
+      detail: geplant ? `Nachricht gesendet, wird in ${frist} s gelöscht.` : 'Nachricht gesendet.',
+      output: {
+        messageId: gesendet.id,
+        channelId: gesendet.channelId,
+        ...(geplant ? { loeschenNachSekunden: frist } : {}),
+      },
     };
   },
   async preview(config): Promise<string> {
     const geprueft = config as z.infer<typeof kanalNachrichtConfigSchema>;
     const text = geprueft.inhalt ?? geprueft.titel ?? geprueft.beschreibung ?? '';
-    return `Würde in <#${geprueft.channelId}> schreiben: «${text.slice(0, 120)}»`;
+    const frist = geprueft.loeschenNachSekunden ?? 0;
+    const nachsatz = frist >= LOESCHEN_MIN_SEKUNDEN ? ` und sie nach ${frist} s wieder löschen` : '';
+    return `Würde in <#${geprueft.channelId}> schreiben: «${text.slice(0, 120)}»${nachsatz}`;
   },
   async validate(config, umgebung): Promise<ValidationIssue[]> {
     const geprueft = kanalNachrichtConfigSchema.safeParse(config);
@@ -127,9 +168,53 @@ registerAction({
     if (!baueNutzlast(geprueft.data)) {
       probleme.push({ severity: 'error', message: 'Die Nachricht hat keinen Inhalt.' });
     }
+    const frist = geprueft.data.loeschenNachSekunden ?? 0;
+    if (frist > 0 && frist < LOESCHEN_MIN_SEKUNDEN) {
+      // Eine Frist unter der Untergrenze wäre stillschweigend wirkungslos -
+      // die Nachricht bliebe stehen, und niemand wüsste warum.
+      probleme.push({
+        severity: 'error',
+        message: `Die Löschfrist muss mindestens ${LOESCHEN_MIN_SEKUNDEN} Sekunden betragen.`,
+      });
+    }
     return probleme;
   },
 });
+
+/**
+ * Das spätere Löschen einplanen.
+ *
+ * Über die Job-Tabelle der Engine und nicht über `setTimeout`: eine Nachricht,
+ * die in zwölf Stunden verschwinden soll, überlebt sonst kein Deployment - sie
+ * bliebe einfach stehen, und niemand merkte es, weil im Verlauf «gesendet»
+ * steht und sonst nichts.
+ *
+ * Ein Probelauf plant nichts: er hat auch nichts gesendet.
+ *
+ * Der Schlüssel enthält die Nachricht selbst. Läuft ein Schritt nach einem
+ * Absturz erneut, entsteht kein zweiter Auftrag für dieselbe Nachricht.
+ */
+async function planeLoeschung(
+  context: AutomationContext,
+  channelId: string,
+  messageId: string,
+  sekunden: number,
+): Promise<boolean> {
+  if (context.dryRun) {
+    return false;
+  }
+  const job = await planeJob({
+    kind: 'DELETE_MESSAGE',
+    guildId: context.guildId,
+    runAt: new Date(context.now.getTime() + sekunden * 1000),
+    payload: { channelId, messageId },
+    dedupeKey: `loeschen:${channelId}:${messageId}`,
+    // Ein Löschversuch, der dreimal scheitert, scheitert auch beim
+    // zwanzigsten: die Nachricht ist weg, der Kanal weg oder das Recht fehlt.
+    maxAttempts: 3,
+  });
+  return job !== null;
+}
 
 // --- Direktnachricht --------------------------------------------------------
 

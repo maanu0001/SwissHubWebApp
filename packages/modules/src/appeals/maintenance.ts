@@ -155,6 +155,33 @@ export async function schliesseAbgelaufene(jetzt = new Date()): Promise<number> 
       metadata: { appealId: appeal.id },
     });
 
+    /*
+     * Auch dieser Weg meldet.
+     *
+     * Er geht bewusst an `setzeStatus` vorbei - eine Frist braucht keinen
+     * erlaubten Uebergang und keinen Handelnden. Genau deshalb muss die
+     * Meldung hier stehen: ein Antrag, der wegen Fristablaufs endet, ist fuer
+     * eine Automation dasselbe Ende wie einer, den jemand geschlossen hat.
+     */
+    const { meldeEreignis } = await import('../automation/emit');
+    const gemeinsam = {
+      appealId: appeal.id,
+      fallnummer: formatFallnummer(appeal.caseYear, appeal.caseNumber),
+      discordId: appeal.applicantDiscordId,
+      displayName: appeal.applicantUsername,
+    };
+    const kopf = {
+      guildId: appeal.guildId,
+      subjectId: appeal.applicantDiscordId,
+      entityId: appeal.id,
+    };
+    await meldeEreignis(
+      'appeal.status_changed',
+      { ...gemeinsam, von: 'WAITING_FOR_APPLICANT', nach: 'EXPIRED' },
+      kopf,
+    );
+    await meldeEreignis('appeal.closed', { ...gemeinsam, ergebnis: 'EXPIRED' }, kopf);
+
     abgelaufen += 1;
   }
 

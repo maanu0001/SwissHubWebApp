@@ -95,7 +95,10 @@ export const hasSetupAccess = cache(async (): Promise<boolean> => {
   if (!context?.isMember) {
     return false;
   }
-  if (context.user.isOwner || can(context, 'settings.edit') || can(context, 'admin.full')) {
+  // `can` loest den Vollzugriff selbst auf - `admin.full` daneben abzufragen
+  // war nie noetig und wuerde jetzt eine ausdrueckliche Ausnahme auf
+  // `settings.edit` uebergehen.
+  if (context.user.isOwner || can(context, 'settings.edit')) {
     return true;
   }
 

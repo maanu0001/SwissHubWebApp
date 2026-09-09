@@ -325,17 +325,31 @@ model ManagedRole {
   permissions RolePermission[]
 }
 
+/// Wirkung einer Rollen-Berechtigung.
+///
+/// `DENY` ist keine Abwesenheit von `ALLOW`, sondern ein eigener Eintrag: eine
+/// Rolle mit Vollzugriff darf alles, ausser was ausdruecklich verweigert ist.
+/// Ohne diesen Effekt liesse sich eine einzelne Ausnahme nur ueber Textkniffe
+/// im Permission-String abbilden - und die waere weder pruefbar noch anzeigbar.
+enum PermissionEffect {
+  ALLOW
+  DENY
+}
+
 /// Zuordnung Discord-Rolle -> Permission der Permission Engine.
 model RolePermission {
-  id            String      @id @default(cuid())
+  id            String           @id @default(cuid())
   discordRoleId String
   permission    String
-  createdAt     DateTime    @default(now())
+  /// Erlauben oder ausdruecklich verweigern. `DENY` schlaegt jede Erlaubnis.
+  effect        PermissionEffect @default(ALLOW)
+  createdAt     DateTime         @default(now())
   createdBy     String?
-  role          ManagedRole @relation(fields: [discordRoleId], references: [discordRoleId], onDelete: Cascade)
+  role          ManagedRole      @relation(fields: [discordRoleId], references: [discordRoleId], onDelete: Cascade)
 
   @@unique([discordRoleId, permission])
   @@index([permission])
+  @@index([discordRoleId, effect])
 }
 
 /// Generischer, typisiert gelesener Konfigurationsspeicher.

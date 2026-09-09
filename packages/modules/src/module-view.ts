@@ -113,23 +113,39 @@ export async function backfillModuleViewPermissions(
   }
 
   const vorhandene = await prisma.rolePermission.findMany({
-    select: { discordRoleId: true, permission: true },
+    select: { discordRoleId: true, permission: true, effect: true },
   });
 
-  const proRolle = new Map<string, Set<string>>();
+  /*
+   * Erlaubnisse und Ausnahmen getrennt.
+   *
+   * Eine ausdrueckliche Ausnahme ist kein Beleg dafuer, dass die Rolle mit dem
+   * Modul arbeitet - im Gegenteil. Landete sie im selben Topf, wuerde eine
+   * gesperrte Berechtigung dieser Rolle das «Modul sehen» eintragen, und der
+   * Nachtrag gaebe Rechte an genau die Rollen, denen man sie entzogen hat.
+   */
+  const erlaubt = new Map<string, Set<string>>();
+  const verweigert = new Map<string, Set<string>>();
   for (const zeile of vorhandene) {
-    const menge = proRolle.get(zeile.discordRoleId) ?? new Set<string>();
+    const ziel = zeile.effect === 'DENY' ? verweigert : erlaubt;
+    const menge = ziel.get(zeile.discordRoleId) ?? new Set<string>();
     menge.add(zeile.permission);
-    proRolle.set(zeile.discordRoleId, menge);
+    ziel.set(zeile.discordRoleId, menge);
   }
 
   const anzulegen: Array<{ discordRoleId: string; permission: string }> = [];
-  for (const [discordRoleId, menge] of proRolle) {
+  for (const [discordRoleId, menge] of erlaubt) {
+    const ausnahmen = verweigert.get(discordRoleId) ?? new Set<string>();
     for (const eintrag of module) {
       // Schon abgedeckt - sei es ausdruecklich, ueber `<praefix>.*` oder ueber
       // `admin.full`. Eine Zeile daneben aenderte nichts und stuende nur im
       // Berechtigungseditor herum.
       if (deckt(menge, eintrag.sehen)) {
+        continue;
+      }
+      // Ausdruecklich gesperrt bleibt gesperrt. Der Nachtrag traegt nach, was
+      // vergessen wurde, nicht was jemand bewusst weggenommen hat.
+      if (deckt(ausnahmen, eintrag.sehen)) {
         continue;
       }
       if (eintrag.alt.some((key) => deckt(menge, key))) {

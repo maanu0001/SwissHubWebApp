@@ -121,6 +121,7 @@ export type {
   ModerationActorType,
   ModerationSource,
   ModuleState,
+  PermissionEffect,
   PrismaClient,
   ReconciliationMode,
   ReconciliationRun,

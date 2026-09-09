@@ -37,7 +37,17 @@ const actorOf = (ctx: AuthContext) => ({
   discordId: ctx.user.discordId,
   username: ctx.user.username,
   roleIds: ctx.roleIds,
-  isOwner: ctx.permissionKeys.includes('admin.full'),
+  /*
+   * Der System-Owner, nicht «wer Vollzugriff hat».
+   *
+   * Hier stand `permissionKeys.includes('admin.full')`. Damit galt jede Rolle
+   * mit Vollzugriff als Owner - und `isOwner` hebt in der Moderationspruefung
+   * die Rangfolge auf. Der Owner stammt aus der Umgebung und ist genau eine
+   * Person; Vollzugriff ist eine Rolleneinstellung, die sich aendern und
+   * ausdruecklich einschraenken laesst. Wer Vollzugriff hat, kommt weiterhin
+   * durch jede `can`-Pruefung - er umgeht nur nicht mehr die Hierarchie.
+   */
+  isOwner: ctx.user.isOwner,
   can: (permission: string) => can(ctx, permission),
   // Damit die Meldung auf Discord sagen kann, wo entschieden wurde. Am
   // Ergebnis aendert es nichts - es ist derselbe Dienst wie dort.

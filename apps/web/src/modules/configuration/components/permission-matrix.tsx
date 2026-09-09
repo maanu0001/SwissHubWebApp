@@ -3,7 +3,8 @@
 import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { AlertTriangle, Check, Eye, Search, ShieldAlert, Trash2 } from 'lucide-react';
+import { AlertTriangle, Ban, Check, Eye, Search, ShieldAlert, Trash2 } from 'lucide-react';
+import { explainPermission, type PermissionExplanation } from '@swisshub/permissions/engine';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -37,7 +38,10 @@ export interface PresetView {
 export interface ManagedRoleState {
   discordRoleId: string;
   label: string;
+  /** Ausdruecklich erteilte Berechtigungen. */
   permissions: string[];
+  /** Ausdrueckliche Ausnahmen - sie schlagen Vollzugriff und Wildcards. */
+  deniedPermissions: string[];
   isProtected: boolean;
   keepOnJail: boolean;
   moderationLevel: number;
@@ -51,6 +55,18 @@ const ADMIN_FULL = 'admin.full';
  * Links die Discord-Rollen, rechts was sie im Dashboard dürfen. Vorlagen
  * beschleunigen die häufigen Fälle, die Vorschau zeigt vor dem Speichern, was
  * die Rolle danach tatsächlich darf - inklusive der Wildcards.
+ *
+ * Jede Zeile hat genau einen von vier Zustaenden, und jeder davon nennt seinen
+ * Grund: einzeln erteilt, durch Vollzugriff oder eine Wildcard eingeschlossen,
+ * ausdruecklich verweigert, oder gar nicht erteilt. Ein Haekchen ohne
+ * erkennbare Herkunft waere schlimmer als keines - man wuesste nicht, ob ein
+ * Klick etwas aendert.
+ *
+ * Der Klick richtet sich danach, was gerade gilt: was eingeschlossen ist, wird
+ * zur Ausnahme; was Ausnahme ist, wird wieder eingeschlossen. Beurteilt wird
+ * das von derselben Funktion wie im Server - eine zweite Regel im Browser
+ * liefe irgendwann auseinander, und dann zeigte die Oberflaeche etwas anderes
+ * an, als tatsaechlich gilt.
  */
 export function PermissionMatrix({
   csrfToken,
@@ -96,6 +112,7 @@ export function PermissionMatrix({
         discordRoleId: roleId,
         label: discordRole?.name ?? roleId,
         permissions: [],
+        deniedPermissions: [],
         isProtected: false,
         keepOnJail: false,
         moderationLevel: 0,
@@ -137,32 +154,72 @@ export function PermissionMatrix({
 
   const hasFullAccess = draft?.permissions.includes(ADMIN_FULL) ?? false;
 
-  /** Was die Rolle nach dem Speichern effektiv darf (Wildcards aufgelöst). */
-  const effective = useMemo(() => {
-    if (!draft) {
-      return [];
+  /**
+   * Wie jede einzelne Berechtigung nach dem Speichern zustande kaeme.
+   *
+   * `isOwner` ist hier bewusst `false`: bewertet wird eine Rolle, nicht eine
+   * Person. Der System-Owner haengt nicht an dieser Rolle, und ein Haekchen,
+   * das nur deshalb gruen waere, weil gerade der Owner zuschaut, wuerde die
+   * Konfiguration falsch darstellen.
+   */
+  const erklaerungen = useMemo(() => {
+    const granted = new Set(draft?.permissions ?? []);
+    const denied = new Set(draft?.deniedPermissions ?? []);
+    const map = new Map<string, PermissionExplanation>();
+    for (const permission of permissions) {
+      map.set(permission.key, explainPermission({ isOwner: false, granted, denied }, permission.key));
     }
-    if (hasFullAccess) {
-      return permissions.map((permission) => permission.key);
-    }
-    const wildcards = draft.permissions
-      .filter((permission) => permission.endsWith('.*'))
-      .map((permission) => permission.slice(0, -2));
-    return permissions
-      .map((permission) => permission.key)
-      .filter((key) => draft.permissions.includes(key) || wildcards.includes(key.split('.')[0] ?? ''));
-  }, [draft, hasFullAccess, permissions]);
+    return map;
+  }, [draft, permissions]);
 
+  /** Was die Rolle nach dem Speichern effektiv darf (Wildcards aufgelöst). */
+  const effective = useMemo(
+    () =>
+      permissions
+        .map((permission) => permission.key)
+        .filter((key) => erklaerungen.get(key)?.allowed ?? false),
+    [permissions, erklaerungen],
+  );
+
+  /** Berechtigungen, die trotz Vollzugriff oder Wildcard gesperrt sind. */
+  const ausnahmen = useMemo(
+    () =>
+      permissions
+        .map((permission) => permission.key)
+        .filter((key) => erklaerungen.get(key)?.source === 'EXPLICIT_DENY'),
+    [permissions, erklaerungen],
+  );
+
+  /**
+   * Ein Klick fuehrt den Zustand weiter - abhaengig davon, woher er kommt.
+   *
+   * Eingeschlossene Berechtigung -> Ausnahme. Ausnahme -> wieder
+   * eingeschlossen. Einzeln erteilte -> zurueckgenommen. Nicht erteilte ->
+   * erteilt. Das ist der einzige Weg, mit dem sich unter Vollzugriff
+   * ueberhaupt etwas abwaehlen laesst: ohne Ausnahme haette das Haekchen
+   * keinerlei Wirkung, und genau das war der Zustand vorher.
+   */
   const toggle = (key: string): void => {
     if (!draft || !canEdit) {
       return;
     }
-    setDraft({
-      ...draft,
-      permissions: draft.permissions.includes(key)
-        ? draft.permissions.filter((entry) => entry !== key)
-        : [...draft.permissions, key],
-    });
+    const ohneAusnahme = draft.deniedPermissions.filter((entry) => entry !== key);
+    const ohneErlaubnis = draft.permissions.filter((entry) => entry !== key);
+
+    switch (erklaerungen.get(key)?.source) {
+      case 'EXPLICIT_DENY':
+        setDraft({ ...draft, deniedPermissions: ohneAusnahme });
+        return;
+      case 'EXPLICIT_ALLOW':
+        setDraft({ ...draft, permissions: ohneErlaubnis });
+        return;
+      case 'FULL_ACCESS':
+      case 'WILDCARD':
+        setDraft({ ...draft, permissions: ohneErlaubnis, deniedPermissions: [...ohneAusnahme, key] });
+        return;
+      default:
+        setDraft({ ...draft, permissions: [...ohneErlaubnis, key], deniedPermissions: ohneAusnahme });
+    }
   };
 
   async function save(): Promise<void> {
@@ -195,7 +252,10 @@ export function PermissionMatrix({
     setPending(false);
 
     if (response.ok) {
-      setDraft({ ...draft, permissions: response.data.permissions });
+      // Eine Vorlage beschreibt den ganzen Stand der Rolle. Alte Ausnahmen
+      // stehen nicht darin und werden deshalb auch nicht mitgeschleppt -
+      // serverseitig raeumt die Aktion sie ebenfalls weg.
+      setDraft({ ...draft, permissions: response.data.permissions, deniedPermissions: [] });
       toast.success('Vorlage angewendet.');
       router.refresh();
     } else {
@@ -272,7 +332,11 @@ export function PermissionMatrix({
                       />
                       <span className="truncate">{role?.name ?? entry.label}</span>
                       <span className="ml-auto shrink-0 text-xs text-muted-foreground">
-                        {entry.permissions.includes(ADMIN_FULL) ? 'alle' : entry.permissions.length}
+                        {entry.permissions.includes(ADMIN_FULL)
+                          ? entry.deniedPermissions.length > 0
+                            ? `alle − ${entry.deniedPermissions.length}`
+                            : 'alle'
+                          : entry.permissions.length}
                       </span>
                     </button>
                     {!role ? (
@@ -406,8 +470,12 @@ export function PermissionMatrix({
             <p className="flex items-start gap-2 rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-warning">
               <ShieldAlert className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
               <span>
-                Diese Rolle besitzt <strong>Vollzugriff</strong>. Einzelne Häkchen wirken sich dadurch nicht
-                mehr aus - jede Berechtigung ist eingeschlossen.
+                Diese Rolle besitzt <strong>Vollzugriff</strong> - jede Berechtigung ist eingeschlossen. Ein
+                Klick auf eine eingeschlossene Berechtigung macht daraus eine{' '}
+                <strong>ausdrückliche Ausnahme</strong>; alles andere bleibt erlaubt.
+                {ausnahmen.length > 0
+                  ? ` Aktuell ${ausnahmen.length === 1 ? 'ist 1 Ausnahme' : `sind ${ausnahmen.length} Ausnahmen`} gesetzt.`
+                  : ''}
               </span>
             </p>
           ) : null}
@@ -420,40 +488,85 @@ export function PermissionMatrix({
                 </h4>
                 <ul className="grid gap-1.5 sm:grid-cols-2">
                   {entries.map((permission) => {
-                    const checked = draft.permissions.includes(permission.key);
-                    const implied = !checked && effective.includes(permission.key);
+                    const erklaerung =
+                      erklaerungen.get(permission.key) ??
+                      ({
+                        permission: permission.key,
+                        allowed: false,
+                        source: 'NOT_GRANTED',
+                        reason: 'Dieser Rolle nicht zugewiesen.',
+                      } satisfies PermissionExplanation);
+                    const explizit = erklaerung.source === 'EXPLICIT_ALLOW';
+                    const verweigert = erklaerung.source === 'EXPLICIT_DENY';
+                    const eingeschlossen =
+                      erklaerung.source === 'FULL_ACCESS' || erklaerung.source === 'WILDCARD';
                     return (
                       <li key={permission.key}>
                         <button
                           type="button"
                           onClick={() => toggle(permission.key)}
                           disabled={!canEdit}
+                          aria-pressed={erklaerung.allowed}
+                          title={erklaerung.reason}
                           className={cn(
                             'flex w-full items-start gap-2 rounded-md border px-3 py-2 text-left text-sm transition-colors disabled:cursor-not-allowed disabled:opacity-70',
-                            checked ? 'border-primary/50 bg-primary/10' : 'border-border hover:bg-muted/40',
+                            explizit
+                              ? 'border-primary/50 bg-primary/10'
+                              : verweigert
+                                ? 'border-destructive/50 bg-destructive/10'
+                                : 'border-border hover:bg-muted/40',
                           )}
                         >
                           <span
                             className={cn(
                               'mt-0.5 flex size-4 shrink-0 items-center justify-center rounded border',
-                              checked
+                              explizit
                                 ? 'border-primary bg-primary text-primary-foreground'
-                                : implied
-                                  ? 'border-primary/40 bg-primary/20'
-                                  : 'border-input',
+                                : verweigert
+                                  ? 'border-destructive bg-destructive/20 text-destructive'
+                                  : eingeschlossen
+                                    ? 'border-primary/40 bg-primary/20'
+                                    : 'border-input',
                             )}
                             aria-hidden="true"
                           >
-                            {checked || implied ? <Check className="size-3" /> : null}
+                            {verweigert ? (
+                              <Ban className="size-3" />
+                            ) : erklaerung.allowed ? (
+                              <Check className="size-3" />
+                            ) : null}
                           </span>
                           <span className="min-w-0">
                             <span className="flex flex-wrap items-center gap-1.5 font-medium">
-                              {permission.label}
+                              <span className={cn(verweigert && 'line-through decoration-destructive/60')}>
+                                {permission.label}
+                              </span>
                               {permission.critical ? <Badge variant="warning">kritisch</Badge> : null}
-                              {implied ? <Badge variant="outline">durch Vollzugriff</Badge> : null}
+                              {verweigert ? <Badge variant="destructive">Ausnahme</Badge> : null}
+                              {erklaerung.source === 'FULL_ACCESS' ? (
+                                <Badge variant="outline">durch Vollzugriff</Badge>
+                              ) : null}
+                              {erklaerung.source === 'WILDCARD' ? (
+                                <Badge variant="outline">durch {permission.key.split('.')[0]}.*</Badge>
+                              ) : null}
                             </span>
                             <span className="block text-xs text-muted-foreground">
                               {permission.description}
+                            </span>
+                            {/*
+                              Die Begruendung steht an jeder Zeile, nicht nur
+                              an den auffaelligen. Sonst bliebe offen, ob ein
+                              leeres Kaestchen «nie erteilt» oder «erteilt und
+                              wieder gesperrt» heisst - und das ist beim
+                              Debuggen genau die Frage.
+                            */}
+                            <span
+                              className={cn(
+                                'mt-0.5 block text-xs',
+                                verweigert ? 'text-destructive' : 'text-muted-foreground/80',
+                              )}
+                            >
+                              {erklaerung.reason}
                             </span>
                           </span>
                         </button>
@@ -471,13 +584,22 @@ export function PermissionMatrix({
           <div className="rounded-md border border-border bg-muted/20 px-3 py-2">
             <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               <Eye className="size-3.5" aria-hidden="true" />
-              Vorschau: {effective.length} Berechtigung(en) nach dem Speichern
+              Vorschau: {effective.length} von {permissions.length} Berechtigung(en) nach dem Speichern
             </p>
             <p className="mt-1 text-xs text-muted-foreground">
               {effective.length === 0
                 ? 'Diese Rolle hätte keinerlei Zugriff auf das Dashboard.'
                 : effective.join(', ')}
             </p>
+            {ausnahmen.length > 0 ? (
+              <p className="mt-2 flex items-start gap-1.5 text-xs text-destructive">
+                <Ban className="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
+                <span>
+                  Ausdrücklich verweigert ({ausnahmen.length}):{' '}
+                  <span className="font-mono">{ausnahmen.join(', ')}</span>
+                </span>
+              </p>
+            ) : null}
           </div>
 
           <div className="flex flex-wrap items-center gap-3 border-t border-border pt-4">

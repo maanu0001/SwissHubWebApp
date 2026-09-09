@@ -150,6 +150,14 @@ export const migrationRolleSchema = z
     keepOnJail: z.boolean(),
     moderationLevel: z.number().int().min(0).max(1000),
     permissions: z.array(z.string().max(120)).max(500),
+    /**
+     * Ausdrueckliche Ausnahmen der Quelle.
+     *
+     * Optional, damit Pakete aus einer aelteren Fassung weiterhin gelesen
+     * werden koennen - dort gab es nur Erlaubnisse, und ein fehlendes Feld
+     * heisst genau das: keine Ausnahmen.
+     */
+    deniedPermissions: z.array(z.string().max(120)).max(500).optional(),
   })
   .strict();
 

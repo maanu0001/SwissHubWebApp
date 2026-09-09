@@ -33,7 +33,7 @@ export default async function ServerPermissionsPage(): Promise<React.JSX.Element
     loadDiscordOptions(),
     prisma.managedRole.findMany({
       orderBy: { moderationLevel: 'desc' },
-      include: { permissions: { select: { permission: true } } },
+      include: { permissions: { select: { permission: true, effect: true } } },
     }),
     isRecoveryNeeded(),
     hasSetupAccess(),
@@ -89,7 +89,14 @@ export default async function ServerPermissionsPage(): Promise<React.JSX.Element
             roles={options.roles}
             abweichungen={Object.fromEntries(
               managedRoles.flatMap((role) => {
-                const drift = findPresetDrift(role.permissions.map((entry) => entry.permission));
+                // Nur die Erlaubnisse gehoeren in den Vorlagenvergleich. Eine
+                // ausdrueckliche Ausnahme ist bewusst gesetzt und darf nicht
+                // als «fehlt gegenueber der Vorlage» wieder auftauchen.
+                const drift = findPresetDrift(
+                  role.permissions
+                    .filter((entry) => entry.effect === 'ALLOW')
+                    .map((entry) => entry.permission),
+                );
                 return drift
                   ? [
                       [
@@ -103,7 +110,12 @@ export default async function ServerPermissionsPage(): Promise<React.JSX.Element
             managed={managedRoles.map((role) => ({
               discordRoleId: role.discordRoleId,
               label: role.label,
-              permissions: role.permissions.map((entry) => entry.permission),
+              permissions: role.permissions
+                .filter((entry) => entry.effect === 'ALLOW')
+                .map((entry) => entry.permission),
+              deniedPermissions: role.permissions
+                .filter((entry) => entry.effect === 'DENY')
+                .map((entry) => entry.permission),
               isProtected: role.isProtected,
               keepOnJail: role.keepOnJail,
               moderationLevel: role.moderationLevel,

@@ -88,7 +88,13 @@ export interface CommunicationActor {
   discordId: string;
   username: string;
   avatarHash?: string | null;
-  /** Effektive Berechtigungen - entscheidet über Erwähnungen. */
+  /**
+   * Effektive Berechtigungen - entscheidet über Erwähnungen.
+   *
+   * Bereits aufgeloest: Wildcards, Vollzugriff und ausdrueckliche Ausnahmen
+   * sind eingerechnet. Wer diese Liste fuellt, laesst das die Permission
+   * Engine tun und reicht keine Rohdaten durch.
+   */
   permissionKeys: readonly string[];
   isOwner: boolean;
 }
@@ -224,8 +230,16 @@ export function resolveMention(
     return null;
   }
 
-  const has = (permission: string): boolean =>
-    actor.isOwner || actor.permissionKeys.includes(permission) || actor.permissionKeys.includes('admin.full');
+  /*
+   * Kein zweites `admin.full` hier.
+   *
+   * Der Vollzugriff steckt bereits in `permissionKeys` - er wurde von der
+   * Engine aufgeloest, zusammen mit den ausdruecklichen Ausnahmen. Fragte
+   * diese Zeile den Vollzugriff noch einmal selbst ab, wuerde sie eine
+   * Ausnahme uebergehen: die Engine haette `communication.mention` entfernt,
+   * und `admin.full` gaebe es hier stillschweigend zurueck.
+   */
+  const has = (permission: string): boolean => actor.isOwner || actor.permissionKeys.includes(permission);
 
   if (!has(COMMUNICATION_PERMISSIONS.mention)) {
     warnings.push('Erwähnungen wurden entfernt - dafür fehlt dir die Berechtigung.');

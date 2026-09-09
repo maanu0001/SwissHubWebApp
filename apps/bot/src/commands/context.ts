@@ -1,7 +1,9 @@
 import type { ChatInputCommandInteraction, GuildMember, Interaction } from 'discord.js';
 import { bootstrapConfig } from '@swisshub/config';
 import {
+  expandPermissions,
   hasPermission,
+  listPermissions,
   loadRoleConfiguration,
   moderationLevelOf,
   resolvePermissions,
@@ -71,7 +73,19 @@ export async function buildActor(
     isOwner,
     moderationLevel: moderationLevelOf(roleIds, configuration.moderationLevels),
     can: (permission) => hasPermission(resolution, permission),
-    permissionKeys: [...resolution.granted],
+    /*
+     * Die aufgeloeste Liste, nicht die rohen Zuordnungen.
+     *
+     * `[...resolution.granted]` stand hier und enthielt `admin.full` und
+     * `jail.*` woertlich - wer diese Liste nach einer einzelnen Berechtigung
+     * durchsuchte, fand sie nicht, und wer nach `admin.full` suchte, fand
+     * ihn auch dann, wenn genau diese eine Berechtigung ausdruecklich
+     * verweigert war. Dieselbe Aufloesung wie im Dashboard.
+     */
+    permissionKeys: expandPermissions(
+      resolution,
+      listPermissions().map((definition) => definition.key),
+    ),
   };
 }
 

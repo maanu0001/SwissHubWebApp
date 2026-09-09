@@ -32,7 +32,7 @@ export async function loadRoleConfiguration(force = false): Promise<RoleConfigur
   }
 
   const [permissions, managedRoles] = await Promise.all([
-    prisma.rolePermission.findMany({ select: { discordRoleId: true, permission: true } }),
+    prisma.rolePermission.findMany({ select: { discordRoleId: true, permission: true, effect: true } }),
     prisma.managedRole.findMany({
       select: {
         discordRoleId: true,

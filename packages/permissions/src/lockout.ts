@@ -1,6 +1,7 @@
 import { prisma } from '@swisshub/database';
 import { bootstrapConfig } from '@swisshub/config';
 import { ADMIN_FULL } from './registry';
+import { hasPermission } from './engine';
 
 /**
  * Aussperrschutz.
@@ -10,16 +11,39 @@ import { ADMIN_FULL } from './registry';
  * ändern. Vor jeder Änderung wird deshalb geprüft, ob danach noch jemand
  * verwalten darf.
  *
+ * Seit es ausdrueckliche Ausnahmen gibt, reicht es nicht mehr, nach
+ * vorhandenen Zeilen zu suchen: eine Rolle mit Vollzugriff, der
+ * `permissions.manage` ausdruecklich verweigert wurde, verwaltet nichts mehr.
+ * Deshalb entscheidet hier dieselbe Engine wie im laufenden Betrieb und nicht
+ * eine zweite, einfachere Regel - eine, die «erlaubt» sagt, wo die echte
+ * «verweigert» sagt, sperrt genau die Leute aus, die sie schuetzen soll.
+ *
  * `SWISSHUB_OWNER_DISCORD_ID` gilt als Notzugang und zählt als gültiger
  * Verwalter - ist sie nicht gesetzt, muss mindestens eine Discord-Rolle die
  * Verwaltung behalten.
  */
 export const MANAGE_PERMISSIONS = 'permissions.manage';
 
-const grantsManagement = (permissions: readonly string[]): boolean =>
-  permissions.includes(ADMIN_FULL) ||
-  permissions.includes(MANAGE_PERMISSIONS) ||
-  permissions.includes('permissions.*');
+/** Alles, was Einfluss auf `permissions.manage` haben kann. */
+const RELEVANTE_SCHLUESSEL = [ADMIN_FULL, MANAGE_PERMISSIONS, 'permissions.*'];
+
+/**
+ * Darf eine Rolle mit diesen Zuordnungen Berechtigungen verwalten?
+ *
+ * Bewusst über `hasPermission`, damit Wildcards, Vollzugriff und Ausnahmen
+ * hier exakt so wirken wie bei jeder anderen Prüfung im System.
+ */
+const grantsManagement = (permissions: readonly string[], denied: readonly string[] = []): boolean =>
+  hasPermission(
+    {
+      discordId: '',
+      isOwner: false,
+      granted: new Set(permissions),
+      denied: new Set(denied),
+      matchedRoleIds: [],
+    },
+    MANAGE_PERMISSIONS,
+  );
 
 export interface LockoutCheck {
   /** Wäre nach der Änderung niemand mehr berechtigt? */
@@ -31,6 +55,33 @@ export interface LockoutCheck {
   reason?: string;
 }
 
+/** Rollen, die aktuell tatsächlich verwalten dürfen. */
+async function currentManagerRoleIds(): Promise<Set<string>> {
+  const rows = await prisma.rolePermission.findMany({
+    where: { permission: { in: RELEVANTE_SCHLUESSEL } },
+    select: { discordRoleId: true, permission: true, effect: true },
+  });
+
+  const proRolle = new Map<string, { granted: string[]; denied: string[] }>();
+  for (const row of rows) {
+    const eintrag = proRolle.get(row.discordRoleId) ?? { granted: [], denied: [] };
+    if (row.effect === 'DENY') {
+      eintrag.denied.push(row.permission);
+    } else {
+      eintrag.granted.push(row.permission);
+    }
+    proRolle.set(row.discordRoleId, eintrag);
+  }
+
+  const managers = new Set<string>();
+  for (const [discordRoleId, eintrag] of proRolle) {
+    if (grantsManagement(eintrag.granted, eintrag.denied)) {
+      managers.add(discordRoleId);
+    }
+  }
+  return managers;
+}
+
 /**
  * Prüft eine geplante Änderung an genau einer Rolle.
  * `nextPermissions === null` bedeutet: die Rolle wird gelöscht.
@@ -38,17 +89,13 @@ export interface LockoutCheck {
 export async function checkLockout(
   discordRoleId: string,
   nextPermissions: readonly string[] | null,
+  nextDenied: readonly string[] = [],
 ): Promise<LockoutCheck> {
   const ownerFallback = Boolean(bootstrapConfig.ownerDiscordId);
 
-  const rows = await prisma.rolePermission.findMany({
-    where: { permission: { in: [ADMIN_FULL, MANAGE_PERMISSIONS, 'permissions.*'] } },
-    select: { discordRoleId: true },
-  });
-
-  const managers = new Set(rows.map((row) => row.discordRoleId));
+  const managers = await currentManagerRoleIds();
   managers.delete(discordRoleId);
-  if (nextPermissions !== null && grantsManagement(nextPermissions)) {
+  if (nextPermissions !== null && grantsManagement(nextPermissions, nextDenied)) {
     managers.add(discordRoleId);
   }
 
@@ -75,8 +122,5 @@ export async function countRolePermissionMappings(): Promise<number> {
  * niemand mehr verwalten kann.
  */
 export async function isRecoveryNeeded(): Promise<boolean> {
-  const managers = await prisma.rolePermission.count({
-    where: { permission: { in: [ADMIN_FULL, MANAGE_PERMISSIONS, 'permissions.*'] } },
-  });
-  return managers === 0;
+  return (await currentManagerRoleIds()).size === 0;
 }

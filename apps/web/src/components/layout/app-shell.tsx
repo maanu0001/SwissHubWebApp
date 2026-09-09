@@ -53,7 +53,9 @@ export function AppShell({
             groups={groups}
             user={user}
             logoUrl={logoUrl}
-            canSearchMembers={permissions.includes('members.view') || permissions.includes('admin.full')}
+            // `permissions` ist die aufgeloeste Liste - `admin.full` daneben
+            // abzufragen wuerde eine ausdrueckliche Ausnahme uebergehen.
+            canSearchMembers={permissions.includes('members.view')}
           />
 
           <main className="flex-1 px-4 py-6 sm:px-6 lg:px-8">

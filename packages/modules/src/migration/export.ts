@@ -22,7 +22,7 @@ export async function erstellePaket(sourceGuild: { id: string; name: string }): 
     prisma.moduleState.findMany({ orderBy: { moduleId: 'asc' } }),
     prisma.managedRole.findMany({
       orderBy: { label: 'asc' },
-      include: { permissions: { select: { permission: true } } },
+      include: { permissions: { select: { permission: true, effect: true } } },
     }),
     prisma.automation.findMany({
       where: { guildId: sourceGuild.id, archivedAt: null },
@@ -57,7 +57,12 @@ export async function erstellePaket(sourceGuild: { id: string; name: string }): 
       isProtected: rolle.isProtected,
       keepOnJail: rolle.keepOnJail,
       moderationLevel: rolle.moderationLevel,
-      permissions: rolle.permissions.map((eintrag) => eintrag.permission),
+      permissions: rolle.permissions
+        .filter((eintrag) => eintrag.effect === 'ALLOW')
+        .map((eintrag) => eintrag.permission),
+      deniedPermissions: rolle.permissions
+        .filter((eintrag) => eintrag.effect === 'DENY')
+        .map((eintrag) => eintrag.permission),
     })),
 
     automations: automationen.map((eintrag) => ({

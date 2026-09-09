@@ -219,6 +219,14 @@ const rolePermissionsSchema = z.object({
   discordRoleId: snowflakeSchema,
   label: roleLabelSchema,
   permissions: z.array(z.string().max(64)).max(MAX_ROLLENRECHTE).default([]),
+  /**
+   * Ausdrueckliche Ausnahmen.
+   *
+   * Sie stehen als eigene Liste da und nicht als Sonderzeichen in
+   * `permissions` - der Server soll nicht raten muessen, was ein Schluessel
+   * bedeutet, und die Registry kennt kein `!jail.create`.
+   */
+  deniedPermissions: z.array(z.string().max(64)).max(MAX_ROLLENRECHTE).default([]),
   isProtected: z.boolean().default(false),
   keepOnJail: z.boolean().default(false),
   moderationLevel: z.number().int().min(0).max(1000).default(0),
@@ -241,23 +249,44 @@ export const setRolePermissionsAction = defineAction(
   async ({ ctx, input, metadata }) => {
     await assertConfigurationAccess(ctx, 'permissions.manage');
 
-    const unknown = input.permissions.filter((permission) => !isKnownPermission(permission));
+    const unknown = [...input.permissions, ...input.deniedPermissions].filter(
+      (permission) => !isKnownPermission(permission),
+    );
     if (unknown.length > 0) {
       throw new AppError('VALIDATION_FAILED', {
         userMessage: `Unbekannte Berechtigung: ${unknown.join(', ')}`,
       });
     }
 
+    /*
+     * Erlaubt und verweigert schliessen sich aus.
+     *
+     * In der Datenbank ist das ohnehin so - eine Zeile pro Rolle und
+     * Schluessel, mit genau einer Wirkung. Wer die Aktion direkt aufruft,
+     * koennte denselben Schluessel aber in beide Listen legen; dann
+     * entschiede die Reihenfolge der Schreibvorgaenge, und die ist kein
+     * Sicherheitsmodell. Also hier abweisen, statt still eine Seite zu
+     * gewinnen zu lassen.
+     */
+    const widerspruch = input.permissions.filter((permission) =>
+      input.deniedPermissions.includes(permission),
+    );
+    if (widerspruch.length > 0) {
+      throw new AppError('VALIDATION_FAILED', {
+        userMessage: `Gleichzeitig erlaubt und verweigert: ${widerspruch.join(', ')}`,
+      });
+    }
+
     await assertRoleIsSynced(input.discordRoleId);
 
-    const lockout = await checkLockout(input.discordRoleId, input.permissions);
+    const lockout = await checkLockout(input.discordRoleId, input.permissions, input.deniedPermissions);
     if (lockout.wouldLockOut) {
       throw new AppError('FORBIDDEN', { userMessage: lockout.reason });
     }
 
     const before = await prisma.rolePermission.findMany({
       where: { discordRoleId: input.discordRoleId },
-      select: { permission: true },
+      select: { permission: true, effect: true },
     });
 
     await prisma.$transaction(async (tx) => {
@@ -279,15 +308,34 @@ export const setRolePermissionsAction = defineAction(
       });
 
       await tx.rolePermission.deleteMany({
-        where: { discordRoleId: input.discordRoleId, permission: { notIn: input.permissions } },
+        where: {
+          discordRoleId: input.discordRoleId,
+          permission: { notIn: [...input.permissions, ...input.deniedPermissions] },
+        },
       });
 
-      for (const permission of input.permissions) {
-        await tx.rolePermission.upsert({
-          where: { discordRoleId_permission: { discordRoleId: input.discordRoleId, permission } },
-          create: { discordRoleId: input.discordRoleId, permission, createdBy: ctx.user.discordId },
-          update: {},
-        });
+      /*
+       * Die Wirkung wird bei jedem Speichern mitgeschrieben - auch beim
+       * Update. Sonst bliebe eine Zeile, die bisher `DENY` war, fuer immer
+       * `DENY`, obwohl das Haekchen wieder gesetzt wurde: die Zeile existiert
+       * ja, also faellt sie weder unter `deleteMany` noch unter `create`.
+       */
+      for (const [effect, keys] of [
+        ['ALLOW', input.permissions],
+        ['DENY', input.deniedPermissions],
+      ] as const) {
+        for (const permission of keys) {
+          await tx.rolePermission.upsert({
+            where: { discordRoleId_permission: { discordRoleId: input.discordRoleId, permission } },
+            create: {
+              discordRoleId: input.discordRoleId,
+              permission,
+              effect,
+              createdBy: ctx.user.discordId,
+            },
+            update: { effect },
+          });
+        }
       }
     });
 
@@ -302,8 +350,16 @@ export const setRolePermissionsAction = defineAction(
       success: true,
       metadata: {
         discordRoleId: input.discordRoleId,
-        before: before.map((entry) => entry.permission).sort(),
+        before: before
+          .filter((entry) => entry.effect === 'ALLOW')
+          .map((entry) => entry.permission)
+          .sort(),
+        beforeDenied: before
+          .filter((entry) => entry.effect === 'DENY')
+          .map((entry) => entry.permission)
+          .sort(),
         after: [...input.permissions].sort(),
+        afterDenied: [...input.deniedPermissions].sort(),
         isProtected: input.isProtected,
         moderationLevel: input.moderationLevel,
       },
@@ -362,11 +418,22 @@ export const applyPermissionPresetAction = defineAction(
       await tx.rolePermission.deleteMany({
         where: { discordRoleId: input.discordRoleId, permission: { notIn: permissions } },
       });
+      /*
+       * Eine Vorlage setzt den Stand der Rolle neu - inklusive der Wirkung.
+       * `update: {}` liesse eine fruehere Ausnahme stehen, und die Rolle
+       * haette nach dem Anwenden der Vorlage stillschweigend weniger Rechte,
+       * als die Vorlage beschreibt.
+       */
       for (const permission of permissions) {
         await tx.rolePermission.upsert({
           where: { discordRoleId_permission: { discordRoleId: input.discordRoleId, permission } },
-          create: { discordRoleId: input.discordRoleId, permission, createdBy: ctx.user.discordId },
-          update: {},
+          create: {
+            discordRoleId: input.discordRoleId,
+            permission,
+            effect: 'ALLOW',
+            createdBy: ctx.user.discordId,
+          },
+          update: { effect: 'ALLOW' },
         });
       }
     });
@@ -465,7 +532,9 @@ async function assertSetupAccess(
   permissionKeys: readonly string[],
   isOwner: boolean,
 ): Promise<void> {
-  if (isOwner || permissionKeys.includes('settings.edit') || permissionKeys.includes('admin.full')) {
+  // Die Liste ist bereits aufgeloest; `admin.full` daneben abzufragen wuerde
+  // eine ausdrueckliche Ausnahme auf `settings.edit` uebergehen.
+  if (isOwner || permissionKeys.includes('settings.edit')) {
     return;
   }
 

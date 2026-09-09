@@ -544,10 +544,11 @@ function SchrittKarte({
   const definition =
     schritt.art === 'aktion' ? bausteine.aktionen.find((eintrag) => eintrag.id === schritt.typ) : undefined;
 
+  // `eigeneRechte` ist die aufgeloeste Liste - Vollzugriff steckt darin.
+  // Ihn hier noch einmal zu pruefen wuerde eine ausdrueckliche Ausnahme
+  // uebergehen: der Hinweis bliebe aus, und der Lauf scheiterte spaeter.
   const rechtFehlt =
-    definition?.requiredPermission !== undefined &&
-    !eigeneRechte.includes('admin.full') &&
-    !eigeneRechte.includes(definition.requiredPermission);
+    definition?.requiredPermission !== undefined && !eigeneRechte.includes(definition.requiredPermission);
 
   const titel =
     schritt.art === 'warten'

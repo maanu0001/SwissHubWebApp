@@ -123,12 +123,14 @@ describe('«Modul sehen» - Sidebar', () => {
       discordId: '1',
       isOwner: false,
       granted: new Set([ADMIN_FULL]),
+      denied: new Set<string>(),
       matchedRoleIds: [],
     };
     const wildcard = {
       discordId: '2',
       isOwner: false,
       granted: new Set(['music.*']),
+      denied: new Set<string>(),
       matchedRoleIds: [],
     };
 

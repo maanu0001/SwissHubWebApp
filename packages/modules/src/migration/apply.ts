@@ -70,13 +70,23 @@ export interface Snapshot {
     keepOnJail: boolean;
     moderationLevel: number;
     permissions: string[];
+    /**
+     * Ausdrueckliche Ausnahmen.
+     *
+     * Optional, weil aeltere Snapshots dieses Feld nicht haben - die sind
+     * aus einer Zeit, in der es nur Erlaubnisse gab, und genau so werden sie
+     * beim Zurueckdrehen auch wieder eingespielt.
+     */
+    deniedPermissions?: string[];
   }>;
 }
 
 export async function erstelleSnapshot(): Promise<Snapshot> {
   const [zustaende, rollen] = await Promise.all([
     prisma.moduleState.findMany(),
-    prisma.managedRole.findMany({ include: { permissions: { select: { permission: true } } } }),
+    prisma.managedRole.findMany({
+      include: { permissions: { select: { permission: true, effect: true } } },
+    }),
   ]);
 
   return {
@@ -92,7 +102,12 @@ export async function erstelleSnapshot(): Promise<Snapshot> {
       isProtected: rolle.isProtected,
       keepOnJail: rolle.keepOnJail,
       moderationLevel: rolle.moderationLevel,
-      permissions: rolle.permissions.map((eintrag) => eintrag.permission),
+      permissions: rolle.permissions
+        .filter((eintrag) => eintrag.effect === 'ALLOW')
+        .map((eintrag) => eintrag.permission),
+      deniedPermissions: rolle.permissions
+        .filter((eintrag) => eintrag.effect === 'DENY')
+        .map((eintrag) => eintrag.permission),
     })),
   };
 }
@@ -134,14 +149,23 @@ export async function stelleWiederHer(snapshot: Snapshot, actor: Handelnder): Pr
       },
     });
     await prisma.rolePermission.deleteMany({ where: { discordRoleId: rolle.discordRoleId } });
-    if (rolle.permissions.length > 0) {
-      await prisma.rolePermission.createMany({
-        data: rolle.permissions.map((permission) => ({
-          discordRoleId: rolle.discordRoleId,
-          permission,
-        })),
-        skipDuplicates: true,
-      });
+    // Erlaubt und verweigert getrennt zurueckschreiben. Beides in einen Topf
+    // zu werfen hiesse, eine Ausnahme als Recht wiederherzustellen - das
+    // Zurueckdrehen wuerde der Rolle mehr geben, als sie vorher hatte.
+    const zeilen = [
+      ...rolle.permissions.map((permission) => ({
+        discordRoleId: rolle.discordRoleId,
+        permission,
+        effect: 'ALLOW' as const,
+      })),
+      ...(rolle.deniedPermissions ?? []).map((permission) => ({
+        discordRoleId: rolle.discordRoleId,
+        permission,
+        effect: 'DENY' as const,
+      })),
+    ];
+    if (zeilen.length > 0) {
+      await prisma.rolePermission.createMany({ data: zeilen, skipDuplicates: true });
     }
     zurueckgedreht += 1;
   }
@@ -297,13 +321,30 @@ async function uebertrageRollen(
     // Ersetzen statt ergaenzen: sonst sammelte sich bei jedem Anlauf mehr
     // an, als in der Quelle je stand.
     await prisma.rolePermission.deleteMany({ where: { discordRoleId: zielRolle } });
-    if (rolle.permissions.length > 0) {
-      await prisma.rolePermission.createMany({
-        data: rolle.permissions.map((permission) => ({ discordRoleId: zielRolle, permission })),
-        skipDuplicates: true,
-      });
+    const ausnahmen = rolle.deniedPermissions ?? [];
+    const zeilen = [
+      ...rolle.permissions.map((permission) => ({
+        discordRoleId: zielRolle,
+        permission,
+        effect: 'ALLOW' as const,
+      })),
+      // Ohne diese Zeilen waere eine Ausnahme aus der Quelle im Ziel
+      // schlicht verschwunden - und zwar zugunsten von mehr Rechten. Eine
+      // Uebertragung, die stillschweigend erweitert, ist schlimmer als eine,
+      // die abbricht.
+      ...ausnahmen.map((permission) => ({
+        discordRoleId: zielRolle,
+        permission,
+        effect: 'DENY' as const,
+      })),
+    ];
+    if (zeilen.length > 0) {
+      await prisma.rolePermission.createMany({ data: zeilen, skipDuplicates: true });
     }
-    eintraege.push(`${rolle.label}: ${rolle.permissions.length} Rechte`);
+    eintraege.push(
+      `${rolle.label}: ${rolle.permissions.length} Rechte` +
+        (ausnahmen.length > 0 ? `, ${ausnahmen.length} Ausnahmen` : ''),
+    );
   }
 
   await recordAudit({

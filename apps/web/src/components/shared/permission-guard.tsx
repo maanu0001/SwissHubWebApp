@@ -31,7 +31,11 @@ export function PermissionProvider({
     return {
       permissions,
       has: (permission: string) =>
-        owned.has(permission) || owned.has('admin.full') || owned.has(`${permission.split('.')[0]}.*`),
+        // Die Liste ist bereits aufgeloest: Vollzugriff und Wildcards stecken
+        // darin, ausdrueckliche Ausnahmen sind herausgerechnet. Wildcards hier
+        // nochmals selbst aufzuloesen hiesse, eine Ausnahme zu uebergehen -
+        // das Element waere sichtbar und der Server wiese den Klick ab.
+        owned.has(permission),
     };
   }, [permissions]);
 

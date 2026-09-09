@@ -19,7 +19,17 @@ const { globSync, readFileSync } = await import('node:fs');
 const { join } = await import('node:path');
 
 /** Einstiegspunkte ohne Server-Abhängigkeiten. */
-const CLIENT_SAFE = ['@swisshub/config/client', '@swisshub/discord/cdn', '@swisshub/shared'];
+const CLIENT_SAFE = [
+  '@swisshub/config/client',
+  '@swisshub/discord/cdn',
+  '@swisshub/shared',
+  // Die Permission Engine ohne Store und Registry-Anbindung an die Datenbank.
+  // Die Berechtigungsmatrix bewertet damit im Browser nach genau derselben
+  // Regel wie der Server - eine zweite Regel im Browser waere die Stelle, an
+  // der Anzeige und Wirkung auseinanderlaufen. Dass dieser Einstiegspunkt
+  // wirklich nichts Serverseitiges mitbringt, prueft der Abschnitt unten.
+  '@swisshub/permissions/engine',
+];
 
 const CLIENT_FILES = globSync('apps/web/src/**/*.{ts,tsx}', { cwd: process.cwd() })
   .filter((file) => {
@@ -127,4 +137,49 @@ describe('Server-Dateien', () => {
       }
     },
   );
+});
+
+/**
+ * Ein client-sicherer Einstiegspunkt muss es auch bleiben.
+ *
+ * Die Liste oben ist eine Behauptung. Reicht ein Modul dieser Kette spaeter
+ * einen Datenbank- oder Konfigurationsimport nach, waere die Behauptung falsch
+ * und niemand merkte es - der Test oben wuerde den Import ja gerade erlauben.
+ * Deshalb hier die Gegenprobe an der Kette selbst.
+ */
+describe('Client-sichere Einstiegspunkte', () => {
+  const VERBOTEN = ['@swisshub/database', '@swisshub/config', '@swisshub/secrets', 'node:', '@prisma/'];
+
+  /** Alle Dateien, die von einem Einstiegspunkt aus erreichbar sind. */
+  function kette(start: string): string[] {
+    const gesehen = new Set<string>();
+    const offen = [start];
+    while (offen.length > 0) {
+      const datei = offen.pop()!;
+      if (gesehen.has(datei)) {
+        continue;
+      }
+      gesehen.add(datei);
+      const quelle = readFileSync(join(process.cwd(), datei), 'utf8');
+      for (const treffer of quelle.matchAll(/from\s+['"](\.[^'"]+)['"]/gu)) {
+        const ziel = treffer[1]!;
+        const ordner = datei.slice(0, datei.lastIndexOf('/'));
+        const pfad = join(ordner, ziel).replace(/\\/gu, '/');
+        offen.push(pfad.endsWith('.ts') ? pfad : `${pfad}.ts`);
+      }
+    }
+    return [...gesehen];
+  }
+
+  it('zieht über die Permission Engine keinen Server-Code nach', () => {
+    const dateien = kette('packages/permissions/src/engine.ts');
+    expect(dateien.length).toBeGreaterThan(1);
+
+    for (const datei of dateien) {
+      const quelle = readFileSync(join(process.cwd(), datei), 'utf8');
+      for (const spezifikator of VERBOTEN) {
+        expect(quelle.includes(`from '${spezifikator}`), `${datei} -> ${spezifikator}`).toBe(false);
+      }
+    }
+  });
 });

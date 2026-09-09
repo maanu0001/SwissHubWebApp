@@ -11,9 +11,11 @@ import {
   discordGuildSchema,
   discordMemberSchema,
   discordRoleSchema,
+  discordInviteSchema,
   discordUserSchema,
   type BotGuild,
   type GuildChannel,
+  type GuildInvite,
   type GuildMember,
   type GuildRole,
   type GuildSummary,
@@ -691,6 +693,32 @@ export function createRestGateway(): DiscordGateway {
           position: channel.position ?? 0,
           nsfw: channel.nsfw ?? false,
           overwrites: channel.permission_overwrites ?? [],
+        }));
+    },
+
+    /**
+     * Die Einladungen der verbundenen Guild.
+     *
+     * Ohne Zwischenspeicher, und das ist der Punkt: der Wert dieser Abfrage
+     * ist der aktuelle Zaehlerstand. Eine zwischengespeicherte Antwort waere
+     * genau die alte Zahl, gegen die gleich verglichen werden soll.
+     */
+    async invites(): Promise<GuildInvite[]> {
+      const raw = await discordRequest<unknown[]>(`${await guildRoute()}/invites`);
+      return (Array.isArray(raw) ? raw : [])
+        .map((entry) => discordInviteSchema.safeParse(entry))
+        .filter((result) => result.success)
+        .map((result) => result.data)
+        .map((invite) => ({
+          code: invite.code,
+          channelId: invite.channel?.id ?? null,
+          channelName: invite.channel?.name ?? null,
+          inviterDiscordId: invite.inviter?.id ?? null,
+          inviterUsername: invite.inviter?.username ?? null,
+          uses: invite.uses ?? 0,
+          maxUses: invite.max_uses ?? 0,
+          expiresAt: invite.expires_at ? new Date(invite.expires_at) : null,
+          createdAt: invite.created_at ? new Date(invite.created_at) : null,
         }));
     },
 

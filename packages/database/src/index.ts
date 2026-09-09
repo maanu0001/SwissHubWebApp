@@ -74,6 +74,7 @@ export type {
   DiscordEventCategory,
   DiscordEventMedia,
   DiscordEventSeverity,
+  DiscordInvite,
   DiscordMessageSnapshot,
   DiscordRoleCache,
   GuildConfig,

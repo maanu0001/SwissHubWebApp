@@ -6,6 +6,7 @@ import type {
 } from '@swisshub/database';
 import type { DiscordEmbed, DiscordEmbedField } from '@swisshub/discord';
 import { EVENT_TYPES } from '../analytics/event-types';
+import { ZUORDNUNG_TEXT, type ZuordnungsArt } from '../invites/service';
 import {
   EMBED_LIMITS,
   alsZitat,
@@ -354,7 +355,54 @@ function zusatzFelder(ereignis: DiscordEvent): DiscordEmbedField[] {
     ];
   }
 
+  if (ereignis.type === EVENT_TYPES.MEMBER_JOIN) {
+    return einladungsFelder(daten);
+  }
+
   return [];
+}
+
+/**
+ * Woher jemand gekommen ist - oder dass es unbekannt ist.
+ *
+ * Discord nennt die benutzte Einladung nicht; sie wird aus der Differenz der
+ * Zaehler erschlossen. Das gelingt oft, aber nicht immer, und der Unterschied
+ * gehoert ins Log: «über Einladung X von Y» ist eine Aussage ueber einen
+ * Menschen, der jemanden hereingeholt haben soll. Sie steht hier nur, wenn
+ * der Dienst sie belegen konnte.
+ *
+ * Der Grund steht auch dann da, wenn nichts belegt ist. «Unbekannt» ohne
+ * Begruendung liest sich wie ein Fehler; «unbekannt - dem Bot fehlt Server
+ * verwalten» sagt, was zu tun ist.
+ */
+function einladungsFelder(daten: Record<string, unknown>): DiscordEmbedField[] {
+  const rohe = typeof daten.einladungsArt === 'string' ? daten.einladungsArt : null;
+  // Nur eine Art, die es wirklich gibt. Ein unbekannter Wert stammt aus einer
+  // aelteren Fassung oder aus einem von Hand veraenderten Datensatz - beides
+  // ist kein Grund, einen erfundenen Text nach Discord zu schreiben.
+  const art: ZuordnungsArt | null = rohe !== null && rohe in ZUORDNUNG_TEXT ? (rohe as ZuordnungsArt) : null;
+  if (!art) {
+    // Ereignisse aus der Zeit vor der Einladungsverfolgung. Kein Feld ist
+    // richtiger als «unbekannt» - damals wurde gar nicht nachgesehen.
+    return [];
+  }
+
+  const code = typeof daten.einladungsCode === 'string' ? daten.einladungsCode : null;
+  if (!code) {
+    return feld('Einladung', `_${ZUORDNUNG_TEXT[art]}_`);
+  }
+
+  const vonId = typeof daten.einladungVon === 'string' ? daten.einladungVon : null;
+  const vonName = typeof daten.einladungVonName === 'string' ? daten.einladungVonName : null;
+  const nutzungen = typeof daten.einladungsNutzungen === 'number' ? daten.einladungsNutzungen : null;
+
+  return [
+    ...feld('Einladung', `\`${code}\`${nutzungen === null ? '' : ` · ${nutzungen}. Nutzung`}`),
+    // Der Ersteller nur, wenn Discord ihn genannt hat. Ein Link ohne
+    // bekannten Urheber ist kein Grund, einen zu erfinden.
+    ...(vonId || vonName ? feld('Eingeladen von', person(vonName, vonId)) : []),
+    ...(art === 'EINDEUTIG' ? [] : feld('Hinweis', ZUORDNUNG_TEXT[art], false)),
+  ];
 }
 
 /**

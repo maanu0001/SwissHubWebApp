@@ -184,6 +184,8 @@ export function createMockGateway(): DiscordGateway {
   // Vom Mock verwaltete Kanaele - Sprach- wie Textkanaele.
   const eigeneKanaele = new Map<string, GuildChannel>();
   let kanalZaehler = 0;
+  // Steigt bei jedem Abruf der Einladungen - siehe `guild.invites()`.
+  let einladungsAufrufe = 0;
   log.warn('Discord Mock-Modus aktiv - es werden KEINE echten Discord-Aktionen ausgeführt');
 
   const managedChannels: DiscordGateway['managedChannels'] = {
@@ -478,6 +480,40 @@ export function createMockGateway(): DiscordGateway {
           return eigene;
         }
         return eigene.map((kanal) => ({ ...kanal, id: `9${kanal.id.slice(1)}` }));
+      },
+      /**
+       * Zwei feste Einladungen mit steigendem Zaehler.
+       *
+       * Der Zaehler steigt bei jedem Abruf um eins auf dem ersten Code. So
+       * ergibt der Mock im Entwicklungsbetrieb eine eindeutige Differenz und
+       * die Zuordnung laesst sich ohne echten Discord-Server ansehen.
+       */
+      async invites() {
+        einladungsAufrufe += 1;
+        return [
+          {
+            code: 'swisshub',
+            channelId: MOCK_CHANNELS[0]?.id ?? null,
+            channelName: MOCK_CHANNELS[0]?.name ?? null,
+            inviterDiscordId: '100000000000000001',
+            inviterUsername: 'mock-owner',
+            uses: einladungsAufrufe,
+            maxUses: 0,
+            expiresAt: null,
+            createdAt: new Date('2026-01-01T00:00:00.000Z'),
+          },
+          {
+            code: 'zocke',
+            channelId: MOCK_CHANNELS[0]?.id ?? null,
+            channelName: MOCK_CHANNELS[0]?.name ?? null,
+            inviterDiscordId: '100000000000000002',
+            inviterUsername: 'mock-mod',
+            uses: 3,
+            maxUses: 10,
+            expiresAt: null,
+            createdAt: new Date('2026-02-01T00:00:00.000Z'),
+          },
+        ];
       },
       async summaryOf(guildId: string) {
         const alle = [

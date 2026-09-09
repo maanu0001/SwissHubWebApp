@@ -3,6 +3,7 @@ import type {
   BotGuild,
   BotIdentity,
   GuildChannel,
+  GuildInvite,
   GuildMember,
   GuildRole,
   GuildSummary,
@@ -200,6 +201,16 @@ export interface DiscordGateway {
     channelsOf(guildId: string): Promise<GuildChannel[]>;
     /** Kurzangaben zu einer anderen Guild, oder `null`, wenn unerreichbar. */
     summaryOf(guildId: string): Promise<GuildSummary | null>;
+    /**
+     * Die Einladungen der verbundenen Guild.
+     *
+     * Braucht `MANAGE_GUILD`. Fehlt das Recht, wirft Discord 403 - und genau
+     * das wird hier auch geworfen. Eine leere Liste zurueckzugeben waere die
+     * schlimmere Antwort: «keine Einladungen» und «ich darf nicht nachsehen»
+     * sind verschiedene Aussagen, und wer sie verwechselt, ordnet Beitritte
+     * still keiner Einladung zu, statt zu melden, dass ein Recht fehlt.
+     */
+    invites(): Promise<GuildInvite[]>;
     /**
      * Discords eigenes Audit Log.
      *

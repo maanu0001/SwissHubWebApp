@@ -38,6 +38,7 @@ import { registerTicketMessageSync } from './ticket-messages';
 import { registerAnalyticsEvents, anwesendeImVoice } from './analytics-events';
 import { registerModerationEvents } from './moderation-events';
 import { registerAutomationEvents } from './automation-events';
+import { registerInviteEvents, synchronisiereEinladungenBeimStart } from './invite-events';
 import { registerTournamentInteractions } from './tournament-interactions';
 import { recoverVoiceHub, registerVoiceHub } from './voice-hub';
 import { registerVoiceInteractions } from './voice-interactions';
@@ -139,6 +140,11 @@ async function main(): Promise<void> {
       // Bann und Entbannung als Ereignis - ohne dieses Intent liefert Discord
       // sie nicht, und im Verlauf fehlte genau das, was am schwersten wiegt.
       GatewayIntentBits.GuildModeration,
+      // Erstellte und gelöschte Einladungen. Nicht privilegiert, aber ohne
+      // dieses Intent bliebe der Einladungsspiegel zwischen zwei Beitritten
+      // stehen - und eine frisch erstellte Einladung wäre beim ersten
+      // Beitritt über sie nicht zuzuordnen.
+      GatewayIntentBits.GuildInvites,
     ],
   });
 
@@ -213,6 +219,10 @@ async function main(): Promise<void> {
   // Automation-Modul selbst.
   registerAutomationEvents(client, isActiveGuild);
 
+  // Der Einladungsspiegel. Er entscheidet nichts - er merkt sich nur die
+  // Zählerstände, damit beim nächsten Beitritt eine Differenz möglich ist.
+  registerInviteEvents(client, isActiveGuild);
+
   client.once(Events.ClientReady, async (readyClient) => {
     status.online = true;
     status.botUserId = readyClient.user.id;
@@ -273,6 +283,13 @@ async function main(): Promise<void> {
       // Ereignisse gesehen.
       await recoverVoiceHub(guildId).catch((error: unknown) =>
         log.warn('Voice Hub konnte nach dem Start nicht abgeglichen werden', { error }),
+      );
+
+      // Der erste Einladungsabgleich. Ohne ihn hätte der erste Beitritt nach
+      // jedem Neustart keinen Vorher-Wert und bliebe grundsätzlich
+      // unzugeordnet.
+      await synchronisiereEinladungenBeimStart(guildId).catch((error: unknown) =>
+        log.warn('Einladungen konnten beim Start nicht abgeglichen werden', { error }),
       );
 
       // Beim Start einmal synchronisieren, damit Rollen- und Channel-Auswahl

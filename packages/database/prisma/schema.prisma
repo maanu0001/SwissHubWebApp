@@ -5617,8 +5617,18 @@ enum DiscordLogCategory {
   MESSAGES
   /// Aus `DiscordEvent` der Kategorie VOICE.
   VOICE
-  /// Aus `DiscordEvent` der Kategorie MEMBER - Beitritt, Austritt, Rollen, Spitzname.
+  /// Aus `DiscordEvent` der Kategorie MEMBER - Rollen, Spitzname und, solange
+  /// kein eigener Kanal fuer JOIN_LEAVE eingerichtet ist, auch Beitritt und
+  /// Austritt.
   MEMBERS
+  /// Beitritt und Austritt allein - inklusive der genutzten Einladung.
+  ///
+  /// Eigene Kategorie, weil sie einen anderen Leserkreis hat als eine
+  /// Rollenaenderung: wer kommt und geht, interessiert das ganze Team, eine
+  /// vergebene Rolle nur die Verwaltung. Ohne eingerichteten Kanal faellt sie
+  /// auf MEMBERS zurueck - sonst verschwaenden Beitritte beim Update aus dem
+  /// Kanal, in dem sie bisher standen.
+  JOIN_LEAVE
   /// Aus `DiscordEvent` der Kategorien ROLE, CHANNEL und SERVER.
   ADMIN
 }
@@ -5670,6 +5680,59 @@ model DiscordLogChannel {
 
   @@index([guildId])
   @@index([channelId])
+}
+
+/// Der Spiegel der Discord-Einladungen dieser Guild.
+///
+/// Discord sagt beim Beitritt nicht, welche Einladung benutzt wurde. Die
+/// einzige Auskunft ist der Zaehler je Einladung - man muss ihn also **vor**
+/// dem Beitritt kennen, um hinterher die Differenz zu bilden. Genau dafuer
+/// steht diese Tabelle.
+///
+/// In der Datenbank und nicht im Arbeitsspeicher: ein Neustart zwischen zwei
+/// Beitritten wuerde einen Speicherstand verlieren, und dann waere der erste
+/// Beitritt danach grundsaetzlich nicht zuzuordnen. Ein Datenbankstand
+/// ueberlebt das - und wenn zwischen Abmeldung und Neustart doch etwas
+/// passiert ist, faellt genau das in der Differenz auf.
+model DiscordInvite {
+  id        String @id @default(cuid())
+  guildId   String
+  /// Der Einladungscode, also der Teil hinter `discord.gg/`.
+  code      String
+  channelId String?
+  /// Name zum Zeitpunkt des letzten Abgleichs - fuer die Anzeige, wenn der
+  /// Kanal inzwischen weg ist.
+  channelName String?
+  /// Wer die Einladung erstellt hat. Discord nennt das nicht immer.
+  inviterDiscordId String?
+  inviterUsername  String?
+  /// Zaehlerstand beim letzten Abgleich. Die Grundlage der Differenz.
+  uses      Int      @default(0)
+  /// `0` heisst bei Discord: unbegrenzt.
+  maxUses   Int      @default(0)
+  /// Wann Discord sie verfallen laesst - `null` heisst nie.
+  expiresAt DateTime?
+  /// Wann sie auf Discord entstanden ist.
+  discordCreatedAt DateTime?
+  /// Wie viele Beitritte dieser Einladung eindeutig zugeordnet wurden.
+  ///
+  /// Getrennt von `uses`: `uses` ist Discords Zaehler und steigt auch dann,
+  /// wenn der Bot gerade nicht lief. Diese Zahl zaehlt nur, was tatsaechlich
+  /// belegt zugeordnet wurde.
+  attributedJoins Int @default(0)
+  /// Gesetzt, sobald die Einladung auf Discord nicht mehr existiert.
+  ///
+  /// Die Zeile bleibt stehen: ein Beitritt, der auf eine inzwischen
+  /// geloeschte Einladung zurueckgeht, soll weiterhin sagen koennen, wer sie
+  /// erstellt hatte.
+  revokedAt DateTime?
+  lastSeenAt DateTime @default(now())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([guildId, code])
+  @@index([guildId, revokedAt])
+  @@index([inviterDiscordId])
 }
 
 /// Eine Zustellung an einen Discord-Kanal.

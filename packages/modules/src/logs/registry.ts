@@ -61,10 +61,18 @@ export const LOG_KATEGORIEN: readonly LogKategorieDefinition[] = [
     beispiel: 'Voice beigetreten · Voice verschoben',
   },
   {
+    id: 'JOIN_LEAVE',
+    label: 'Beitritte & Austritte',
+    beschreibung:
+      'Nur wer kommt und wer geht - mit der genutzten Einladung, sofern der Bot sie belegen kann. Ohne eigenen Kanal erscheinen Beitritte und Austritte weiterhin unter «Mitglieder».',
+    beispiel: 'Mitglied beigetreten · Mitglied hat den Server verlassen',
+  },
+  {
     id: 'MEMBERS',
     label: 'Mitglieder',
-    beschreibung: 'Beitritte, Austritte, Rollenänderungen und Spitznamen.',
-    beispiel: 'Mitglied beigetreten · Rolle vergeben · Spitzname geändert',
+    beschreibung:
+      'Rollenänderungen und Spitznamen - und Beitritte/Austritte, solange dafür kein eigener Kanal eingerichtet ist.',
+    beispiel: 'Rolle vergeben · Spitzname geändert',
   },
   {
     id: 'ADMIN',
@@ -135,24 +143,74 @@ const AUS_EREIGNIS: Record<DiscordEventCategory, DiscordLogCategory> = {
   SERVER: 'ADMIN',
 };
 
+/** Beitritt und Austritt - die Ereignisse mit einer eigenen Kategorie. */
+const KOMMEN_UND_GEHEN: ReadonlySet<string> = new Set<string>([
+  EVENT_TYPES.MEMBER_JOIN,
+  EVENT_TYPES.MEMBER_LEAVE,
+]);
+
 /**
- * Die Kategorie eines Statistikereignisses - oder keine.
+ * Die Kategorien eines Statistikereignisses - in der Reihenfolge, in der sie
+ * gelten sollen.
  *
- * `null` heisst: dieses Ereignis wird nicht ueber den Statistikpfad
+ * Eine leere Liste heisst: dieses Ereignis wird nicht ueber den Statistikpfad
  * ausgegeben. Entweder weil die Akte es bereits meldet, oder weil es zu einer
  * Massnahme dieses Dashboards gehoert und dort schon gezaehlt wurde.
+ *
+ * ## Warum eine Liste und nicht eine Kategorie
+ *
+ * Beitritt und Austritt haben seit dieser Erweiterung eine eigene Kategorie.
+ * Wuerden sie damit ausschliesslich nach `JOIN_LEAVE` gehen, verschwaenden sie
+ * beim Update aus dem Kanal, in dem sie bisher standen - fuer jeden, der
+ * `MEMBERS` eingerichtet hat und von der neuen Kategorie noch nichts weiss.
+ * Ein Log, das nach einem Update aufhoert, sieht aus wie ein Server, auf dem
+ * niemand mehr beitritt.
+ *
+ * Deshalb: `JOIN_LEAVE` zuerst, `MEMBERS` als Rueckfall. Der Aufrufer nimmt
+ * die erste Kategorie, fuer die tatsaechlich ein Kanal eingerichtet ist.
+ * Gesendet wird in **einen** Kanal, nie in beide - sonst stuende derselbe
+ * Beitritt zweimal da, sobald jemand beide einrichtet.
  */
-export function kategorieFuerEreignis(input: {
+export function kategorienFuerEreignis(input: {
   category: DiscordEventCategory;
   type: string;
   /** Gesetzt, wenn das Ereignis zu einer Massnahme dieses Systems gehoert. */
   moderationActionId?: string | null;
-}): DiscordLogCategory | null {
+  /**
+   * Wie jemand den Server verlassen hat - belegt aus Discords Audit Log.
+   *
+   * `null` heisst: freiwillig, so weit belegbar.
+   */
+  entfernt?: 'KICK' | 'BAN' | null;
+}): DiscordLogCategory[] {
   if (input.moderationActionId) {
-    return null;
+    return [];
   }
   if (AUS_DER_AKTE.has(input.type)) {
-    return null;
+    return [];
   }
-  return AUS_EREIGNIS[input.category] ?? null;
+  const gewoehnlich = AUS_EREIGNIS[input.category];
+  if (!gewoehnlich) {
+    return [];
+  }
+  if (input.category === 'MEMBER' && KOMMEN_UND_GEHEN.has(input.type)) {
+    /*
+     * Ein Rauswurf ist kein Austritt.
+     *
+     * Der Kanal fuer Beitritte und Austritte sagt, wer kommt und wer geht.
+     * «Mitglied hat den Server verlassen» ueber jemanden, der gerade gebannt
+     * wurde, ist dort schlicht falsch - und die Massnahme selbst steht
+     * ohnehin schon im Moderationskanal, mit Grund und Handelndem.
+     *
+     * Unter «Mitglieder» bleibt er stehen: dort ist es eine
+     * Mitgliederbewegung, und das ist er auch dann, wenn er ein Kick war.
+     * Beides sind verschiedene Aussagen ueber denselben Moment, und diese
+     * Unterscheidung gab es hier schon vor der neuen Kategorie.
+     */
+    if (input.type === EVENT_TYPES.MEMBER_LEAVE && input.entfernt) {
+      return [gewoehnlich];
+    }
+    return ['JOIN_LEAVE', gewoehnlich];
+  }
+  return [gewoehnlich];
 }

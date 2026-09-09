@@ -4,7 +4,7 @@ import type { DiscordEmbed } from '@swisshub/discord';
 import { createLogger } from '@swisshub/logger';
 import { logKanalIds, zielFuer } from './config';
 import { formatiereEreignis, formatiereMassnahme } from './formatters';
-import { kategorieFuerEreignis, NICHT_NACH_DISCORD } from './registry';
+import { kategorienFuerEreignis, NICHT_NACH_DISCORD } from './registry';
 
 const log = createLogger('logs:dispatch');
 
@@ -159,12 +159,18 @@ export async function dispatchMassnahme(massnahme: ModerationAction): Promise<Di
  */
 export async function dispatchEreignis(ereignis: DiscordEvent): Promise<DispatchErgebnis> {
   try {
-    const category = kategorieFuerEreignis({
+    // Die einzige Stelle, an der der Dispatcher Metadaten liest - mit
+    // benanntem Schluessel und Typpruefung, wie die Formatter auch.
+    const daten = (ereignis.metadata ?? {}) as Record<string, unknown>;
+    const entfernt = daten.entfernt === 'KICK' || daten.entfernt === 'BAN' ? daten.entfernt : null;
+
+    const kandidaten = kategorienFuerEreignis({
       category: ereignis.category,
       type: ereignis.type,
       moderationActionId: ereignis.moderationActionId,
+      entfernt,
     });
-    if (!category) {
+    if (kandidaten.length === 0) {
       return { ergebnis: 'uebersprungen', grund: 'aus-der-akte' };
     }
 
@@ -173,8 +179,25 @@ export async function dispatchEreignis(ereignis: DiscordEvent): Promise<Dispatch
       return { ergebnis: 'uebersprungen', grund: 'log-kanal' };
     }
 
-    const ziel = await zielFuer(category);
-    if (!ziel) {
+    /*
+     * Die erste eingerichtete Kategorie gewinnt - und nur sie.
+     *
+     * Ein Beitritt nennt zwei Kategorien: seine eigene und die alte als
+     * Rueckfall. In beide zu senden waere der naheliegende Fehler: wer beide
+     * Kanaele einrichtet, saehe denselben Beitritt zweimal, und es gaebe
+     * keinen Weg, das abzustellen, ausser einen Kanal wieder zu entfernen.
+     */
+    let category: DiscordLogCategory | null = null;
+    let ziel: Awaited<ReturnType<typeof zielFuer>> = null;
+    for (const kandidat of kandidaten) {
+      const gefunden = await zielFuer(kandidat);
+      if (gefunden) {
+        category = kandidat;
+        ziel = gefunden;
+        break;
+      }
+    }
+    if (!category || !ziel) {
       return { ergebnis: 'kein-ziel' };
     }
 

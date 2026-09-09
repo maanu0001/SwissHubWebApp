@@ -37,6 +37,24 @@ export const discordRoleSchema = z.object({
   hoist: z.boolean().default(false),
 });
 
+/**
+ * Eine Einladung, wie sie ueber die REST-Schnittstelle kommt.
+ *
+ * `uses`, `max_uses` und `created_at` liefert Discord nur bei der Abfrage der
+ * Guild-Einladungen mit - beim Ereignis `INVITE_CREATE` stehen sie ebenfalls
+ * drin, bei einer einzeln aufgeloesten Einladung nicht. Deshalb `nullish`
+ * statt Pflichtfeld: was fehlt, wird nicht erfunden.
+ */
+export const discordInviteSchema = z.object({
+  code: z.string(),
+  channel: z.object({ id: z.string(), name: z.string().nullish() }).nullish(),
+  inviter: discordUserSchema.nullish(),
+  uses: z.number().nullish(),
+  max_uses: z.number().nullish(),
+  expires_at: z.string().nullish(),
+  created_at: z.string().nullish(),
+});
+
 export const discordChannelSchema = z.object({
   id: z.string(),
   name: z.string().nullish(),
@@ -238,6 +256,27 @@ export const channelOverwritesSchema = z.object({
  * wird. `createdAt` stammt aus der Snowflake - Discord liefert keinen eigenen
  * Zeitstempel mit.
  */
+/**
+ * Eine Einladung, wie Discord sie herausgibt.
+ *
+ * `uses` ist die einzige Auskunft darueber, ueber welche Einladung jemand
+ * hereingekommen ist - Discord nennt sie beim Beitritt nicht. Man muss den
+ * Stand also vorher kennen und hinterher die Differenz bilden.
+ */
+export interface GuildInvite {
+  code: string;
+  channelId: string | null;
+  channelName: string | null;
+  /** Wer die Einladung erstellt hat. Discord nennt das nicht immer. */
+  inviterDiscordId: string | null;
+  inviterUsername: string | null;
+  uses: number;
+  /** `0` heisst bei Discord: unbegrenzt. */
+  maxUses: number;
+  expiresAt: Date | null;
+  createdAt: Date | null;
+}
+
 export interface AuditLogEntry {
   id: string;
   /** Discords numerischer Ereignistyp. */

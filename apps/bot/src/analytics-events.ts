@@ -1,6 +1,6 @@
 import { ChannelType, Events, type Client, type Message, type PartialMessage } from 'discord.js';
 import { createLogger } from '@swisshub/logger';
-import { analytics } from '@swisshub/modules';
+import { analytics, invites } from '@swisshub/modules';
 import { AUDIT_LOG_ACTIONS } from '@swisshub/discord';
 
 const log = createLogger('bot:analytics');
@@ -348,13 +348,49 @@ export function registerAnalyticsEvents(
     }
     const beigetreten = new Date();
     sicher('Beitritt', async () => {
+      /*
+       * Die Einladung zuerst - und trotzdem unkritisch.
+       *
+       * Zuerst, weil die Zuordnung ein Wettlauf gegen den naechsten Beitritt
+       * ist: sie vergleicht Discords Zaehler gegen den gespiegelten Stand,
+       * und jeder weitere Beitritt verschiebt genau diese Zahlen. Je frueher
+       * sie laeuft, desto eindeutiger faellt sie aus.
+       *
+       * Unkritisch, weil sie das Beitrittslog nicht aufhalten darf. Faellt
+       * Discord aus oder fehlt dem Bot `MANAGE_GUILD`, kommt eine Zuordnung
+       * «unbekannt» zurueck - der Eintrag entsteht vollstaendig, nur ohne
+       * Einladung. Ein fehlender Eintrag saehe aus wie ein Beitritt, der nie
+       * stattgefunden hat.
+       */
+      const zuordnung = await invites.ordneBeitrittZu(member.guild.id).catch((): invites.Zuordnung => ({
+        art: 'DISCORD_FEHLER',
+        code: null,
+        inviterDiscordId: null,
+        inviterUsername: null,
+        uses: null,
+      }));
+
       await analytics.recordEvent({
         guildId: member.guild.id,
         category: 'MEMBER',
         type: analytics.EVENT_TYPES.MEMBER_JOIN,
         subjectDiscordId: member.id,
         subjectUsername: member.user.username,
-        metadata: { kontoErstellt: member.user.createdAt.toISOString() },
+        metadata: {
+          kontoErstellt: member.user.createdAt.toISOString(),
+          // Die Art steht immer dabei, der Code nur, wenn er belegt ist. So
+          // laesst sich im Nachhinein unterscheiden, ob niemand eingeladen
+          // hat oder ob niemand nachsehen durfte.
+          einladungsArt: zuordnung.art,
+          ...(invites.istBelegt(zuordnung)
+            ? {
+                einladungsCode: zuordnung.code,
+                einladungVon: zuordnung.inviterDiscordId,
+                einladungVonName: zuordnung.inviterUsername,
+                einladungsNutzungen: zuordnung.uses,
+              }
+            : {}),
+        },
         occurredAt: beigetreten,
       });
       await analytics.zaehleBeitritt(member.guild.id, member.id, beigetreten, member.user.bot);
@@ -367,13 +403,35 @@ export function registerAnalyticsEvents(
     }
     sicher('Austritt', async () => {
       const jetzt = new Date();
-      // Ein Austritt kann ein Kick gewesen sein - oder ein freiwilliges
-      // Verlassen. Das Gateway-Ereignis ist in beiden Faellen dasselbe.
-      const verursacher = await analytics.correlateActor({
+      /*
+       * Gegangen, gekickt oder gebannt - Discord sendet dreimal dasselbe.
+       *
+       * Gefragt wird deshalb das Audit Log, und zwar in dieser Reihenfolge:
+       * erst Kick, dann Bann. Der Bann kam bisher nicht vor, und dadurch
+       * stand ein gebanntes Mitglied im Protokoll als jemand, der den Server
+       * verlassen hat. Im Mitgliederkanal ging das noch durch; in einem
+       * eigenen Kanal fuer Beitritte und Austritte waere es schlicht falsch.
+       *
+       * Findet sich nichts, entsteht keine Behauptung: dann war es ein
+       * freiwilliger Austritt, so weit wir es wissen koennen.
+       */
+      const gekickt = await analytics.correlateActor({
         actionType: AUDIT_LOG_ACTIONS.MEMBER_KICK,
         targetId: member.id,
         occurredAt: jetzt,
       });
+      const gebannt =
+        gekickt.source === 'AUDIT_LOG'
+          ? null
+          : await analytics.correlateActor({
+              actionType: AUDIT_LOG_ACTIONS.MEMBER_BAN_ADD,
+              targetId: member.id,
+              occurredAt: jetzt,
+            });
+
+      const verursacher = gekickt.source === 'AUDIT_LOG' ? gekickt : (gebannt ?? gekickt);
+      const entfernt =
+        gekickt.source === 'AUDIT_LOG' ? 'KICK' : gebannt?.source === 'AUDIT_LOG' ? 'BAN' : null;
 
       await analytics.recordEvent({
         guildId: member.guild.id,
@@ -388,7 +446,11 @@ export function registerAnalyticsEvents(
         metadata: {
           // Ausdruecklich, weil der Unterschied zaehlt und nicht aus dem Typ
           // hervorgeht.
-          gekickt: verursacher.source === 'AUDIT_LOG',
+          gekickt: entfernt === 'KICK',
+          // Womit der Austritt zustande kam - `null` heisst: freiwillig, so
+          // weit belegbar. Der Dispatcher entscheidet daran, ob der Austritt
+          // in den Kanal fuer Beitritte und Austritte gehoert.
+          entfernt,
           ...(verursacher.reason ? { grund: verursacher.reason } : {}),
         },
         occurredAt: jetzt,

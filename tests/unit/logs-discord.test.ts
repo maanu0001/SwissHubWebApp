@@ -84,7 +84,32 @@ describe('Kategorien', () => {
     ['CHANNEL', 'ADMIN'],
     ['SERVER', 'ADMIN'],
   ] as Array<[DiscordEvent['category'], string]>)('ordnet %s nach %s', (category, erwartet) => {
-    expect(logs.kategorieFuerEreignis({ category, type: 'IRGENDWAS' })).toBe(erwartet);
+    expect(logs.kategorienFuerEreignis({ category, type: 'IRGENDWAS' })).toEqual([erwartet]);
+  });
+
+  /**
+   * Beitritt und Austritt nennen zwei Kategorien.
+   *
+   * Die eigene zuerst, die alte als Rückfall. Ohne den Rückfall würden
+   * Beitritte beim Update aus dem Kanal verschwinden, in dem sie bisher
+   * standen - für jeden, der «Mitglieder» eingerichtet hat und von der neuen
+   * Kategorie noch nichts weiss.
+   */
+  it.each([analytics.EVENT_TYPES.MEMBER_JOIN, analytics.EVENT_TYPES.MEMBER_LEAVE])(
+    'nennt für %s zuerst JOIN_LEAVE und dann MEMBERS',
+    (type) => {
+      expect(logs.kategorienFuerEreignis({ category: 'MEMBER', type })).toEqual(['JOIN_LEAVE', 'MEMBERS']);
+    },
+  );
+
+  it('lässt Rollen und Spitznamen bei MEMBERS', () => {
+    for (const type of [
+      analytics.EVENT_TYPES.MEMBER_ROLE_ADD,
+      analytics.EVENT_TYPES.MEMBER_ROLE_REMOVE,
+      analytics.EVENT_TYPES.MEMBER_NICKNAME,
+    ]) {
+      expect(logs.kategorienFuerEreignis({ category: 'MEMBER', type })).toEqual(['MEMBERS']);
+    }
   });
 
   /**
@@ -99,25 +124,38 @@ describe('Kategorien', () => {
     analytics.EVENT_TYPES.MEMBER_TIMEOUT,
     analytics.EVENT_TYPES.MEMBER_TIMEOUT_END,
   ])('lässt %s über den Statistikpfad nicht hinaus', (type) => {
-    expect(logs.kategorieFuerEreignis({ category: 'MEMBER', type })).toBeNull();
+    expect(logs.kategorienFuerEreignis({ category: 'MEMBER', type })).toEqual([]);
   });
 
   /** Ein Austritt bleibt ein Austritt - auch wenn er ein Kick war. */
   it('gibt einen Austritt weiterhin aus', () => {
-    expect(logs.kategorieFuerEreignis({ category: 'MEMBER', type: analytics.EVENT_TYPES.MEMBER_LEAVE })).toBe(
-      'MEMBERS',
-    );
+    expect(
+      logs.kategorienFuerEreignis({ category: 'MEMBER', type: analytics.EVENT_TYPES.MEMBER_LEAVE }),
+    ).not.toEqual([]);
   });
 
   /** Was zu einer Massnahme dieses Dashboards gehört, meldet die Akte. */
   it('überspringt ein Ereignis, das an einer Massnahme hängt', () => {
     expect(
-      logs.kategorieFuerEreignis({
+      logs.kategorienFuerEreignis({
         category: 'MESSAGE',
         type: analytics.EVENT_TYPES.MESSAGE_DELETE,
         moderationActionId: 'mod-1',
       }),
-    ).toBeNull();
+    ).toEqual([]);
+  });
+
+  /**
+   * Ein Bann bleibt auch mit der neuen Kategorie aus dem Statistikpfad.
+   *
+   * Er ist eine Mitgliederbewegung und nennt damit `JOIN_LEAVE` - wäre die
+   * Prüfung auf die Akte nachgelagert, stünde jeder Bann jetzt doppelt in
+   * Discord: einmal aus der Akte und einmal im Beitrittskanal.
+   */
+  it('meldet einen Bann nicht über die neue Kategorie', () => {
+    expect(
+      logs.kategorienFuerEreignis({ category: 'MEMBER', type: analytics.EVENT_TYPES.MEMBER_BAN }),
+    ).toEqual([]);
   });
 });
 

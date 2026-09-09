@@ -50,13 +50,31 @@ Fünf, und jede hat eine tatsächliche Quelle im System. Eine Kategorie ohne
 Quelle wäre ein Auswahlfeld, das nie etwas sendet — schlimmer als ein
 fehlendes Feld, weil jemand darauf vertraut.
 
-| Kategorie    | Quelle                                 | Beispiele                             |
-| ------------ | -------------------------------------- | ------------------------------------- |
-| `MODERATION` | `ModerationAction`                     | Bann, Kick, Timeout, Aufhebung        |
-| `MESSAGES`   | `DiscordEvent` / MESSAGE               | gelöscht, bearbeitet                  |
-| `VOICE`      | `DiscordEvent` / VOICE                 | beigetreten, verlassen, gewechselt    |
-| `MEMBERS`    | `DiscordEvent` / MEMBER                | Beitritt, Austritt, Rollen, Spitzname |
-| `ADMIN`      | `DiscordEvent` / ROLE, CHANNEL, SERVER | Kanal gelöscht, Rolle bearbeitet      |
+| Kategorie    | Quelle                                 | Beispiele                                                    |
+| ------------ | -------------------------------------- | ------------------------------------------------------------ |
+| `MODERATION` | `ModerationAction`                     | Bann, Kick, Timeout, Aufhebung                               |
+| `MESSAGES`   | `DiscordEvent` / MESSAGE               | gelöscht, bearbeitet                                         |
+| `VOICE`      | `DiscordEvent` / VOICE                 | beigetreten, verlassen, gewechselt                           |
+| `JOIN_LEAVE` | `DiscordEvent` / MEMBER                | Beitritt (mit Einladung), Austritt                           |
+| `MEMBERS`    | `DiscordEvent` / MEMBER                | Rollen, Spitzname — und Beitritt/Austritt ohne eigenen Kanal |
+| `ADMIN`      | `DiscordEvent` / ROLE, CHANNEL, SERVER | Kanal gelöscht, Rolle bearbeitet                             |
+
+### `JOIN_LEAVE` und der Rückfall auf `MEMBERS`
+
+Beitritt und Austritt haben einen anderen Leserkreis als eine Rollenänderung:
+wer kommt und geht, interessiert das ganze Team, eine vergebene Rolle nur die
+Verwaltung. Deshalb eine eigene Kategorie.
+
+Sie ist aber **kein Bruch**. `kategorienFuerEreignis()` gibt für einen Beitritt
+zwei Kategorien zurück — `['JOIN_LEAVE', 'MEMBERS']` — und der Dispatcher nimmt
+die erste, für die tatsächlich ein Kanal eingerichtet ist. Wer heute `MEMBERS`
+konfiguriert hat und von der neuen Kategorie nichts weiss, sieht Beitritte
+nach dem Update weiterhin dort. Ein Log, das nach einem Update aufhört, sieht
+aus wie ein Server, auf dem niemand mehr beitritt.
+
+Gesendet wird in **einen** Kanal, nie in beide. Sonst stünde derselbe Beitritt
+doppelt da, sobald jemand beide einrichtet — und es gäbe keinen Weg, das
+abzustellen, ausser einen Kanal wieder zu entfernen.
 
 **Verifikation und Tickets fehlen bewusst.** Ihre Spuren liegen im Audit Log
 und — wenn die Automation Engine läuft — als Automationsereignis. Einen von
@@ -80,6 +98,17 @@ Zwei Regeln setzen das um (`registry.ts`):
 Ein **Austritt** steht bewusst nicht in dieser Liste: er ist auch dann eine
 Mitgliederbewegung, wenn er ein Kick war. Beides sind verschiedene Aussagen
 über denselben Moment und gehen standardmässig in verschiedene Kanäle.
+
+**In `JOIN_LEAVE` gilt das nicht.** Dieser Kanal sagt, wer kommt und wer geht.
+«Mitglied hat den Server verlassen» über jemanden, der gerade gebannt wurde,
+ist dort schlicht falsch — und die Massnahme selbst steht ohnehin schon im
+Moderationskanal, mit Grund und Handelndem. Ein belegter Kick oder Bann
+erscheint deshalb nur unter `MEMBERS`.
+
+Belegt heisst: Discords Audit Log nennt ihn. Beim Austritt wird zuerst auf
+Kick geprüft, dann auf Bann (`metadata.entfernt`). Findet sich nichts, war es
+ein freiwilliger Austritt — so weit wir es wissen können, und mehr wird auch
+nicht behauptet.
 
 Nicht ausgegeben werden ausserdem (`NICHT_NACH_DISCORD`):
 
@@ -196,6 +225,90 @@ Server liest.
 - **Zeitpunkte** in Discords Schreibweise `<t:…:F>`, damit jeder seine eigene
   Zone sieht. Eine fest eingebrannte Schweizer Zeit wäre für alle anderen
   falsch.
+
+## 11a. Einladungsverfolgung
+
+**Discord sagt nicht, über welche Einladung jemand hereingekommen ist.** Das
+Ereignis `guildMemberAdd` nennt das Mitglied und sonst nichts. Die einzige
+Auskunft über Einladungen ist ein Zähler je Code — man muss ihn also **vor**
+dem Beitritt kennen und hinterher die Differenz bilden.
+
+### Der Spiegel
+
+`DiscordInvite` hält den letzten bekannten Zählerstand je Code. Drei Ereignisse
+halten ihn aktuell:
+
+| Auslöser       | was passiert                    | warum                                                                     |
+| -------------- | ------------------------------- | ------------------------------------------------------------------------- |
+| Bot-Start      | einmal alle Einladungen holen   | ohne Vorher-Wert wäre der erste Beitritt nach jedem Neustart unzuordenbar |
+| `inviteCreate` | neue Einladung sofort aufnehmen | sonst erschiene sie beim ersten Beitritt als «neu», nicht als «gestiegen» |
+| `inviteDelete` | Einladung zurückziehen          | sonst gälte sie in jedem folgenden Vergleich als verschwunden             |
+
+Der Spiegel liegt **in der Datenbank, nicht im Arbeitsspeicher**. Ein Neustart
+zwischen zwei Beitritten würde einen Speicherstand verlieren; ein
+Datenbankstand überlebt ihn. Passierte zwischen Abmeldung und Neustart doch
+etwas, fällt genau das in der Differenz auf — siehe `MEHRERE_NUTZUNGEN`.
+
+Eine verschwundene Einladung wird **zurückgezogen, nicht gelöscht**: ein
+Beitritt über eine inzwischen aufgebrauchte Einladung soll weiterhin sagen
+können, wer sie erstellt hatte.
+
+### Die Zuordnung
+
+`ordneBeitrittZu()` liest den alten Stand, holt den neuen, vergleicht, speichert
+— in dieser Reihenfolge. Wer zuerst speichert, vergleicht anschliessend gegen
+sich selbst und findet nie eine Differenz.
+
+Sieben mögliche Ergebnisse, und nur drei davon nennen einen Namen:
+
+| Art                 | belegt | Bedeutung                                                    |
+| ------------------- | :----: | ------------------------------------------------------------ |
+| `EINDEUTIG`         |   ✓    | genau ein Zähler ist um genau eins gestiegen                 |
+| `MEHRERE_NUTZUNGEN` |   ✓    | ein Zähler, aber um mehr als eins — etwa nach einem Neustart |
+| `AUFGEBRAUCHT`      |   ✓    | genau eine einmalige Einladung ist verschwunden              |
+| `MEHRDEUTIG`        |   ✗    | mehrere Zähler gestiegen                                     |
+| `KEINE_AENDERUNG`   |   ✗    | Vanity-URL, Bot-Beitritt oder verpasstes Ereignis            |
+| `KEIN_ZUGRIFF`      |   ✗    | dem Bot fehlt `MANAGE_GUILD`                                 |
+| `DISCORD_FEHLER`    |   ✗    | Discord war nicht erreichbar                                 |
+
+**Es wird nie geraten.** Sind zwei Zähler gestiegen, ist die Einladung
+unbekannt — und das steht dann auch so im Log. «Wahrscheinlich über Einladung X»
+wäre in einem Kanal, den das halbe Team liest, eine Behauptung über einen
+Menschen, der jemanden eingeladen haben soll.
+
+Ein Code, den der Spiegel gar nicht kennt, zählt nicht als Treffer: er kann
+zwischen zwei Läufen erstellt **und** benutzt worden sein, und dann stünde sein
+Zähler von Anfang an über null.
+
+### Gleichzeitige Beitritte
+
+Je Guild läuft immer nur eine Zuordnung (`nacheinander()`). Zwei Beitritte im
+selben Moment sind kein Sonderfall, sondern der Alltag eines Servers, über den
+gerade jemand einen Link geteilt hat. Liefen beide gleichzeitig, läsen beide
+denselben alten Stand — und der zweite Beitritt bekäme die Einladung des
+ersten zugeschrieben.
+
+### Wenn Rechte fehlen
+
+`MANAGE_GUILD` ist nötig, um Einladungen zu lesen. Fehlt es, antwortet Discord
+mit 403. Dann gilt:
+
+- Der Beitritt wird **trotzdem vollständig protokolliert** — nur ohne
+  Einladung. Ein fehlendes Log sähe aus wie ein Beitritt, der nicht
+  stattgefunden hat.
+- Im Embed steht der Grund («dem Bot fehlt „Server verwalten“»), nicht bloss
+  «unbekannt». Letzteres liest sich wie ein Fehler; ersteres sagt, was zu tun
+  ist.
+- Beim Start warnt der Bot einmal, ohne Stacktrace: das ist keine Panne,
+  sondern eine fehlende Einstellung auf Discord.
+
+Ein fehlendes Recht und ein Discord-Ausfall bleiben unterschieden — ein
+fehlendes Recht behebt sich nicht von selbst, ein Ausfall schon.
+
+### Intent
+
+`GuildInvites` ist nicht privilegiert und wird immer angefordert. Ohne dieses
+Intent bliebe der Spiegel zwischen zwei Beitritten stehen.
 
 ## 12. Eine neue Kategorie oder ein neuer Logtyp
 

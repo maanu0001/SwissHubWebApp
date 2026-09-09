@@ -58,6 +58,7 @@ export * as members from './members';
 export * as logs from './logs';
 export * as moderation from './moderation';
 export * as analytics from './analytics';
+export * as invites from './invites';
 export * as calendar from './calendar';
 export * as ai from './ai';
 export * as verification from './verification';

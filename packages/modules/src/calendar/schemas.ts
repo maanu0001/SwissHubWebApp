@@ -22,6 +22,26 @@ const text = (max: number) =>
     .max(max)
     .transform((value) => sanitizeText(value, max));
 
+/**
+ * Text, der seine Form behaelt.
+ *
+ * `sanitizeText` faltet standardmaessig jeden Leerraum zu einem Leerzeichen -
+ * fuer einen Titel richtig, fuer eine Beschreibung verheerend. Absaetze,
+ * Listen und Umbrueche waren damit weg, bevor sie die Datenbank erreichten;
+ * am Rendern lag es nie.
+ *
+ * Mit `keepNewlines` bleibt die Gliederung erhalten: Umbrueche werden
+ * vereinheitlicht, hoechstens zwei Leerzeilen hintereinander, und innerhalb
+ * einer Zeile wird weiterhin zusammengefasst. Steuerzeichen fallen wie zuvor
+ * weg.
+ */
+const richText = (max: number) =>
+  z
+    .string()
+    .trim()
+    .max(max)
+    .transform((value) => sanitizeText(value, max, { keepNewlines: true }));
+
 const optionalText = (max: number) =>
   z
     .string()
@@ -107,7 +127,7 @@ export const questionInputSchema = z.object({
 export const eventInputSchema = z
   .object({
     title: text(140).refine((value) => value.length > 0, 'Bitte einen Namen angeben.'),
-    description: text(8000).refine((value) => value.length > 0, 'Bitte eine Beschreibung angeben.'),
+    description: richText(8000).refine((value) => value.length > 0, 'Bitte eine Beschreibung angeben.'),
     shortDescription: optionalText(200),
     categoryId: z
       .string()

@@ -1,4 +1,5 @@
 import { prisma, type LevelGameMatch } from '@swisshub/database';
+import type { Prisma } from '@swisshub/database';
 import { conflict, notFound } from '@swisshub/shared';
 import {
   SSP_ROUNDS_TO_WIN,
@@ -22,7 +23,27 @@ import {
  * Fall aus, dass zwei schnelle Klicks denselben Spielstand lesen und
  * anschliessend beide darauf aufbauen - beim Vorgänger liess sich damit ein
  * Feld doppelt belegen.
+ *
+ * Entscheidend dabei: **innerhalb** der Transaktion wird ausschliesslich mit
+ * `tx` geschrieben, nie mit dem globalen Client. Der globale Client nimmt
+ * eine zweite Verbindung, und die läuft in genau die Sperre, welche die
+ * Transaktion selbst gerade hält - sie wartet also auf sich. Sichtbar wurde
+ * das als «Transaction already closed» nach fünf Sekunden, und im Discord
+ * als generische Fehlermeldung bei jedem Zug.
  */
+
+/**
+ * Der Client *innerhalb* der Transaktion.
+ *
+ * Er trägt denselben Namen wie der globale und kann fast dasselbe - nur läuft
+ * er auf derselben Verbindung wie die Sperre. Deshalb steht er hier als
+ * eigener Typ und wird durchgereicht, statt dass jede Funktion sich den
+ * globalen greift.
+ */
+type TransaktionsClient = Omit<
+  Prisma.TransactionClient,
+  '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'
+>;
 
 export interface SspState {
   kind: 'SSP';
@@ -102,7 +123,7 @@ export interface MoveResult<TState extends GameState = GameState> {
  */
 async function withLockedMatch<T>(
   matchId: string,
-  handler: (match: LevelGameMatch, state: GameState) => Promise<T> | T,
+  handler: (tx: TransaktionsClient, match: LevelGameMatch, state: GameState) => Promise<T> | T,
 ): Promise<T> {
   return prisma.$transaction(async (tx) => {
     const locked = await tx.$queryRaw<Array<{ id: string }>>`
@@ -119,7 +140,7 @@ async function withLockedMatch<T>(
     if (!state) {
       throw conflict('Für das Spiel gits kein Spielstand.');
     }
-    return handler(match, state);
+    return handler(tx, match, state);
   });
 }
 
@@ -145,7 +166,7 @@ export async function playSsp(
   discordId: string,
   choice: SspChoice,
 ): Promise<MoveResult<SspState>> {
-  return withLockedMatch(matchId, async (match, rawState) => {
+  return withLockedMatch(matchId, async (tx, match, rawState) => {
     if (rawState.kind !== 'SSP') {
       throw conflict('Falschi Spielart.');
     }
@@ -161,7 +182,7 @@ export async function playSsp(
     const opponent = other(match, discordId);
 
     if (!state.choices[opponent]) {
-      const saved = await prisma.levelGameMatch.update({
+      const saved = await tx.levelGameMatch.update({
         where: { id: matchId },
         data: { state: state as unknown as object },
       });
@@ -196,7 +217,7 @@ export async function playSsp(
           ? match.opponentDiscordId
           : null;
 
-    const saved = await prisma.levelGameMatch.update({
+    const saved = await tx.levelGameMatch.update({
       where: { id: matchId },
       data: { state: state as unknown as object },
     });
@@ -217,7 +238,7 @@ export async function playTtt(
   discordId: string,
   cell: number,
 ): Promise<MoveResult<TttState>> {
-  return withLockedMatch(matchId, async (match, rawState) => {
+  return withLockedMatch(matchId, async (tx, match, rawState) => {
     if (rawState.kind !== 'TTT') {
       throw conflict('Falschi Spielart.');
     }
@@ -234,7 +255,7 @@ export async function playTtt(
 
     const winner = tttWinner(board);
     const draw = tttIsDraw(board);
-    const saved = await prisma.levelGameMatch.update({
+    const saved = await tx.levelGameMatch.update({
       where: { id: matchId },
       data: { state: state as unknown as object },
     });
@@ -254,7 +275,7 @@ export async function playC4(
   discordId: string,
   column: number,
 ): Promise<MoveResult<C4State>> {
-  return withLockedMatch(matchId, async (match, rawState) => {
+  return withLockedMatch(matchId, async (tx, match, rawState) => {
     if (rawState.kind !== 'C4') {
       throw conflict('Falschi Spielart.');
     }
@@ -270,7 +291,7 @@ export async function playC4(
     const state: C4State = { ...rawState, board, turn: other(match, discordId) };
     const winner = c4Winner(board);
     const draw = c4IsDraw(board);
-    const saved = await prisma.levelGameMatch.update({
+    const saved = await tx.levelGameMatch.update({
       where: { id: matchId },
       data: { state: state as unknown as object },
     });

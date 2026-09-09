@@ -2,7 +2,15 @@ import { BUTTON_STYLE, type DiscordActionRow, type DiscordEmbed } from '@swisshu
 import type { LevelGameMatch, XpGameKind } from '@swisshub/database';
 import { formatXp } from './card';
 import { levelProgress } from './curve';
-import { C4_COLS, GAME_LABELS, SSP_LABELS, type C4Board, type SspChoice, type TttBoard } from './game-rules';
+import {
+  C4_COLS,
+  GAME_LABELS,
+  SSP_LABELS,
+  SSP_ROUNDS_TO_WIN,
+  type C4Board,
+  type SspChoice,
+  type TttBoard,
+} from './game-rules';
 
 /**
  * Nachrichten des Level-Systems.
@@ -194,6 +202,97 @@ export function buildGameStateEmbed(
     description: options.description,
     color: options.accentColor,
     fields: options.fields,
+    footer: { text: `Isatz: ${formatXp(match.bet)} XP · Topf: ${formatXp(match.payout)} XP` },
+  };
+}
+
+/**
+ * Der Stand einer Schere-Stein-Papier-Partie.
+ *
+ * Vorher stand im Kanal nur «Beidi wähled verdeckt» - keine Runde, kein
+ * Punktestand, kein Hinweis darauf, ob der andere schon gewählt hat. Man
+ * wusste nicht, ob man wartet oder vergessen wurde.
+ *
+ * Was hier bewusst NICHT steht, solange die Runde läuft: *was* jemand gewählt
+ * hat. Nur *dass* er gewählt hat. Das Gegenteil wäre kein Anzeigefehler,
+ * sondern eine Einladung zum Schummeln - wer die Wahl des anderen sieht,
+ * gewinnt jede Runde. Die eigene Wahl bestätigt der Bot dem Wählenden
+ * getrennt und nur ihm.
+ */
+export function buildSspStateEmbed(
+  match: LevelGameMatch,
+  state: {
+    round: number;
+    scores: Record<string, number>;
+    choices: Record<string, SspChoice>;
+    history: Array<{ round: number; choices: Record<string, SspChoice>; winner: string | null }>;
+  },
+  options: { accentColor: number },
+): DiscordEmbed {
+  const A = match.challengerDiscordId;
+  const B = match.opponentDiscordId;
+
+  const stand = (discordId: string): string =>
+    state.choices[discordId] ? '✅ Wahl treffe' : '⏳ wartet uf d Wahl';
+
+  const letzte = state.history.at(-1);
+  const zeilen = [
+    `**Rundi ${state.round}** · wer zerscht ${SSP_ROUNDS_TO_WIN} Rundene gwünnt`,
+    '',
+    `${mention(A)}\n${stand(A)}`,
+    '',
+    `${mention(B)}\n${stand(B)}`,
+    '',
+    `**Spielstand**\n${mention(A)} ${state.scores[A] ?? 0} : ${state.scores[B] ?? 0} ${mention(B)}`,
+  ];
+
+  if (letzte) {
+    // Die vergangene Runde ist entschieden - dort dürfen die Wahlen stehen.
+    const wahlA = letzte.choices[A];
+    const wahlB = letzte.choices[B];
+    zeilen.push(
+      '',
+      `**Rundi ${letzte.round}**`,
+      `${mention(A)} ${wahlA ? SSP_LABELS[wahlA] : '-'} · ${mention(B)} ${wahlB ? SSP_LABELS[wahlB] : '-'}`,
+      letzte.winner ? `🏆 D Rundi gaht a ${mention(letzte.winner)}` : '🤝 Unentschide',
+    );
+  }
+
+  return {
+    title: `✂️ 🪨 📄 ${GAME_LABELS[match.kind]}`,
+    description: zeilen.join('\n'),
+    color: options.accentColor,
+    footer: { text: `Isatz: ${formatXp(match.bet)} XP · Topf: ${formatXp(match.payout)} XP` },
+  };
+}
+
+/**
+ * Die Bilder der Kampfphase.
+ *
+ * Discord kennt keine Animation innerhalb eines Embeds - was geht, ist das
+ * Embed ein paar Mal zu ersetzen. Drei Bilder auf fünf Sekunden: genug, dass
+ * es sich bewegt, wenig genug, dass es keine Rate-Limit-Frage wird.
+ */
+export const BATTLE_FRAMES = ['⚔️ Es wird kämpft …', '⚔️ 💥 ⚡', '🛡️ ⚔️ 🔥 💥'] as const;
+
+/**
+ * Das Embed während des Kampfs.
+ *
+ * Es zeigt beide Seiten und ausdrücklich noch kein Ergebnis - das ist der
+ * ganze Zweck. Wer sofort den Gewinner sieht, hat kein Spiel gesehen,
+ * sondern eine Auszahlung.
+ */
+export function buildBattleFightEmbed(
+  match: LevelGameMatch,
+  frame: number,
+  options: { accentColor: number },
+): DiscordEmbed {
+  return {
+    title: `⚔️ ${GAME_LABELS[match.kind]}`,
+    description:
+      `${mention(match.challengerDiscordId)} **vs.** ${mention(match.opponentDiscordId)}\n\n` +
+      `${BATTLE_FRAMES[Math.min(frame, BATTLE_FRAMES.length - 1)]}`,
+    color: options.accentColor,
     footer: { text: `Isatz: ${formatXp(match.bet)} XP · Topf: ${formatXp(match.payout)} XP` },
   };
 }

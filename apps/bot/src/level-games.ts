@@ -278,11 +278,26 @@ async function resolveBattle(
 ): Promise<void> {
   const winnerDiscordId = Math.random() < 0.5 ? match.challengerDiscordId : match.opponentDiscordId;
 
+  /*
+    Erst abrechnen, dann zeigen.
+
+    Die Reihenfolge ist der Unterschied zwischen einer Vorführung und einem
+    Risiko. `finishGame` ist idempotent und traegt den Ausgang in die
+    Datenbank; stirbt der Bot waehrend der fuenf Sekunden, steht das Ergebnis
+    trotzdem richtig da und die Einsaetze sind verteilt - nur die Nachricht
+    bleibt beim letzten Bild stehen. Andersherum haenge der Topf fest, und
+    niemand wuesste, wem er gehoert.
+
+    Die fuenf Sekunden sind reine Darstellung. Gewuerfelt wird genau einmal,
+    oben, serverseitig.
+  */
   const result = await level.finishGame(match.id, winnerDiscordId, {
     decayRules: context.decayRules,
     maxLevelTotalXp: context.settings.maxLevelTotalXp,
   });
   await logGameResult(context, result);
+
+  await zeigeKampf(interaction, result.match, context);
 
   await interaction.editReply({
     content: '',
@@ -299,6 +314,37 @@ async function resolveBattle(
   });
 }
 
+/**
+ * Die Kampfphase - rund fuenf Sekunden.
+ *
+ * Drei Bilder statt eines Zaehlers: mehr Bearbeitungen waeren mehr
+ * Discord-Anfragen fuer denselben Effekt. Schlaegt eine Bearbeitung fehl,
+ * geht es weiter - eine verpasste Zwischenanzeige ist kein Grund, das
+ * Ergebnis zurueckzuhalten.
+ */
+const KAMPF_BILD_MS = 1700;
+
+async function zeigeKampf(
+  interaction: ButtonInteraction,
+  match: LevelGameMatch,
+  context: Ctx,
+): Promise<void> {
+  for (let bild = 0; bild < level.BATTLE_FRAMES.length; bild += 1) {
+    await interaction
+      .editReply({
+        content: '',
+        embeds: [level.buildBattleFightEmbed(match, bild, { accentColor: context.accentColor })],
+        components: [],
+        allowedMentions: { parse: [] },
+      })
+      .catch(() => undefined);
+    await new Promise((fertig) => {
+      const wecker = setTimeout(fertig, KAMPF_BILD_MS);
+      wecker.unref?.();
+    });
+  }
+}
+
 async function handleSsp(
   interaction: ButtonInteraction,
   matchId: string,
@@ -309,8 +355,17 @@ async function handleSsp(
   const move = await level.playSsp(matchId, interaction.user.id, choice);
 
   if (move.waiting) {
-    // Die Wahl bleibt bis zur Auswertung verdeckt.
+    // Die eigene Wahl bekommt nur der Waehlende zu sehen - nicht der Kanal.
     await interaction.followUp({ content: `Du hesch **${level.SSP_LABELS[choice]}** gwählt.`, ...ephemeral });
+    // Oeffentlich aendert sich der Stand trotzdem: aus «wartet» wird «Wahl
+    // treffe». Ohne das sah man dem Kanal nicht an, ob ueberhaupt etwas
+    // passiert ist.
+    await interaction.editReply({
+      content: '',
+      embeds: [level.buildSspStateEmbed(move.match, move.state, { accentColor: context.accentColor })],
+      components: level.buildSspButtons(matchId),
+      allowedMentions: { parse: [] },
+    });
     return;
   }
 
@@ -338,14 +393,7 @@ async function handleSsp(
 
   await interaction.editReply({
     content: '',
-    embeds: [
-      level.buildGameStateEmbed(move.match, {
-        accentColor: context.accentColor,
-        description:
-          `${describeSspHistory(move.state, move.match)}\n\n` +
-          `Rundi **${move.state.round}** – wer zerscht ${2} Rundene gwünnt, gwünnt s Spiel.`,
-      }),
-    ],
+    embeds: [level.buildSspStateEmbed(move.match, move.state, { accentColor: context.accentColor })],
     components: level.buildSspButtons(matchId),
     allowedMentions: { parse: [] },
   });
@@ -410,12 +458,7 @@ async function renderBoard(
   if (state.kind === 'SSP') {
     await interaction.editReply({
       content: '',
-      embeds: [
-        level.buildGameStateEmbed(match, {
-          accentColor: context.accentColor,
-          description: `Beidi wähled verdeckt. Wer zerscht 2 Rundene gwünnt, gwünnt s Spiel.`,
-        }),
-      ],
+      embeds: [level.buildSspStateEmbed(match, state, { accentColor: context.accentColor })],
       components: level.buildSspButtons(match.id),
       allowedMentions: { parse: [] },
     });

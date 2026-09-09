@@ -11,6 +11,7 @@ import {
   invalidateRoleConfiguration,
   isKnownPermission,
   isRecoveryNeeded,
+  listPermissions,
   resolvePreset,
 } from '@swisshub/permissions';
 import {
@@ -199,10 +200,25 @@ const roleLabelSchema = z
   .max(64)
   .transform((value) => sanitizeText(value, 64));
 
+/**
+ * Wie viele Berechtigungen eine Rolle tragen darf.
+ *
+ * Aus der Registry und nicht als Zahl im Quelltext. Hier stand `.max(128)`,
+ * und die Registry kennt 248 Berechtigungen - eine Rolle liess sich also
+ * nicht einmal zur Haelfte ausstatten. Wer weiter ankreuzte, bekam beim
+ * Speichern einen Validierungsfehler, der nicht sagte, woran es lag.
+ *
+ * Die Grenze bleibt, weil eine unbegrenzte Liste eine offene Tuer waere -
+ * aber sie waechst mit dem System mit. Der Zuschlag faengt den Fall ab, dass
+ * ein Modul beim Speichern noch nicht geladen war; unbekannte Schluessel
+ * weist die Pruefung darunter ohnehin ab.
+ */
+const MAX_ROLLENRECHTE = listPermissions().length + 50;
+
 const rolePermissionsSchema = z.object({
   discordRoleId: snowflakeSchema,
   label: roleLabelSchema,
-  permissions: z.array(z.string().max(64)).max(128).default([]),
+  permissions: z.array(z.string().max(64)).max(MAX_ROLLENRECHTE).default([]),
   isProtected: z.boolean().default(false),
   keepOnJail: z.boolean().default(false),
   moderationLevel: z.number().int().min(0).max(1000).default(0),

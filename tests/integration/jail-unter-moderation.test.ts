@@ -86,7 +86,12 @@ describeWithDatabase('Jail unter Moderation', () => {
   });
 
   it('zeigt in der Mitgliederakte und im Dashboard die neue Adresse', () => {
-    expect(seite('app/(app)/members/[discordId]/page.tsx')).toContain('`/moderation/jail/${eintrag.id}`');
+    // Die Akte liegt seit «Mein Profil» in einer gemeinsamen Komponente:
+    // dieselbe Darstellung fuer das eigene und ein fremdes Profil, zwei
+    // Routen davor. Der Link steht damit dort und nicht mehr in der Route.
+    expect(seite('modules/members/components/mitglieds-akte.tsx')).toContain(
+      '`/moderation/jail/${eintrag.id}`',
+    );
     expect(seite('app/(app)/dashboard/page.tsx')).toContain("href: '/moderation/jail'");
   });
 

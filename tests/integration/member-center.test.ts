@@ -74,6 +74,49 @@ describeWithDatabase('Member Center', () => {
     expect(profil).toBeNull();
   });
 
+  /**
+   * Das eigene Profil ist Selbstauskunft.
+   *
+   * Ohne jede Mitglieder-Berechtigung - so wie eine Premium-Rolle, der nur
+   * ihr Abo und das Glücksrad zugeteilt wurden. Sie muss ihr eigenes Profil
+   * öffnen können, ohne dafür Zugriff auf alle anderen zu bekommen.
+   */
+  it('öffnet einem Betrachter ohne jedes Recht sein eigenes Profil', async () => {
+    const profil = await members.getMemberCenterProfile({
+      viewer: viewer(BEAT, []),
+      targetDiscordId: BEAT,
+    });
+
+    expect(profil).not.toBeNull();
+    expect(profil?.basic.discordId).toBe(BEAT);
+  });
+
+  it('gibt ihm dabei nur die Basisangaben und sonst nichts', async () => {
+    // Selbstauskunft heisst nicht «alles über sich»: Level, Aktivität,
+    // Tickets und Premium bleiben an ihren eigenen Berechtigungen, die
+    // Moderationsakte erst recht.
+    const profil = await members.getMemberCenterProfile({
+      viewer: viewer(BEAT, []),
+      targetDiscordId: BEAT,
+    });
+
+    expect(profil?.sichtbar).toEqual(['basic']);
+    for (const abschnitt of ['level', 'activity', 'tickets', 'premium', 'moderation', 'notes']) {
+      expect(profil && abschnitt in profil, abschnitt).toBe(false);
+    }
+  });
+
+  it('öffnet ihm trotzdem kein fremdes Profil', async () => {
+    // Die wichtigste Zusage: die Selbstauskunft ist an die Sitzung gebunden.
+    // Eine geänderte Adresszeile richtet nichts aus.
+    const profil = await members.getMemberCenterProfile({
+      viewer: viewer(BEAT, []),
+      targetDiscordId: ANNA,
+    });
+
+    expect(profil).toBeNull();
+  });
+
   it('lässt Verbotenes nicht in der Antwort stehen', async () => {
     const profil = await members.getMemberCenterProfile({
       viewer: viewer(BEAT, ['members.view', 'members.view.basic.all']),

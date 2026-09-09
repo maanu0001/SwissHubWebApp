@@ -105,6 +105,22 @@ export function sectionScope(viewer: MemberViewer, section: MemberSection): Memb
 }
 
 /**
+ * Abschnitte, die jedes angemeldete Mitglied ueber sich selbst sehen darf.
+ *
+ * Genau einer: die Basisangaben. Name, Avatar, Beitrittsdatum, das eigene
+ * Discord-Konto - Dinge, die diese Person ueber sich ohnehin weiss und in
+ * Discord vor sich sieht. Dass jemand sie erst zugeteilt bekommen muss, war
+ * falsch herum: die Ausnahme waere «sieht sich selbst nicht», und niemand
+ * stellt sie ein.
+ *
+ * Alles Weitere bleibt an seinem Schluessel: Level, Aktivitaet, Tickets,
+ * Premium. Und alles ueber *andere* ohnehin - `Selbstauskunft` greift nur,
+ * wenn das Ziel der Betrachter selbst ist, und das entscheidet der Server
+ * anhand der Sitzung.
+ */
+const SELBSTAUSKUNFT: ReadonlySet<MemberSection> = new Set<MemberSection>(['basic']);
+
+/**
  * Darf dieser Betrachter diesen Abschnitt bei dieser Person sehen?
  *
  * Hier faellt die Entscheidung, gegen die eine geaenderte Adresszeile nichts
@@ -112,6 +128,13 @@ export function sectionScope(viewer: MemberViewer, section: MemberSection): Memb
  * prueft der Server, nicht der Browser.
  */
 export function darfSehen(viewer: MemberViewer, section: MemberSection, targetDiscordId: string): boolean {
+  // Selbstauskunft zuerst - sie braucht keinen Schluessel. Sie gilt aber auch
+  // nur fuer das eigene Profil; fuer jedes andere Ziel entscheiden allein die
+  // Berechtigungen darunter.
+  if (targetDiscordId === viewer.discordId && SELBSTAUSKUNFT.has(section)) {
+    return true;
+  }
+
   const scope = sectionScope(viewer, section);
   if (scope === 'NONE') {
     return false;
@@ -181,10 +204,14 @@ export function memberCapabilities(
  * Darf dieser Betrachter das Profil ueberhaupt oeffnen?
  *
  * Zwei Wege fuehren hinein: die bestehende Berechtigung fuer den
- * Mitgliederbereich - oder das eigene Profil, sofern ueberhaupt ein Abschnitt
- * davon freigegeben ist. Ohne den zweiten Weg koennte ein gewoehnliches
- * Mitglied sein eigenes Level nicht sehen, ohne zugleich die Mitgliedersuche
- * zu bekommen.
+ * Mitgliederbereich - oder das eigene Profil. Das eigene steht jedem
+ * angemeldeten Mitglied offen; es ist Selbstauskunft und keine Auskunft ueber
+ * jemand anderen.
+ *
+ * Fuer ein fremdes Profil bleibt es dabei: ohne `members.view` oder
+ * `members.view.basic.all` oeffnet es sich nur, wenn wenigstens ein Abschnitt
+ * dieser Person tatsaechlich freigegeben ist. Wer nichts sehen darf, bekommt
+ * nicht einmal die Auskunft, dass es diese Person gibt.
  */
 export function darfProfilOeffnen(viewer: MemberViewer, targetDiscordId: string): boolean {
   if (viewer.can(MEMBER_PERMISSIONS.view) || viewer.can(MEMBER_PERMISSIONS.basicAll)) {

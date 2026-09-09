@@ -241,20 +241,48 @@ describe('XP-Glücksrad in der Seitenleiste', () => {
   });
 });
 
+/**
+ * Einträge, die bewusst ohne Berechtigung erscheinen.
+ *
+ * `baseline` heisst: der Eintrag hängt an der Anmeldung, nicht an einer
+ * Zuteilung - und beide hier haben denselben Grund. Das XP-Glücksrad gehört
+ * der ganzen Gemeinschaft; das eigene Profil ist Selbstauskunft. Für beides
+ * wäre «sieht es nicht» der Sonderfall, den jemand einstellen müsste, und
+ * niemand tut das.
+ *
+ * Die Liste steht hier als Whitelist und nicht als Ausnahme im Test darunter:
+ * `baseline` umgeht die Rechtevergabe, und was dazukommt, soll auffallen.
+ */
+const OHNE_BERECHTIGUNG_SICHTBAR = new Set(['/xp-gluecksrad', '/profile']);
+
 describe('Navigation gewährt keine Rechte', () => {
   it('liefert für jeden Eintrag eine Berechtigung, die der Betrachter besitzt', () => {
     // Der Auflöser entscheidet, wohin ein Eintrag zeigt - nicht, was jemand
     // darf. Jeder gezeigte Eintrag muss durch eine tatsächlich vorhandene
-    // Berechtigung gedeckt sein.
+    // Berechtigung gedeckt sein - ausser den ausdrücklich benannten
+    // baseline-Einträgen, die ihre Seite selbst prüfen.
     const rechte: string[] = [P.voteStart, level.LEVEL_PERMISSIONS.raffleView];
     const besitzt = new Set(rechte);
 
     for (const item of nav(rechte)) {
+      if (OHNE_BERECHTIGUNG_SICHTBAR.has(item.href)) {
+        continue;
+      }
       const gedeckt =
         besitzt.has(item.permission) ||
         (item.altPermissions ?? []).some((p) => besitzt.has(p)) ||
         (item.alternatives ?? []).some((p) => besitzt.has(p.permission));
       expect(gedeckt, `«${item.label}» ist durch keine vorhandene Berechtigung gedeckt`).toBe(true);
     }
+  });
+
+  it('kennt genau diese Einträge ohne Berechtigung - und keine weiteren', () => {
+    // Die eigentliche Sicherung: ein neuer baseline-Eintrag fällt hier auf,
+    // statt still an der Rechtevergabe vorbeizugehen.
+    const ohneRechte = nav([])
+      .map((item) => item.href)
+      .sort();
+
+    expect(ohneRechte).toEqual([...OHNE_BERECHTIGUNG_SICHTBAR].sort());
   });
 });

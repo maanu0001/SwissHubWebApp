@@ -83,10 +83,12 @@ describeWithDatabase('«Modul sehen» nachtragen', () => {
 
   it('gibt jeder Rolle genau die Bereiche zurück, die sie vorher sah', async () => {
     // Vor dem Nachtrag: die Seitenleiste zeigt nichts, was zugeteilt werden
-    // muss - genau der Zustand, den der Nachtrag verhindern soll. Das
-    // XP-Glücksrad steht trotzdem da: es hängt an der Anmeldung und nicht an
-    // einer Zuteilung, und ein fehlender Schlüssel ist genau so eine.
-    expect(await sichtbareModule(MODERATOR)).toEqual(new Set(['level']));
+    // muss - genau der Zustand, den der Nachtrag verhindern soll. Zwei
+    // Einträge stehen trotzdem da, weil sie an der Anmeldung hängen und nicht
+    // an einer Zuteilung: das XP-Glücksrad gehört der ganzen Gemeinschaft,
+    // «Mein Profil» ist Selbstauskunft. Ein fehlender Schlüssel ist genau
+    // eine solche Zuteilung.
+    expect(await sichtbareModule(MODERATOR)).toEqual(new Set(['level', 'members']));
 
     await backfillModuleViewPermissions();
 

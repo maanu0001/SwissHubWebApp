@@ -104,9 +104,28 @@ registerModule({
       href: '/profile',
       label: 'Mein Profil',
       description: 'Die eigenen Daten im SwissHub System',
-      // Wer nur sich selbst sehen darf, braucht die Mitgliedersuche nicht -
-      // und ohne diesen Eintrag fuehrte kein Weg zum eigenen Profil.
+      /*
+       * Das eigene Profil haengt an der Anmeldung, nicht an einer Zuteilung.
+       *
+       * Dieser Eintrag gehoert zum Mitglieder-Modul - und damit hing er an
+       * `members.module.view`. Eine Rolle ohne den Mitgliederbereich verlor
+       * dadurch beides auf einmal: die Mitgliedersuche, die sie nicht haben
+       * sollte, **und** den Weg zum eigenen Profil, den sie braucht. Wer sein
+       * eigenes Profil sehen will, sollte dafuer nicht den Zugang zu allen
+       * anderen bekommen muessen.
+       *
+       * `baseline` ist genau dafuer da und schon vorhanden - siehe
+       * `NavigationEntry.baseline`. Kein Sonderfall in der Seitenleiste, keine
+       * zweite Sichtbarkeitsregel: der Eintrag ueberlebt die Modulsperre und
+       * die Rechtepruefung, weil er an der Anmeldung haengt.
+       *
+       * Sichtbar ist nicht erlaubt: welche Abschnitte das Profil zeigt,
+       * entscheidet weiterhin der Aggregator je Abschnitt und je
+       * Geltungsbereich. Und `members.view` bleibt unberuehrt - der Eintrag
+       * daneben fuehrt weiterhin nur, wer ihn hat.
+       */
       permission: 'members.view.basic.own',
+      baseline: true,
       icon: 'UserRound',
       group: 'overview',
       order: 20,

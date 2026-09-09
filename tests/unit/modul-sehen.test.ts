@@ -91,10 +91,18 @@ describe('«Modul sehen» - Sidebar', () => {
   it('macht «Modul sehen» nicht zur Superberechtigung', () => {
     // Der Schluessel allein oeffnet den Bereich nicht, wenn die Berechtigung
     // des Eintrags fehlt - und er vergibt schon gar keine Aktion.
-    const nurSehen = buildNavigation(['jail.module.view'], new Set(['jail']));
+    //
+    // Gefragt wird nach dem Jail-Modul und nicht nach der ganzen Navigation:
+    // die baseline-Eintraege der Kernmodule haengen an der Anmeldung und
+    // stehen unabhaengig davon da, welches Modul hier eingeschaltet ist.
+    const nurSehen = buildNavigation(['jail.module.view'], new Set(['jail'])).filter(
+      (eintrag) => eintrag.moduleId === 'jail',
+    );
     expect(nurSehen).toHaveLength(0);
 
-    const mitEintrag = buildNavigation(['jail.module.view', 'jail.vote.start'], new Set(['jail']));
+    const mitEintrag = buildNavigation(['jail.module.view', 'jail.vote.start'], new Set(['jail'])).filter(
+      (eintrag) => eintrag.moduleId === 'jail',
+    );
     expect(mitEintrag.map((eintrag) => eintrag.href)).toEqual(['/vote-jail']);
   });
 

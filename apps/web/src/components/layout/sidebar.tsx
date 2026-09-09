@@ -59,28 +59,40 @@ export function Sidebar({
 
       {collapsed ? null : <PromoCard href={discordUrl} premium={premium} />}
 
+      {/*
+        Die Fusszeile.
+
+        Sie trug drei umrandete Kaesten nebeneinander - Botstatus, Discord,
+        Einklappen -, also drei Flaechen fuer drei Dinge, von denen man
+        taeglich keines anklickt. Jetzt tragen sie keinen eigenen Rahmen
+        mehr: der Status ist ein Punkt mit Text, die beiden Werkzeuge sind
+        stille Symbole, die erst beim Darueberfahren antworten.
+      */}
       <TooltipProvider delayDuration={200}>
-        <div className={cn('flex items-center gap-2 border-t border-border pt-3', collapsed && 'flex-col')}>
+        <div
+          className={cn(
+            'flex items-center gap-1 border-t border-border/60 pt-3',
+            collapsed && 'flex-col gap-2',
+          )}
+        >
           <Tooltip>
             <TooltipTrigger asChild>
               <span
                 className={cn(
-                  'flex h-9 flex-1 items-center justify-center gap-2 rounded-lg border border-border bg-card/60 px-2 text-xs font-medium',
-                  collapsed && 'w-9 flex-none px-0',
+                  'flex h-8 flex-1 items-center gap-2 rounded-md px-2 text-xs',
+                  collapsed && 'w-8 flex-none justify-center px-0',
                 )}
                 aria-label={bot.online ? 'Bot online' : 'Bot offline'}
               >
                 <span
                   className={cn(
-                    'size-2 shrink-0 rounded-full',
-                    bot.online ? 'bg-success shadow-[0_0_8px_hsl(var(--success))]' : 'bg-destructive',
+                    'size-1.5 shrink-0 rounded-full',
+                    bot.online ? 'bg-success' : 'bg-destructive',
                   )}
                   aria-hidden="true"
                 />
                 {collapsed ? null : (
-                  <span className={bot.online ? 'text-success' : 'text-muted-foreground'}>
-                    {bot.online ? 'Online' : 'Offline'}
-                  </span>
+                  <span className="text-muted-foreground">{bot.online ? 'Online' : 'Offline'}</span>
                 )}
               </span>
             </TooltipTrigger>
@@ -97,10 +109,7 @@ export function Sidebar({
                 href={discordUrl}
                 target="_blank"
                 rel="noreferrer noopener"
-                className={cn(
-                  'grid size-9 flex-1 place-items-center rounded-lg border border-border bg-card/60 text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground',
-                  collapsed && 'w-9 flex-none',
-                )}
+                className="grid size-8 shrink-0 place-items-center rounded-md text-muted-foreground/70 transition-colors hover:bg-accent/50 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 aria-label="Discord öffnen"
               >
                 <ExternalLink className="size-4" aria-hidden="true" />
@@ -114,10 +123,7 @@ export function Sidebar({
               <button
                 type="button"
                 onClick={() => setCollapsed((value) => !value)}
-                className={cn(
-                  'grid size-9 flex-1 place-items-center rounded-lg border border-border bg-card/60 text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground',
-                  collapsed && 'w-9 flex-none',
-                )}
+                className="grid size-8 shrink-0 place-items-center rounded-md text-muted-foreground/70 transition-colors hover:bg-accent/50 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 aria-label={collapsed ? 'Seitenleiste ausklappen' : 'Seitenleiste einklappen'}
                 aria-pressed={collapsed}
               >

@@ -105,6 +105,7 @@ export default async function AppLayout({
   const navigation = buildNavigation(navigationKeys, moduleIds);
   const groups = groupNavigation(navigation).map((group) => ({
     id: group.id,
+    collapsible: group.collapsible,
     label: group.label,
     items: group.items.map((item) => ({
       href: item.href,

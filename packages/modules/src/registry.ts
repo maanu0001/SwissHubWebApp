@@ -14,12 +14,29 @@ import type { ModuleHealthCheck, ModuleHealthContext } from './health/types';
  */
 
 /** Abschnitte der Seitenleiste (Reihenfolge = Anzeigereihenfolge). */
+/**
+ * Die Abschnitte der Seitenleiste.
+ *
+ * Die Reihenfolge ist die Reihenfolge des Alltags: zuerst, was jeden angeht,
+ * dann die Gemeinschaft, dann die Arbeit am Server, dann die Verwaltung.
+ *
+ * Der erste Abschnitt traegt bewusst keine Ueberschrift. Er steht oben und
+ * enthaelt, was jede angemeldete Person hat - eine Ueberschrift darueber
+ * waere eine Zeile, die nichts unterscheidet.
+ *
+ * `collapsible` sagt, ob sich ein Abschnitt zuklappen laesst. Der erste nicht:
+ * er ist kurz, und wer ihn zuklappt, hat seine Seitenleiste leer gemacht.
+ */
 export const NAVIGATION_GROUPS = [
-  { id: 'overview', label: null },
-  { id: 'server', label: 'Server' },
-  { id: 'modules', label: 'Module' },
-  { id: 'moderation', label: 'Moderation' },
-  { id: 'system', label: 'System' },
+  { id: 'overview', label: null, collapsible: false },
+  // «Module» war ein Wort aus der Bauart, nicht aus der Sache. Was hier steht,
+  // richtet sich an die Gemeinschaft - Kalender, Turniere, Level, Musik.
+  { id: 'modules', label: 'Community', collapsible: true },
+  // «Moderation» stand auch ueber Mitgliedern, Tickets und der Verifikation -
+  // das ist Unterstuetzung und nicht Massregelung.
+  { id: 'moderation', label: 'Support & Moderation', collapsible: true },
+  { id: 'server', label: 'Server', collapsible: true },
+  { id: 'system', label: 'System', collapsible: true },
 ] as const;
 
 export type NavigationGroupId = (typeof NAVIGATION_GROUPS)[number]['id'];
@@ -320,12 +337,16 @@ export function buildNavigation(
 }
 
 /** Gruppiert Navigationseinträge für die Seitenleiste. */
-export function groupNavigation(
-  entries: NavigationEntry[],
-): Array<{ id: NavigationGroupId; label: string | null; items: NavigationEntry[] }> {
+export function groupNavigation(entries: NavigationEntry[]): Array<{
+  id: NavigationGroupId;
+  label: string | null;
+  collapsible: boolean;
+  items: NavigationEntry[];
+}> {
   return NAVIGATION_GROUPS.map((group) => ({
     id: group.id,
     label: group.label,
+    collapsible: group.collapsible,
     items: entries.filter((entry) => entry.group === group.id),
   })).filter((group) => group.items.length > 0);
 }

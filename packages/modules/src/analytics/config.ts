@@ -280,7 +280,16 @@ export const analyticsModule: ModuleDefinition = registerModule({
       // Wer nur die Statistik sehen darf, braucht ebenfalls einen Weg hierher.
       altPermissions: [ANALYTICS_PERMISSIONS.statisticsView],
       icon: 'Activity',
-      group: 'moderation',
+      /*
+       * Auswertung, nicht Moderation.
+       *
+       * Analytics stand zwischen Tickets und Entbannungsantraegen, also
+       * zwischen Dingen, die man an einem Menschen tut. Es zeigt aber
+       * Zahlen ueber den Server - dieselbe Art Blick wie das Audit Log,
+       * und das steht unter «System». Wer es sehen darf, sieht es
+       * unveraendert; es steht nur an einer Stelle, an der man es sucht.
+       */
+      group: 'system',
       order: 50,
     },
   ],

@@ -24,7 +24,18 @@ const P = level.LEVEL_PERMISSIONS;
 const ALLE_MODULE = new Set(listModuleDefinitions().map((modul) => modul.id));
 const RAD = '/xp-gluecksrad';
 
-const nav = (rechte: string[]) => buildNavigation(rechte, ALLE_MODULE);
+/**
+ * Die Navigation waehrend einer laufenden Verlosung.
+ *
+ * Der Eintrag haengt seit dieser Aenderung an einem Laufzeit-Kennzeichen:
+ * er steht nur da, solange eine Verlosung laeuft oder die Ziehung weniger
+ * als einen Tag her ist. Die Fragen dieser Datei - wer ihn sieht und was er
+ * dadurch darf - stellen sich genau dann, also wird das Kennzeichen hier
+ * gesetzt. Dass er ohne Verlosung verschwindet, prueft
+ * `gluecksrad-sichtbarkeit.test.ts`.
+ */
+const LAEUFT = new Set([level.RAFFLE_NAVIGATION_SIGNAL]);
+const nav = (rechte: string[]) => buildNavigation(rechte, ALLE_MODULE, LAEUFT);
 const sieht = (rechte: string[]): boolean => nav(rechte).some((eintrag) => eintrag.href === RAD);
 
 const preset = (id: string): string[] =>
@@ -67,7 +78,7 @@ describe('Sichtbarkeit in der Seitenleiste', () => {
     expect(gruppe?.id).toBe('overview');
   });
 
-  it('hängt nicht mehr an einer laufenden Verlosung', () => {
+  it('hängt wieder an einer laufenden Verlosung', () => {
     const eintrag = nav([]).find((item) => item.href === RAD);
 
     expect(eintrag).toBeDefined();
@@ -174,7 +185,7 @@ describe('Die Seite selbst', () => {
     // zweiten Ort, an dem ein Eintrag entstehen könnte.
     const layout = quelle('app/(app)/layout.tsx');
 
-    expect(layout).toContain('buildNavigation(navigationKeys, moduleIds)');
+    expect(layout).toContain('buildNavigation(navigationKeys, moduleIds, signals)');
     expect(layout).not.toMatch(/xp-gluecksrad/u);
   });
 });

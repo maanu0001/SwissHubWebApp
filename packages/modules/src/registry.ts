@@ -137,6 +137,71 @@ export interface ModuleNavigationItem {
    * fuer jedes Mitglied gefahrlos zu oeffnen sein.
    */
   baseline?: true;
+  /**
+   * Ein Laufzeit-Kennzeichen, ohne das der Eintrag nicht erscheint.
+   *
+   * Manche Bereiche gibt es nur zeitweise. Das XP-Gluecksrad etwa steht in
+   * der Seitenleiste, solange eine Verlosung laeuft, und danach noch einen
+   * Tag - eine Verlosung von vorletzter Woche gehoert nicht dauerhaft neben
+   * «Mein Profil».
+   *
+   * Die Bedingung selbst kennt nur das Modul. Es meldet sie ueber
+   * `registerNavigationSignal` an; die Navigation fragt danach, ohne zu
+   * wissen, was dahintersteckt. Stuende hier stattdessen ein `if` auf einen
+   * Modulnamen im App Shell, waere genau das passiert, was diese Registry
+   * verhindern soll.
+   *
+   * **Sichtbar ist nicht erlaubt.** Das Kennzeichen entfernt einen Eintrag,
+   * es gibt keinen frei: Berechtigung und `baseline` gelten unveraendert
+   * zusaetzlich, und die Seite dahinter prueft weiterhin selbst.
+   */
+  requiresSignal?: string;
+}
+
+/**
+ * Ein Laufzeit-Kennzeichen fuer die Navigation.
+ *
+ * Ein Modul meldet an, unter welcher Bedingung einer seiner Eintraege
+ * erscheint. Aufgeloest wird einmal je Seitenaufbau - fuer alle Navigationen
+ * gemeinsam, damit Desktop, Mobile und Schnellnavigation nicht
+ * auseinanderlaufen koennen.
+ */
+export interface NavigationSignal {
+  id: string;
+  /** Liefert `true`, wenn die Eintraege mit diesem Kennzeichen erscheinen. */
+  resolve(): Promise<boolean>;
+}
+
+const navigationSignals = new Map<string, NavigationSignal>();
+
+export function registerNavigationSignal(signal: NavigationSignal): void {
+  navigationSignals.set(signal.id, signal);
+}
+
+export function listNavigationSignals(): NavigationSignal[] {
+  return [...navigationSignals.values()];
+}
+
+/**
+ * Alle angemeldeten Kennzeichen aufloesen.
+ *
+ * Nebeneinander, weil sie nichts voneinander wissen. Ein Kennzeichen, dessen
+ * Aufloesung scheitert, gilt als **nicht** gesetzt: der Eintrag verschwindet
+ * dann. Das ist die richtige Richtung - ein Bereich, ueber dessen Zustand wir
+ * gerade nichts wissen, soll nicht als vorhanden angepriesen werden, und ein
+ * fehlender Eintrag nimmt niemandem ein Recht.
+ */
+export async function resolveNavigationSignals(): Promise<Set<string>> {
+  const gesetzt = new Set<string>();
+  await Promise.all(
+    listNavigationSignals().map(async (signal) => {
+      const aktiv = await signal.resolve().catch(() => false);
+      if (aktiv) {
+        gesetzt.add(signal.id);
+      }
+    }),
+  );
+  return gesetzt;
 }
 
 export interface ModuleDefinition {
@@ -286,6 +351,16 @@ export interface NavigationEntry extends ModuleNavigationItem {
 export function buildNavigation(
   permissionKeys: readonly string[],
   enabledModuleIds: ReadonlySet<string>,
+  /**
+   * Die gesetzten Laufzeit-Kennzeichen - siehe `requiresSignal`.
+   *
+   * Fehlt der Parameter, gilt kein Kennzeichen als gesetzt: Eintraege mit
+   * einer Bedingung erscheinen dann nicht. Das ist die vorsichtige Richtung,
+   * und sie trifft genau die Aufrufer, die den Zustand gar nicht ermitteln -
+   * Tests und Werkzeuge. Wer die Navigation eines Menschen baut, loest sie
+   * mit `resolveNavigationSignals()` auf.
+   */
+  signals: ReadonlySet<string> = new Set(),
 ): NavigationEntry[] {
   const owned = new Set(permissionKeys);
   return (
@@ -308,6 +383,12 @@ export function buildNavigation(
         return eintraege.map((item) => ({ ...item, moduleId: definition.id }));
       })
       .flatMap((item) => {
+        // Das Kennzeichen zuerst: es entscheidet, ob es diesen Bereich
+        // ueberhaupt gerade gibt. Erst danach ist die Frage sinnvoll, wer
+        // ihn sehen darf.
+        if (item.requiresSignal !== undefined && !signals.has(item.requiresSignal)) {
+          return [];
+        }
         if (item.baseline || owned.has(item.permission)) {
           return [item];
         }

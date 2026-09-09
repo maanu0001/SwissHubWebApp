@@ -47,7 +47,15 @@ const ALLE_MODULE = new Set([
   'analytics',
 ]);
 
-const nav = (permissions: string[]) => buildNavigation(permissions, ALLE_MODULE);
+/**
+ * Die Navigation waehrend einer laufenden Verlosung.
+ *
+ * Das XP-Gluecksrad steht nur da, solange eine laeuft - hier geht es aber um
+ * die Frage, welche Rechte ein sichtbarer Eintrag mitbringt, und die stellt
+ * sich nur an einem sichtbaren.
+ */
+const LAEUFT = new Set([level.RAFFLE_NAVIGATION_SIGNAL]);
+const nav = (permissions: string[]) => buildNavigation(permissions, ALLE_MODULE, LAEUFT);
 const eintrag = (permissions: string[], label: string) =>
   nav(permissions).find((item) => item.label === label);
 

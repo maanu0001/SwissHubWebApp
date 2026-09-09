@@ -9,6 +9,7 @@ import {
   moduleViewPermission,
   moduleViewPermissionFor,
   moduleViewPermissionOf,
+  listNavigationSignals,
 } from '@swisshub/modules';
 import {
   ADMIN_FULL,
@@ -38,6 +39,15 @@ const MODULE = listModuleDefinitions();
 const MIT_NAVIGATION = MODULE.filter((modul) => modul.navigation.length > 0);
 const ALLE_MODULE = new Set(MODULE.map((modul) => modul.id));
 const BEKANNT = new Set(listPermissions().map((eintrag) => eintrag.key));
+
+/**
+ * Alle Laufzeit-Kennzeichen gesetzt.
+ *
+ * Hier geht es um «Modul sehen» und nicht darum, ob gerade eine Verlosung
+ * laeuft. Ein Bereich, den es nur zeitweise gibt, soll dabei nicht als
+ * fehlend gelten.
+ */
+const ALLE_SIGNALE = new Set(listNavigationSignals().map((signal) => signal.id));
 
 describe('«Modul sehen» - Registrierung', () => {
   it('vergibt jedem Modul mit Seitenleisteneintrag einen Schlüssel', () => {
@@ -110,15 +120,17 @@ describe('«Modul sehen» - Sidebar', () => {
     const ohne = buildNavigation(
       alleRechte.filter((recht) => recht !== 'level.module.view'),
       ALLE_MODULE,
+      ALLE_SIGNALE,
     );
     // Übrig bleibt genau der eine Eintrag, der an der Anmeldung hängt und
     // nicht an einer Zuteilung - das XP-Glücksrad gehört der ganzen
-    // Gemeinschaft. Alles andere aus dem Level-System ist weg.
+    // Gemeinschaft, solange eine Verlosung läuft. Alles andere aus dem
+    // Level-System ist weg.
     expect(ohne.filter((eintrag) => eintrag.moduleId === 'level').map((e) => e.href)).toEqual([
       '/xp-gluecksrad',
     ]);
 
-    const mit = buildNavigation(alleRechte, ALLE_MODULE);
+    const mit = buildNavigation(alleRechte, ALLE_MODULE, ALLE_SIGNALE);
     expect(mit.filter((eintrag) => eintrag.moduleId === 'level').length).toBeGreaterThan(1);
   });
 
@@ -151,7 +163,7 @@ describe('«Modul sehen» - Sidebar', () => {
 
   it('bringt mit allen Rechten jeden Eintrag in die gruppierte Navigation', () => {
     const sichtbar = new Set(
-      groupNavigation(buildNavigation(alleRechte, ALLE_MODULE))
+      groupNavigation(buildNavigation(alleRechte, ALLE_MODULE, ALLE_SIGNALE))
         .flatMap((gruppe) => gruppe.items)
         .map((eintrag) => eintrag.href),
     );

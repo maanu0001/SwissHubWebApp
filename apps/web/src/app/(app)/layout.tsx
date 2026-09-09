@@ -4,6 +4,7 @@ import { guildIconUrl } from '@swisshub/discord/cdn';
 import {
   branding as brandingModule,
   buildNavigation,
+  resolveNavigationSignals,
   moduleViewPermission,
   enabledModuleIds,
   getGuildConfig,
@@ -102,7 +103,20 @@ export default async function AppLayout({
       ]
     : context.permissionKeys;
 
-  const navigation = buildNavigation(navigationKeys, moduleIds);
+  /*
+   * Die Laufzeit-Kennzeichen der Navigation.
+   *
+   * Manche Bereiche gibt es nur zeitweise - das XP-Gluecksrad steht in der
+   * Seitenleiste, solange eine Verlosung laeuft und einen Tag danach. Welche
+   * Bedingung das ist, weiss allein das jeweilige Modul; hier wird sie einmal
+   * aufgeloest und an die Navigation gereicht.
+   *
+   * Einmal, nicht dreimal: Seitenleiste, mobile Navigation und
+   * Schnellnavigation bekommen alle dieselbe fertige Liste. Ein Bereich, der
+   * auf dem Telefon steht und am Rechner fehlt, kann so gar nicht entstehen.
+   */
+  const signals = await resolveNavigationSignals();
+  const navigation = buildNavigation(navigationKeys, moduleIds, signals);
   const groups = groupNavigation(navigation).map((group) => ({
     id: group.id,
     collapsible: group.collapsible,

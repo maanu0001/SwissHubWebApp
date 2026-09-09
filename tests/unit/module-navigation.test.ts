@@ -5,9 +5,19 @@ import {
   buildNavigation,
   groupNavigation,
   listModuleDefinitions,
+  listNavigationSignals,
   NAVIGATION_GROUPS,
 } from '@swisshub/modules';
 import { listPermissions } from '@swisshub/permissions';
+
+/**
+ * Alle Laufzeit-Kennzeichen gesetzt.
+ *
+ * Hier wird geprueft, dass jedes eingeschaltete Modul einen Weg in die
+ * Navigation hat. Ein Bereich, den es nur zeitweise gibt - das XP-Gluecksrad
+ * waehrend einer Verlosung -, soll dabei nicht als fehlend gelten.
+ */
+const ALLE_SIGNALE = new Set(listNavigationSignals().map((signal) => signal.id));
 
 /**
  * Ein Modul, das es gibt, muss man auch finden.
@@ -94,7 +104,7 @@ describe('Modulnavigation', () => {
     const alleRechte = [...RECHTE];
     const alleModule = new Set(MODULE.map((modul) => modul.id));
     const sichtbar = new Set(
-      groupNavigation(buildNavigation(alleRechte, alleModule))
+      groupNavigation(buildNavigation(alleRechte, alleModule, ALLE_SIGNALE))
         .flatMap((gruppe) => gruppe.items)
         .map((eintrag) => eintrag.href),
     );

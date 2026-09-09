@@ -1,10 +1,36 @@
 import { z } from 'zod';
 import { optionalSnowflakeSchema, snowflakeSchema } from '@swisshub/shared';
-import { registerModule } from '../registry';
+import { registerModule, registerNavigationSignal } from '../registry';
 import type { SettingsField } from '../settings/fields';
 import type { ModuleHealthCheck, ModuleHealthContext } from '../health/types';
 import { DEFAULT_MAX_LEVEL_TOTAL_XP } from './curve';
 import { DEFAULT_PAYOUT_FACTOR } from './game-rules';
+
+/**
+ * Das Kennzeichen, unter dem das Gluecksrad in der Seitenleiste erscheint.
+ *
+ * Der Name steht hier und nicht in der Registry: die Bedingung gehoert dem
+ * Modul, die Registry kennt nur die Zeichenkette.
+ */
+export const RAFFLE_NAVIGATION_SIGNAL = 'level.raffle.aktuell';
+
+/**
+ * Wann das Gluecksrad in der Seitenleiste steht.
+ *
+ * Die Antwort holt das Modul selbst - `hatLaufendeVerlosung` liegt bei den
+ * Verlosungsabfragen, wo sie hingehoert. Hier steht nur die Anmeldung.
+ *
+ * Der Import ist absichtlich verzoegert: diese Datei wird beim Laden der
+ * Module ausgefuehrt, und ein Zugriff auf die Datenbank gehoert nicht in
+ * diesen Moment. Gefragt wird erst, wenn jemand eine Seite aufbaut.
+ */
+registerNavigationSignal({
+  id: RAFFLE_NAVIGATION_SIGNAL,
+  async resolve(): Promise<boolean> {
+    const { hatLaufendeVerlosung } = await import('./raffle/queries');
+    return hatLaufendeVerlosung();
+  },
+});
 
 export const LEVEL_MODULE_ID = 'level';
 
@@ -956,12 +982,27 @@ registerModule({
        * Sichtbar ist nicht erlaubt: Teilnehmen, Anlegen, Ziehen, Neuziehen
        * und Abbrechen bleiben eigene Berechtigungen, und die Seite prüft sie
        * weiterhin selbst.
+       *
+       * ## Nur solange es etwas zu sehen gibt
+       *
+       * `baseline` allein liess den Eintrag dauerhaft stehen - auch in den
+       * Wochen zwischen zwei Verlosungen, in denen die Seite nichts weiter
+       * sagt als «Aktuell läuft keine XP-Verlosung». Ein Eintrag, der die
+       * meiste Zeit ins Leere zeigt, kostet in einer Seitenleiste mit über
+       * dreissig Zeilen mehr, als er einbringt.
+       *
+       * Das Kennzeichen darunter blendet ihn aus, sobald keine Verlosung
+       * läuft und die letzte Ziehung länger als einen Tag her ist. Es nimmt
+       * niemandem ein Recht: wer die Adresse kennt oder das Glücksrad
+       * verwaltet, kommt weiterhin über das Level-System hin, und die Seite
+       * prüft unverändert selbst.
        */
       href: '/xp-gluecksrad',
       label: 'XP-Glücksrad',
       description: 'Aktuelle XP-Verlosung, Teilnahme und vergangene Ziehungen',
       permission: LEVEL_PERMISSIONS.raffleView,
       baseline: true,
+      requiresSignal: RAFFLE_NAVIGATION_SIGNAL,
       icon: 'Ticket',
       group: 'overview',
       order: 21,

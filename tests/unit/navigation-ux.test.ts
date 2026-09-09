@@ -6,6 +6,7 @@ import {
   buildNavigation,
   groupNavigation,
   listModuleDefinitions,
+  listNavigationSignals,
 } from '@swisshub/modules';
 import {
   PERMISSION_PRESETS,
@@ -42,7 +43,13 @@ function rechteVon(erteilt: readonly string[]): string[] {
   );
 }
 
-const navVon = (erteilt: readonly string[]) => buildNavigation(rechteVon(erteilt), ALLE_MODULE);
+/**
+ * Alle Laufzeit-Kennzeichen - fuer die Faelle, in denen es um Gruppen und
+ * Berechtigungen geht und nicht darum, ob gerade eine Verlosung laeuft.
+ */
+const ALLE_SIGNALE = new Set(listNavigationSignals().map((signal) => signal.id));
+
+const navVon = (erteilt: readonly string[]) => buildNavigation(rechteVon(erteilt), ALLE_MODULE, ALLE_SIGNALE);
 
 describe('Sichtbarkeit bleibt unverändert', () => {
   it.each(PERMISSION_PRESETS.map((preset) => [preset.id, preset] as const))(
@@ -60,8 +67,16 @@ describe('Sichtbarkeit bleibt unverändert', () => {
   );
 
   it('zeigt einer Rolle ohne Rechte weiterhin nur die baseline-Einträge', () => {
+    // Ohne laufende Verlosung bleibt davon das eigene Profil - das
+    // XP-Glücksrad hängt zusätzlich an seinem Laufzeit-Kennzeichen.
     expect(
-      navVon([])
+      buildNavigation(rechteVon([]), ALLE_MODULE)
+        .map((eintrag) => eintrag.href)
+        .sort(),
+    ).toEqual(['/profile']);
+
+    expect(
+      buildNavigation(rechteVon([]), ALLE_MODULE, ALLE_SIGNALE)
         .map((eintrag) => eintrag.href)
         .sort(),
     ).toEqual(['/profile', '/xp-gluecksrad']);
@@ -153,10 +168,10 @@ describe('Schnellnavigation', () => {
   });
 
   it('bietet einem Mitglied ohne Rechte nur seine eigenen Bereiche an', () => {
-    const ohneRechte = ausGruppen(groupNavigation(navVon([])));
+    const ohneRechte = ausGruppen(groupNavigation(buildNavigation(rechteVon([]), ALLE_MODULE, ALLE_SIGNALE)));
 
     expect(ohneRechte.map((eintrag) => eintrag.href).sort()).toEqual(['/profile', '/xp-gluecksrad']);
-    expect(ohneRechte.some((eintrag) => eintrag.href === '/members')).toBe(false);
+    expect(ohneRechte.some((eintrag: Eintrag) => eintrag.href === '/members')).toBe(false);
   });
 
   it('findet einen Bereich über den Anfang seines Namens', () => {

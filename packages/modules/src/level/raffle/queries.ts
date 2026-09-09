@@ -288,34 +288,67 @@ export async function getPastRaffles(limit = 10): Promise<RaffleSummary[]> {
 }
 
 /**
- * Laeuft gerade eine Verlosung?
+ * Zustaende, in denen das Gluecksrad in der Seitenleiste steht.
  *
- * «Laufend» heisst: Mitglieder koennen etwas damit anfangen - die Teilnahme
- * ist offen, sie steht unmittelbar bevor, oder die Ziehung ist im Gang.
- * Entwuerfe und abgeschlossene Verlosungen zaehlen nicht; ein Entwurf ist
- * noch nichts, und eine abgeschlossene ist Geschichte.
+ * Bewusst **nicht** `LIVE_STATUSES`, und der Unterschied ist genau ein Wert:
+ * `SCHEDULED` fehlt hier. Eine veroeffentlichte, aber noch nicht geoeffnete
+ * Verlosung ist fuer die Seite eine laufende - sie zeigt den Countdown - aber
+ * fuer die Navigation noch nichts: es gibt nichts zu tun, ausser zu warten.
+ * Der Eintrag erscheint, wenn die Teilnahme tatsaechlich offen ist.
  *
- * Gedacht fuer die Navigation: der Eintrag «XP-Gluecksrad» erscheint neben
- * «Mein Profil» nur, solange es dort etwas zu tun gibt. Im Level-System
- * bleibt das Gluecksrad dauerhaft erreichbar - dort wird es verwaltet.
+ * Die drei Zustaende danach stehen hier, weil das Ereignis fachlich noch
+ * nicht vorbei ist: die Teilnahme ist geschlossen, aber gezogen wurde noch
+ * nicht (`ENTRY_CLOSED`), die Ziehung laeuft (`DRAWING`), oder der Gewinner
+ * steht fest und wartet auf die Bestaetigung (`WINNER_PENDING`). In allen
+ * dreien wartet die Gemeinschaft auf ein Ergebnis - auch beim Ziehen von
+ * Hand, das beliebig lange dauern darf.
+ *
+ * `CANCELLED` fehlt: eine abgebrochene Verlosung ist kein Ereignis, auf das
+ * man wartet, und bekommt deshalb auch keinen Nachlauf.
  */
-export async function hatLaufendeVerlosung(): Promise<boolean> {
-  const laufend = await prisma.xpRaffle.count({
-    where: { status: { in: ['SCHEDULED', 'ENTRY_OPEN', 'ENTRY_CLOSED', 'DRAWING', 'WINNER_PENDING'] } },
-  });
-  if (laufend > 0) {
-    return true;
-  }
+export const NAVIGATION_STATUSES: readonly XpRaffleStatus[] = [
+  'ENTRY_OPEN',
+  'ENTRY_CLOSED',
+  'DRAWING',
+  'WINNER_PENDING',
+] as const;
 
-  // Nachlauf: nach der Bestaetigung bleibt der Eintrag noch eine Weile
-  // stehen, damit die Ziehung auch sehen kann, wer nicht zufaellig in der
-  // richtigen Minute online war. Danach verschwindet er - eine Verlosung von
-  // vorgestern gehoert nicht dauerhaft neben «Mein Profil».
-  const nachlauf = await prisma.xpRaffle.count({
+/**
+ * Gehoert das Gluecksrad gerade in die Seitenleiste?
+ *
+ * Die eine Stelle, an der das entschieden wird. Desktop, mobile Navigation
+ * und Schnellnavigation bekommen dieselbe Antwort, weil sie dieselbe Frage
+ * nur einmal stellen - je Seitenaufbau, im Server.
+ *
+ * Sichtbar, wenn **mindestens eine** Verlosung eine der beiden Bedingungen
+ * erfuellt:
+ *
+ * 1. Sie laeuft (siehe `NAVIGATION_STATUSES`).
+ * 2. Sie wurde abgeschlossen, und das ist weniger als
+ *    `RAFFLE_NACHLAUF_MS` her.
+ *
+ * «Mindestens eine» ist wichtig: eine gerade eroeffnete Verlosung soll den
+ * Eintrag zeigen, auch wenn daneben eine aeltere seit drei Tagen abgehakt
+ * ist. Deshalb eine Abfrage ueber alle statt ein Blick auf die neueste.
+ *
+ * Die Zeit ist ein Parameter und kein `Date.now()` im Rumpf: die Grenze bei
+ * genau 24 Stunden laesst sich sonst nicht pruefen, ohne einen Tag zu warten.
+ * Die Wahrheit bleibt trotzdem der Server - der Browser liefert hier nichts.
+ */
+export async function hatLaufendeVerlosung(jetzt: Date = new Date()): Promise<boolean> {
+  const treffer = await prisma.xpRaffle.count({
     where: {
-      status: 'COMPLETED',
-      completedAt: { gt: new Date(Date.now() - RAFFLE_NACHLAUF_MS) },
+      OR: [
+        { status: { in: [...NAVIGATION_STATUSES] } },
+        {
+          status: 'COMPLETED',
+          // `gt`, nicht `gte`: exakt 24 Stunden nach der Bestaetigung ist der
+          // Eintrag weg. Bei `gte` bliebe er eine Millisekunde laenger, und
+          // der Grenzfall im Test haette zwei richtige Antworten.
+          completedAt: { gt: new Date(jetzt.getTime() - RAFFLE_NACHLAUF_MS) },
+        },
+      ],
     },
   });
-  return nachlauf > 0;
+  return treffer > 0;
 }

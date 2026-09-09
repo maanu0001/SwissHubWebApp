@@ -112,16 +112,23 @@ export async function requireRaffle(id: string): Promise<XpRaffle> {
 /**
  * Wie lange eine abgeschlossene Verlosung noch als aktuell gilt.
  *
- * Zwoelf Stunden nach der Bestaetigung. Solange bleibt der Eintrag in der
- * Seitenleiste stehen und die Seite zeigt die Ziehung - damit sie auch sehen
- * kann, wer nicht zufaellig in der richtigen Minute online war.
+ * **Vierundzwanzig Stunden nach der Bestaetigung**, und zwar echte 24 Stunden
+ * ab `completedAt` - nicht «bis Ende des naechsten Tages». Solange bleibt der
+ * Eintrag in der Seitenleiste stehen und die Seite zeigt die Ziehung, damit
+ * sie auch sehen kann, wer nicht zufaellig in der richtigen Minute online
+ * war. Vorher stand hier ein halber Tag; wer abends zog, war fuer die
+ * Fruehschicht am naechsten Morgen bereits verschwunden.
+ *
+ * Eine Zahl fuer beides - Seitenleiste und hervorgehobene Verlosung. Zwei
+ * Fristen fuer dieselbe Frage («gilt diese Verlosung noch als aktuell?»)
+ * ergaeben ein Fenster, in dem der Eintrag in die Leere zeigt: sichtbar in
+ * der Navigation, aber auf der Seite steht «Aktuell laeuft keine Verlosung».
  *
  * Der Zeitpunkt kommt aus `completedAt` in der Datenbank: kein Browser-Timer,
- * kein `localStorage`, kein `setTimeout` ueber einen halben Tag. Wer die
- * Seite zwoelf Stunden offen liegen laesst, sieht beim naechsten Aufruf
- * dasselbe wie jeder andere.
+ * kein `localStorage`, kein `setTimeout` ueber einen Tag. Wer die Seite
+ * offen liegen laesst, sieht beim naechsten Aufruf dasselbe wie jeder andere.
  */
-export const RAFFLE_NACHLAUF_MS = 12 * 60 * 60 * 1000;
+export const RAFFLE_NACHLAUF_MS = 24 * 60 * 60 * 1000;
 
 /**
  * Die Verlosung, die auf der öffentlichen Seite oben steht.

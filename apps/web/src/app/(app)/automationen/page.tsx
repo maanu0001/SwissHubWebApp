@@ -4,6 +4,7 @@ import { AlertTriangle, Activity, Clock, ListChecks, Plus, ShieldQuestion } from
 import { can } from '@swisshub/auth';
 import { automation, isModuleEnabled } from '@swisshub/modules';
 import { getTrigger, holeOffeneFreigaben, laufGesundheit, listeAutomationen } from '@swisshub/automation';
+import { formatDateTime } from '@swisshub/shared';
 import { Button } from '@/components/ui/button';
 import { Panel } from '@/components/shared/panel';
 import { StatCard } from '@/components/shared/stat-card';
@@ -137,6 +138,11 @@ export default async function AutomationenPage(): Promise<React.JSX.Element> {
             triggerLabel: getTrigger(eintrag.triggerType)?.label ?? eintrag.triggerType,
             lastStatus: eintrag.lastStatus,
             lastRunAt: eintrag.lastRunAt?.toISOString() ?? null,
+            // Fertig formuliert und in der Zeitzone des Servers - im Browser
+            // formatiert stuende dieselbe Zeit je nach Geraet anders da als
+            // jede andere Zeit dieser Anwendung.
+            letzterLaufLabel: eintrag.lastRunAt ? formatDateTime(eintrag.lastRunAt) : null,
+            naechsterLaufLabel: eintrag.naechsterLauf ? formatDateTime(eintrag.naechsterLauf) : null,
             laeufe24h: eintrag.laeufe24h,
             fehler24h: eintrag.fehler24h,
           }))}

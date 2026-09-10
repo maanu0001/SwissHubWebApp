@@ -47,6 +47,19 @@ export interface Akteur {
 export interface AutomationMitZahlen extends Automation {
   laeufe24h: number;
   fehler24h: number;
+  /**
+   * Wann sie das naechste Mal von selbst laeuft.
+   *
+   * `null` heisst «kein Termin bekannt» - entweder haengt sie an einem
+   * Ereignis statt an einer Uhr, oder sie ist ausgeschaltet, oder es ist
+   * gerade nichts eingeplant.
+   *
+   * Der Wert kommt aus dem eingeplanten Auftrag und wird nicht neu
+   * ausgerechnet. Eine zweite Rechnung waere eine Vorhersage; der Auftrag ist
+   * das, was tatsaechlich passieren wird - samt allem, was der Zeitplaner
+   * inzwischen daran getan hat.
+   */
+  naechsterLauf: Date | null;
 }
 
 export async function holeAutomation(guildId: string, id: string): Promise<Automation | null> {
@@ -121,10 +134,40 @@ export async function listeAutomationen(
     zahlen.set(gruppe.automationId, eintrag);
   }
 
+  /*
+   * Der naechste eingeplante Termin je Automation.
+   *
+   * Aus den offenen Auftraegen des Zeitplaners, nicht aus einer eigenen
+   * Rechnung: was hier steht, ist der Auftrag, der tatsaechlich liegt. Nur
+   * `PENDING` zaehlt - ein Auftrag, den sich gerade jemand geholt hat, laeuft
+   * bereits und ist keine Ankuendigung mehr.
+   *
+   * Eine Abfrage fuer alle statt eine je Zeile: bei fuenfhundert Automationen
+   * waeren das fuenfhundert Abfragen fuer eine Spalte.
+   */
+  const termine = new Map<string, Date>();
+  const geplant = await prisma.automationJob.findMany({
+    where: {
+      guildId,
+      status: 'PENDING',
+      automationId: { in: automationen.map((eintrag) => eintrag.id) },
+    },
+    select: { automationId: true, runAt: true },
+    orderBy: { runAt: 'asc' },
+  });
+  for (const auftrag of geplant) {
+    if (auftrag.automationId && !termine.has(auftrag.automationId)) {
+      termine.set(auftrag.automationId, auftrag.runAt);
+    }
+  }
+
   return automationen.map((automation) => ({
     ...automation,
     laeufe24h: zahlen.get(automation.id)?.laeufe ?? 0,
     fehler24h: zahlen.get(automation.id)?.fehler ?? 0,
+    // Ausgeschaltet heisst: sie laeuft nicht von selbst. Ein Termin daneben
+    // waere ein Versprechen, das der Schalter gerade bricht.
+    naechsterLauf: automation.enabled ? (termine.get(automation.id) ?? null) : null,
   }));
 }
 

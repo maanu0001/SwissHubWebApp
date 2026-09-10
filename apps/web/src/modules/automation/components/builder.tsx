@@ -8,6 +8,7 @@ import {
   ArrowDown,
   ArrowUp,
   CheckCircle2,
+  ChevronRight,
   GitBranch,
   Info,
   Play,
@@ -98,6 +99,19 @@ export function Builder({
   const [probleme, setProbleme] = useState<ValidationIssue[] | null>(null);
 
   const trigger = bausteine.trigger.find((eintrag) => eintrag.id === entwurf.triggerType);
+
+  /**
+   * Weicht in den Grenzen etwas vom Ueblichen ab?
+   *
+   * Verglichen wird mit dem leeren Entwurf - der Zustand, den eine neue
+   * Automation hat. Weicht etwas ab, geht der Abschnitt von selbst auf: ein
+   * gesetzter Wert, den man nicht sieht, ist schlimmer als ein Abschnitt zu
+   * viel.
+   */
+  const grenzenAbweichend =
+    entwurf.concurrency !== LEERER_ENTWURF.concurrency ||
+    entwurf.concurrencyKey.trim() !== LEERER_ENTWURF.concurrencyKey ||
+    entwurf.maxRunsPerMinute !== LEERER_ENTWURF.maxRunsPerMinute;
 
   /**
    * Die Variablen, die in Platzhaltern zur Verfügung stehen.
@@ -400,60 +414,89 @@ export function Builder({
         </div>
       </Panel>
 
-      <Panel
-        title="Grenzen"
-        description="Was geschieht, wenn dieselbe Automation mehrfach gleichzeitig ausgelöst wird."
+      {/*
+        Die Grenzen sind der seltene Teil des Editors.
+
+        «Wann», «Nur wenn» und «Dann» beschreiben, was die Automation tut -
+        daran arbeitet man. Gleichzeitigkeit und Ratenbegrenzung stellt man
+        einmal ein und sieht sie danach nie wieder an; als vierter gleich
+        grosser Abschnitt standen sie trotzdem jedes Mal im Weg.
+
+        Zugeklappt, aber nicht versteckt: sobald ein Wert vom Ueblichen
+        abweicht, geht der Abschnitt von selbst auf. Sonst oeffnete jemand
+        eine Automation mit einer gesetzten Ratenbegrenzung und saehe sie
+        nicht - und das ist genau der Wert, den man beim Suchen eines Fehlers
+        braucht.
+      */}
+      <details
+        open={grenzenAbweichend}
+        className="rounded-xl border border-border bg-card [&[open]>summary_svg]:rotate-90"
       >
-        <div className="grid gap-4 lg:grid-cols-3">
-          <div className="space-y-1.5">
-            <Label htmlFor="automation-concurrency">Gleichzeitigkeit</Label>
-            <Select
-              value={entwurf.concurrency}
-              onValueChange={(naechster) =>
-                setEntwurf((a) => ({ ...a, concurrency: naechster as AutomationEntwurf['concurrency'] }))
-              }
-              disabled={!darfSpeichern}
-            >
-              <SelectTrigger id="automation-concurrency">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="ALLOW">Immer starten</SelectItem>
-                <SelectItem value="SKIP_IF_RUNNING">Überspringen, wenn schon einer läuft</SelectItem>
-                <SelectItem value="QUEUE">Einreihen und später nachholen</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="automation-key">Getrennt zählen nach</Label>
-            <Input
-              id="automation-key"
-              value={entwurf.concurrencyKey}
-              placeholder="{{event.subjectId}}"
-              onChange={(event) => setEntwurf((a) => ({ ...a, concurrencyKey: event.target.value }))}
-              disabled={!darfSpeichern || entwurf.concurrency === 'ALLOW'}
-            />
-            <p className="text-xs text-muted-foreground">
-              Leer = für die ganze Automation. Mit Platzhalter = je Mitglied.
-            </p>
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="automation-rate">Höchstens Läufe je Minute</Label>
-            <Input
-              id="automation-rate"
-              type="number"
-              min={0}
-              max={600}
-              value={entwurf.maxRunsPerMinute}
-              onChange={(event) =>
-                setEntwurf((a) => ({ ...a, maxRunsPerMinute: Number(event.target.value) }))
-              }
-              disabled={!darfSpeichern}
-            />
-            <p className="text-xs text-muted-foreground">0 = keine Grenze.</p>
+        <summary className="flex cursor-pointer list-none items-center gap-2 px-5 py-4 text-base font-semibold">
+          <ChevronRight
+            className="size-4 shrink-0 text-muted-foreground transition-transform"
+            aria-hidden="true"
+          />
+          Grenzen
+          <span className="text-sm font-normal text-muted-foreground">
+            {grenzenAbweichend ? 'angepasst' : 'Standard'}
+          </span>
+        </summary>
+        <div className="border-t border-border/70 p-5">
+          <p className="mb-4 text-xs text-muted-foreground">
+            Was geschieht, wenn dieselbe Automation mehrfach gleichzeitig ausgelöst wird.
+          </p>
+          <div className="grid gap-4 lg:grid-cols-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="automation-concurrency">Gleichzeitigkeit</Label>
+              <Select
+                value={entwurf.concurrency}
+                onValueChange={(naechster) =>
+                  setEntwurf((a) => ({ ...a, concurrency: naechster as AutomationEntwurf['concurrency'] }))
+                }
+                disabled={!darfSpeichern}
+              >
+                <SelectTrigger id="automation-concurrency">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ALLOW">Immer starten</SelectItem>
+                  <SelectItem value="SKIP_IF_RUNNING">Überspringen, wenn schon einer läuft</SelectItem>
+                  <SelectItem value="QUEUE">Einreihen und später nachholen</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="automation-key">Getrennt zählen nach</Label>
+              <Input
+                id="automation-key"
+                value={entwurf.concurrencyKey}
+                placeholder="{{event.subjectId}}"
+                onChange={(event) => setEntwurf((a) => ({ ...a, concurrencyKey: event.target.value }))}
+                disabled={!darfSpeichern || entwurf.concurrency === 'ALLOW'}
+              />
+              <p className="text-xs text-muted-foreground">
+                Leer = für die ganze Automation. Mit Platzhalter = je Mitglied.
+              </p>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="automation-rate">Höchstens Läufe je Minute</Label>
+              <Input
+                id="automation-rate"
+                type="number"
+                min={0}
+                max={600}
+                value={entwurf.maxRunsPerMinute}
+                onChange={(event) =>
+                  setEntwurf((a) => ({ ...a, maxRunsPerMinute: Number(event.target.value) }))
+                }
+                disabled={!darfSpeichern}
+              />
+              <p className="text-xs text-muted-foreground">0 = keine Grenze.</p>
+            </div>
           </div>
         </div>
-      </Panel>
+      </details>
 
       {probleme ? (
         <Panel title="Prüfergebnis">

@@ -24,6 +24,17 @@ export interface AutomationZeile {
   triggerLabel: string;
   lastStatus: string | null;
   lastRunAt: string | null;
+  /**
+   * Wann sie zuletzt lief und wann sie das naechste Mal laeuft - fertig
+   * formuliert.
+   *
+   * Beides kommt fertig vom Server statt als Zeitstempel: dieselbe Zeit im
+   * Browser zu formatieren hiesse, sie in der Zeitzone des Geraets zu zeigen,
+   * waehrend jede andere Zeit dieser Anwendung in der des Servers steht.
+   * `null` heisst «nichts zu sagen» - noch nie gelaufen, oder kein Termin.
+   */
+  letzterLaufLabel: string | null;
+  naechsterLaufLabel: string | null;
   laeufe24h: number;
   fehler24h: number;
 }
@@ -156,6 +167,21 @@ export function AutomationListe({
             </div>
 
             <div className="flex items-center gap-3 text-xs text-muted-foreground">
+              {/*
+                Zuletzt und als Naechstes - die beiden Angaben, an denen man
+                sieht, ob eine Automation lebt. Sie standen bisher in den
+                Daten dieser Zeile und wurden nicht angezeigt.
+              */}
+              {zeile.letzterLaufLabel ? (
+                <span className="hidden whitespace-nowrap sm:inline" title="Letzte Ausführung">
+                  zuletzt {zeile.letzterLaufLabel}
+                </span>
+              ) : null}
+              {zeile.naechsterLaufLabel ? (
+                <span className="hidden whitespace-nowrap md:inline" title="Nächste Ausführung">
+                  nächste {zeile.naechsterLaufLabel}
+                </span>
+              ) : null}
               <span className="tabular-nums" title="Läufe in 24 Stunden">
                 {zeile.laeufe24h} Läufe
               </span>

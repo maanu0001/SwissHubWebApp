@@ -2,7 +2,7 @@ import { prisma } from '@swisshub/database';
 import type { XpRaffle, XpRaffleDraw, XpRaffleEntry, XpRaffleStatus } from '@swisshub/database';
 import { winChance } from './entry-cost';
 import { latestDraw } from './draw';
-import { LIVE_STATUSES, RAFFLE_NACHLAUF_MS } from './service';
+import { LIVE_STATUSES, RAFFLE_SEITENLEISTE_MS } from './service';
 
 /**
  * Leseabfragen für Verlosungen.
@@ -325,7 +325,11 @@ export const NAVIGATION_STATUSES: readonly XpRaffleStatus[] = [
  *
  * 1. Sie laeuft (siehe `NAVIGATION_STATUSES`).
  * 2. Sie wurde abgeschlossen, und das ist weniger als
- *    `RAFFLE_NACHLAUF_MS` her.
+ *    `RAFFLE_SEITENLEISTE_MS` her - vierundzwanzig Stunden. Das ist die
+ *    laengere der beiden Fristen: die Buehne oben auf der Seite raeumt schon
+ *    nach zwoelf ab, aber gefunden werden soll die Ziehung einen ganzen Tag
+ *    lang. In der zweiten Haelfte steht sie unter «Vergangene Verlosungen»,
+ *    mit Gewinner - der Eintrag zeigt also nie ins Leere.
  *
  * «Mindestens eine» ist wichtig: eine gerade eroeffnete Verlosung soll den
  * Eintrag zeigen, auch wenn daneben eine aeltere seit drei Tagen abgehakt
@@ -345,7 +349,7 @@ export async function hatLaufendeVerlosung(jetzt: Date = new Date()): Promise<bo
           // `gt`, nicht `gte`: exakt 24 Stunden nach der Bestaetigung ist der
           // Eintrag weg. Bei `gte` bliebe er eine Millisekunde laenger, und
           // der Grenzfall im Test haette zwei richtige Antworten.
-          completedAt: { gt: new Date(jetzt.getTime() - RAFFLE_NACHLAUF_MS) },
+          completedAt: { gt: new Date(jetzt.getTime() - RAFFLE_SEITENLEISTE_MS) },
         },
       ],
     },

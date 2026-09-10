@@ -110,25 +110,36 @@ export async function requireRaffle(id: string): Promise<XpRaffle> {
 }
 
 /**
- * Wie lange eine abgeschlossene Verlosung noch als aktuell gilt.
+ * Wie lange eine abgeschlossene Verlosung noch **hervorgehoben** wird.
  *
- * **Vierundzwanzig Stunden nach der Bestaetigung**, und zwar echte 24 Stunden
- * ab `completedAt` - nicht «bis Ende des naechsten Tages». Solange bleibt der
- * Eintrag in der Seitenleiste stehen und die Seite zeigt die Ziehung, damit
- * sie auch sehen kann, wer nicht zufaellig in der richtigen Minute online
- * war. Vorher stand hier ein halber Tag; wer abends zog, war fuer die
- * Fruehschicht am naechsten Morgen bereits verschwunden.
- *
- * Eine Zahl fuer beides - Seitenleiste und hervorgehobene Verlosung. Zwei
- * Fristen fuer dieselbe Frage («gilt diese Verlosung noch als aktuell?»)
- * ergaeben ein Fenster, in dem der Eintrag in die Leere zeigt: sichtbar in
- * der Navigation, aber auf der Seite steht «Aktuell laeuft keine Verlosung».
+ * Zwoelf Stunden ab `completedAt`. Solange steht sie oben auf der Seite statt
+ * «Aktuell laeuft keine Verlosung», und solange dreht sich das Rad beim
+ * Oeffnen noch einmal. Danach ist sie eine vergangene Verlosung unter den
+ * anderen - mit Gewinner, aber ohne Buehne.
  *
  * Der Zeitpunkt kommt aus `completedAt` in der Datenbank: kein Browser-Timer,
- * kein `localStorage`, kein `setTimeout` ueber einen Tag. Wer die Seite
- * offen liegen laesst, sieht beim naechsten Aufruf dasselbe wie jeder andere.
+ * kein `localStorage`, kein `setTimeout` ueber einen Tag. Wer die Seite offen
+ * liegen laesst, sieht beim naechsten Aufruf dasselbe wie jeder andere.
  */
-export const RAFFLE_NACHLAUF_MS = 24 * 60 * 60 * 1000;
+export const RAFFLE_NACHLAUF_MS = 12 * 60 * 60 * 1000;
+
+/**
+ * Wie lange der Eintrag nach der Ziehung in der Seitenleiste stehen bleibt.
+ *
+ * **Vierundzwanzig Stunden ab `completedAt`** - echte 24 Stunden, nicht «bis
+ * Ende des naechsten Tages». Wer abends nicht online war, findet das Ergebnis
+ * am naechsten Abend noch an derselben Stelle.
+ *
+ * Zwei Zahlen, weil es zwei Fragen sind: «steht diese Verlosung noch auf der
+ * Buehne?» (oben) und «findet man sie noch ueber die Navigation?» (hier). Die
+ * zweite Frist ist die laengere, und das ist die Bedingung, unter der die
+ * Trennung traegt: solange der Eintrag steht, zeigt die Seite die Ziehung -
+ * in den ersten zwoelf Stunden hervorgehoben, danach unter «Vergangene
+ * Verlosungen» samt Gewinner. Umgekehrt waere es ein Fehler: eine
+ * hervorgehobene Verlosung ohne Weg dorthin. Ein Test haelt die Reihenfolge
+ * fest, damit sie beim naechsten Drehen an einer der Zahlen nicht kippt.
+ */
+export const RAFFLE_SEITENLEISTE_MS = 24 * 60 * 60 * 1000;
 
 /**
  * Die Verlosung, die auf der öffentlichen Seite oben steht.
@@ -137,8 +148,8 @@ export const RAFFLE_NACHLAUF_MS = 24 * 60 * 60 * 1000;
  * keine, die zuletzt abgeschlossene - damit der Gewinner noch eine Weile
  * sichtbar bleibt, statt nach der Bestätigung sofort zu verschwinden.
  *
- * «Eine Weile» ist derselbe Nachlauf, nach dem auch der Eintrag in der
- * Seitenleiste verschwindet. Ohne diese Grenze stünde eine Verlosung von
+ * «Eine Weile» ist `RAFFLE_NACHLAUF_MS`; der Eintrag in der Seitenleiste
+ * bleibt laenger. Ohne diese Grenze stünde eine Verlosung von
  * vorletztem Monat noch immer als «aktuell» oben auf der Seite - und wer sie
  * öffnete, sähe eine Ziehung, die längst vorbei ist, ohne dass etwas darauf
  * hinwiese. Ältere Verlosungen bleiben über die Historie erreichbar.

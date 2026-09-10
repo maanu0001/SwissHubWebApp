@@ -204,11 +204,37 @@ describeWithDatabase('XP-Glücksrad: Nachlauffenster', () => {
     expect((await level.raffle.getFeaturedRaffle())?.id).toBe(juengere);
   });
 
-  it('nennt vierundzwanzig Stunden als Nachlauf', async () => {
-    // Die Zahl steht an einer Stelle; Seitenleiste und Seite lesen dieselbe.
-    // Zwei Fristen für dieselbe Frage ergäben ein Fenster, in dem der
-    // Eintrag in die Leere zeigt.
-    expect(level.raffle.RAFFLE_NACHLAUF_MS).toBe(24 * STUNDE);
+  it('nennt zwölf Stunden für die Bühne und vierundzwanzig für die Seitenleiste', async () => {
+    expect(level.raffle.RAFFLE_NACHLAUF_MS).toBe(12 * STUNDE);
+    expect(level.raffle.RAFFLE_SEITENLEISTE_MS).toBe(24 * STUNDE);
+  });
+
+  it('lässt die Seitenleiste nie vor der Bühne abräumen', async () => {
+    // Die Bedingung, unter der zwei Fristen überhaupt tragen. Wäre die
+    // Seitenleiste die kürzere, stünde eine hervorgehobene Verlosung ohne
+    // Weg dorthin auf der Seite - sichtbar für jeden, der die Adresse schon
+    // kennt, und für niemanden sonst.
+    expect(level.raffle.RAFFLE_SEITENLEISTE_MS).toBeGreaterThanOrEqual(level.raffle.RAFFLE_NACHLAUF_MS);
+  });
+
+  it('zeigt den Eintrag noch, wenn die Bühne bereits abgeräumt ist', async () => {
+    // Das Fenster zwischen den beiden Fristen: dreizehn Stunden nach der
+    // Bestätigung ist die Verlosung nicht mehr hervorgehoben, aber weiterhin
+    // über die Navigation zu finden - dort steht sie unter «Vergangene
+    // Verlosungen», samt Gewinner. Der Eintrag zeigt also nicht ins Leere.
+    const gezogen = new Date(Date.now() - 13 * STUNDE);
+    const id = await verlosung('COMPLETED', gezogen);
+
+    expect(await level.raffle.getFeaturedRaffle()).toBeNull();
+    expect(await level.raffle.hatLaufendeVerlosung()).toBe(true);
+    expect((await level.raffle.getPastRaffles(8)).map((eintrag) => eintrag.id)).toContain(id);
+  });
+
+  it('räumt die Bühne nach zwölf Stunden, nicht früher', async () => {
+    const gezogen = new Date(Date.now() - 12 * STUNDE + 60_000);
+    const id = await verlosung('COMPLETED', gezogen);
+
+    expect((await level.raffle.getFeaturedRaffle())?.id).toBe(id);
   });
 
   it('nennt genau die Zustände, in denen der Eintrag ohne Frist steht', async () => {

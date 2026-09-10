@@ -270,10 +270,16 @@ describe('Mobile und Desktop teilen sich die Navigation', () => {
 
   it('merkt sich zugeklappte Abschnitte lokal, nicht in der Datenbank', () => {
     const nav = readFileSync(join(process.cwd(), 'apps/web/src/components/layout/sidebar-nav.tsx'), 'utf8');
+    // Der Speicher liegt seit dem Umbau der Berechtigungsmatrix in einem
+    // gemeinsamen Haken - die Aussage bleibt dieselbe, sie steht nur eine
+    // Datei weiter.
+    const haken = readFileSync(join(process.cwd(), 'apps/web/src/lib/use-zugeklappt.ts'), 'utf8');
 
-    expect(nav).toContain('localStorage');
+    expect(nav).toContain('useZugeklappt(');
+    expect(haken).toContain('localStorage');
     // Eine Anzeigevorliebe rechtfertigt keine Datenbankmigration.
     expect(nav).not.toContain('prisma');
+    expect(haken).not.toContain('prisma');
   });
 
   it('hält den Abschnitt der aktuellen Seite offen', () => {

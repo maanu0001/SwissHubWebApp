@@ -1,9 +1,9 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { AlertTriangle, Ban, Check, Eye, Search, ShieldAlert, Trash2 } from 'lucide-react';
+import { AlertTriangle, Ban, Check, ChevronDown, Eye, Search, ShieldAlert, Trash2 } from 'lucide-react';
 import { explainPermission, type PermissionExplanation } from '@swisshub/permissions/engine';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -18,6 +18,8 @@ import {
   setRolePermissionsAction,
 } from '@/modules/configuration/actions';
 import { cn } from '@/lib/utils';
+import { useZugeklappt } from '@/lib/use-zugeklappt';
+import { FILTER, gruppiere, zaehleFilter, type FilterId, type Herkunft } from './berechtigungs-filter';
 import { roleColor, type RoleOption } from './discord-option-types';
 
 export interface PermissionView {
@@ -48,6 +50,14 @@ export interface ManagedRoleState {
 }
 
 const ADMIN_FULL = 'admin.full';
+
+/**
+ * Wo die zugeklappten Module dieser Matrix liegen.
+ *
+ * Eigener Schluessel: welche Module hier zu sind, hat mit der Seitenleiste
+ * nichts zu tun. Der Mechanismus dahinter ist derselbe.
+ */
+const SPEICHER_ZUGEKLAPPT = 'swisshub:berechtigungen:zu';
 
 /**
  * Berechtigungsmatrix.
@@ -100,6 +110,8 @@ export function PermissionMatrix({
   const abweichung = selectedRoleId ? (abweichungen[selectedRoleId] ?? null) : null;
   const [draft, setDraft] = useState<ManagedRoleState | null>(managed[0] ?? null);
   const [query, setQuery] = useState('');
+  const [filter, setFilter] = useState<FilterId>('alle');
+  const [zugeklappt, umschalten] = useZugeklappt(SPEICHER_ZUGEKLAPPT);
   const [pending, setPending] = useState(false);
   const [confirmRemove, setConfirmRemove] = useState(false);
 
@@ -121,37 +133,6 @@ export function PermissionMatrix({
     setQuery('');
   };
 
-  const grouped = useMemo(() => {
-    const normalized = query.trim().toLowerCase();
-    const filtered = normalized
-      ? permissions.filter(
-          (permission) =>
-            permission.label.toLowerCase().includes(normalized) ||
-            permission.key.toLowerCase().includes(normalized) ||
-            permission.description.toLowerCase().includes(normalized),
-        )
-      : permissions;
-
-    const map = new Map<string, PermissionView[]>();
-    for (const permission of filtered) {
-      map.set(permission.module, [...(map.get(permission.module) ?? []), permission]);
-    }
-    // «Modul sehen» steht in jeder Gruppe zuoberst. Alphabetisch landete es
-    // irgendwo in der Mitte, und es ist die Berechtigung, ohne die keine
-    // andere dieser Gruppe jemandem etwas nuetzt.
-    return [...map.entries()].map(
-      ([module, entries]) =>
-        [
-          module,
-          [...entries].sort((a, b) => {
-            const aSehen = a.key.endsWith('.module.view');
-            const bSehen = b.key.endsWith('.module.view');
-            return aSehen === bSehen ? 0 : aSehen ? -1 : 1;
-          }),
-        ] as [string, PermissionView[]],
-    );
-  }, [permissions, query]);
-
   const hasFullAccess = draft?.permissions.includes(ADMIN_FULL) ?? false;
 
   /**
@@ -171,6 +152,36 @@ export function PermissionMatrix({
     }
     return map;
   }, [draft, permissions]);
+
+  /**
+   * Woher der Zustand einer Berechtigung kommt.
+   *
+   * Aus der Engine, nicht aus einer zweiten Regel hier im Browser: der Filter
+   * darf nur lesen, was `explainPermission` ohnehin schon gesagt hat.
+   */
+  const herkunftVon = useCallback(
+    (permission: PermissionView): Herkunft =>
+      (erklaerungen.get(permission.key)?.source ?? 'NOT_GRANTED') as Herkunft,
+    [erklaerungen],
+  );
+
+  /**
+   * Die sichtbaren Berechtigungen, nach Modul gruppiert.
+   *
+   * Suche und Filter entscheiden nur, was gezeigt wird - was gilt, steht
+   * unveraendert in `erklaerungen`. Ein ausgeblendetes Recht ist weiterhin
+   * gesetzt; die Vorschau unten zaehlt deshalb auch weiterhin alle.
+   */
+  const grouped = useMemo(
+    () => gruppiere(permissions, query, filter, herkunftVon),
+    [permissions, query, filter, herkunftVon],
+  );
+
+  /** Wie viele Berechtigungen jeder Filter bei der laufenden Suche zeigt. */
+  const filterZahlen = useMemo(
+    () => zaehleFilter(permissions, query, herkunftVon),
+    [permissions, query, herkunftVon],
+  );
 
   /** Was die Rolle nach dem Speichern effektiv darf (Wildcards aufgelöst). */
   const effective = useMemo(
@@ -466,6 +477,37 @@ export function PermissionMatrix({
             />
           </div>
 
+          {/*
+            Der Filter beantwortet die Fragen, die man an eine Rolle mit
+            zweihundert Zeilen wirklich stellt: «was hat sie ausdruecklich?»,
+            «was ist ihr trotz Vollzugriff verboten?», «was kommt nur ueber
+            eine Wildcard?». Die Zahl steht an der Schaltflaeche - sonst
+            klickt man auf «Verweigert», sieht nichts und weiss nicht, ob das
+            an der Suche liegt oder daran, dass es keine Ausnahmen gibt.
+
+            Gefiltert wird nur die Darstellung. Was ausgeblendet ist, bleibt
+            gesetzt; die Vorschau unten zaehlt weiterhin alles.
+          */}
+          <div role="group" aria-label="Berechtigungen filtern" className="flex flex-wrap gap-1.5">
+            {FILTER.map((eintrag) => (
+              <button
+                key={eintrag.id}
+                type="button"
+                onClick={() => setFilter(eintrag.id)}
+                aria-pressed={filter === eintrag.id}
+                className={cn(
+                  'inline-flex min-h-8 items-center gap-1.5 rounded-full border px-3 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                  filter === eintrag.id
+                    ? 'border-primary/50 bg-primary/10 text-foreground'
+                    : 'border-border text-muted-foreground hover:text-foreground',
+                )}
+              >
+                {eintrag.label}
+                <span className="tabular-nums text-muted-foreground">{filterZahlen[eintrag.id]}</span>
+              </button>
+            ))}
+          </div>
+
           {hasFullAccess ? (
             <p className="flex items-start gap-2 rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-warning">
               <ShieldAlert className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
@@ -481,103 +523,139 @@ export function PermissionMatrix({
           ) : null}
 
           <div className="space-y-5">
-            {grouped.map(([module, entries]) => (
-              <section key={module} className="space-y-2">
-                <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  {moduleLabels[module] ?? module}
-                </h4>
-                <ul className="grid gap-1.5 sm:grid-cols-2">
-                  {entries.map((permission) => {
-                    const erklaerung =
-                      erklaerungen.get(permission.key) ??
-                      ({
-                        permission: permission.key,
-                        allowed: false,
-                        source: 'NOT_GRANTED',
-                        reason: 'Dieser Rolle nicht zugewiesen.',
-                      } satisfies PermissionExplanation);
-                    const explizit = erklaerung.source === 'EXPLICIT_ALLOW';
-                    const verweigert = erklaerung.source === 'EXPLICIT_DENY';
-                    const eingeschlossen =
-                      erklaerung.source === 'FULL_ACCESS' || erklaerung.source === 'WILDCARD';
-                    return (
-                      <li key={permission.key}>
-                        <button
-                          type="button"
-                          onClick={() => toggle(permission.key)}
-                          disabled={!canEdit}
-                          aria-pressed={erklaerung.allowed}
-                          title={erklaerung.reason}
-                          className={cn(
-                            'flex w-full items-start gap-2 rounded-md border px-3 py-2 text-left text-sm transition-colors disabled:cursor-not-allowed disabled:opacity-70',
-                            explizit
-                              ? 'border-primary/50 bg-primary/10'
-                              : verweigert
-                                ? 'border-destructive/50 bg-destructive/10'
-                                : 'border-border hover:bg-muted/40',
-                          )}
-                        >
-                          <span
+            {grouped.map(([module, entries]) => {
+              /*
+               * Ein Modul laesst sich zuklappen - der Stand liegt im Browser,
+               * wie bei den Abschnitten der Seitenleiste, und ueber denselben
+               * Mechanismus. Gespeichert wird, was zu ist: ein neues Modul
+               * erscheint damit offen, ohne dass es jemand erst aufklappen
+               * muss.
+               *
+               * Waehrend einer Suche bleibt alles offen. Sonst suchte man
+               * etwas, faende es, und saehe trotzdem nur eine zugeklappte
+               * Ueberschrift.
+               */
+              const sucht = query.trim() !== '';
+              const offen = sucht || !zugeklappt.has(module);
+              const listenId = `berechtigungen-${module}`;
+              return (
+                <section key={module} className="space-y-2">
+                  <h4>
+                    <button
+                      type="button"
+                      onClick={() => umschalten(module)}
+                      aria-expanded={offen}
+                      aria-controls={listenId}
+                      disabled={sucht}
+                      className="flex w-full items-center gap-1.5 rounded-md py-1 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-default disabled:hover:text-muted-foreground"
+                    >
+                      <ChevronDown
+                        className={cn('size-3.5 transition-transform', !offen && '-rotate-90')}
+                        aria-hidden="true"
+                      />
+                      {moduleLabels[module] ?? module}
+                      <span className="font-normal normal-case tracking-normal text-muted-foreground/70">
+                        ({entries.length})
+                      </span>
+                    </button>
+                  </h4>
+                  <ul id={listenId} hidden={!offen} className="grid gap-1.5 sm:grid-cols-2">
+                    {entries.map((permission) => {
+                      const erklaerung =
+                        erklaerungen.get(permission.key) ??
+                        ({
+                          permission: permission.key,
+                          allowed: false,
+                          source: 'NOT_GRANTED',
+                          reason: 'Dieser Rolle nicht zugewiesen.',
+                        } satisfies PermissionExplanation);
+                      const explizit = erklaerung.source === 'EXPLICIT_ALLOW';
+                      const verweigert = erklaerung.source === 'EXPLICIT_DENY';
+                      const eingeschlossen =
+                        erklaerung.source === 'FULL_ACCESS' || erklaerung.source === 'WILDCARD';
+                      return (
+                        <li key={permission.key}>
+                          <button
+                            type="button"
+                            onClick={() => toggle(permission.key)}
+                            disabled={!canEdit}
+                            aria-pressed={erklaerung.allowed}
+                            title={erklaerung.reason}
                             className={cn(
-                              'mt-0.5 flex size-4 shrink-0 items-center justify-center rounded border',
+                              'flex w-full items-start gap-2 rounded-md border px-3 py-2 text-left text-sm transition-colors disabled:cursor-not-allowed disabled:opacity-70',
                               explizit
-                                ? 'border-primary bg-primary text-primary-foreground'
+                                ? 'border-primary/50 bg-primary/10'
                                 : verweigert
-                                  ? 'border-destructive bg-destructive/20 text-destructive'
-                                  : eingeschlossen
-                                    ? 'border-primary/40 bg-primary/20'
-                                    : 'border-input',
+                                  ? 'border-destructive/50 bg-destructive/10'
+                                  : 'border-border hover:bg-muted/40',
                             )}
-                            aria-hidden="true"
                           >
-                            {verweigert ? (
-                              <Ban className="size-3" />
-                            ) : erklaerung.allowed ? (
-                              <Check className="size-3" />
-                            ) : null}
-                          </span>
-                          <span className="min-w-0">
-                            <span className="flex flex-wrap items-center gap-1.5 font-medium">
-                              <span className={cn(verweigert && 'line-through decoration-destructive/60')}>
-                                {permission.label}
+                            <span
+                              className={cn(
+                                'mt-0.5 flex size-4 shrink-0 items-center justify-center rounded border',
+                                explizit
+                                  ? 'border-primary bg-primary text-primary-foreground'
+                                  : verweigert
+                                    ? 'border-destructive bg-destructive/20 text-destructive'
+                                    : eingeschlossen
+                                      ? 'border-primary/40 bg-primary/20'
+                                      : 'border-input',
+                              )}
+                              aria-hidden="true"
+                            >
+                              {verweigert ? (
+                                <Ban className="size-3" />
+                              ) : erklaerung.allowed ? (
+                                <Check className="size-3" />
+                              ) : null}
+                            </span>
+                            <span className="min-w-0">
+                              <span className="flex flex-wrap items-center gap-1.5 font-medium">
+                                <span className={cn(verweigert && 'line-through decoration-destructive/60')}>
+                                  {permission.label}
+                                </span>
+                                {permission.critical ? <Badge variant="warning">kritisch</Badge> : null}
+                                {verweigert ? <Badge variant="destructive">Ausnahme</Badge> : null}
+                                {erklaerung.source === 'FULL_ACCESS' ? (
+                                  <Badge variant="outline">durch Vollzugriff</Badge>
+                                ) : null}
+                                {erklaerung.source === 'WILDCARD' ? (
+                                  <Badge variant="outline">durch {permission.key.split('.')[0]}.*</Badge>
+                                ) : null}
                               </span>
-                              {permission.critical ? <Badge variant="warning">kritisch</Badge> : null}
-                              {verweigert ? <Badge variant="destructive">Ausnahme</Badge> : null}
-                              {erklaerung.source === 'FULL_ACCESS' ? (
-                                <Badge variant="outline">durch Vollzugriff</Badge>
-                              ) : null}
-                              {erklaerung.source === 'WILDCARD' ? (
-                                <Badge variant="outline">durch {permission.key.split('.')[0]}.*</Badge>
-                              ) : null}
-                            </span>
-                            <span className="block text-xs text-muted-foreground">
-                              {permission.description}
-                            </span>
-                            {/*
+                              <span className="block text-xs text-muted-foreground">
+                                {permission.description}
+                              </span>
+                              {/*
                               Die Begruendung steht an jeder Zeile, nicht nur
                               an den auffaelligen. Sonst bliebe offen, ob ein
                               leeres Kaestchen «nie erteilt» oder «erteilt und
                               wieder gesperrt» heisst - und das ist beim
                               Debuggen genau die Frage.
                             */}
-                            <span
-                              className={cn(
-                                'mt-0.5 block text-xs',
-                                verweigert ? 'text-destructive' : 'text-muted-foreground/80',
-                              )}
-                            >
-                              {erklaerung.reason}
+                              <span
+                                className={cn(
+                                  'mt-0.5 block text-xs',
+                                  verweigert ? 'text-destructive' : 'text-muted-foreground/80',
+                                )}
+                              >
+                                {erklaerung.reason}
+                              </span>
                             </span>
-                          </span>
-                        </button>
-                      </li>
-                    );
-                  })}
-                </ul>
-              </section>
-            ))}
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </section>
+              );
+            })}
             {grouped.length === 0 ? (
-              <p className="text-sm text-muted-foreground">Keine Berechtigung passt zur Suche.</p>
+              <p className="text-sm text-muted-foreground">
+                {filter === 'alle'
+                  ? 'Keine Berechtigung passt zur Suche.'
+                  : 'Keine Berechtigung passt zu Suche und Filter.'}
+              </p>
             ) : null}
           </div>
 

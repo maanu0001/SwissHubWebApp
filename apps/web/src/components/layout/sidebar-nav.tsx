@@ -1,11 +1,12 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { ChevronDown } from 'lucide-react';
 import { NavIcon } from './nav-icon';
 import { cn } from '@/lib/utils';
+import { useZugeklappt } from '@/lib/use-zugeklappt';
 
 export interface NavigationEntry {
   href: string;
@@ -28,61 +29,12 @@ export interface NavigationGroup {
 }
 
 /**
- * Wo der zugeklappte Zustand liegt.
+ * Wo der zugeklappte Zustand dieser Seitenleiste liegt.
  *
- * Im Browser und nicht in der Datenbank: es ist eine Gewohnheit an diesem
- * Geraet, keine Eigenschaft der Person. Ein Feld dafuer waere eine
- * Datenbankmigration fuer eine Anzeigevorliebe.
+ * Der Mechanismus dahinter steht in `useZugeklappt` und wird von der
+ * Berechtigungsmatrix mitbenutzt; getrennt sind nur die Schluessel.
  */
 const SPEICHER = 'swisshub:sidebar:zu';
-
-/**
- * Welche Abschnitte zugeklappt sind.
- *
- * Bewusst «zu» und nicht «offen»: die Vorgabe ist offen, und was gespeichert
- * wird, ist die Abweichung davon. Ein neuer Abschnitt ist damit sichtbar,
- * ohne dass jemand ihn erst aufklappen muss.
- */
-function useZugeklappt(): [ReadonlySet<string>, (id: string) => void] {
-  const [zu, setZu] = useState<ReadonlySet<string>>(() => new Set());
-
-  // Erst nach dem ersten Rendern lesen: der Server kennt den Speicher des
-  // Browsers nicht, und ein Unterschied zwischen beiden waere ein
-  // Hydrationsfehler.
-  useEffect(() => {
-    try {
-      const roh = window.localStorage.getItem(SPEICHER);
-      if (roh) {
-        const gelesen: unknown = JSON.parse(roh);
-        if (Array.isArray(gelesen)) {
-          setZu(new Set(gelesen.filter((eintrag): eintrag is string => typeof eintrag === 'string')));
-        }
-      }
-    } catch {
-      // Privater Modus, gesperrter Speicher, kaputter Eintrag: dann bleibt
-      // alles offen. Das ist der brauchbare Zustand, nicht der Fehlerfall.
-    }
-  }, []);
-
-  const umschalten = useCallback((id: string) => {
-    setZu((bisher) => {
-      const naechster = new Set(bisher);
-      if (naechster.has(id)) {
-        naechster.delete(id);
-      } else {
-        naechster.add(id);
-      }
-      try {
-        window.localStorage.setItem(SPEICHER, JSON.stringify([...naechster]));
-      } catch {
-        // Nicht speichern zu koennen ist kein Grund, nicht zuzuklappen.
-      }
-      return naechster;
-    });
-  }, []);
-
-  return [zu, umschalten];
-}
 
 /**
  * Das Label rechts im Navigationseintrag.
@@ -161,7 +113,7 @@ export function SidebarNav({
     return matches[0] ?? null;
   }, [groups, pathname]);
 
-  const [zugeklappt, umschalten] = useZugeklappt();
+  const [zugeklappt, umschalten] = useZugeklappt(SPEICHER);
 
   return (
     <nav aria-label="Hauptnavigation" className={cn('flex flex-col', touch ? 'gap-6' : 'gap-5')}>

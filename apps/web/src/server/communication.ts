@@ -1,9 +1,9 @@
 import 'server-only';
 import { can } from '@swisshub/auth';
 import { communication, getModuleHealth, type ModuleHealthCheck } from '@swisshub/modules';
-import { discord } from '@swisshub/discord';
 import type { AuthContext } from '@swisshub/auth';
 import type { CommunicationSection } from '@/modules/communication/components/section-nav';
+import { currentGuild } from '@/server/guild';
 
 /**
  * Unterseiten des Kommunikationsmoduls.
@@ -48,10 +48,11 @@ export async function communicationHealth(): Promise<{
 }> {
   const [reports, reachable] = await Promise.all([
     getModuleHealth().catch(() => []),
-    discord.guild
-      .get()
-      .then(() => true)
-      .catch(() => false),
+    // Dieselbe Abfrage, die das Grundlayout ohnehin stellt - `currentGuild`
+    // gibt sie im selben Aufruf ein zweites Mal zurueck, ohne ein zweites Mal
+    // auf Discord zu warten. Genau diese zweite Wartezeit liess einen Klick
+    // auf «Kommunikation» wie ins Leere gegangen wirken.
+    currentGuild().then((gilde) => gilde !== null),
   ]);
 
   const report = reports.find((entry) => entry.moduleId === communication.COMMUNICATION_MODULE_ID);

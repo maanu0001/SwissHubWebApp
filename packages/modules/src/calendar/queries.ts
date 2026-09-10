@@ -162,7 +162,71 @@ export function zeitraumFuer(
   return { von, bis, anker: gueltig };
 }
 
-/** Termine eines Zeitraums - Grundlage von Monats-, Wochen- und Agendaansicht. */
+/**
+ * Der Filter, den beide Abfragen teilen - alles ausser dem Zeitraum.
+ *
+ * Kategorie, Suche, «meine Events» und die Sichtbarkeit gelten in der
+ * Monatsansicht wie in der Liste. Was sie unterscheidet, ist allein die Frage
+ * nach dem Zeitraum - und genau deshalb steht sie **nicht** hier.
+ *
+ * Ohne diese Trennung haette die Liste den Filter abschreiben muessen, und
+ * eine spaetere Aenderung - ein weiterer Filter, eine schaerfere Suche - haette
+ * an zwei Stellen stehen muessen. Beim zweiten Mal haette sie dort gefehlt.
+ */
+function grundFilter(
+  guildId: string,
+  query: Partial<CalendarQuery>,
+  options: SichtbarkeitsOptionen,
+): Prisma.CalendarEventWhereInput {
+  return {
+    guildId,
+    status: { in: statusFilter(options) },
+    ...(query.categoryId ? { categoryId: query.categoryId } : {}),
+    ...(query.withRegistration ? { registrationEnabled: true } : {}),
+    // Die Textsuche steht unter `AND`, nicht als zweites `OR` daneben: zwei
+    // gleichnamige Eigenschaften in einem Objekt sind keine Verknuepfung -
+    // die zweite ueberschreibt die erste, und der Filter fiele lautlos weg.
+    ...(query.search
+      ? {
+          AND: [
+            {
+              OR: [
+                { title: { contains: query.search, mode: 'insensitive' as const } },
+                { description: { contains: query.search, mode: 'insensitive' as const } },
+                { shortDescription: { contains: query.search, mode: 'insensitive' as const } },
+              ],
+            },
+          ],
+        }
+      : {}),
+    ...(query.mine && options.viewerDiscordId
+      ? {
+          registrations: {
+            some: {
+              discordId: options.viewerDiscordId,
+              status: { in: ['CONFIRMED', 'WAITLIST'] },
+            },
+          },
+        }
+      : {}),
+  };
+}
+
+/**
+ * «Noch Plaetze frei» laesst sich erst nach dem Zaehlen beantworten.
+ *
+ * Die Zahl der Anmeldungen steht in keiner Spalte - deshalb filtert dieser
+ * Schritt am Ende und nicht in der Datenbank.
+ */
+function nurMitFreienPlaetzen(zeilen: EventZeile[], aktiv: boolean | undefined): EventZeile[] {
+  return aktiv
+    ? zeilen.filter(
+        (zeile) => zeile.registrationEnabled && (zeile.capacity === 0 || zeile.confirmed < zeile.capacity),
+      )
+    : zeilen;
+}
+
+/** Termine eines Zeitraums - Grundlage von Monats- und Wochenansicht. */
 export async function listEventsInRange(
   von: Date,
   bis: Date,
@@ -184,36 +248,7 @@ export async function listEventsInRange(
 
   const events = await prisma.calendarEvent.findMany({
     where: {
-      guildId,
-      status: { in: statusFilter(options) },
-      ...(query.categoryId ? { categoryId: query.categoryId } : {}),
-      ...(query.withRegistration ? { registrationEnabled: true } : {}),
-      // Die Textsuche steht unter `AND`, nicht als zweites `OR` daneben: zwei
-      // gleichnamige Eigenschaften in einem Objekt sind keine Verknuepfung -
-      // die zweite ueberschreibt die erste, und der Filter fiele lautlos weg.
-      ...(query.search
-        ? {
-            AND: [
-              {
-                OR: [
-                  { title: { contains: query.search, mode: 'insensitive' as const } },
-                  { description: { contains: query.search, mode: 'insensitive' as const } },
-                  { shortDescription: { contains: query.search, mode: 'insensitive' as const } },
-                ],
-              },
-            ],
-          }
-        : {}),
-      ...(query.mine && options.viewerDiscordId
-        ? {
-            registrations: {
-              some: {
-                discordId: options.viewerDiscordId,
-                status: { in: ['CONFIRMED', 'WAITLIST'] },
-              },
-            },
-          }
-        : {}),
+      ...grundFilter(guildId, query, options),
       OR: [
         { startAt: { gte: von, lt: bis } },
         { endAt: { gte: von, lt: bis } },
@@ -230,15 +265,89 @@ export async function listEventsInRange(
     events.map((event) => event.id),
     options.viewerDiscordId ?? null,
   );
-  const zeilen = events.map((event) => zuZeile(event, zahlen, eigene));
+  return nurMitFreienPlaetzen(
+    events.map((event) => zuZeile(event, zahlen, eigene)),
+    query.withFreeSeats,
+  );
+}
 
-  // Erst nach dem Zaehlen filterbar: «noch Plaetze frei» haengt an der Zahl
-  // der Anmeldungen, nicht an einer Spalte.
-  return query.withFreeSeats
-    ? zeilen.filter(
-        (zeile) => zeile.registrationEnabled && (zeile.capacity === 0 || zeile.confirmed < zeile.capacity),
-      )
-    : zeilen;
+/**
+ * Alle Termine - die Grundlage der Listenansicht.
+ *
+ * Bewusst **ohne** Zeitraum. Die Liste ist die Gesamtuebersicht des Kalenders:
+ * wer sie oeffnet, will alles sehen, was es gibt, und nicht das, was zufaellig
+ * im gerade gewaehlten Monat liegt. Der Zeitraum oben bewegt das Monatsraster;
+ * die Liste hat mit ihm nichts zu tun.
+ *
+ * Zwei Abfragen statt einer, und das ist keine Umstaendlichkeit: mit einer
+ * einzigen, aufsteigend sortierten Abfrage waeren bei einer Obergrenze von
+ * vierhundert Zeilen und dreihundert vergangenen Terminen die kommenden
+ * abgeschnitten worden - ausgerechnet die, wegen derer man die Liste oeffnet.
+ * Getrennt geholt kann keine Haelfte die andere verdraengen.
+ *
+ * Die Reihenfolge: kommende zuerst, chronologisch aufsteigend, danach die
+ * vergangenen mit dem juengsten voran. Ein Termin gilt als kommend, solange er
+ * nicht vorbei ist - laeuft er gerade, steht er oben und nicht unter
+ * «vergangen».
+ */
+export async function listAlleEvents(
+  query: Partial<CalendarQuery> = {},
+  options: SichtbarkeitsOptionen = {},
+  jetzt = new Date(),
+  grenze = 200,
+): Promise<EventZeile[]> {
+  const guildId = await resolveGuildId().catch(() => null);
+  if (!guildId) {
+    return [];
+  }
+
+  const filter = grundFilter(guildId, query, options);
+
+  /*
+   * Kommend und vergangen - beide ausdruecklich, keines als Verneinung des
+   * anderen.
+   *
+   * Ein Termin ohne Endzeit ist vorbei, sobald er begonnen hat; einer mit
+   * Endzeit erst danach. Dieselbe Unterscheidung wie im Zeitraumfilter.
+   *
+   * Der naheliegende Weg - «vergangen ist alles, was nicht kommend ist» -
+   * verliert in SQL genau die Termine ohne Endzeit: `endAt >= jetzt` ergibt
+   * fuer `NULL` weder wahr noch falsch, sondern `NULL`, und `NOT NULL` ist
+   * wieder `NULL`. Die Zeile faellt dann aus beiden Haelften heraus und ist
+   * nirgends mehr zu sehen. Deshalb steht hier zweimal eine positive
+   * Bedingung, und beide nennen den `NULL`-Fall selbst.
+   */
+  const kommendFilter = {
+    OR: [{ endAt: { gte: jetzt } }, { AND: [{ endAt: null }, { startAt: { gte: jetzt } }] }],
+  };
+  const vergangenFilter = {
+    OR: [{ endAt: { lt: jetzt } }, { AND: [{ endAt: null }, { startAt: { lt: jetzt } }] }],
+  };
+
+  const [kommend, vergangen] = await Promise.all([
+    prisma.calendarEvent.findMany({
+      where: { ...filter, ...kommendFilter },
+      select: ZEILEN_AUSWAHL,
+      orderBy: { startAt: 'asc' },
+      take: grenze,
+    }),
+    prisma.calendarEvent.findMany({
+      where: { ...filter, ...vergangenFilter },
+      select: ZEILEN_AUSWAHL,
+      orderBy: { startAt: 'desc' },
+      take: grenze,
+    }),
+  ]);
+
+  const events = [...kommend, ...vergangen];
+  const { zahlen, eigene } = await belegungen(
+    events.map((event) => event.id),
+    options.viewerDiscordId ?? null,
+  );
+  return nurMitFreienPlaetzen(
+    events.map((event) => zuZeile(event, zahlen, eigene)),
+    query.withFreeSeats,
+  );
 }
 
 /** Die naechsten anstehenden Termine - fuer Dashboard und Seitenspalte. */

@@ -360,9 +360,46 @@ export const categoryInputSchema = z
 
 export const categoryIdSchema = z.object({ categoryId: z.string().min(1) });
 
+/**
+ * Die Ansicht des Kalenders.
+ *
+ * Drei Zustaende, wie bisher - `agenda` ist die Liste. Neu ist zweierlei:
+ *
+ * 1. **Die Liste ist die Vorgabe.** Wer den Kalender oeffnet, will meist
+ *    wissen, was ansteht, und nicht ein Monatsraster lesen.
+ * 2. **`list` und `calendar` sind erlaubte Schreibweisen.** Sie stehen fuer
+ *    `agenda` und `month`. Die alten Werte bleiben gueltig, damit bestehende
+ *    Verweise weiter funktionieren.
+ *
+ * Etwas Unbekanntes faellt auf die Liste zurueck, statt die Seite scheitern zu
+ * lassen: `z.enum(...).default(...)` greift nur bei einem **fehlenden** Wert -
+ * bei `?view=quatsch` warf die Pruefung bisher, und die Seite zeigte statt des
+ * Kalenders ihre Fehlerseite.
+ */
+const ANSICHTEN = ['month', 'week', 'agenda'] as const;
+
+/** Schreibweisen, die dasselbe meinen. */
+const ANSICHT_ALIAS: Record<string, (typeof ANSICHTEN)[number]> = {
+  list: 'agenda',
+  liste: 'agenda',
+  calendar: 'month',
+  kalender: 'month',
+};
+
+export const viewSchema = z.preprocess((wert) => {
+  if (typeof wert !== 'string') {
+    return 'agenda';
+  }
+  const normalisiert = wert.trim().toLowerCase();
+  if ((ANSICHTEN as readonly string[]).includes(normalisiert)) {
+    return normalisiert;
+  }
+  return ANSICHT_ALIAS[normalisiert] ?? 'agenda';
+}, z.enum(ANSICHTEN));
+
 /** Filter der Kalender- und Verwaltungsansicht. */
 export const calendarQuerySchema = z.object({
-  view: z.enum(['month', 'week', 'agenda']).default('month'),
+  view: viewSchema,
   /** Ankerdatum des angezeigten Zeitraums (ISO). */
   anchor: z.string().optional(),
   categoryId: z.string().optional(),

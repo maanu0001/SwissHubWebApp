@@ -56,22 +56,49 @@ export default async function KalenderPage({
   const heute = new Date();
   const { von, bis, anker } = calendar.zeitraumFuer(query, zone, heute);
 
+  /**
+   * Die Liste ist die Gesamtuebersicht - das Raster ein Ausschnitt.
+   *
+   * Monat und Woche zeigen einen Zeitraum; das ist ihr Zweck, und der
+   * Zeitraumfilter gehoert dazu. Die Liste beantwortet eine andere Frage:
+   * «was gibt es?» Sie zeigt deshalb alle Termine, unabhaengig davon, welcher
+   * Monat oben eingestellt ist.
+   *
+   * Beide Wege lesen dieselben Filter - Kategorie, Suche, «meine Events»,
+   * «Plaetze frei» gelten hier wie dort. Nur der Zeitraum unterscheidet sie.
+   */
+  const istListe = query.view === 'agenda';
+
   // Entwuerfe sieht nur, wer sie verwalten darf - fuer alle anderen gibt es
   // sie nicht. Das ist keine Anzeigefrage: ein unveroeffentlichtes Event soll
   // auch nicht ueber die Kalenderabfrage sichtbar werden.
   const darfEntwuerfe = can(context, P.edit) || can(context, P.manageOwn);
 
+  const sicht = { includeDrafts: darfEntwuerfe, viewerDiscordId: context.user.discordId };
   const [zeilen, kategorien] = await Promise.all([
-    calendar.listEventsInRange(von, bis, query, {
-      includeDrafts: darfEntwuerfe,
-      viewerDiscordId: context.user.discordId,
-    }),
+    istListe
+      ? calendar.listAlleEvents(query, sicht, heute)
+      : calendar.listEventsInRange(von, bis, query, sicht),
     calendar.listCategories(true),
   ]);
 
+  /**
+   * Kommende und vergangene Termine der Liste.
+   *
+   * `listAlleEvents` liefert sie bereits in dieser Reihenfolge; hier werden
+   * sie nur getrennt, damit zwischen beiden eine Ueberschrift stehen kann.
+   * Ohne die Trennung stuende ein Termin von vorletztem Jahr zwischen zwei
+   * kommenden, und die Liste laese sich nicht mehr ueberfliegen.
+   */
+  const vorbei = (zeile: (typeof zeilen)[number]): boolean =>
+    (zeile.endAt ?? zeile.startAt).getTime() < heute.getTime();
+  const kommend = istListe ? zeilen.filter((zeile) => !vorbei(zeile)) : zeilen;
+  const vergangen = istListe ? zeilen.filter(vorbei) : [];
+
   const teile = teileIn(anker, zone);
-  const titel =
-    query.view === 'month'
+  const titel = istListe
+    ? 'Alle Events'
+    : query.view === 'month'
       ? new Intl.DateTimeFormat('de-CH', { timeZone: zone, month: 'long', year: 'numeric' }).format(anker)
       : query.view === 'week'
         ? `${new Intl.DateTimeFormat('de-CH', { timeZone: zone, day: '2-digit', month: 'short' }).format(von)} – ${new Intl.DateTimeFormat('de-CH', { timeZone: zone, day: '2-digit', month: 'short' }).format(tageSpaeter(bis, zone, -1))}`
@@ -123,17 +150,44 @@ export default async function KalenderPage({
         titel={titel}
         vorherAnchor={vorher.toISOString()}
         nachherAnchor={nachher.toISOString()}
+        // In der Liste bewegt der Zeitraum nichts - sie zeigt ohnehin alles.
+        // Eine Steuerung, die sichtbar ist und nichts bewirkt, ist schlimmer
+        // als keine: man klickt, nichts passiert, und man sucht den Fehler
+        // bei sich. In Monat und Woche bleibt sie unveraendert.
+        zeitraumRelevant={!istListe}
       />
 
       {zeilen.length === 0 ? (
         <EmptyState
-          title="Keine Events in diesem Zeitraum"
+          title={istListe ? 'Noch keine Events' : 'Keine Events in diesem Zeitraum'}
           description={
-            query.search || query.categoryId || query.mine
+            query.search || query.categoryId || query.mine || query.withRegistration || query.withFreeSeats
               ? 'Für diese Auswahl gibt es nichts. Setze die Filter zurück, um mehr zu sehen.'
               : 'Sobald ein Event angelegt wurde, erscheint es hier.'
           }
         />
+      ) : istListe ? (
+        /*
+          Die Liste - auf jedem Bildschirm dieselbe.
+
+          Kommende zuerst, vergangene darunter unter eigener Ueberschrift.
+          Beide Bloecke sind dieselbe `Agendaansicht` wie zuvor; sie gruppiert
+          nach Tagen und bekommt hier nur zweimal eine Teilmenge statt einmal
+          alles.
+        */
+        <div className="space-y-8">
+          {kommend.length > 0 ? <Agendaansicht {...gitterProps} zeilen={kommend} /> : null}
+
+          {vergangen.length > 0 ? (
+            <section className="space-y-3">
+              <h2 className="flex items-center gap-2 border-t border-border/60 pt-6 text-sm font-semibold text-muted-foreground">
+                <CalendarDays className="size-4" aria-hidden="true" />
+                Vergangene Events
+              </h2>
+              <Agendaansicht {...gitterProps} zeilen={vergangen} />
+            </section>
+          ) : null}
+        </div>
       ) : (
         <>
           {/* Auf dem Telefon immer die Agenda: ein zusammengequetschtes
@@ -142,18 +196,12 @@ export default async function KalenderPage({
             <Agendaansicht {...gitterProps} />
           </div>
           <div className="hidden md:block">
-            {query.view === 'month' ? (
-              <Monatsansicht {...gitterProps} />
-            ) : query.view === 'week' ? (
-              <Wochenansicht {...gitterProps} />
-            ) : (
-              <Agendaansicht {...gitterProps} />
-            )}
+            {query.view === 'month' ? <Monatsansicht {...gitterProps} /> : <Wochenansicht {...gitterProps} />}
           </div>
         </>
       )}
 
-      {query.view !== 'agenda' && zeilen.length > 0 ? (
+      {!istListe && zeilen.length > 0 ? (
         <section className="space-y-3">
           <h2 className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
             <CalendarDays className="size-4" aria-hidden="true" />

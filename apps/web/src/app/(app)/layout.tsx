@@ -1,5 +1,4 @@
 import { branding } from '@swisshub/config/client';
-import { discord } from '@swisshub/discord';
 import { guildIconUrl } from '@swisshub/discord/cdn';
 import {
   branding as brandingModule,
@@ -15,6 +14,7 @@ import {
 } from '@swisshub/modules';
 import { dashboardRoleLabel } from '@swisshub/permissions';
 import { AppShell } from '@/components/layout/app-shell';
+import { currentGuild } from '@/server/guild';
 import { csrfTokenFor, hasSetupAccess, requireMember } from '@/server/auth';
 import { ticketViewer } from '@/server/tickets';
 
@@ -43,7 +43,7 @@ export default async function AppLayout({
   const [moduleIds, bot, guild, guildConfig, logoUrl] = await Promise.all([
     enabledModuleIds(),
     readBotStatus(),
-    discord.guild.get().catch(() => null),
+    currentGuild(),
     getGuildConfig(),
     brandingModule.currentLogoUrl(),
   ]);

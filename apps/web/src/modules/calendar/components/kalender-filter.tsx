@@ -26,12 +26,22 @@ export function KalenderFilter({
   titel,
   vorherAnchor,
   nachherAnchor,
+  zeitraumRelevant = true,
 }: {
   query: Query;
   kategorien: Array<{ id: string; name: string; color: string }>;
   titel: string;
   vorherAnchor: string;
   nachherAnchor: string;
+  /**
+   * Bewegt der Zeitraum in dieser Ansicht etwas?
+   *
+   * In Monat und Woche ja - dort ist er die Ansicht. In der Liste nicht: sie
+   * zeigt alle Termine. Die Steuerung verschwindet dann, statt sichtbar zu
+   * bleiben und nichts zu tun; die Ansichtsumschaltung und alle Filter
+   * bleiben, denn die gelten weiterhin.
+   */
+  zeitraumRelevant?: boolean;
 }): React.JSX.Element {
   const router = useRouter();
   const params = useSearchParams();
@@ -87,34 +97,37 @@ export function KalenderFilter({
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-2">
-        <div className="flex items-center gap-1">
-          <Button
-            variant="outline"
-            size="icon"
-            aria-label="Vorheriger Zeitraum"
-            disabled={pending}
-            onClick={() => gehe({ anchor: vorherAnchor })}
-          >
-            <ChevronLeft aria-hidden="true" />
-          </Button>
-          <Button variant="outline" disabled={pending} onClick={() => gehe({ anchor: null })}>
-            Heute
-          </Button>
-          <Button
-            variant="outline"
-            size="icon"
-            aria-label="Nächster Zeitraum"
-            disabled={pending}
-            onClick={() => gehe({ anchor: nachherAnchor })}
-          >
-            <ChevronRight aria-hidden="true" />
-          </Button>
-        </div>
+        {zeitraumRelevant ? (
+          <div className="flex items-center gap-1">
+            <Button
+              variant="outline"
+              size="icon"
+              aria-label="Vorheriger Zeitraum"
+              disabled={pending}
+              onClick={() => gehe({ anchor: vorherAnchor })}
+            >
+              <ChevronLeft aria-hidden="true" />
+            </Button>
+            <Button variant="outline" disabled={pending} onClick={() => gehe({ anchor: null })}>
+              Heute
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              aria-label="Nächster Zeitraum"
+              disabled={pending}
+              onClick={() => gehe({ anchor: nachherAnchor })}
+            >
+              <ChevronRight aria-hidden="true" />
+            </Button>
+          </div>
+        ) : null}
 
         <h2 className="min-w-0 flex-1 truncate text-lg font-semibold">{titel}</h2>
 
         {/* Die Ansichtsumschaltung wirkt nur auf grossen Bildschirmen - auf
-            dem Telefon wird ohnehin immer die Agenda gezeigt. */}
+            dem Telefon zeigen Monat und Woche ohnehin die Agenda. Die Liste
+            selbst sieht auf jedem Geraet gleich aus. */}
         <div className="hidden rounded-lg border border-border p-0.5 md:flex">
           {(
             [
@@ -127,6 +140,7 @@ export function KalenderFilter({
               key={wert}
               type="button"
               onClick={() => gehe({ view: wert })}
+              disabled={pending}
               aria-current={query.view === wert}
               className={cn(
                 'min-h-8 rounded-md px-3 text-sm transition-colors',

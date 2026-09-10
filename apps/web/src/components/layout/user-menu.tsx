@@ -41,9 +41,31 @@ export function UserMenu({
           className="flex items-center gap-3 rounded-xl border border-transparent px-2 py-1.5 text-left transition-colors hover:border-border hover:bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           aria-label="Benutzermenü öffnen"
         >
-          <span className="rounded-full ring-2 ring-primary/40">
-            <DiscordAvatar discordId={discordId} avatarHash={avatarHash} name={displayName} size={36} />
-          </span>
+          {/*
+            Der Ring gehoert an den Avatar, nicht um ihn herum.
+
+            Hier stand ein `<span>` mit `rounded-full ring-2` um den Avatar.
+            Ein `<span>` ist von sich aus inline: seine Hoehe kam nicht vom
+            Kind, sondern aus der Zeilenhoehe, und seine Breite aus dem
+            Inline-Fluss. Der Ring - in Tailwind ein Schlagschatten entlang
+            des Randradius dieses Kastens - lag damit um einen anderen Kasten
+            als das Bild: leicht verschoben, oben und unten anders als links
+            und rechts, und bei `rounded-full` auf einem nicht quadratischen
+            Kasten ein Oval statt eines Kreises. Dazu kam der eigene graue
+            Ring des Avatars - die dunkle Linie zwischen Bild und Rand.
+
+            Jetzt traegt derselbe Kasten Bild und Ring: `DiscordAvatar` setzt
+            Breite, Hoehe, `rounded-full` und `overflow-hidden`, und der Ring
+            ist eine Klasse an genau diesem Element. Ein Ring statt zweier,
+            eine Geometrie statt zweier.
+          */}
+          <DiscordAvatar
+            discordId={discordId}
+            avatarHash={avatarHash}
+            name={displayName}
+            size={36}
+            className="ring-2 ring-primary/60"
+          />
           <span className="hidden flex-col leading-tight sm:flex">
             <span className="text-sm font-semibold">{displayName}</span>
             <span className="text-xs font-medium text-primary-bright">{primaryRole}</span>

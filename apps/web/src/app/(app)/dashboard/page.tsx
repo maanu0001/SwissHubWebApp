@@ -44,6 +44,7 @@ import { CreateJailDialog } from '@/modules/jail/components/create-jail-dialog';
 import { SetupProgress } from '@/modules/configuration/components/setup-progress';
 import { csrfTokenFor, requirePagePermission } from '@/server/auth';
 import { ordneAktionen, teileKennzahlen, type AktionId, type KennzahlId, type Lage } from './prioritaet';
+import { cn } from '@/lib/utils';
 import { loadDashboardData } from '@/server/dashboard';
 import { moderationReasonTemplates } from '@/server/moderation';
 
@@ -137,7 +138,12 @@ export default async function DashboardPage(): Promise<React.JSX.Element> {
       value: data.memberCount !== null ? numberFormat.format(data.memberCount) : '-',
       hint: data.discordReachable ? (
         data.onlineCount !== null ? (
-          <span className="flex items-center gap-1.5">
+          // `inline-flex`, nicht `flex`: in der Kontextzeile steht dieser
+          // Hinweis zwischen zwei Klammern. Ein Blockelement dazwischen
+          // erzwingt anonyme Blockboxen - die oeffnende Klammer landete auf
+          // einer Zeile, der Hinweis darunter, die schliessende wieder
+          // darunter. In der Karte sieht `inline-flex` genauso aus.
+          <span className="inline-flex items-center gap-1.5 align-middle">
             online: {numberFormat.format(data.onlineCount)}
             <span className="size-1.5 rounded-full bg-success" aria-hidden="true" />
           </span>
@@ -423,7 +429,16 @@ export default async function DashboardPage(): Promise<React.JSX.Element> {
           ) : null}
 
           {wichtig.length > 0 ? (
-            <div className="grid gap-4 [grid-template-columns:repeat(auto-fit,minmax(min(100%,15rem),1fr))]">
+            /*
+              Feste Spalten statt `auto-fit`.
+
+              `auto-fit` mit `1fr` fuellt die Reihe restlos - bei fuenf Karten
+              war das richtig, bei einer zieht es dieselbe Karte ueber
+              sechzehnhundert Pixel. Genau dieser Fall ist jetzt der haeufige:
+              wichtig ist meist genau eine Kennzahl. Drei Spalten reichen, weil
+              es hoechstens drei dringende gibt (Bot, Verifikationen, Jails).
+            */
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
               {wichtig.map((id) => (
                 <StatCard
                   key={id}
@@ -529,8 +544,20 @@ export default async function DashboardPage(): Promise<React.JSX.Element> {
         </Panel>
       ) : null}
 
-      <div className="grid gap-6 xl:grid-cols-3">
-        <div className="min-w-0 space-y-6 xl:col-span-2">
+      {/*
+        Zwei Spalten - aber nur, wenn die zweite etwas zu zeigen hat.
+
+        Rechts steht allein «Letzte Aktivitaeten», und das haengt an
+        `audit.view`. Wer das Recht nicht hat, bekam trotzdem die dreispaltige
+        Aufteilung: die leere Spalte belegte ihr Rasterfeld, und der Inhalt
+        links wurde auf zwei Drittel gequetscht, waehrend rechts ein Drittel
+        des Bildschirms leer blieb. Ein Rasterfeld verschwindet nicht dadurch,
+        dass sein Kind `null` rendert.
+
+        Deshalb entscheidet der Inhalt ueber das Raster und nicht umgekehrt.
+      */}
+      <div className={cn('grid gap-6', canViewAudit && 'xl:grid-cols-3')}>
+        <div className={cn('min-w-0 space-y-6', canViewAudit && 'xl:col-span-2')}>
           {canViewJails ? (
             <Panel
               title="Aktive Jails"
@@ -668,7 +695,12 @@ export default async function DashboardPage(): Promise<React.JSX.Element> {
               />
             ) : (
               <>
-                <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-5">
+                {/*
+                  Fuenf Spalten erst, wenn wirklich Platz ist. Bei 1024 Pixeln
+                  bleiben neben der Seitenleiste rund 700 uebrig - geteilt
+                  durch fuenf sind das Kacheln, in die kein Modulname passt.
+                */}
+                <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5">
                   {visibleModules.map((entry) => (
                     <ModuleCard
                       key={entry.definition.id}
@@ -698,8 +730,8 @@ export default async function DashboardPage(): Promise<React.JSX.Element> {
           </section>
         </div>
 
-        <div className="min-w-0 space-y-6">
-          {canViewAudit ? (
+        {canViewAudit ? (
+          <div className="min-w-0 space-y-6">
             <Panel
               title="Letzte Aktivitäten"
               icon={<Activity />}
@@ -739,8 +771,8 @@ export default async function DashboardPage(): Promise<React.JSX.Element> {
                 </ul>
               )}
             </Panel>
-          ) : null}
-        </div>
+          </div>
+        ) : null}
       </div>
 
       <BrandBanner

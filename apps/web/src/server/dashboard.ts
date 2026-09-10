@@ -1,11 +1,8 @@
 import 'server-only';
 import { prisma } from '@swisshub/database';
-import { discord } from '@swisshub/discord';
 import { jail, loadAvatarHashes, readBotStatus, type BotStatusView } from '@swisshub/modules';
-import { createLogger } from '@swisshub/logger';
+import { currentGuild } from '@/server/guild';
 import type { AuditLog, JailEntry } from '@swisshub/database';
-
-const log = createLogger('web:dashboard');
 
 export interface DashboardData {
   bot: BotStatusView;
@@ -76,10 +73,9 @@ export async function loadDashboardData(scope: DashboardScope): Promise<Dashboar
       scope.canViewAudit
         ? prisma.auditLog.findMany({ orderBy: { sequence: 'desc' }, take: 6 })
         : Promise.resolve([]),
-      discord.guild.get().catch((error: unknown) => {
-        log.warn('Guild-Daten konnten nicht geladen werden', { error });
-        return null;
-      }),
+      // Ueber `currentGuild`, damit Grundlayout und Dashboard sich im selben
+      // Aufruf eine Antwort teilen statt zweimal zu warten.
+      currentGuild(),
     ]);
 
   const avatarHashes = await loadAvatarHashes(recentActivity.map((entry) => entry.actorDiscordId));

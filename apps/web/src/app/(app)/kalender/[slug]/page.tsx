@@ -54,6 +54,26 @@ export default async function EventDetailPage({
     notFound();
   }
 
+  /**
+   * Wo dieser Termin stattfindet - einmal beantwortet.
+   *
+   * Die Seite sagte es an zwei Stellen mit zwei Regeln: oben «Discord», unten
+   * «Discord-Kanal»; ohne hinterlegten Ort oben «Vor Ort», unten «SwissHub
+   * Discord». Beides plausibel, beides verschieden - und derselbe Termin.
+   *
+   * Die Fallunterscheidung stammt aus dem Modul (`ortsArt`); nur der Text
+   * gehoert der Seite, weil `ortsZeile` fuer Discord-Ankuendigungen
+   * geschrieben ist und Erwaehnungen wie `<#123>` liefert, die im Browser
+   * niemand aufloest.
+   */
+  const ort =
+    calendar.ortsArt(event) === 'DISCORD'
+      ? {
+          titel: event.locationChannelId || event.locationVoiceId ? 'Discord-Kanal' : 'SwissHub Discord',
+          zusatz: event.locationAddress,
+        }
+      : { titel: event.locationName ?? 'Vor Ort', zusatz: event.locationAddress };
+
   const zustaendig = calendar.istZustaendig(event, context.user.discordId);
   const darfBearbeiten = can(context, P.edit) || (can(context, P.manageOwn) && zustaendig);
 
@@ -193,8 +213,8 @@ export default async function EventDetailPage({
         />
         <StatCard
           label="Ort"
-          value={calendar.ortsArt(event) === 'DISCORD' ? 'Discord' : (event.locationName ?? 'Vor Ort')}
-          hint={event.locationAddress ?? undefined}
+          value={ort.titel}
+          hint={ort.zusatz ?? undefined}
           icon={<MapPin aria-hidden="true" />}
         />
         <StatCard
@@ -281,23 +301,16 @@ export default async function EventDetailPage({
             />
           ) : null}
 
-          <Panel title="Wo & Wer">
+          {/*
+            Der Ort stand hier ein zweites Mal - und die beiden Stellen
+            antworteten unterschiedlich: oben «Discord», hier «Discord-Kanal»,
+            und ohne Angabe oben «Vor Ort», hier «SwissHub Discord». Zwei
+            Regeln fuer dieselbe Frage. Jetzt rechnet die Seite den Ort einmal
+            aus, oben steht er, und dieser Abschnitt traegt nur noch das, was
+            wirklich nur hier steht.
+          */}
+          <Panel title="Organisation & Anmeldung">
             <dl className="space-y-3 text-sm">
-              <div>
-                <dt className="text-muted-foreground">Ort</dt>
-                <dd className="mt-0.5">
-                  {event.locationChannelId ? (
-                    <span>Discord-Kanal</span>
-                  ) : event.locationName ? (
-                    <span>{event.locationName}</span>
-                  ) : (
-                    <span>SwissHub Discord</span>
-                  )}
-                  {event.locationAddress ? (
-                    <span className="block text-muted-foreground">{event.locationAddress}</span>
-                  ) : null}
-                </dd>
-              </div>
               {event.locationUrl ? (
                 <div>
                   <dt className="text-muted-foreground">Link</dt>

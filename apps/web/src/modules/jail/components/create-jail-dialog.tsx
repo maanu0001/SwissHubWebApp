@@ -38,7 +38,7 @@ interface CreateJailDialogProps {
   presetMember?: PickedMember;
   triggerLabel?: string;
   /** `quick-action` rendert den Auslöser als Zeile der Schnellaktionen. */
-  variant?: 'button' | 'quick-action';
+  variant?: 'button' | 'outline' | 'quick-action';
   /**
    * Vorbelegung der öffentlichen Meldung aus den Moduleinstellungen
    * (`silentByDefault`). Der Wert lässt sich pro Jail überschreiben.
@@ -210,7 +210,10 @@ export function CreateJailDialog({
             <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
           </button>
         ) : (
-          <Button>
+          // `outline` dort, wo daneben eine Hauptaktion steht - in der
+          // Mitgliedsakte fuehrt «Massnahme ergreifen», und das Jailen ist
+          // eine Abkuerzung dorthin, keine zweite Hauptaktion.
+          <Button variant={variant === 'outline' ? 'outline' : 'default'}>
             <Lock aria-hidden="true" />
             {triggerLabel}
           </Button>

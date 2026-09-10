@@ -195,7 +195,6 @@ export async function MitgliedsAkte({
                   avatarHash: basic.avatarHash,
                   jailed: Boolean(basic.activeJail),
                 }}
-                variant="outline"
               />
             ) : null}
             {!basic.activeJail && canJail ? (
@@ -213,6 +212,7 @@ export async function MitgliedsAkte({
                   jailed: false,
                 }}
                 triggerLabel="Mitglied jailen"
+                variant="outline"
               />
             ) : null}
           </div>

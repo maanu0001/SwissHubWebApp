@@ -1,5 +1,6 @@
 import 'server-only';
 import { can, type AuthContext } from '@swisshub/auth';
+import type { TicketSection } from '@/modules/tickets/components/bereiche';
 import { tickets } from '@swisshub/modules';
 import { AppError } from '@swisshub/shared';
 import type { TicketPriority, TicketStatus } from '@swisshub/database';
@@ -47,12 +48,15 @@ export async function ladeTicketMitZugriff(
   return { ticket, zugriff };
 }
 
-export interface TicketSection {
-  href: string;
-  label: string;
-}
+export type { TicketSection };
 
-/** Unterseiten des Ticket-Moduls. */
+/**
+ * Unterseiten des Ticket-Moduls.
+ *
+ * Die Reihenfolge ist die der Kopfzeile - erst die taegliche Arbeit, dann was
+ * das Modul einstellt. Auf welchen der beiden Plaetze ein Bereich kommt,
+ * entscheidet `teileBereiche`; hier steht nur, wer ihn ueberhaupt sieht.
+ */
 export function ticketSections(context: AuthContext): TicketSection[] {
   const p = tickets.TICKET_PERMISSIONS;
   const sections: TicketSection[] = [];

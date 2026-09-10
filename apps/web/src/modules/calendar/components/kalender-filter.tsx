@@ -125,10 +125,20 @@ export function KalenderFilter({
 
         <h2 className="min-w-0 flex-1 truncate text-lg font-semibold">{titel}</h2>
 
-        {/* Die Ansichtsumschaltung wirkt nur auf grossen Bildschirmen - auf
-            dem Telefon zeigen Monat und Woche ohnehin die Agenda. Die Liste
-            selbst sieht auf jedem Geraet gleich aus. */}
-        <div className="hidden rounded-lg border border-border p-0.5 md:flex">
+        {/*
+          Die Ansichtsumschaltung gehoert auf jedes Geraet.
+
+          Sie war `md:flex` - auf dem Telefon also unsichtbar. Zusammen mit der
+          Tatsache, dass Monat und Woche dort als Terminliste erscheinen,
+          ergab das genau eine Verwechslung: man sah eine Liste, aenderte den
+          Zeitraum, und sie wurde kuerzer. Das war die Monatsansicht, aber
+          nichts auf dem Bildschirm sagte das, und die echte Liste war nicht
+          erreichbar.
+
+          Sichtbar ist sie deshalb ueberall - sie sagt, worin man sich
+          befindet, und sie ist der Weg zur Liste.
+        */}
+        <div className="flex rounded-lg border border-border p-0.5">
           {(
             [
               ['month', 'Monat'],
@@ -255,10 +265,23 @@ export function KalenderFilter({
           ) : null}
         </div>
 
-        <p className="flex items-center gap-1.5 text-xs text-muted-foreground md:hidden">
-          <CalendarRange className="size-3.5" aria-hidden="true" />
-          Auf dem Telefon zeigt der Kalender die Terminliste.
-        </p>
+        {/*
+          Der Hinweis sagte «Auf dem Telefon zeigt der Kalender die
+          Terminliste» - und benannte damit die Monatsansicht als Liste. Genau
+          das war die Verwechslung. Jetzt sagt er, was tatsaechlich gilt: das
+          Raster braucht Platz, deshalb erscheinen Monat und Woche hier als
+          Tage untereinander - und «Liste» ist die Ansicht daneben, die alles
+          zeigt.
+        */}
+        {zeitraumRelevant ? (
+          <p className="flex items-start gap-1.5 text-xs text-muted-foreground md:hidden">
+            <CalendarRange className="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
+            <span>
+              Auf dem Telefon erscheint dieser Zeitraum als Tagesliste. Alle Events - auch ausserhalb - stehen
+              unter «Liste».
+            </span>
+          </p>
+        ) : null}
       </div>
     </div>
   );

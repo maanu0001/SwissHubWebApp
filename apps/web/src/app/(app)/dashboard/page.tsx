@@ -2,7 +2,6 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import {
   Activity,
-  ArrowRight,
   Blocks,
   CalendarDays,
   Gamepad2,
@@ -43,8 +42,6 @@ import { JailRowActions } from '@/modules/jail/components/jail-row-actions';
 import { CreateJailDialog } from '@/modules/jail/components/create-jail-dialog';
 import { SetupProgress } from '@/modules/configuration/components/setup-progress';
 import { csrfTokenFor, requirePagePermission } from '@/server/auth';
-import { ordneAktionen, teileKennzahlen, type AktionId, type KennzahlId, type Lage } from './prioritaet';
-import { cn } from '@/lib/utils';
 import { loadDashboardData } from '@/server/dashboard';
 import { moderationReasonTemplates } from '@/server/moderation';
 
@@ -109,235 +106,22 @@ export default async function DashboardPage(): Promise<React.JSX.Element> {
     : null;
 
   const csrfToken = csrfTokenFor(context);
-  const anzeigename = context.user.displayName;
 
   const canCreateTicket = darfNutzen('tickets.create', 'tickets');
   const canCreateSpielersuche = darfNutzen('spielersuche.create', 'spielersuche');
   const canUseMusic = darfNutzen('music.view', 'music');
 
-  /**
-   * Jede Kennzahl einmal beschrieben.
-   *
-   * Beschriftung, Wert, Hinweis und Symbol stehen hier - unabhaengig davon,
-   * ob die Kennzahl gleich als Karte oben oder als Angabe in der Kontextzeile
-   * erscheint. Zwei Beschreibungen derselben Zahl liefen auseinander; die
-   * Zeile soll nicht weniger sagen als die Karte, nur leiser.
-   */
-  const kennzahlen: Record<
-    KennzahlId,
-    {
-      label: string;
-      value: string | number;
-      hint: React.ReactNode;
-      icon: React.ReactNode;
-      tone: 'default' | 'success' | 'warning' | 'destructive';
-    }
-  > = {
-    mitglieder: {
-      label: 'Mitglieder',
-      value: data.memberCount !== null ? numberFormat.format(data.memberCount) : '-',
-      hint: data.discordReachable ? (
-        data.onlineCount !== null ? (
-          // `inline-flex`, nicht `flex`: in der Kontextzeile steht dieser
-          // Hinweis zwischen zwei Klammern. Ein Blockelement dazwischen
-          // erzwingt anonyme Blockboxen - die oeffnende Klammer landete auf
-          // einer Zeile, der Hinweis darunter, die schliessende wieder
-          // darunter. In der Karte sieht `inline-flex` genauso aus.
-          <span className="inline-flex items-center gap-1.5 align-middle">
-            online: {numberFormat.format(data.onlineCount)}
-            <span className="size-1.5 rounded-full bg-success" aria-hidden="true" />
-          </span>
-        ) : (
-          'Aktuell auf Discord'
-        )
-      ) : (
-        'Discord derzeit nicht erreichbar'
-      ),
-      icon: <Users />,
-      tone: 'default',
-    },
-    jails: {
-      label: 'Aktive Jails',
-      value: data.jailStats?.active ?? 0,
-      hint:
-        data.jailStats && data.jailStats.endingSoon > 0
-          ? `${data.jailStats.endingSoon} enden in der nächsten Stunde`
-          : 'Keine bevorstehenden Freilassungen',
-      icon: <Lock />,
-      tone: (data.jailStats?.active ?? 0) > 0 ? 'warning' : 'default',
-    },
-    verifikationen: {
-      label: 'Verifikationen offen',
-      value: offeneVerifikationen ?? 0,
-      hint: (offeneVerifikationen ?? 0) > 0 ? 'Warten auf eine Entscheidung' : 'Nichts zu prüfen',
-      icon: <ShieldCheck />,
-      tone: (offeneVerifikationen ?? 0) > 0 ? 'warning' : 'default',
-    },
-    bot: {
-      label: 'Bot',
-      value: data.bot.online ? 'Online' : 'Offline',
-      hint: data.bot.online
-        ? data.bot.wsPingMs !== null
-          ? `Ping: ${data.bot.wsPingMs} ms`
-          : 'Discord verbunden'
-        : data.bot.lastHeartbeatAt
-          ? `Letzter Heartbeat: ${formatDateTime(data.bot.lastHeartbeatAt)}`
-          : 'Noch kein Heartbeat empfangen',
-      icon: <Activity />,
-      tone: data.bot.online ? 'success' : 'destructive',
-    },
-    aktionen: {
-      label: 'Aktionen heute',
-      value: data.actionsToday ?? 0,
-      hint:
-        data.actionsTrend !== null ? (
-          <>
-            <StatDelta value={data.actionsTrend} suffix="%" /> zum Vortag
-          </>
-        ) : data.jailStats ? (
-          // Ohne Vergleichswert der Vortag - aber nur, wenn diese Person die
-          // Jail-Zahlen ohnehin sehen darf.
-          `${plural(data.jailStats.createdToday, 'Jail', 'Jails')} · ${plural(
-            data.jailStats.releasedToday,
-            'Freilassung',
-            'Freilassungen',
-          )}`
-        ) : (
-          'Kein Vergleichswert'
-        ),
-      icon: <TrendingUp />,
-      tone: 'default',
-    },
-  };
-
-  /**
-   * Welche Kennzahlen dieser Betrachter ueberhaupt sieht.
-   *
-   * Dieselben Bedingungen wie zuvor, nur an einer Stelle statt verteilt ueber
-   * fuenf Bloecke im Markup: die Mitgliederzahl und der Bot-Zustand stehen
-   * jedem offen, die Jail-Zahlen und die Moderationsaktionen haengen an ihrer
-   * Berechtigung, die Verifikationen an der Pruefberechtigung.
-   */
-  const sichtbareKennzahlen: KennzahlId[] = [
-    'mitglieder',
-    ...(data.jailStats ? (['jails'] as const) : []),
-    ...(offeneVerifikationen !== null ? (['verifikationen'] as const) : []),
-    'bot',
-    ...(data.actionsToday !== undefined ? (['aktionen'] as const) : []),
-  ];
-
-  const lage: Lage = {
-    jailsAktiv: data.jailStats?.active ?? null,
-    verifikationenOffen: offeneVerifikationen,
-    botOnline: data.bot.online,
-  };
-
-  const { wichtig, kontext } = teileKennzahlen(sichtbareKennzahlen, lage);
-
-  /** Die Schnellaktionen dieses Betrachters, in ihrer Rangfolge. */
-  const aktionen = ordneAktionen(
-    [
-      ...(offeneVerifikationen !== null ? (['verifikation'] as const) : []),
-      ...(canCreateTicket ? (['ticket'] as const) : []),
-      ...(canCreateSpielersuche ? (['spielersuche'] as const) : []),
-      ...(canUseMusic ? (['musik'] as const) : []),
-      ...(canCreateJail ? (['jail'] as const) : []),
-      ...(canViewMembers ? (['mitglieder'] as const) : []),
-      ...(canViewAudit ? (['audit'] as const) : []),
-      ...(canViewSettings ? (['einstellungen'] as const) : []),
-    ] satisfies AktionId[],
-    lage,
-  );
-
-  /**
-   * Jede Schnellaktion einmal beschrieben.
-   *
-   * Die Auswahl - wer welche sieht - steht weiter oben und hat sich nicht
-   * geaendert: jede fuehrt auf eine Seite, die dieselbe Berechtigung
-   * verlangt. Neu ist nur die Reihenfolge, und die kommt aus `ordneAktionen`.
-   */
-  const schnellaktionen: Record<AktionId, React.ReactNode> = {
-    verifikation: (
-      <QuickAction
-        key="verifikation"
-        title="Warteschlange"
-        description={
-          (offeneVerifikationen ?? 0) > 0
-            ? `${plural(offeneVerifikationen ?? 0, 'Verifikation', 'Verifikationen')} offen`
-            : 'Keine offenen Verifikationen'
-        }
-        icon={<ShieldCheck />}
-        href="/verifikation/warteschlange"
-      />
-    ),
-    ticket: (
-      <QuickAction
-        key="ticket"
-        title="Ticket erstellen"
-        description="Anliegen an das Support-Team"
-        icon={<Ticket />}
-        href="/tickets/neu"
-      />
-    ),
-    spielersuche: (
-      <QuickAction
-        key="spielersuche"
-        title="Spielersuche starten"
-        description="Mitspieler finden"
-        icon={<Gamepad2 />}
-        href="/spielersuche/neu"
-      />
-    ),
-    musik: (
-      <QuickAction
-        key="musik"
-        title="Musik starten"
-        description="Player und Warteschlange öffnen"
-        icon={<Music />}
-        href="/musik"
-      />
-    ),
-    jail: (
-      <QuickAction key="jail" title="Mitglied jailen" description="Neuen Jail erstellen" icon={<Lock />}>
-        <CreateJailDialog
-          csrfToken={csrfToken}
-          durationPresets={jail.JAIL_DURATION_PRESETS}
-          maxDurationSeconds={jailSettings.maxDurationSeconds}
-          reasonPresets={grundVorlagen}
-          announceByDefault={!jailSettings.silentByDefault}
-          variant="quick-action"
-          triggerLabel="Mitglied jailen"
-        />
-      </QuickAction>
-    ),
-    mitglieder: (
-      <QuickAction
-        key="mitglieder"
-        title="Mitglied suchen"
-        description="Nach Mitgliedern suchen"
-        icon={<Search />}
-        href="/members"
-      />
-    ),
-    audit: (
-      <QuickAction
-        key="audit"
-        title="Audit Log"
-        description="Logs und Aktivitäten"
-        icon={<ScrollText />}
-        href="/audit"
-      />
-    ),
-    einstellungen: (
-      <QuickAction
-        key="einstellungen"
-        title="Einstellungen"
-        description="Bot und System konfigurieren"
-        icon={<Settings />}
-        href="/settings"
-      />
-    ),
-  };
+  // Bleibt nichts uebrig, verschwindet die ganze Karte. Eine Ueberschrift
+  // «Schnellaktionen» ueber einer leeren Flaeche ist schlechter als keine.
+  const hatSchnellaktionen =
+    offeneVerifikationen !== null ||
+    canCreateTicket ||
+    canCreateSpielersuche ||
+    canUseMusic ||
+    canCreateJail ||
+    canViewMembers ||
+    canViewAudit ||
+    canViewSettings;
 
   // Verfügbare Module zuerst, geplante als Ausblick dahinter.
   const visibleModules = moduleStatus
@@ -354,27 +138,6 @@ export default async function DashboardPage(): Promise<React.JSX.Element> {
 
   return (
     <>
-      {/*
-        Begruessung und Einordnung.
-
-        Eine Seite, die mit fuenf Zahlen beginnt, beantwortet die Frage «wo bin
-        ich?» erst auf den zweiten Blick. Der Name kommt aus der Sitzung, nicht
-        aus der Adresszeile.
-      */}
-      <header className="space-y-1">
-        {/*
-          Kein zweites `h1`: die Kopfzeile der Anwendung traegt bereits den
-          Seitentitel. Zwei Ueberschriften erster Ordnung auf einer Seite sind
-          fuer einen Screenreader zwei Seiten.
-        */}
-        <p className="text-lg font-medium">Willkommen zurück, {anzeigename}</p>
-        <p className="text-sm text-muted-foreground">
-          {wichtig.length > 0
-            ? 'Das hier braucht gerade deine Aufmerksamkeit.'
-            : 'Alles ruhig - hier ist der aktuelle Stand.'}
-        </p>
-      </header>
-
       {health && health.completeness < 100 ? (
         <section aria-label="Einrichtung" className="rounded-xl border border-warning/40 bg-warning/5 p-5">
           <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
@@ -391,96 +154,101 @@ export default async function DashboardPage(): Promise<React.JSX.Element> {
       ) : null}
 
       {/*
-        Wichtig zuerst, Kontext daneben.
-
-        Vorher standen hier fuenf gleich grosse Karten: die Mitgliederzahl so
-        laut wie die Zahl der Leute, die auf eine Entscheidung warten. Beides
-        sind Zahlen, aber nur eine davon ist eine Aufgabe.
-
-        Jede Kennzahl ist deshalb genau einmal beschrieben - Beschriftung,
-        Wert, Hinweis, Symbol - und wird danach auf eine von zwei Arten
-        gezeigt: als Karte, wenn sie gerade eine Handlung verlangt, sonst als
-        Angabe in der Kontextzeile darueber. Eine Kennzahl mit zwei
-        Beschreibungen liefe irgendwann auseinander; so kann die Zeile nicht
-        weniger sagen als die Karte.
-
-        Welche Kennzahl wann wichtig ist, entscheidet `teileKennzahlen` - eine
-        reine Funktion, die ein Test ueber jede vorkommende Lage rechnet.
+        Die Kennzahlen entstehen aus einer Liste und nicht als vier feste
+        Karten. Faellt eine weg, weil der Betrachter sie nicht sehen darf,
+        rueckt der Rest nach - `auto-fit` laesst kein Loch und keine
+        angebrochene Reihe stehen. Vier feste Spalten haetten bei zwei Karten
+        zwei leere Plaetze gezeigt.
       */}
-      {sichtbareKennzahlen.length > 0 ? (
-        <section aria-label="Kennzahlen" className="space-y-5">
-          {kontext.length > 0 ? (
-            <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
-              {kontext.map((id, index) => (
-                <span key={id} className="flex items-center gap-1.5">
-                  {index > 0 ? (
-                    <span aria-hidden="true" className="text-border">
-                      ·
-                    </span>
-                  ) : null}
-                  <span className="font-medium tabular-nums text-foreground">{kennzahlen[id].value}</span>
-                  <span>{kennzahlen[id].label}</span>
-                  {kennzahlen[id].hint ? (
-                    <span className="text-muted-foreground/70">({kennzahlen[id].hint})</span>
-                  ) : null}
+      <section
+        aria-label="Kennzahlen"
+        className="grid gap-4 [grid-template-columns:repeat(auto-fit,minmax(min(100%,15rem),1fr))]"
+      >
+        <StatCard
+          label="Mitglieder"
+          value={data.memberCount !== null ? numberFormat.format(data.memberCount) : '-'}
+          hint={
+            data.discordReachable ? (
+              data.onlineCount !== null ? (
+                <span className="flex items-center gap-1.5">
+                  online: {numberFormat.format(data.onlineCount)}
+                  <span className="size-1.5 rounded-full bg-success" aria-hidden="true" />
                 </span>
-              ))}
-            </p>
-          ) : null}
+              ) : (
+                'Aktuell auf Discord'
+              )
+            ) : (
+              'Discord derzeit nicht erreichbar'
+            )
+          }
+          icon={<Users />}
+        />
 
-          {wichtig.length > 0 ? (
-            /*
-              Feste Spalten statt `auto-fit`.
+        {data.jailStats ? (
+          <StatCard
+            label="Aktive Jails"
+            value={data.jailStats.active}
+            hint={
+              data.jailStats.endingSoon > 0
+                ? `${data.jailStats.endingSoon} enden in der nächsten Stunde`
+                : 'Keine bevorstehenden Freilassungen'
+            }
+            icon={<Lock />}
+            tone={data.jailStats.active > 0 ? 'warning' : 'default'}
+          />
+        ) : null}
 
-              `auto-fit` mit `1fr` fuellt die Reihe restlos - bei fuenf Karten
-              war das richtig, bei einer zieht es dieselbe Karte ueber
-              sechzehnhundert Pixel. Genau dieser Fall ist jetzt der haeufige:
-              wichtig ist meist genau eine Kennzahl. Drei Spalten reichen, weil
-              es hoechstens drei dringende gibt (Bot, Verifikationen, Jails).
-            */
-            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-              {wichtig.map((id) => (
-                <StatCard
-                  key={id}
-                  label={kennzahlen[id].label}
-                  value={kennzahlen[id].value}
-                  hint={kennzahlen[id].hint}
-                  icon={kennzahlen[id].icon}
-                  tone={kennzahlen[id].tone}
-                />
-              ))}
-            </div>
-          ) : null}
-        </section>
-      ) : null}
+        {offeneVerifikationen !== null ? (
+          <StatCard
+            label="Verifikationen offen"
+            value={offeneVerifikationen}
+            hint={offeneVerifikationen > 0 ? 'Warten auf eine Entscheidung' : 'Nichts zu prüfen'}
+            icon={<ShieldCheck />}
+            tone={offeneVerifikationen > 0 ? 'warning' : 'default'}
+          />
+        ) : null}
 
-      {/*
-        Die Schnellaktionen entstehen aus dem, was dieser Betrachter
-        tatsaechlich darf. Fuer ein gewoehnliches Mitglied sind das die
-        Community-Wege; fuer die Verwaltung kommen ihre eigenen dazu. Jede
-        fuehrt auf eine Seite, die dieselbe Berechtigung verlangt - eine
-        Schaltflaeche, die danach mit «keine Berechtigung» antwortet, gibt es
-        hier nicht.
+        <StatCard
+          label="Bot Status"
+          value={data.bot.online ? 'Online' : 'Offline'}
+          tone={data.bot.online ? 'success' : 'destructive'}
+          hint={
+            data.bot.online
+              ? data.bot.wsPingMs !== null
+                ? `Ping: ${data.bot.wsPingMs} ms`
+                : 'Discord verbunden'
+              : data.bot.lastHeartbeatAt
+                ? `Letzter Heartbeat: ${formatDateTime(data.bot.lastHeartbeatAt)}`
+                : 'Noch kein Heartbeat empfangen'
+          }
+          icon={<Activity />}
+        />
 
-        Sie stehen jetzt oben statt in der rechten Spalte: «was kann ich als
-        Naechstes tun?» ist die zweite Frage des Dashboards, nicht die letzte.
-        Statt eines eigenen Rahmens traegt der Abschnitt nur seine
-        Ueberschrift - die Eintraege sind bereits abgegrenzt genug.
-
-        Bleibt nichts uebrig, verschwindet der ganze Abschnitt. Eine
-        Ueberschrift ueber einer leeren Flaeche ist schlechter als keine.
-      */}
-      {aktionen.length > 0 ? (
-        <section aria-labelledby="schnellaktionen" className="space-y-3">
-          <h2 id="schnellaktionen" className="flex items-center gap-2 text-sm font-semibold">
-            <Zap className="size-4 text-muted-foreground" aria-hidden="true" />
-            Schnellaktionen
-          </h2>
-          <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
-            {aktionen.map((id) => schnellaktionen[id])}
-          </div>
-        </section>
-      ) : null}
+        {data.actionsToday !== undefined ? (
+          <StatCard
+            label="Aktionen heute"
+            value={data.actionsToday}
+            hint={
+              data.actionsTrend !== null ? (
+                <>
+                  <StatDelta value={data.actionsTrend} suffix="%" /> zum Vortag
+                </>
+              ) : data.jailStats ? (
+                // Ohne Vergleichswert der Vortag - aber nur, wenn diese
+                // Person die Jail-Zahlen ohnehin sehen darf.
+                `${plural(data.jailStats.createdToday, 'Jail', 'Jails')} · ${plural(
+                  data.jailStats.releasedToday,
+                  'Freilassung',
+                  'Freilassungen',
+                )}`
+              ) : (
+                'Kein Vergleichswert'
+              )
+            }
+            icon={<TrendingUp />}
+          />
+        ) : null}
+      </section>
 
       {kommendeEvents.length > 0 ? (
         <Panel
@@ -488,18 +256,12 @@ export default async function DashboardPage(): Promise<React.JSX.Element> {
           icon={<CalendarDays />}
           action={{ label: 'Zum Kalender', href: '/kalender' }}
         >
-          {/*
-            Die Zeilen tragen keinen eigenen Rahmen mehr: ein Kasten im Kasten
-            zieht zwei Linien um dieselbe Sache. Getrennt wird jetzt durch
-            Abstand und eine Trennlinie, hervorgehoben durch die Farbe der
-            Kategorie - die stand schon vorher links am Rand.
-          */}
-          <ul className="divide-y divide-border/50">
+          <ul className="space-y-2">
             {kommendeEvents.map((event) => (
               <li key={event.id}>
                 <Link
                   href={`/kalender/${event.slug}`}
-                  className="-mx-2 flex flex-wrap items-center gap-3 rounded-lg px-2 py-3 transition-colors hover:bg-accent/40"
+                  className="flex flex-wrap items-center gap-3 rounded-lg border border-border/60 p-3 transition-colors hover:border-primary/40"
                 >
                   <span
                     aria-hidden="true"
@@ -544,20 +306,8 @@ export default async function DashboardPage(): Promise<React.JSX.Element> {
         </Panel>
       ) : null}
 
-      {/*
-        Zwei Spalten - aber nur, wenn die zweite etwas zu zeigen hat.
-
-        Rechts steht allein «Letzte Aktivitaeten», und das haengt an
-        `audit.view`. Wer das Recht nicht hat, bekam trotzdem die dreispaltige
-        Aufteilung: die leere Spalte belegte ihr Rasterfeld, und der Inhalt
-        links wurde auf zwei Drittel gequetscht, waehrend rechts ein Drittel
-        des Bildschirms leer blieb. Ein Rasterfeld verschwindet nicht dadurch,
-        dass sein Kind `null` rendert.
-
-        Deshalb entscheidet der Inhalt ueber das Raster und nicht umgekehrt.
-      */}
-      <div className={cn('grid gap-6', canViewAudit && 'xl:grid-cols-3')}>
-        <div className={cn('min-w-0 space-y-6', canViewAudit && 'xl:col-span-2')}>
+      <div className="grid gap-6 xl:grid-cols-3">
+        <div className="min-w-0 space-y-6 xl:col-span-2">
           {canViewJails ? (
             <Panel
               title="Aktive Jails"
@@ -663,44 +413,20 @@ export default async function DashboardPage(): Promise<React.JSX.Element> {
             </Panel>
           ) : null}
 
-          {/*
-            Die Modulkacheln sind selbst schon Karten - ein Panel darum waere
-            ein Rahmen um eine Reihe von Rahmen. Der Abschnitt traegt deshalb
-            nur seine Ueberschrift und den Verweis nach rechts; die Kacheln,
-            ihre Ziele und die Berechtigung dahinter sind unveraendert.
-          */}
-          <section aria-labelledby="module" className="space-y-3">
-            <div className="flex items-center justify-between gap-3">
-              <h2 id="module" className="flex items-center gap-2 text-sm font-semibold">
-                <Blocks className="size-4 text-muted-foreground" aria-hidden="true" />
-                Module
-              </h2>
-              {canManageModules ? (
-                <Link
-                  href="/modules"
-                  className="inline-flex min-h-6 shrink-0 items-center gap-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
-                >
-                  Module verwalten
-                  <ArrowRight className="size-3.5" aria-hidden="true" />
-                </Link>
-              ) : null}
-            </div>
-
+          <Panel
+            title="Module"
+            icon={<Blocks />}
+            action={canManageModules ? { label: 'Module verwalten', href: '/modules' } : undefined}
+          >
             {visibleModules.length === 0 ? (
-              // Ohne Panel darum traegt der Leerzustand seinen Rahmen wieder
-              // selbst - sonst stuende der Satz frei in der Flaeche.
               <EmptyState
+                className="border-0"
                 title="Keine Module verfügbar"
                 description="Dir sind derzeit keine Module zugewiesen."
               />
             ) : (
               <>
-                {/*
-                  Fuenf Spalten erst, wenn wirklich Platz ist. Bei 1024 Pixeln
-                  bleiben neben der Seitenleiste rund 700 uebrig - geteilt
-                  durch fuenf sind das Kacheln, in die kein Modulname passt.
-                */}
-                <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5">
+                <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-5">
                   {visibleModules.map((entry) => (
                     <ModuleCard
                       key={entry.definition.id}
@@ -727,11 +453,11 @@ export default async function DashboardPage(): Promise<React.JSX.Element> {
                 <div className="accent-rule mt-5 w-40 rounded-full" aria-hidden="true" />
               </>
             )}
-          </section>
+          </Panel>
         </div>
 
-        {canViewAudit ? (
-          <div className="min-w-0 space-y-6">
+        <div className="min-w-0 space-y-6">
+          {canViewAudit ? (
             <Panel
               title="Letzte Aktivitäten"
               icon={<Activity />}
@@ -771,8 +497,101 @@ export default async function DashboardPage(): Promise<React.JSX.Element> {
                 </ul>
               )}
             </Panel>
-          </div>
-        ) : null}
+          ) : null}
+
+          {/*
+            Die Schnellaktionen entstehen aus dem, was dieser Betrachter
+            tatsaechlich darf. Fuer ein gewoehnliches Mitglied sind das die
+            drei Community-Wege; fuer die Verwaltung kommen ihre eigenen
+            dazu. Jede fuehrt auf eine Seite, die dieselbe Berechtigung
+            verlangt - eine Schaltflaeche, die danach mit «keine
+            Berechtigung» antwortet, gibt es hier nicht.
+          */}
+          {hatSchnellaktionen ? (
+            <Panel title="Schnellaktionen" icon={<Zap />} bodyClassName="space-y-2 p-5">
+              {offeneVerifikationen !== null ? (
+                <QuickAction
+                  title="Warteschlange"
+                  description={
+                    offeneVerifikationen > 0
+                      ? `${plural(offeneVerifikationen, 'Verifikation', 'Verifikationen')} offen`
+                      : 'Keine offenen Verifikationen'
+                  }
+                  icon={<ShieldCheck />}
+                  href="/verifikation/warteschlange"
+                />
+              ) : null}
+
+              {canCreateTicket ? (
+                <QuickAction
+                  title="Ticket erstellen"
+                  description="Anliegen an das Support-Team"
+                  icon={<Ticket />}
+                  href="/tickets/neu"
+                />
+              ) : null}
+
+              {canCreateSpielersuche ? (
+                <QuickAction
+                  title="Spielersuche starten"
+                  description="Mitspieler finden"
+                  icon={<Gamepad2 />}
+                  href="/spielersuche/neu"
+                />
+              ) : null}
+
+              {canUseMusic ? (
+                <QuickAction
+                  title="Musik starten"
+                  description="Player und Warteschlange öffnen"
+                  icon={<Music />}
+                  href="/musik"
+                />
+              ) : null}
+
+              {canCreateJail ? (
+                <QuickAction title="Mitglied jailen" description="Neuen Jail erstellen" icon={<Lock />}>
+                  <CreateJailDialog
+                    csrfToken={csrfToken}
+                    durationPresets={jail.JAIL_DURATION_PRESETS}
+                    maxDurationSeconds={jailSettings.maxDurationSeconds}
+                    reasonPresets={grundVorlagen}
+                    announceByDefault={!jailSettings.silentByDefault}
+                    variant="quick-action"
+                    triggerLabel="Mitglied jailen"
+                  />
+                </QuickAction>
+              ) : null}
+
+              {canViewMembers ? (
+                <QuickAction
+                  title="Mitglied suchen"
+                  description="Nach Mitgliedern suchen"
+                  icon={<Search />}
+                  href="/members"
+                />
+              ) : null}
+
+              {canViewAudit ? (
+                <QuickAction
+                  title="Audit Log"
+                  description="Logs und Aktivitäten"
+                  icon={<ScrollText />}
+                  href="/audit"
+                />
+              ) : null}
+
+              {canViewSettings ? (
+                <QuickAction
+                  title="Einstellungen"
+                  description="Bot und System konfigurieren"
+                  icon={<Settings />}
+                  href="/settings"
+                />
+              ) : null}
+            </Panel>
+          ) : null}
+        </div>
       </div>
 
       <BrandBanner

@@ -17,41 +17,90 @@ function lies(pfad: string): string {
 }
 
 // ---------------------------------------------------------------------------
-// A - Dashboard
+// A - Dashboard: der Stand vor dem Priorisierungs-Umbau
 // ---------------------------------------------------------------------------
 
-describe('Dashboard: das Raster folgt dem Inhalt', () => {
+describe('Dashboard steht wieder auf dem Stand vor dem Umbau', () => {
   const seite = lies('apps/web/src/app/(app)/dashboard/page.tsx');
 
-  it('macht die zweite Spalte von ihrem Inhalt abhängig', () => {
-    // Ein Rasterfeld verschwindet nicht dadurch, dass sein Kind `null`
-    // rendert: die leere Spalte belegte ihr Drittel, und der Inhalt links
-    // wurde auf zwei Drittel gequetscht. Wer kein `audit.view` hat, sah
-    // rechts ein Drittel Nichts.
-    expect(seite).toContain("cn('grid gap-6', canViewAudit && 'xl:grid-cols-3')");
-    expect(seite).toContain("cn('min-w-0 space-y-6', canViewAudit && 'xl:col-span-2')");
+  it('zeigt die Kennzahlen wieder als eine Reihe gleichwertiger Karten', () => {
+    // Der Umbau teilte sie in «wichtig» (Karte) und «Kontext» (Textzeile).
+    // Zurueck zur Reihe: `auto-fit` laesst kein Loch, wenn eine Karte wegen
+    // fehlender Berechtigung entfaellt.
+    expect(seite).toContain('aria-label="Kennzahlen"');
+    expect(seite).toContain('repeat(auto-fit,minmax(min(100%,15rem),1fr))');
+    expect(seite).not.toContain('teileKennzahlen');
+    expect(seite).not.toContain('kontext.map');
   });
 
-  it('rendert die zweite Spalte gar nicht, wenn sie leer wäre', () => {
-    // Die Bedingung steht jetzt um das Rasterkind, nicht darin.
-    const stelle = seite.indexOf('{canViewAudit ? (\n          <div className="min-w-0 space-y-6">');
-    expect(stelle).toBeGreaterThan(0);
+  it('hat wieder genau die fünf Kennzahlkarten in ihrer alten Reihenfolge', () => {
+    const reihenfolge = [
+      'label="Mitglieder"',
+      'label="Aktive Jails"',
+      'label="Verifikationen offen"',
+      'label="Bot Status"',
+      'label="Aktionen heute"',
+    ];
+    let vorher = -1;
+    for (const karte of reihenfolge) {
+      const stelle = seite.indexOf(karte);
+      expect(stelle, karte).toBeGreaterThan(vorher);
+      vorher = stelle;
+    }
   });
 
-  it('hält den Hinweis der Mitgliederzahl inline', () => {
-    // In der Kontextzeile steht dieser Hinweis zwischen zwei Klammern. Als
-    // Blockelement erzwang er anonyme Blockboxen - die öffnende Klammer auf
-    // einer Zeile, der Hinweis darunter, die schliessende wieder darunter.
-    expect(seite).toContain('inline-flex items-center gap-1.5 align-middle');
-    expect(seite).not.toContain('<span className="flex items-center gap-1.5">\n            online:');
+  it('führt die Schnellaktionen wieder als Panel in der rechten Spalte', () => {
+    // Der Umbau hatte sie nach oben geholt und nach Dringlichkeit sortiert.
+    expect(seite).toContain('<Panel title="Schnellaktionen" icon={<Zap />} bodyClassName="space-y-2 p-5">');
+    expect(seite).toContain('hatSchnellaktionen');
+    expect(seite).not.toContain('ordneAktionen');
   });
 
-  it('lässt eine einzelne dringende Karte nicht über die ganze Breite laufen', () => {
-    // `auto-fit` mit `1fr` füllt die Reihe restlos. Bei fünf Karten war das
-    // richtig; bei einer - dem jetzt häufigen Fall - zieht es dieselbe Karte
-    // über sechzehnhundert Pixel.
-    expect(seite).toContain('<div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">');
-    expect(seite).not.toContain('repeat(auto-fit,minmax(min(100%,15rem),1fr))');
+  it('behält jede Schnellaktion in ihrer alten Reihenfolge', () => {
+    const reihenfolge = [
+      'title="Warteschlange"',
+      'title="Ticket erstellen"',
+      'title="Spielersuche starten"',
+      'title="Musik starten"',
+      'title="Mitglied jailen"',
+      'title="Mitglied suchen"',
+      'title="Audit Log"',
+      'title="Einstellungen"',
+    ];
+    let vorher = -1;
+    for (const aktion of reihenfolge) {
+      const stelle = seite.indexOf(aktion);
+      expect(stelle, aktion).toBeGreaterThan(vorher);
+      vorher = stelle;
+    }
+  });
+
+  it('trägt die Module wieder in ihrem Panel', () => {
+    expect(seite).toContain('title="Module"');
+    expect(seite).toContain('sm:grid-cols-3 lg:grid-cols-5');
+  });
+
+  it('hat wieder das feste zweispaltige Raster', () => {
+    expect(seite).toContain('<div className="grid gap-6 xl:grid-cols-3">');
+    expect(seite).toContain('<div className="min-w-0 space-y-6 xl:col-span-2">');
+  });
+
+  it('trägt keine Begrüssung und keine Kontextzeile mehr', () => {
+    // Beides kam mit dem Umbau; der frühere Stand begann mit den Kennzahlen.
+    expect(seite).not.toContain('Willkommen zurück');
+    expect(seite).not.toContain('Das hier braucht gerade deine Aufmerksamkeit');
+  });
+
+  it('hält keine zweite Dashboard-Logik mehr vor', () => {
+    // Kein altes und neues Dashboard nebeneinander: die Priorisierung ist
+    // vollständig entfallen, nicht nur ungenutzt liegen geblieben.
+    expect(() => lies('apps/web/src/app/(app)/dashboard/prioritaet.ts')).toThrow();
+  });
+
+  it('zeichnet im Ladezustand wieder das, was danach kommt', () => {
+    const laden = lies('apps/web/src/app/(app)/dashboard/loading.tsx');
+    expect(laden).toContain('xl:grid-cols-4');
+    expect(laden).toContain('h-28');
   });
 
   it('behält jede Kennzahl und jede Schnellaktion', () => {
@@ -59,6 +108,7 @@ describe('Dashboard: das Raster folgt dem Inhalt', () => {
       'Mitglieder',
       'Aktive Jails',
       'Verifikationen offen',
+      'Bot Status',
       'Aktionen heute',
       'Warteschlange',
       'Ticket erstellen',
@@ -68,22 +118,45 @@ describe('Dashboard: das Raster folgt dem Inhalt', () => {
       'Mitglied suchen',
       'Audit Log',
       'Einstellungen',
+      'Nächste Events',
+      'Letzte Aktivitäten',
     ]) {
       expect(seite, text).toContain(text);
     }
   });
 
-  it('lässt einen langen Modulnamen die Seite nicht breiter machen', () => {
-    // Rasterkinder haben von sich aus `min-width: auto`: ein Name, der nicht
-    // in seine Spalte passt, liess die Spalte wachsen - und das ganze Raster
-    // schob die Seite über den rechten Rand.
+  it('behält die Sichtbarkeit nach Berechtigungen unverändert', () => {
+    for (const pruefung of [
+      'canViewJails',
+      'canCreateJail',
+      'canReleaseJail',
+      'canViewAudit',
+      'canViewMembers',
+      'canManageModules',
+      'canViewSettings',
+      'canViewModeration',
+      'darfNutzen',
+    ]) {
+      expect(seite, pruefung).toContain(pruefung);
+    }
+  });
+});
+
+describe('Dashboard behält die funktionalen Verbesserungen', () => {
+  it('teilt sich die Discord-Abfrage der Gilde weiterhin mit dem Grundlayout', () => {
+    // Ein Performance-Fix von nach dem Referenzstand - er wird nicht
+    // mitzurückgerollt.
+    const laden = lies('apps/web/src/server/dashboard.ts');
+    expect(laden).toContain('currentGuild()');
+    expect(laden).not.toContain('discord.guild.get()');
+  });
+
+  it('lässt einen langen Modulnamen die Seite weiterhin nicht breiter machen', () => {
+    // Ebenfalls ein Fix von nach dem Referenzstand: das alte Layout hatte
+    // hier einen echten Ueberlauf, und den fuehren wir nicht wieder ein.
     const karte = lies('apps/web/src/components/shared/module-card.tsx');
     expect(karte).toContain('min-w-0');
     expect(karte).toContain('break-words');
-  });
-
-  it('drängt die Modulkacheln nicht zu früh in fünf Spalten', () => {
-    expect(seite).toContain('sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5');
   });
 });
 
@@ -293,5 +366,79 @@ describe('Kalender: Zeitraum und Liste sind entkoppelt', () => {
     for (const text of ['Event erstellen', '/kalender/verwaltung', '<EventKarte', '<Agendaansicht']) {
       expect(seite, text).toContain(text);
     }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Kalender: die Liste heisst auf jedem Geraet dasselbe
+// ---------------------------------------------------------------------------
+
+describe('Kalender: eine Regel für alle Geräte', () => {
+  const seite = lies('apps/web/src/app/(app)/kalender/page.tsx');
+  const filter = lies('apps/web/src/modules/calendar/components/kalender-filter.tsx');
+
+  it('entscheidet einmal, welche Abfrage läuft - nicht je Bildschirmgrösse', () => {
+    // Die fachliche Regel steht an einer Stelle und kennt keinen Viewport:
+    // Liste -> alle Events, Monat/Woche -> Zeitraum. Eine zweite Regel für
+    // das Telefon gäbe es sonst genau hier.
+    expect(seite).toContain("const istListe = query.view === 'agenda'");
+    expect(seite).toContain('calendar.listAlleEvents(query, sicht, heute)');
+    expect(seite).toContain('calendar.listEventsInRange(von, bis, query, sicht)');
+  });
+
+  it('rendert die Liste ohne Bildschirmweiche', () => {
+    // Der Listenzweig steht vor der Weiche `md:hidden`/`hidden md:block` -
+    // dieselben Daten, dieselbe Darstellung, auf jedem Gerät.
+    const liste = seite.indexOf(') : istListe ? (');
+    const weiche = seite.indexOf('md:hidden');
+    expect(liste).toBeGreaterThan(0);
+    expect(weiche).toBeGreaterThan(liste);
+  });
+
+  it('filtert die Liste nirgends noch einmal im Browser', () => {
+    // Kein `.filter()` über den Zeitraum nach dem Laden - was die Liste
+    // zeigt, hat der Server so geliefert.
+    expect(seite).not.toContain('zeilen.filter((zeile) => zeile.startAt >= von');
+    expect(seite).not.toContain('selectedRange');
+    expect(seite).not.toContain('currentMonth');
+  });
+
+  it('macht die Ansichtsumschaltung auf dem Telefon erreichbar', () => {
+    // Die Ursache: sie war `md:flex`. Auf dem Telefon erscheinen Monat und
+    // Woche als Tagesliste - ohne Umschalter sah man eine Liste, änderte den
+    // Zeitraum, und sie wurde kürzer. Das war die Monatsansicht, aber nichts
+    // sagte das, und die echte Liste war nicht erreichbar.
+    expect(filter).toContain('<div className="flex rounded-lg border border-border p-0.5">');
+    expect(filter).not.toContain('hidden rounded-lg border border-border p-0.5 md:flex');
+  });
+
+  it('nennt die Monatsansicht auf dem Telefon nicht mehr «Terminliste»', () => {
+    // Der Hinweis benannte die Monatsansicht als Liste - genau die
+    // Verwechslung, über die der Fehler gemeldet wurde.
+    expect(filter).not.toContain('Auf dem Telefon zeigt der Kalender die Terminliste');
+    // Auf eine Wendung geprüft, die der Zeilenumbruch von Prettier nicht
+    // zerlegt - der Satz selbst darf sich umbrechen.
+    expect(filter).toContain('erscheint dieser Zeitraum als Tagesliste');
+  });
+
+  it('zeigt den Hinweis nur dort, wo der Zeitraum überhaupt wirkt', () => {
+    const stelle = filter.indexOf('Auf dem Telefon erscheint dieser Zeitraum');
+    expect(stelle).toBeGreaterThan(0);
+    expect(filter.slice(Math.max(0, stelle - 400), stelle)).toContain('{zeitraumRelevant ? (');
+  });
+
+  it('blendet die Zeitraumsteuerung in der Liste auf jedem Gerät aus', () => {
+    expect(seite).toContain('zeitraumRelevant={!istListe}');
+    expect(filter).toContain('{zeitraumRelevant ? (');
+  });
+
+  it('behält Monat und Woche als eigene Ansichten', () => {
+    // Nichts entfernt: auf dem Telefon erscheinen sie weiterhin als
+    // Tagesliste, am Rechner als Raster.
+    expect(seite).toContain('<Monatsansicht');
+    expect(seite).toContain('<Wochenansicht');
+    expect(filter).toContain("['month', 'Monat']");
+    expect(filter).toContain("['week', 'Woche']");
+    expect(filter).toContain("['agenda', 'Liste']");
   });
 });

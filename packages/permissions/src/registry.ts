@@ -94,6 +94,28 @@ export const CORE_PERMISSIONS: PermissionDefinition[] = [
     critical: true,
   },
   /**
+   * Der Zustand der Sicherungen.
+   *
+   * Eigene Berechtigung und nicht `settings.view`, weil die Auskunft eine
+   * andere Vertraulichkeit hat: sie nennt Pfade auf dem Server, die
+   * Datenbankversion, den Git-Commit und den Fingerabdruck des
+   * Hauptschluessels. Das gehoert nicht zu «Einstellungen ansehen», das auch
+   * eine Moderatorenrolle haben kann.
+   *
+   * Nur ansehen. Eine Sicherung ausloesen oder wiederherstellen kann die
+   * WebApp nicht - das laeuft ausschliesslich ueber die CLI auf dem Server
+   * (siehe deploy/backup/README.md). Es gibt deshalb keine zweite,
+   * schreibende Berechtigung: sie waere eine Berechtigung fuer eine Handlung,
+   * die es nicht gibt.
+   */
+  {
+    key: 'backup.view',
+    label: 'Sicherungen ansehen',
+    description:
+      'Den Zustand der Backups einsehen: Zeitpunkte, Prüfergebnisse und Restore-Tests. Keine Möglichkeit, Sicherungen herunterzuladen oder auszulösen.',
+    module: 'core',
+  },
+  /**
    * Integrationen: technische Zugangsdaten.
    *
    * Fein geschnitten, weil «ansehen» und «Bot-Token austauschen» nicht

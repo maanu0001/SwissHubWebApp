@@ -1,0 +1,225 @@
+#!/usr/bin/env bash
+#
+# SwissHub - eine Sicherung wirklich wiederherstellen, in einer Wegwerf-Umgebung.
+#
+#   swisshub-restore-test              # die neueste Sicherung
+#   swisshub-restore-test 2026-09-26T030000Z
+#
+# ## Warum es diesen Test gibt
+#
+# Weil eine richtige Pruefsumme nichts darueber sagt, ob PostgreSQL das SQL
+# darin annimmt. Ein Backup ist erst dann ein Backup, wenn es einmal
+# zurueckgelesen wurde - und zwar nicht "im Prinzip", sondern in dieser Woche,
+# mit dieser Datei.
+#
+# ## Was hier isoliert ist
+#
+# - **Die Datenbank.** Eingespielt wird in eine eigens angelegte, zufaellig
+#   benannte Datenbank beziehungsweise in einen Wegwerf-Container. Die
+#   produktive Datenbank wird nur gelesen (fuer nichts ausser der Verbindung)
+#   und nie beschrieben.
+# - **Die Anwendung.** Sie wird nicht gestartet. Kein Bot, kein Scheduler, kein
+#   Hintergrundjob, kein Discord-Token - eine Anwendung, die mit produktiven
+#   Tokens auf einer Testdatenbank laeuft, wuerde auf dem echten Discord-Server
+#   handeln.
+# - **Das Netz.** Im Container-Modus laeuft der Wegwerf-PostgreSQL mit
+#   `--network none`. Gesprochen wird ueber `docker exec`, nicht ueber TCP.
+#
+# ## Wann er als bestanden gilt
+#
+# Nur wenn die Daten tatsaechlich angekommen sind: die Zahl der Tabellen **und**
+# die Zahl der Datenzeilen in der wiederhergestellten Datenbank muessen dem
+# entsprechen, was im Export steht. Ein Restore, der das Schema aufbaut und die
+# Daten verliert, laeuft ohne Fehlermeldung durch - ohne diesen Vergleich waere
+# das ein gruener Test.
+
+set -euo pipefail
+umask 077
+
+BACKUP_BIN_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+BACKUP_LIB_DIR="$(cd -- "${BACKUP_BIN_DIR}/../lib" && pwd)"
+# shellcheck source=../lib/gemeinsam.sh
+source "${BACKUP_LIB_DIR}/gemeinsam.sh"
+
+lade_konfiguration
+pruefe_python
+
+KENNUNG=''
+while (($# > 0)); do
+  case "$1" in
+    -h | --help)
+      sed -n '2,6p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+      exit 0
+      ;;
+    -*) abbruch "${CODE_KONFIGURATION}" "Unbekannte Option: $1" ;;
+    *) KENNUNG="$1" ;;
+  esac
+  shift
+done
+
+if [[ -z "${KENNUNG}" ]]; then
+  KENNUNG="$(neueste_sicherung)"
+  [[ -n "${KENNUNG}" ]] || abbruch "${CODE_FEHLER}" "Es gibt keine Sicherung in ${SICHERUNGEN_DIR}."
+fi
+PFAD="$(pfad_der_sicherung "${KENNUNG}")" ||
+  abbruch "${CODE_FEHLER}" "Keine Sicherung mit der Kennung ${KENNUNG}."
+
+DUMP="${PFAD}/datenbank.sql.gz"
+[[ -f "${DUMP}" ]] || abbruch "${CODE_FEHLER}" "${KENNUNG} enthaelt keinen Datenbankexport."
+
+protokoll "Restore-Test fuer ${KENNUNG}."
+
+# Zuerst die Integritaet. Einen Restore-Test auf eine beschaedigte Datei
+# anzusetzen, verschwendet Minuten und beantwortet eine Frage, die schon
+# beantwortet ist.
+if ! python3 "${MANIFEST_PY}" pruefe "${PFAD}" >/dev/null 2>&1; then
+  python3 "${MANIFEST_PY}" vermerke "${PFAD}" restoreTest gescheitert "Integritaetspruefung nicht bestanden" || true
+  abbruch "${CODE_PRUEFUNG}" "${KENNUNG} besteht schon die Integritaetspruefung nicht - kein Restore-Test."
+fi
+
+# Was drinstehen muss.
+ERWARTUNG="$(python3 "${MANIFEST_PY}" erwartung "${DUMP}")"
+SOLL_TABELLEN="$(printf '%s\n' "${ERWARTUNG}" | sed -n 's/^tabellen=//p')"
+SOLL_ZEILEN="$(printf '%s\n' "${ERWARTUNG}" | sed -n 's/^zeilen=//p')"
+protokoll "Der Export enthaelt ${SOLL_TABELLEN} Tabellen und ${SOLL_ZEILEN} Datenzeilen."
+
+if ((SOLL_TABELLEN == 0)); then
+  python3 "${MANIFEST_PY}" vermerke "${PFAD}" restoreTest gescheitert "Der Export enthaelt keine Tabelle" || true
+  abbruch "${CODE_PRUEFUNG}" "Der Export enthaelt keine einzige Tabelle."
+fi
+
+# Zaehlt Tabellen und Zeilen in der wiederhergestellten Datenbank.
+#
+# `query_to_xml` fuehrt fuer jede Tabelle ein echtes `count(*)` aus - eine
+# Schaetzung aus `pg_class.reltuples` waere nach einem frischen Restore ohne
+# `ANALYZE` naemlich meist null, und der Test bestuende nie.
+readonly ZAEHL_SQL="SELECT (SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public' AND table_type = 'BASE TABLE') AS tabellen, (SELECT coalesce(sum(zahl), 0) FROM (SELECT (xpath('/row/c/text()', query_to_xml(format('SELECT count(*) AS c FROM %I.%I', table_schema, table_name), false, true, '')))[1]::text::bigint AS zahl FROM information_schema.tables WHERE table_schema = 'public' AND table_type = 'BASE TABLE') t) AS zeilen;"
+
+MODUS="$(datenbank_modus)"
+IST=''
+
+if [[ "${MODUS}" == "direkt" ]]; then
+  # --- Wegwerf-Datenbank auf demselben Server -------------------------------
+  #
+  # Der Weg fuer Entwicklung, Tests und jede Installation, auf der PostgreSQL
+  # direkt erreichbar ist. Eine eigene Datenbank ist eine eigene Datenbank:
+  # kein Objekt darin beruehrt die produktive.
+  pruefe_werkzeuge psql createdb dropdb
+
+  ZIEL_DB="swisshub_restoretest_$(date -u '+%Y%m%d%H%M%S')_${RANDOM}"
+  # Die Verbindungsadresse ohne Datenbanknamen, damit `psql` sich mit der
+  # neuen Datenbank verbinden kann.
+  VERWALTUNG="${DATABASE_URL}"
+
+  entferne_testdatenbank() {
+    if [[ -n "${ZIEL_DB:-}" ]]; then
+      psql -q -X -v ON_ERROR_STOP=0 -c "DROP DATABASE IF EXISTS \"${ZIEL_DB}\" WITH (FORCE);" \
+        "${VERWALTUNG}" >/dev/null 2>&1 || true
+      protokoll "Wegwerf-Datenbank entfernt: ${ZIEL_DB}"
+    fi
+  }
+  trap entferne_testdatenbank EXIT
+
+  protokoll "Lege Wegwerf-Datenbank ${ZIEL_DB} an ..."
+  psql -q -X -v ON_ERROR_STOP=1 -c "CREATE DATABASE \"${ZIEL_DB}\";" "${VERWALTUNG}" >/dev/null ||
+    abbruch "${CODE_DATENBANK}" "Die Wegwerf-Datenbank liess sich nicht anlegen."
+
+  # Die Adresse der neuen Datenbank: der Pfadanteil der URL wird ersetzt.
+  ZIEL_URL="$(python3 - "${DATABASE_URL}" "${ZIEL_DB}" <<'PY'
+import sys
+from urllib.parse import urlsplit, urlunsplit
+teile = urlsplit(sys.argv[1])
+print(urlunsplit(teile._replace(path="/" + sys.argv[2])))
+PY
+  )"
+
+  protokoll "Spiele den Export ein ..."
+  if ! gzip -cd "${DUMP}" | psql -q -X -v ON_ERROR_STOP=1 "${ZIEL_URL}" >/dev/null; then
+    python3 "${MANIFEST_PY}" vermerke "${PFAD}" restoreTest gescheitert "psql hat den Export nicht angenommen" || true
+    abbruch "${CODE_DATENBANK}" "Der Export liess sich nicht einspielen - diese Sicherung ist nicht wiederherstellbar."
+  fi
+
+  IST="$(psql -tAX -v ON_ERROR_STOP=1 -c "${ZAEHL_SQL}" "${ZIEL_URL}")"
+else
+  # --- Wegwerf-Container ----------------------------------------------------
+  #
+  # Der Weg auf dem SwissHub-Server: dort laeuft PostgreSQL in Docker, und auf
+  # dem Host gibt es kein `psql`. Der Container ist neu, leer, ohne Netz und
+  # verschwindet danach - naeher an "wie nach einem Serververlust" kommt ein
+  # Test ohne zweiten Server nicht.
+  pruefe_werkzeuge docker
+  ABBILD="${SWISSHUB_BACKUP_TEST_IMAGE:-postgres:16-alpine}"
+  CONTAINER="swisshub-restoretest-$(date -u '+%Y%m%d%H%M%S')-${RANDOM}"
+
+  entferne_container() {
+    if [[ -n "${CONTAINER:-}" ]]; then
+      docker rm -f "${CONTAINER}" >/dev/null 2>&1 || true
+      protokoll "Wegwerf-Container entfernt: ${CONTAINER}"
+    fi
+  }
+  trap entferne_container EXIT
+
+  protokoll "Starte Wegwerf-Container ${CONTAINER} (${ABBILD}, ohne Netz) ..."
+  # `--network none`: der Container kann nichts erreichen und nichts erreicht
+  # ihn. Gesprochen wird ueber `docker exec`.
+  # Das Passwort ist ein Wegwerfwert fuer einen Container, der in zwei Minuten
+  # geloescht ist, und er ist von aussen nicht erreichbar.
+  docker run -d --rm --name "${CONTAINER}" --network none \
+    -e POSTGRES_PASSWORD=restoretest \
+    -e POSTGRES_DB=restoretest \
+    "${ABBILD}" >/dev/null ||
+    abbruch "${CODE_VORAUSSETZUNG}" "Der Wegwerf-Container liess sich nicht starten."
+
+  protokoll "Warte, bis er bereit ist ..."
+  GRENZE=$(($(date +%s) + 120))
+  until docker exec "${CONTAINER}" pg_isready -U postgres -q 2>/dev/null; do
+    if (($(date +%s) >= GRENZE)); then
+      abbruch "${CODE_VORAUSSETZUNG}" "Der Wegwerf-Container wurde nicht bereit."
+    fi
+    sleep 2
+  done
+
+  protokoll "Spiele den Export ein ..."
+  if ! gzip -cd "${DUMP}" |
+    docker exec -i "${CONTAINER}" psql -q -X -v ON_ERROR_STOP=1 -U postgres -d restoretest >/dev/null; then
+    python3 "${MANIFEST_PY}" vermerke "${PFAD}" restoreTest gescheitert "psql hat den Export nicht angenommen" || true
+    abbruch "${CODE_DATENBANK}" "Der Export liess sich nicht einspielen - diese Sicherung ist nicht wiederherstellbar."
+  fi
+
+  IST="$(docker exec -i "${CONTAINER}" psql -tAX -v ON_ERROR_STOP=1 -U postgres -d restoretest -c "${ZAEHL_SQL}")"
+fi
+
+# --- Vergleich ---------------------------------------------------------------
+
+IST_TABELLEN="$(printf '%s' "${IST}" | cut -d'|' -f1 | tr -d '[:space:]')"
+IST_ZEILEN="$(printf '%s' "${IST}" | cut -d'|' -f2 | tr -d '[:space:]')"
+protokoll "Wiederhergestellt: ${IST_TABELLEN} Tabellen, ${IST_ZEILEN} Zeilen."
+
+BEANSTANDUNG=''
+if [[ "${IST_TABELLEN}" != "${SOLL_TABELLEN}" ]]; then
+  BEANSTANDUNG="Tabellen: ${IST_TABELLEN} statt ${SOLL_TABELLEN}"
+elif [[ "${IST_ZEILEN}" != "${SOLL_ZEILEN}" ]]; then
+  BEANSTANDUNG="Zeilen: ${IST_ZEILEN} statt ${SOLL_ZEILEN}"
+fi
+
+if [[ -n "${BEANSTANDUNG}" ]]; then
+  python3 "${MANIFEST_PY}" vermerke "${PFAD}" restoreTest gescheitert "${BEANSTANDUNG}" || true
+  spiegle_manifeste || true
+  schreibe_status \
+    "letzterRestoreTest=$(date -u '+%Y-%m-%dT%H:%M:%SZ')" \
+    "letzterRestoreTestStatus=gescheitert" \
+    "letzterRestoreTestKennung=${KENNUNG}" \
+    "letzterRestoreTestMeldung=${BEANSTANDUNG}" || true
+  abbruch "${CODE_PRUEFUNG}" "Der Restore hat nicht das ergeben, was im Export steht - ${BEANSTANDUNG}."
+fi
+
+python3 "${MANIFEST_PY}" vermerke "${PFAD}" restoreTest bestanden \
+  "${IST_TABELLEN} Tabellen, ${IST_ZEILEN} Zeilen in isolierter Datenbank"
+spiegle_manifeste || warnung "Die Manifeste liessen sich nicht spiegeln."
+schreibe_status \
+  "letzterRestoreTest=$(date -u '+%Y-%m-%dT%H:%M:%SZ')" \
+  "letzterRestoreTestStatus=bestanden" \
+  "letzterRestoreTestKennung=${KENNUNG}" \
+  "letzterRestoreTestMeldung=${IST_TABELLEN} Tabellen, ${IST_ZEILEN} Zeilen" || true
+
+protokoll "Restore-Test bestanden: ${KENNUNG} laesst sich wiederherstellen."

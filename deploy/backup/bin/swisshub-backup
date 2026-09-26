@@ -1,0 +1,354 @@
+#!/usr/bin/env bash
+#
+# SwissHub - eine Sicherung erstellen.
+#
+#   swisshub-backup                 # vollstaendige Sicherung
+#   swisshub-backup --nur-datenbank # ohne Dateiarchiv
+#
+# Einrichtung: siehe deploy/backup/README.md.
+#
+# ## Die Zusage dieses Skripts
+#
+# Eine Sicherung existiert erst, wenn sie **vollstaendig und geprueft** ist.
+# Gearbeitet wird in `.arbeit/`, und erst nach der Integritaetspruefung wandert
+# das Verzeichnis mit einem `mv` an seinen Platz. `mv` innerhalb eines
+# Dateisystems ist eine einzige Operation - es gibt keinen Zeitpunkt, an dem
+# eine halbe Sicherung unter `sicherungen/` liegt.
+#
+# Daraus folgt die zweite Zusage: **ein gescheiterter Lauf kann die letzte
+# funktionierende Sicherung nicht beschaedigen.** Er schreibt nie in ein
+# bestehendes Sicherungsverzeichnis, und aufgeraeumt wird erst danach - und nur,
+# wenn eine geprueft gueltige Sicherung uebrigbleibt.
+#
+# ## Was es nicht tut
+#
+# Es aendert nichts an der produktiven PostgreSQL-Konfiguration, richtet keine
+# Replikation ein, ersetzt keinen Container und startet keinen Dienst neu. Es
+# liest.
+
+set -euo pipefail
+
+# Alles, was hier entsteht, ist `0600` bzw. `0700`. Das Statusverzeichnis
+# bekommt seine Rechte ausdruecklich - es ist die einzige Ausnahme.
+umask 077
+
+BACKUP_BIN_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+BACKUP_LIB_DIR="$(cd -- "${BACKUP_BIN_DIR}/../lib" && pwd)"
+# shellcheck source=../lib/gemeinsam.sh
+source "${BACKUP_LIB_DIR}/gemeinsam.sh"
+
+NUR_DATENBANK=0
+while (($# > 0)); do
+  case "$1" in
+    --nur-datenbank) NUR_DATENBANK=1 ;;
+    -h | --help)
+      sed -n '2,12p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+      exit 0
+      ;;
+    *) abbruch "${CODE_KONFIGURATION}" "Unbekannte Option: $1" ;;
+  esac
+  shift
+done
+
+lade_konfiguration
+pruefe_python
+pruefe_werkzeuge gzip tar sha256sum flock df du awk date
+
+case "$(datenbank_modus)" in
+  direkt) pruefe_werkzeuge pg_dump ;;
+  compose)
+    pruefe_werkzeuge docker
+    [[ -f "${PROJECT_DIR}/docker-compose.prod.yml" ]] ||
+      abbruch "${CODE_KONFIGURATION}" \
+        "Weder DATABASE_URL gesetzt noch ${PROJECT_DIR}/docker-compose.prod.yml vorhanden."
+    ;;
+esac
+
+richte_verzeichnisse_ein
+nimm_sperre
+
+KENNUNG="$(neue_kennung)"
+# Zwei Laeufe in derselben Sekunde bekaemen dieselbe Kennung.
+#
+# Das ist kein erfundener Fall: `swisshub-recovery wiederherstellen` legt zuerst
+# eine Sicherheitssicherung an, und wer danach von Hand noch einmal sichert,
+# trifft dieselbe Sekunde. Genau daran ist der Integrationstest beim ersten Lauf
+# gescheitert - die Sicherung brach mit «existiert bereits» ab, und im
+# Restore-Pfad haette das die Wiederherstellung verhindert.
+#
+# Gewartet wird unter der Sperre, deshalb kann dazwischen kein zweiter Lauf
+# etwas anlegen. Die Pruefung vor dem `mv` unten bleibt trotzdem stehen: sie
+# kostet nichts und ist die Zusage, dass nie etwas ueberschrieben wird.
+for _versuch in 1 2 3 4 5; do
+  [[ -e "${SICHERUNGEN_DIR}/${KENNUNG}" ]] || break
+  protokoll "Die Kennung ${KENNUNG} ist belegt - eine Sekunde warten."
+  sleep 1
+  KENNUNG="$(neue_kennung)"
+done
+
+BEGONNEN="$(date -u '+%Y-%m-%dT%H:%M:%SZ')"
+protokoll "Sicherung ${KENNUNG} beginnt."
+
+# Ein Fehlschlag wird vermerkt, damit die Uebersicht ihn zeigt. Ohne das
+# stuende dort weiterhin der letzte Erfolg, und niemand wuesste, dass seit
+# drei Wochen nichts mehr gelingt.
+melde_fehlschlag() {
+  local grund="$1"
+  schreibe_status \
+    "letzterLauf=${BEGONNEN}" \
+    "letzterLaufStatus=gescheitert" \
+    "letzterFehler=${grund}" \
+    "letzterFehlerAm=$(date -u '+%Y-%m-%dT%H:%M:%SZ')" || true
+}
+
+ARBEIT="${ARBEIT_DIR}/${KENNUNG}.$$"
+aufraeumen() {
+  local code=$?
+  if [[ -d "${ARBEIT}" ]]; then
+    rm -rf -- "${ARBEIT}"
+  fi
+  exit "${code}"
+}
+trap aufraeumen EXIT
+
+# --- Platz ------------------------------------------------------------------
+
+UPLOAD_MB=0
+if ((NUR_DATENBANK == 0)) && [[ -d "${UPLOAD_DIR}" ]]; then
+  UPLOAD_MB="$(belegte_mb "${UPLOAD_DIR}")"
+  if ((UPLOAD_MB > DATEIEN_MAX_MB)); then
+    melde_fehlschlag "Upload-Verzeichnis ist ${UPLOAD_MB} MB, Grenze ${DATEIEN_MAX_MB} MB."
+    abbruch "${CODE_DATEIEN}" \
+      "${UPLOAD_DIR} ist ${UPLOAD_MB} MB gross, die Grenze liegt bei ${DATEIEN_MAX_MB} MB. SWISSHUB_BACKUP_DATEIEN_MAX_MB anheben oder mit --nur-datenbank sichern - aber dann fehlen die Dateien in dieser Sicherung."
+  fi
+fi
+
+DB_MB="$(datenbank_mb)"
+# Der Dump wird komprimiert kleiner als die Datenbank; die Haelfte ist eine
+# vorsichtige Annahme, und das Dateiarchiv wird voll gerechnet, weil Videos
+# und Bilder sich kaum noch komprimieren.
+pruefe_platz $(((DB_MB / 2) + UPLOAD_MB + 1))
+
+mkdir -p "${ARBEIT}"
+
+# --- Datenbank --------------------------------------------------------------
+
+protokoll "Datenbankexport im Modus $(datenbank_modus) ..."
+if ! datenbank_export | gzip -9 >"${ARBEIT}/datenbank.sql.gz"; then
+  melde_fehlschlag "Der Datenbankexport ist gescheitert."
+  abbruch "${CODE_DATENBANK}" "pg_dump ist gescheitert - es wird keine Sicherung abgelegt."
+fi
+
+# Eine leere oder winzige Datei ist kein Export. `pg_dump` schreibt selbst fuer
+# eine leere Datenbank ueber 1000 Bytes Kopf und Fuss; alles darunter heisst,
+# dass gar nichts angekommen ist.
+DB_BYTES="$(stat -c '%s' "${ARBEIT}/datenbank.sql.gz")"
+if ((DB_BYTES < 200)); then
+  melde_fehlschlag "Der Datenbankexport ist leer (${DB_BYTES} Bytes)."
+  abbruch "${CODE_DATENBANK}" "Der Datenbankexport hat nur ${DB_BYTES} Bytes - das ist kein Dump."
+fi
+protokoll "Datenbankexport: ${DB_BYTES} Bytes."
+
+KOMPONENTEN="datenbank"
+
+# Die Serverversion steht im Dump selbst - die verlaesslichste Quelle, denn sie
+# beschreibt genau den Export, der hier liegt, und nicht den Client, der ihn
+# geholt hat.
+POSTGRES_VERSION="$(gzip -cd "${ARBEIT}/datenbank.sql.gz" 2>/dev/null |
+  sed -n 's/^-- Dumped from database version \(.*\)$/\1/p' | head -n 1 || true)"
+
+# --- Dateien ----------------------------------------------------------------
+
+if ((NUR_DATENBANK == 1)); then
+  protokoll "Dateiarchiv uebersprungen (--nur-datenbank)."
+elif [[ ! -d "${UPLOAD_DIR}" ]]; then
+  # Eine Installation, die nie etwas hochgeladen hat, ist kein Fehlerfall.
+  protokoll "Kein Upload-Verzeichnis unter ${UPLOAD_DIR} - kein Dateiarchiv."
+else
+  protokoll "Dateiarchiv aus ${UPLOAD_DIR} (${UPLOAD_MB} MB) ..."
+  # `-C` und `.`: die Pfade im Archiv sind relativ zum Upload-Verzeichnis.
+  # Ein Archiv mit absoluten Pfaden waere beim Auspacken eine Waffe.
+  if ! tar -czf "${ARBEIT}/dateien.tar.gz" -C "${UPLOAD_DIR}" .; then
+    melde_fehlschlag "Das Dateiarchiv ist gescheitert."
+    abbruch "${CODE_DATEIEN}" "tar ist gescheitert - es wird keine Sicherung abgelegt."
+  fi
+  KOMPONENTEN="${KOMPONENTEN},dateien"
+  protokoll "Dateiarchiv: $(stat -c '%s' "${ARBEIT}/dateien.tar.gz") Bytes."
+fi
+
+# --- Umgebung ---------------------------------------------------------------
+#
+# Was hier hineingeht: die **Namen** der Variablen, die die Anwendung braucht.
+# Was nicht: ein einziger Wert. Nach einem Totalverlust ist die Liste die
+# Antwort auf "was muss ich wieder beschaffen?" - die Werte dazu liegen in der
+# Offline-Sicherung des Betreibers, nicht hier.
+{
+  printf '# SwissHub - Umgebung zur Sicherung %s\n' "${KENNUNG}"
+  printf '# Nur Variablennamen. Keine Werte. Keine Geheimnisse.\n#\n'
+  printf '# Die Werte gehoeren in die Offline-Sicherung - siehe README.md,\n'
+  printf '# Abschnitt "Schluessel und Geheimnisse".\n\n'
+  if [[ -f "${APP_ENV}" ]]; then
+    printf '## Variablen in %s\n' "${APP_ENV}"
+    python3 "${MANIFEST_PY}" variablennamen "${APP_ENV}"
+  else
+    printf '## %s war beim Sichern nicht lesbar.\n' "${APP_ENV}"
+  fi
+} >"${ARBEIT}/umgebung.txt"
+KOMPONENTEN="${KOMPONENTEN},umgebung"
+
+# --- Geheimnisse, wenn der Betreiber es eingerichtet hat --------------------
+#
+# Optional und mit Absicht nicht Vorgabe. Der Standardfall ist: Geheimnisse
+# werden **nicht** mitgesichert. Der Grund ist unbequem, aber einfach - liegt
+# der `MASTER_ENCRYPTION_KEY` neben dem Datenbankexport, dann hat jeder, der
+# die Sicherung hat, beides. Die Verschluesselung der Integrationen waere damit
+# genau so viel wert wie der Zugriffsschutz des Backup-Verzeichnisses.
+#
+# Wer trotzdem eine Kopie im Backup will, hinterlegt oeffentliche
+# age-Empfaengerschluessel. Dann verschluesselt der Server das Paket und kann
+# es selbst nicht mehr lesen: zum Verschluesseln braucht age nur den
+# oeffentlichen Teil. Der private Schluessel bleibt offline.
+GEHEIMNISSE="nicht gesichert"
+if [[ -n "${AGE_RECIPIENTS}" ]]; then
+  if ! command -v age >/dev/null 2>&1; then
+    warnung "SWISSHUB_BACKUP_AGE_RECIPIENTS ist gesetzt, aber age ist nicht installiert - die Geheimnisse werden nicht gesichert."
+    GEHEIMNISSE="nicht gesichert (age fehlt)"
+  elif [[ ! -f "${APP_ENV}" ]]; then
+    warnung "${APP_ENV} ist nicht lesbar - die Geheimnisse werden nicht gesichert."
+    GEHEIMNISSE="nicht gesichert (${APP_ENV} fehlt)"
+  else
+    EMPFAENGER=()
+    for schluessel in ${AGE_RECIPIENTS//,/ }; do
+      EMPFAENGER+=(--recipient "${schluessel}")
+    done
+    if tar -czf - -C "$(dirname -- "${APP_ENV}")" "$(basename -- "${APP_ENV}")" |
+      age "${EMPFAENGER[@]}" >"${ARBEIT}/geheimnisse.tar.gz.age"; then
+      KOMPONENTEN="${KOMPONENTEN},geheimnisse"
+      GEHEIMNISSE="mit age verschluesselt (${#EMPFAENGER[@]} Empfaenger)"
+      protokoll "Geheimnisse versiegelt: ${GEHEIMNISSE}."
+    else
+      rm -f -- "${ARBEIT}/geheimnisse.tar.gz.age"
+      warnung "age ist gescheitert - die Geheimnisse werden nicht gesichert."
+      GEHEIMNISSE="nicht gesichert (age gescheitert)"
+    fi
+  fi
+fi
+
+# --- Manifest ---------------------------------------------------------------
+
+ANGABEN="${ARBEIT}/.angaben"
+{
+  printf 'id=%s\n' "${KENNUNG}"
+  printf 'erstelltAm=%s\n' "$(date -u '+%Y-%m-%dT%H:%M:%SZ')"
+  printf 'typ=%s\n' "$( ((NUR_DATENBANK == 1)) && printf 'nur-datenbank' || printf 'vollstaendig')"
+  printf 'status=abgeschlossen\n'
+  printf 'host=%s\n' "$(hostname 2>/dev/null || printf 'unbekannt')"
+  printf 'komponenten=%s\n' "${KOMPONENTEN}"
+  printf 'postgresVersion=%s\n' "${POSTGRES_VERSION:-}"
+  printf 'gitCommit=%s\n' "$(git -C "${PROJECT_DIR}" rev-parse HEAD 2>/dev/null || printf '')"
+  printf 'datenbank=%s\n' "$(datenbank_modus)"
+  printf 'uploadVerzeichnis=%s\n' "$( ((NUR_DATENBANK == 0)) && [[ -d ${UPLOAD_DIR} ]] && printf '%s' "${UPLOAD_DIR}" || printf '')"
+  printf 'schluesselFingerabdruck=%s\n' "$(master_fingerabdruck)"
+  printf 'geheimnisse=%s\n' "${GEHEIMNISSE}"
+} >"${ANGABEN}"
+
+python3 "${MANIFEST_PY}" schreibe "${ARBEIT}" "${ANGABEN}" >/dev/null ||
+  { melde_fehlschlag "Das Manifest liess sich nicht schreiben."; abbruch "${CODE_FEHLER}" "Manifest gescheitert."; }
+rm -f -- "${ANGABEN}"
+
+# --- Pruefen, dann erst ablegen ---------------------------------------------
+#
+# Die Reihenfolge ist der Kern: was die Pruefung nicht besteht, wird nie eine
+# Sicherung. Sonst laege unter `sicherungen/` eine Datei, die aussieht wie eine
+# Sicherung, und die Uebersicht meldete Erfolg.
+protokoll "Integritaet der frischen Sicherung pruefen ..."
+if ! python3 "${MANIFEST_PY}" pruefe "${ARBEIT}"; then
+  melde_fehlschlag "Die frische Sicherung hat die Integritaetspruefung nicht bestanden."
+  abbruch "${CODE_PRUEFUNG}" "Die frische Sicherung ist nicht in Ordnung - sie wird verworfen."
+fi
+python3 "${MANIFEST_PY}" vermerke "${ARBEIT}" integritaet bestanden "beim Erstellen geprueft"
+
+ZIEL="${SICHERUNGEN_DIR}/${KENNUNG}"
+if [[ -e "${ZIEL}" ]]; then
+  # Kann nur passieren, wenn zwei Laeufe in derselben Sekunde beginnen - und
+  # das verhindert die Sperre. Bestehendes wird trotzdem nie ueberschrieben.
+  melde_fehlschlag "Es gibt bereits eine Sicherung ${KENNUNG}."
+  abbruch "${CODE_FEHLER}" "${ZIEL} existiert bereits - nichts ueberschrieben."
+fi
+mv -- "${ARBEIT}" "${ZIEL}"
+trap - EXIT
+protokoll "Sicherung abgelegt: ${ZIEL}"
+
+# --- Aufbewahrung -----------------------------------------------------------
+#
+# Erst jetzt, und nur mit Netz: geloescht wird ausschliesslich, wenn die
+# neueste behaltene Sicherung die Pruefung besteht. Ein defektes Backup darf
+# nicht dazu fuehren, dass die aelteren, die noch gut waren, verschwinden.
+protokoll "Aufbewahrung: ${KEEP_DAILY} taeglich, ${KEEP_WEEKLY} wochenweise, ${KEEP_MONTHLY} monatsweise."
+mapfile -t WEG < <(python3 "${MANIFEST_PY}" aufbewahrung "${SICHERUNGEN_DIR}" \
+  "${KEEP_DAILY}" "${KEEP_WEEKLY}" "${KEEP_MONTHLY}")
+
+if ((${#WEG[@]} == 0)); then
+  protokoll "Keine Sicherung faellt aus der Aufbewahrung."
+else
+  NEUESTE="$(neueste_sicherung)"
+  NEUESTE_PFAD="$(pfad_der_sicherung "${NEUESTE}")" || NEUESTE_PFAD=''
+  if [[ -z "${NEUESTE_PFAD}" ]] || ! python3 "${MANIFEST_PY}" pruefe "${NEUESTE_PFAD}" >/dev/null; then
+    warnung "Die neueste Sicherung besteht die Pruefung nicht - es wird nichts geloescht."
+  else
+    for KANDIDAT in "${WEG[@]}"; do
+      # Die Kennung wird gegen das Muster geprueft und der Pfad aus
+      # `${SICHERUNGEN_DIR}` zusammengesetzt. Es gibt keinen Weg, auf dem ein
+      # Wert von aussen ein Verzeichnis ausserhalb treffen koennte.
+      if [[ "${KANDIDAT}" == "${KENNUNG}" ]]; then
+        # Die Sicherung dieses Laufs kommt niemals weg.
+        continue
+      fi
+      if PFAD="$(pfad_der_sicherung "${KANDIDAT}")"; then
+        rm -rf -- "${PFAD}"
+        protokoll "Entfernt: ${KANDIDAT}"
+      else
+        warnung "Uebersprungen, keine gueltige Sicherung: ${KANDIDAT}"
+      fi
+    done
+  fi
+fi
+
+# --- Status fuer die WebApp -------------------------------------------------
+
+spiegle_manifeste || warnung "Die Manifeste liessen sich nicht spiegeln."
+schreibe_status \
+  "letzterLauf=${BEGONNEN}" \
+  "letzterLaufStatus=erfolgreich" \
+  "letzterErfolg=$(date -u '+%Y-%m-%dT%H:%M:%SZ')" \
+  "letzteKennung=${KENNUNG}" \
+  "letzterFehler=" \
+  "letzterFehlerAm=" \
+  "backupVerzeichnis=${BACKUP_DIR}" \
+  "aufbewahrung=${KEEP_DAILY}/${KEEP_WEEKLY}/${KEEP_MONTHLY}" \
+  "extern=$([[ -n ${EXTERN_BEFEHL} ]] && printf 'vorbereitet' || printf 'nicht eingerichtet')" ||
+  warnung "Der Status liess sich nicht schreiben."
+
+# --- Externer Speicher ------------------------------------------------------
+#
+# Eine vorbereitete Schnittstelle, kein eingebauter Anbieter. Ist
+# `SWISSHUB_BACKUP_EXTERN_BEFEHL` gesetzt, wird er mit dem Pfad der frischen
+# Sicherung aufgerufen - etwa `rclone copy` oder `restic backup`.
+#
+# Ist er nicht gesetzt, passiert nichts und der Status sagt "nicht
+# eingerichtet". Er sagt nie, ein externes Backup sei vorhanden, wenn keines
+# eingerichtet wurde.
+if [[ -n "${EXTERN_BEFEHL}" ]]; then
+  protokoll "Externer Speicher: ${EXTERN_BEFEHL%% *} ..."
+  if "${EXTERN_BEFEHL}" "${ZIEL}"; then
+    schreibe_status "externLetzterErfolg=$(date -u '+%Y-%m-%dT%H:%M:%SZ')" "extern=erfolgreich"
+    protokoll "Externer Speicher: uebertragen."
+  else
+    schreibe_status "extern=gescheitert" "externLetzterFehlerAm=$(date -u '+%Y-%m-%dT%H:%M:%SZ')"
+    # Kein Abbruch: die lokale Sicherung liegt und ist geprueft. Der
+    # Fehlschlag steht im Status und im Protokoll.
+    warnung "Der externe Speicher hat die Sicherung nicht angenommen. Die lokale Sicherung ist unversehrt."
+  fi
+fi
+
+protokoll "Fertig: ${KENNUNG} ($(liste_sicherungen | wc -l) Sicherungen vorhanden)."

@@ -284,6 +284,7 @@ registerModule({
       entry.key.startsWith('integrations.') ||
       entry.key === 'permissions.manage' ||
       entry.key === 'system.manage' ||
+      entry.key === 'backup.view' ||
       entry.key === 'branding.manage' ||
       entry.key === 'admin.full',
   ),
@@ -314,6 +315,26 @@ registerModule({
       icon: 'Plug',
       group: 'system',
       order: 80,
+    },
+    {
+      /*
+       * Backup & Recovery.
+       *
+       * Nur Auskunft. Gesichert, geprueft und wiederhergestellt wird von
+       * einem systemd-Timer und der CLI auf dem Server - nicht von hier. Der
+       * Grund steht in `deploy/backup/README.md`: die WebApp laeuft als
+       * unprivilegierter Benutzer in einem Container ohne Docker-Socket, und
+       * genau dabei soll es bleiben. Eine Schaltflaeche, die trotzdem ein
+       * Systembackup ausloest, braeuchte einen Weg aus dem Container heraus -
+       * und der waere die Schwachstelle, nicht die Bequemlichkeit wert.
+       */
+      href: '/system/backup',
+      label: 'Backup & Recovery',
+      description: 'Zustand der Sicherungen, Prüfungen und Restore-Tests',
+      permission: 'backup.view',
+      icon: 'DatabaseBackup',
+      group: 'system',
+      order: 81,
     },
     {
       href: '/settings/branding',

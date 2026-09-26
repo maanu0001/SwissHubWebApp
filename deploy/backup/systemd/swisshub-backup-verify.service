@@ -1,0 +1,27 @@
+# SwissHub - Sicherungen pruefen (Pruefsummen und Archivinhalt).
+
+[Unit]
+Description=SwissHub Sicherungen pruefen
+Documentation=file:///opt/swisshub/deploy/backup/README.md
+
+[Service]
+Type=oneshot
+User=root
+WorkingDirectory=/opt/swisshub
+ExecStart=/opt/swisshub/deploy/backup/bin/swisshub-backup-verify
+Nice=15
+IOSchedulingClass=idle
+TimeoutStartSec=2h
+
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=read-only
+ProtectKernelTunables=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+ReadWritePaths=/var/backups/swisshub /var/lib/swisshub
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,52 @@
+# SwissHub - taegliche Sicherung.
+#
+#   sudo cp deploy/backup/systemd/* /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now swisshub-backup.timer
+#
+# Einmal von Hand ausloesen (und zusehen):
+#   sudo systemctl start swisshub-backup.service
+#   sudo journalctl -u swisshub-backup.service -f
+
+[Unit]
+Description=SwissHub Sicherung (Datenbank und Dateien)
+Documentation=file:///opt/swisshub/deploy/backup/README.md
+# Ohne Docker gibt es keinen Postgres-Container, aus dem pg_dump kommt.
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+# root, weil das Skript in /var/backups schreibt und - im Compose-Betrieb -
+# den Docker-Socket braucht. Beides laesst sich einem eigenen Benutzer geben;
+# wer das tut, aendert hier User= und setzt die Rechte entsprechend.
+User=root
+WorkingDirectory=/opt/swisshub
+ExecStart=/opt/swisshub/deploy/backup/bin/swisshub-backup
+
+# Die Sicherung darf den Betrieb nicht ausbremsen. Auf einem Server mit 2 GB
+# RAM ist ein `pg_dump | gzip -9` sonst deutlich zu spueren - und eine
+# Sicherung, die nachts um drei die Anwendung langsam macht, wird irgendwann
+# abgeschaltet.
+Nice=10
+IOSchedulingClass=idle
+CPUSchedulingPolicy=batch
+
+# Ein Lauf, der haengt, soll nicht bis zum naechsten Timer stehen.
+TimeoutStartSec=3h
+
+# Haertung. Absichtlich `full` und nicht `strict`: unter `strict` waere das
+# ganze Dateisystem nur lesbar, und die Sicherung muss schreiben. Was sie
+# schreiben darf, steht unten - und nur das.
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=read-only
+ProtectKernelTunables=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+ReadWritePaths=/var/backups/swisshub /var/lib/swisshub
+
+[Install]
+WantedBy=multi-user.target

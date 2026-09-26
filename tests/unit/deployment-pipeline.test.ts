@@ -130,24 +130,61 @@ describe('Deployment-Workflow', () => {
  * nicht mehr aendern kann.
  */
 describe('Sicherung', () => {
-  const skript = readFileSync(join(process.cwd(), 'deploy/backup.sh'), 'utf8');
+  /*
+   * Das Skript liegt jetzt in `deploy/backup/`; `deploy/backup.sh` ist eine
+   * Weiterleitung, damit ein bestehender Cron-Eintrag nicht ins Leere faellt.
+   * Die Zusage dieser Pruefungen ist dieselbe wie vorher: die Dateien gehoeren
+   * dazu, und niemand darf still nur die Datenbank sichern.
+   */
+  const skript = readFileSync(join(process.cwd(), 'deploy/backup/bin/swisshub-backup'), 'utf8');
+  // Die Konfiguration steht in der gemeinsamen Bibliothek, das Archivieren im
+  // Skript - beide Haelften gehoeren zur Zusage.
+  const bibliothek = readFileSync(join(process.cwd(), 'deploy/backup/lib/gemeinsam.sh'), 'utf8');
+  const weiterleitung = readFileSync(join(process.cwd(), 'deploy/backup.sh'), 'utf8');
 
-  it('spiegelt das Upload-Verzeichnis', () => {
-    expect(skript).toContain('SWISSHUB_UPLOAD_DIR');
-    expect(skript).toMatch(/rsync -a --delete/u);
+  it('sichert das Upload-Verzeichnis', () => {
+    expect(bibliothek).toContain('SWISSHUB_UPLOAD_DIR');
+    expect(skript).toMatch(/tar -czf .* -C "\$\{UPLOAD_DIR\}" \./u);
+    // Dasselbe Verzeichnis, das die WebApp beschreibt.
+    const compose = readFileSync(join(process.cwd(), 'docker-compose.prod.yml'), 'utf8');
+    expect(compose).toContain('SWISSHUB_UPLOAD_DIR: /var/lib/swisshub/uploads');
+    expect(bibliothek).toContain('/var/lib/swisshub/uploads');
   });
 
-  it('kommt auch ohne rsync zurecht', () => {
-    // Nicht jede Installation hat es, und ein Skript, das dann still nur die
-    // Datenbank sichert, waere schlimmer als eines, das abbricht.
-    expect(skript).toMatch(/command -v rsync/u);
-    expect(skript).toMatch(/cp -a -u/u);
+  it('laesst die Dateien nicht still weg', () => {
+    /*
+     * Der Fehler, gegen den die alte Pruefung stand, in seiner neuen Form: aus
+     * einem Verzeichnis, das zu gross geworden ist, darf keine Sicherung
+     * entstehen, die nur die Datenbank enthaelt und so aussieht wie eine
+     * vollstaendige. Deshalb ein Abbruch mit eigenem Exit-Code.
+     */
+    expect(skript).toContain('CODE_DATEIEN');
+    expect(skript).toMatch(/DATEIEN_MAX_MB/u);
+    // Und wenn absichtlich nur die Datenbank gesichert wird, steht es im
+    // Manifest - `typ=nur-datenbank`.
+    expect(skript).toContain('nur-datenbank');
+  });
+
+  it('leitet den alten Aufruf auf das neue Skript', () => {
+    expect(weiterleitung).toContain('backup/bin/swisshub-backup');
+    expect(weiterleitung).toMatch(/^exec /mu);
   });
 
   it('behauptet in der Anleitung nicht mehr, ein Dump genuege', () => {
     const anleitung = readFileSync(join(process.cwd(), 'docs/DEPLOYMENT.md'), 'utf8');
     expect(anleitung).not.toMatch(/Dump\s*\ngen(ü|ue)gt als vollst(ä|ae)ndige Sicherung/u);
-    expect(anleitung).toContain('Und die Dateien:');
+    // Die Anleitung muss weiterhin sagen, dass eine Sicherung mehr ist als die
+    // Datenbank - und was sie ausdruecklich nicht mitbringt.
+    expect(anleitung).toContain('Upload-Verzeichnisses');
+    expect(anleitung).toContain('Zwei Dinge, die keine Sicherung mitbringt');
+  });
+
+  it('nennt in der Anleitung den Weg zur Wiederherstellung', () => {
+    // Eine Sicherung ohne beschriebenen Rueckweg ist eine Sicherung, die im
+    // Ernstfall niemand benutzt.
+    const anleitung = readFileSync(join(process.cwd(), 'docs/DEPLOYMENT.md'), 'utf8');
+    expect(anleitung).toContain('swisshub-recovery plan');
+    expect(anleitung).toContain('--bestaetigen');
   });
 });
 

@@ -1,0 +1,28 @@
+# Wann gesichert wird.
+#
+# Vorgabe: taeglich um 03:00 Ortszeit. Andere Zeit? Diese Datei bearbeiten
+# oder eine Ergaenzung anlegen:
+#
+#   sudo systemctl edit swisshub-backup.timer
+#   [Timer]
+#   OnCalendar=
+#   OnCalendar=*-*-* 01:30:00
+#
+# Die leere erste Zeile loescht die Vorgabe - ohne sie kaeme die neue Zeit
+# zusaetzlich dazu.
+
+[Unit]
+Description=Taegliche SwissHub-Sicherung
+
+[Timer]
+OnCalendar=*-*-* 03:00:00
+# Ein Lauf, der ausgefallen ist, weil der Server aus war, wird nachgeholt.
+# Ohne das faellt die Sicherung eines Neustarts um 02:55 stillschweigend aus.
+Persistent=true
+# Nicht alle Server der Welt um Punkt drei. Fuer einen einzelnen Server
+# nebensaechlich, aber es kostet nichts.
+RandomizedDelaySec=300
+Unit=swisshub-backup.service
+
+[Install]
+WantedBy=timers.target

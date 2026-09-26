@@ -1,0 +1,18 @@
+# Woechentlich, Sonntag 05:00.
+#
+# Nicht taeglich: der Test startet einen PostgreSQL-Container und spielt die
+# ganze Datenbank ein. Einmal pro Woche ist der Abstand, in dem ein Defekt
+# auffaellt, bevor die betroffene Sicherung aus der Aufbewahrung faellt -
+# taeglich waere Last ohne zusaetzliche Auskunft.
+
+[Unit]
+Description=Woechentlicher SwissHub-Restore-Test
+
+[Timer]
+OnCalendar=Sun *-*-* 05:00:00
+Persistent=true
+RandomizedDelaySec=600
+Unit=swisshub-restore-test.service
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,110 @@
+#!/usr/bin/env bash
+#
+# SwissHub - Sicherungen pruefen.
+#
+#   swisshub-backup-verify                  # alle
+#   swisshub-backup-verify 2026-09-26T030000Z  # eine
+#   swisshub-backup-verify --neueste        # nur die neueste
+#
+# ## Was diese Pruefung beweist - und was nicht
+#
+# Sie beweist: das Manifest ist da, jede darin genannte Datei liegt vor, hat die
+# vermerkte Groesse und die vermerkte Pruefsumme, die Archive sind von innen
+# lesbar, und der Datenbankexport traegt die Abschlussmarke von `pg_dump`.
+#
+# Sie beweist **nicht**, dass sich daraus eine Datenbank aufbauen laesst. Eine
+# richtige Pruefsumme ueber einen Dump, dessen SQL PostgreSQL nicht annimmt,
+# ist eine richtige Pruefsumme. Das beantwortet `swisshub-restore-test`, und
+# deshalb sind es zwei Zustaende im Manifest und zwei Spalten im Dashboard:
+#
+#   BACKUP ERSTELLT  ->  INTEGRITAET GEPRUEFT  ->  RESTORE GETESTET
+#
+# Sie ist ausschliesslich lesend. Sie loescht nichts und aendert keine
+# Nutzdatei - nur den Vermerk im Manifest.
+
+set -euo pipefail
+umask 077
+
+BACKUP_BIN_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+BACKUP_LIB_DIR="$(cd -- "${BACKUP_BIN_DIR}/../lib" && pwd)"
+# shellcheck source=../lib/gemeinsam.sh
+source "${BACKUP_LIB_DIR}/gemeinsam.sh"
+
+lade_konfiguration
+pruefe_python
+
+NUR_NEUESTE=0
+AUSGEWAEHLT=()
+while (($# > 0)); do
+  case "$1" in
+    --neueste) NUR_NEUESTE=1 ;;
+    -h | --help)
+      sed -n '2,8p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+      exit 0
+      ;;
+    -*) abbruch "${CODE_KONFIGURATION}" "Unbekannte Option: $1" ;;
+    *) AUSGEWAEHLT+=("$1") ;;
+  esac
+  shift
+done
+
+if ((NUR_NEUESTE == 1)); then
+  NEUESTE="$(neueste_sicherung)"
+  [[ -n "${NEUESTE}" ]] || abbruch "${CODE_FEHLER}" "Es gibt keine Sicherung in ${SICHERUNGEN_DIR}."
+  AUSGEWAEHLT=("${NEUESTE}")
+elif ((${#AUSGEWAEHLT[@]} == 0)); then
+  mapfile -t AUSGEWAEHLT < <(liste_sicherungen)
+fi
+
+if ((${#AUSGEWAEHLT[@]} == 0)); then
+  # Kein Fehler, aber auch kein Erfolg, den man vermerken sollte: es gibt
+  # nichts zu pruefen. Das Dashboard soll "noch keine Sicherung" zeigen und
+  # nicht "Pruefung bestanden".
+  protokoll "Keine Sicherung vorhanden - nichts zu pruefen."
+  schreibe_status "letztePruefung=$(date -u '+%Y-%m-%dT%H:%M:%SZ')" "letztePruefungStatus=nichts-vorhanden" || true
+  exit 0
+fi
+
+GEPRUEFT=0
+GESCHEITERT=0
+BEANSTANDET=()
+
+for KENNUNG in "${AUSGEWAEHLT[@]}"; do
+  if ! PFAD="$(pfad_der_sicherung "${KENNUNG}")"; then
+    warnung "Keine Sicherung mit der Kennung ${KENNUNG}."
+    GESCHEITERT=$((GESCHEITERT + 1))
+    BEANSTANDET+=("${KENNUNG} (nicht gefunden)")
+    continue
+  fi
+
+  protokoll "Pruefe ${KENNUNG} ..."
+  if AUSGABE="$(python3 "${MANIFEST_PY}" pruefe "${PFAD}" 2>&1)"; then
+    printf '%s\n' "${AUSGABE}" | sed 's/^/   /'
+    python3 "${MANIFEST_PY}" vermerke "${PFAD}" integritaet bestanden "sha256 und Archivinhalt geprueft"
+    GEPRUEFT=$((GEPRUEFT + 1))
+  else
+    printf '%s\n' "${AUSGABE}" | sed 's/^/   /' >&2
+    # Der Vermerk bleibt am Manifest, damit das Dashboard die defekte
+    # Sicherung als defekt zeigt, statt sie stillschweigend mitzuzaehlen.
+    python3 "${MANIFEST_PY}" vermerke "${PFAD}" integritaet gescheitert \
+      "$(printf '%s' "${AUSGABE}" | grep '^FEHLER' | head -n 3 | tr '\n' ';')" || true
+    GESCHEITERT=$((GESCHEITERT + 1))
+    BEANSTANDET+=("${KENNUNG}")
+  fi
+done
+
+spiegle_manifeste || warnung "Die Manifeste liessen sich nicht spiegeln."
+
+if ((GESCHEITERT > 0)); then
+  schreibe_status \
+    "letztePruefung=$(date -u '+%Y-%m-%dT%H:%M:%SZ')" \
+    "letztePruefungStatus=gescheitert" \
+    "letztePruefungMeldung=${GESCHEITERT} von $((GEPRUEFT + GESCHEITERT)) beanstandet: ${BEANSTANDET[*]}" || true
+  abbruch "${CODE_PRUEFUNG}" "${GESCHEITERT} von $((GEPRUEFT + GESCHEITERT)) Sicherungen sind nicht in Ordnung: ${BEANSTANDET[*]}"
+fi
+
+schreibe_status \
+  "letztePruefung=$(date -u '+%Y-%m-%dT%H:%M:%SZ')" \
+  "letztePruefungStatus=bestanden" \
+  "letztePruefungMeldung=${GEPRUEFT} Sicherungen geprueft" || true
+protokoll "${GEPRUEFT} Sicherungen geprueft, keine Beanstandung."

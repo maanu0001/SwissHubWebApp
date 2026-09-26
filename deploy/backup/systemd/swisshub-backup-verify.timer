@@ -1,0 +1,15 @@
+# Eine Stunde nach der Sicherung. Die Pruefung liest jede Datei jeder
+# Sicherung vollstaendig - deshalb nicht direkt hinterher, sondern wenn der
+# Lauf sicher durch ist.
+
+[Unit]
+Description=Taegliche Pruefung der SwissHub-Sicherungen
+
+[Timer]
+OnCalendar=*-*-* 04:00:00
+Persistent=true
+RandomizedDelaySec=300
+Unit=swisshub-backup-verify.service
+
+[Install]
+WantedBy=timers.target

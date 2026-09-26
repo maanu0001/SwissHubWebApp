@@ -1,0 +1,339 @@
+#!/usr/bin/env bash
+#
+# SwissHub - Wiederherstellung.
+#
+#   swisshub-recovery liste
+#   swisshub-recovery zeige   [<kennung>]
+#   swisshub-recovery pruefe  [<kennung>]
+#   swisshub-recovery plan    [<kennung>]
+#   swisshub-recovery test    [<kennung>]
+#   swisshub-recovery wiederherstellen <kennung> --ziel test
+#   swisshub-recovery wiederherstellen <kennung> --ziel produktion --bestaetigen <kennung>
+#
+# Ohne Kennung ist die neueste Sicherung gemeint.
+#
+# ## Warum das ein eigenes Programm ist und keine Schaltflaeche
+#
+# Weil es dann gebraucht wird, wenn die WebApp nicht laeuft. Ein
+# Wiederherstellungsweg, der eine funktionierende Anwendung voraussetzt, ist
+# genau im Ernstfall nicht da. Dieses Programm braucht eine Shell, `python3`
+# und die Sicherung - sonst nichts.
+#
+# ## Die Bremse vor der Produktion
+#
+# `--ziel produktion` verlangt zusaetzlich `--bestaetigen <kennung>` mit
+# derselben Kennung. Das ist kein Hindernis fuer den, der es will, aber es ist
+# eines fuer den Tippfehler und fuer die kopierte Zeile aus einer Anleitung.
+# Davor legt das Programm von sich aus eine Sicherheitssicherung an, und die
+# bestehenden Uploads werden verschoben, nicht geloescht.
+
+set -euo pipefail
+umask 077
+
+BACKUP_BIN_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+BACKUP_LIB_DIR="$(cd -- "${BACKUP_BIN_DIR}/../lib" && pwd)"
+# shellcheck source=../lib/gemeinsam.sh
+source "${BACKUP_LIB_DIR}/gemeinsam.sh"
+
+lade_konfiguration
+pruefe_python
+
+hilfe() {
+  sed -n '2,30p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+}
+
+# Ein Feld aus einem Manifest lesen. Keine Shell-Auswertung, kein `eval`.
+feld() {
+  python3 -c '
+import json, sys
+from pathlib import Path
+daten = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+for teil in sys.argv[2].split("."):
+    daten = daten.get(teil) if isinstance(daten, dict) else None
+print("" if daten is None else daten if isinstance(daten, str) else json.dumps(daten, ensure_ascii=False))
+' "$1/manifest.json" "$2" 2>/dev/null || printf ''
+}
+
+# Die gewuenschte Sicherung, oder die neueste.
+waehle() {
+  local kennung="${1:-}"
+  if [[ -z "${kennung}" ]]; then
+    kennung="$(neueste_sicherung)"
+    [[ -n "${kennung}" ]] || abbruch "${CODE_FEHLER}" "Es gibt keine Sicherung in ${SICHERUNGEN_DIR}."
+  fi
+  pfad_der_sicherung "${kennung}" || abbruch "${CODE_FEHLER}" "Keine Sicherung mit der Kennung ${kennung}."
+}
+
+# --- liste -------------------------------------------------------------------
+
+befehl_liste() {
+  local kennungen
+  mapfile -t kennungen < <(liste_sicherungen)
+  if ((${#kennungen[@]} == 0)); then
+    printf 'Keine Sicherung in %s.\n' "${SICHERUNGEN_DIR}"
+    return 0
+  fi
+  printf '%-20s  %-14s  %-9s  %-11s  %s\n' KENNUNG TYP GROESSE INTEGRITAET RESTORE-TEST
+  local kennung pfad
+  for kennung in "${kennungen[@]}"; do
+    pfad="${SICHERUNGEN_DIR}/${kennung}"
+    printf '%-20s  %-14s  %-9s  %-11s  %s\n' \
+      "${kennung}" \
+      "$(feld "${pfad}" typ)" \
+      "$(du -sh "${pfad}" | awk '{ print $1 }')" \
+      "$(feld "${pfad}" integritaet.status)" \
+      "$(feld "${pfad}" restoreTest.status)"
+  done
+  printf '\n%s Sicherungen, %s belegt.\n' "${#kennungen[@]}" "$(du -sh "${SICHERUNGEN_DIR}" | awk '{ print $1 }')"
+}
+
+# --- zeige -------------------------------------------------------------------
+
+befehl_zeige() {
+  local pfad
+  pfad="$(waehle "${1:-}")"
+  printf 'Sicherung     %s\n' "$(basename "${pfad}")"
+  printf 'Erstellt      %s\n' "$(feld "${pfad}" erstelltAm)"
+  printf 'Typ           %s\n' "$(feld "${pfad}" typ)"
+  printf 'Host          %s\n' "$(feld "${pfad}" host)"
+  printf 'Komponenten   %s\n' "$(feld "${pfad}" komponenten)"
+  printf 'PostgreSQL    %s\n' "$(feld "${pfad}" postgresVersion)"
+  printf 'Git-Commit    %s\n' "$(feld "${pfad}" gitCommit)"
+  printf 'Uploads aus   %s\n' "$(feld "${pfad}" uploadVerzeichnis)"
+  printf 'Schluessel    %s (Fingerabdruck, nicht der Wert)\n' "$(feld "${pfad}" schluesselFingerabdruck)"
+  printf 'Geheimnisse   %s\n' "$(feld "${pfad}" geheimnisse)"
+  printf 'Integritaet   %s (%s)\n' "$(feld "${pfad}" integritaet.status)" "$(feld "${pfad}" integritaet.am)"
+  printf 'Restore-Test  %s (%s)\n' "$(feld "${pfad}" restoreTest.status)" "$(feld "${pfad}" restoreTest.am)"
+  printf '\nDateien:\n'
+  sed 's/^/  /' "${pfad}/pruefsummen.sha256"
+}
+
+# --- plan --------------------------------------------------------------------
+
+befehl_plan() {
+  local pfad
+  pfad="$(waehle "${1:-}")"
+  local kennung
+  kennung="$(basename "${pfad}")"
+
+  printf '=== Wiederherstellungsplan fuer %s ===\n\n' "${kennung}"
+
+  printf '1. Voraussetzungen\n'
+  local fehlt=0
+  local werkzeug
+  for werkzeug in python3 gzip tar; do
+    if command -v "${werkzeug}" >/dev/null 2>&1; then
+      printf '   [ok]     %s\n' "${werkzeug}"
+    else
+      printf '   [FEHLT]  %s\n' "${werkzeug}"
+      fehlt=1
+    fi
+  done
+  if [[ "$(datenbank_modus)" == "direkt" ]]; then
+    for werkzeug in psql; do
+      if command -v "${werkzeug}" >/dev/null 2>&1; then
+        printf '   [ok]     %s (DATABASE_URL ist gesetzt)\n' "${werkzeug}"
+      else
+        printf '   [FEHLT]  %s\n' "${werkzeug}"
+        fehlt=1
+      fi
+    done
+  else
+    if command -v docker >/dev/null 2>&1; then
+      printf '   [ok]     docker (PostgreSQL im Compose-Stack)\n'
+    else
+      printf '   [FEHLT]  docker\n'
+      fehlt=1
+    fi
+  fi
+
+  printf '\n2. Die Sicherung\n'
+  if python3 "${MANIFEST_PY}" pruefe "${pfad}" | sed 's/^/   /'; then
+    printf '   Integritaet in Ordnung.\n'
+  else
+    printf '   ACHTUNG: Diese Sicherung ist nicht in Ordnung.\n'
+    fehlt=1
+  fi
+  printf '   Restore-Test: %s\n' "$(feld "${pfad}" restoreTest.status)"
+
+  printf '\n3. Was ein Restore tun wuerde\n'
+  printf '   a) Sicherheitssicherung des jetzigen Zustands anlegen.\n'
+  if [[ "$(datenbank_modus)" == "direkt" ]]; then
+    printf '   b) Den Export in die Datenbank aus DATABASE_URL einspielen.\n'
+  else
+    printf '   b) web und bot anhalten, den Export in die Datenbank im\n'
+    printf '      Compose-Stack einspielen, danach web und bot starten.\n'
+  fi
+  if [[ -f "${pfad}/dateien.tar.gz" ]]; then
+    printf '   c) %s nach %s.vor-restore-<zeit> verschieben\n' "${UPLOAD_DIR}" "${UPLOAD_DIR}"
+    printf '      und das Dateiarchiv dorthin auspacken. Nichts wird geloescht.\n'
+  else
+    printf '   c) Keine Dateien in dieser Sicherung - die Uploads bleiben, wie sie sind.\n'
+  fi
+
+  printf '\n4. Was ein Restore NICHT mitbringt\n'
+  printf '   Die Geheimnisse: %s\n' "$(feld "${pfad}" geheimnisse)"
+  printf '   MASTER_ENCRYPTION_KEY, AUTH_SECRET, Discord-Tokens und\n'
+  printf '   Zahlungsschluessel muessen aus der Offline-Sicherung kommen.\n'
+  printf '   Erwarteter Fingerabdruck des Hauptschluessels: %s\n' "$(feld "${pfad}" schluesselFingerabdruck)"
+  printf '   Passt er nicht, bleiben die gespeicherten Integrationen unlesbar -\n'
+  printf '   die Anwendung laeuft, die hinterlegten Zugangsdaten nicht.\n'
+
+  printf '\n5. Befehle\n'
+  printf '   Probe:      swisshub-recovery test %s\n' "${kennung}"
+  printf '   Produktion: swisshub-recovery wiederherstellen %s --ziel produktion --bestaetigen %s\n' \
+    "${kennung}" "${kennung}"
+
+  if ((fehlt == 1)); then
+    printf '\nEs fehlt etwas - siehe oben. Kein Restore starten.\n'
+    return "${CODE_VORAUSSETZUNG}"
+  fi
+  printf '\nAlles da.\n'
+}
+
+# --- wiederherstellen --------------------------------------------------------
+
+befehl_wiederherstellen() {
+  local kennung='' ziel='' bestaetigt=''
+  while (($# > 0)); do
+    case "$1" in
+      --ziel)
+        ziel="${2:-}"
+        shift
+        ;;
+      --bestaetigen)
+        bestaetigt="${2:-}"
+        shift
+        ;;
+      -*) abbruch "${CODE_KONFIGURATION}" "Unbekannte Option: $1" ;;
+      *) kennung="$1" ;;
+    esac
+    shift
+  done
+
+  local pfad
+  pfad="$(waehle "${kennung}")"
+  kennung="$(basename "${pfad}")"
+
+  case "${ziel}" in
+    test)
+      # Die Probe: eine Wegwerf-Umgebung, genau wie der automatische
+      # Restore-Test. Produktive Daten werden nicht beruehrt.
+      protokoll "Probewiederherstellung in eine isolierte Umgebung."
+      exec "${BACKUP_BIN_DIR}/swisshub-restore-test" "${kennung}"
+      ;;
+    produktion) ;;
+    *)
+      abbruch "${CODE_KONFIGURATION}" \
+        "--ziel muss 'test' oder 'produktion' sein. Ohne diese Angabe passiert nichts."
+      ;;
+  esac
+
+  # Ab hier: Produktion.
+  if [[ "${bestaetigt}" != "${kennung}" ]]; then
+    abbruch "${CODE_KONFIGURATION}" \
+      "Eine Wiederherstellung in die Produktion verlangt --bestaetigen ${kennung}. Es wurde nichts geaendert."
+  fi
+
+  protokoll "PRODUKTIVE WIEDERHERSTELLUNG aus ${kennung}."
+
+  if ! python3 "${MANIFEST_PY}" pruefe "${pfad}" >/dev/null; then
+    abbruch "${CODE_PRUEFUNG}" "Diese Sicherung besteht die Integritaetspruefung nicht. Es wurde nichts geaendert."
+  fi
+  protokoll "Integritaet in Ordnung."
+
+  # Die Sicherheitssicherung. Sie ist der Rueckweg, wenn sich herausstellt,
+  # dass die falsche Sicherung gewaehlt wurde - und ohne sie waere jede
+  # Wiederherstellung eine Einbahnstrasse.
+  protokoll "Lege zuerst eine Sicherheitssicherung des jetzigen Zustands an ..."
+  if ! "${BACKUP_BIN_DIR}/swisshub-backup"; then
+    abbruch "${CODE_FEHLER}" \
+      "Die Sicherheitssicherung ist gescheitert. Ohne Rueckweg wird nichts wiederhergestellt."
+  fi
+  local rueckweg
+  rueckweg="$(neueste_sicherung)"
+  protokoll "Rueckweg: ${rueckweg}"
+
+  local modus
+  modus="$(datenbank_modus)"
+
+  if [[ "${modus}" == "compose" ]]; then
+    # Anhalten, damit nichts hineinschreibt, waehrend das Schema abgeraeumt
+    # wird. Ein `--clean`-Restore unter laufender Anwendung endet in einer
+    # Datenbank, die halb alt und halb neu ist.
+    protokoll "Halte web und bot an ..."
+    compose stop web bot || warnung "web/bot liessen sich nicht anhalten - weiter mit Vorsicht."
+  fi
+
+  protokoll "Spiele den Datenbankexport ein ..."
+  local erfolg=0
+  if [[ "${modus}" == "direkt" ]]; then
+    gzip -cd "${pfad}/datenbank.sql.gz" | psql -q -X -v ON_ERROR_STOP=1 "${DATABASE_URL}" >/dev/null || erfolg=1
+  else
+    gzip -cd "${pfad}/datenbank.sql.gz" |
+      compose exec -T postgres psql -q -X -v ON_ERROR_STOP=1 \
+        -U "${POSTGRES_USER:-swisshub}" -d "${POSTGRES_DB:-swisshub}" >/dev/null || erfolg=1
+  fi
+
+  if ((erfolg != 0)); then
+    warnung "Der Datenbankexport liess sich nicht vollstaendig einspielen."
+    if [[ "${modus}" == "compose" ]]; then
+      protokoll "web und bot bleiben angehalten - die Datenbank ist in einem unklaren Zustand."
+    fi
+    abbruch "${CODE_DATENBANK}" \
+      "Wiederherstellung abgebrochen. Rueckweg: swisshub-recovery wiederherstellen ${rueckweg} --ziel produktion --bestaetigen ${rueckweg}"
+  fi
+  protokoll "Datenbank wiederhergestellt."
+
+  # Die Dateien. Verschoben, nicht geloescht - und zwar bevor etwas
+  # ausgepackt wird.
+  if [[ -f "${pfad}/dateien.tar.gz" ]]; then
+    local beiseite="${UPLOAD_DIR}.vor-restore-$(date -u '+%Y%m%dT%H%M%SZ')"
+    if [[ -d "${UPLOAD_DIR}" ]]; then
+      mv -- "${UPLOAD_DIR}" "${beiseite}"
+      protokoll "Bisherige Uploads beiseitegelegt: ${beiseite}"
+    fi
+    mkdir -p "${UPLOAD_DIR}"
+    if tar -xzf "${pfad}/dateien.tar.gz" -C "${UPLOAD_DIR}"; then
+      protokoll "Dateien wiederhergestellt nach ${UPLOAD_DIR}."
+      printf '%s [backup] Die Rechte des Upload-Verzeichnisses muessen dem Dienstbenutzer gehoeren:\n' \
+        "$(date -u '+%Y-%m-%dT%H:%M:%SZ')"
+      printf '           chown -R <benutzer>:<gruppe> %s\n' "${UPLOAD_DIR}"
+    else
+      warnung "Das Dateiarchiv liess sich nicht auspacken. Die bisherigen Uploads liegen unter ${beiseite}."
+    fi
+  else
+    protokoll "Keine Dateien in dieser Sicherung - die Uploads bleiben unveraendert."
+  fi
+
+  if [[ "${modus}" == "compose" ]]; then
+    protokoll "Starte web und bot ..."
+    compose up -d web bot || warnung "web/bot liessen sich nicht starten - von Hand pruefen."
+  fi
+
+  protokoll "Wiederherstellung abgeschlossen."
+  printf '\nNoch von Hand zu pruefen:\n'
+  printf '  1. MASTER_ENCRYPTION_KEY in der .env - erwarteter Fingerabdruck %s\n' \
+    "$(feld "${pfad}" schluesselFingerabdruck)"
+  printf '  2. Die Rechte auf %s\n' "${UPLOAD_DIR}"
+  printf '  3. System -> Integrationen: lassen sich die Zugangsdaten lesen?\n'
+  printf '  4. Der Rueckweg liegt unter %s\n' "${SICHERUNGEN_DIR}/${rueckweg}"
+}
+
+# --- Einstieg ----------------------------------------------------------------
+
+case "${1:-}" in
+  liste) befehl_liste ;;
+  zeige) befehl_zeige "${2:-}" ;;
+  # Ohne Kennung ohne Argument weitergeben - ein leeres Argument waere fuer die
+  # beiden Programme eine Kennung, die es nicht gibt.
+  pruefe) exec "${BACKUP_BIN_DIR}/swisshub-backup-verify" ${2:+"$2"} ;;
+  plan) befehl_plan "${2:-}" ;;
+  test) exec "${BACKUP_BIN_DIR}/swisshub-restore-test" ${2:+"$2"} ;;
+  wiederherstellen)
+    shift
+    befehl_wiederherstellen "$@"
+    ;;
+  -h | --help | help | '') hilfe ;;
+  *) abbruch "${CODE_KONFIGURATION}" "Unbekannter Befehl: $1 (swisshub-recovery --help)" ;;
+esac

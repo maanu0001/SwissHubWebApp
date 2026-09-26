@@ -62,8 +62,24 @@ services:
       # Hochgeladene Dateien (Logo) liegen im Volume - ein Rebuild des
       # Containers verliert sie dadurch nicht.
       SWISSHUB_UPLOAD_DIR: /var/lib/swisshub/uploads
+      # Wo die WebApp den Zustand der Sicherungen liest. Nur Manifeste - kein
+      # Datenbankexport, keine hochgeladene Datei, kein Geheimnis.
+      SWISSHUB_BACKUP_STATUS_DIR: /var/lib/swisshub/backup-status
     volumes:
       - swisshub-uploads:/var/lib/swisshub/uploads
+      # Der Zustand der Sicherungen, **nur lesbar**.
+      #
+      # Ein Bind-Mount und kein Volume: geschrieben wird von einem
+      # systemd-Timer auf dem Host, nicht von einem Container. Das
+      # Backup-Verzeichnis selbst (`/var/backups/swisshub`, 0700, root) wird
+      # bewusst **nicht** gemountet - die WebApp soll keinen Dump ausliefern
+      # koennen, und das ist so keine Regel in einer Route, sondern eine
+      # Eigenschaft des Dateisystems.
+      #
+      # Fehlt das Verzeichnis auf dem Host, legt Docker es leer an und die
+      # Oberflaeche sagt «noch nicht eingerichtet». Der Container startet in
+      # jedem Fall.
+      - ${SWISSHUB_BACKUP_STATUS_DIR:-/var/lib/swisshub/backup-status}:/var/lib/swisshub/backup-status:ro
     depends_on:
       postgres:
         condition: service_healthy

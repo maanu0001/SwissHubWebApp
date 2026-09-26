@@ -465,33 +465,85 @@ gibt sie niemals aus; `script_stop: true` bricht beim ersten Fehler ab, und
 
 ### Backups
 
-```bash
-sudo cp /opt/swisshub/deploy/backup.sh /usr/local/bin/swisshub-backup
-sudo chmod +x /usr/local/bin/swisshub-backup
-sudo crontab -e
-# taeglich um 03:30 Uhr:
-30 3 * * * /usr/local/bin/swisshub-backup
-```
-
-Das Skript sichert **zwei** Dinge:
-
-1. einen PostgreSQL-Dump (`swisshub_<datum>.sql.gz`, 14 Tage aufbewahrt)
-2. einen Spiegel des Upload-Verzeichnisses unter `<BACKUP_DIR>/uploads`
-
-Wiederherstellen - die Datenbank:
+Vollständig beschrieben in **[deploy/backup/README.md](../deploy/backup/README.md)**
+– hier nur die Einrichtung und das, was man wissen muss, ohne dort zu lesen.
 
 ```bash
-gunzip -c /var/backups/swisshub/swisshub_2026-08-19_03-30.sql.gz \
-  | sudo docker compose -f /opt/swisshub/docker-compose.prod.yml exec -T postgres \
-    psql -U swisshub -d swisshub
+sudo mkdir -p /etc/swisshub
+sudo cp /opt/swisshub/deploy/backup/swisshub-backup.env.example /etc/swisshub/backup.env
+sudo chmod 600 /etc/swisshub/backup.env
+
+sudo cp /opt/swisshub/deploy/backup/systemd/* /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now swisshub-backup.timer          # taeglich 03:00
+sudo systemctl enable --now swisshub-backup-verify.timer   # taeglich 04:00
+sudo systemctl enable --now swisshub-restore-test.timer    # sonntags 05:00
+
+# Einmal von Hand und zusehen:
+sudo systemctl start swisshub-backup.service
+sudo journalctl -u swisshub-backup.service -f
+sudo /opt/swisshub/deploy/backup/bin/swisshub-recovery liste
 ```
 
-Und die Dateien:
+Eine Sicherung enthält den PostgreSQL-Export, ein Archiv des
+Upload-Verzeichnisses, die **Namen** der Umgebungsvariablen und ein Manifest mit
+Prüfsummen. Aufbewahrt werden 7 tägliche, 4 wochenweise und 3 monatsweise
+Sicherungen.
+
+Drei Zustände, die nicht dasselbe sind:
+
+| Zustand            | Wer                      | Was er beweist                                           |
+| ------------------ | ------------------------ | -------------------------------------------------------- |
+| BACKUP ERSTELLT    | `swisshub-backup`        | Die Dateien liegen da.                                   |
+| INTEGRITÄT GEPRÜFT | `swisshub-backup-verify` | Prüfsummen stimmen, Archive lesbar, Dump vollständig.    |
+| RESTORE GETESTET   | `swisshub-restore-test`  | Eingespielt in eine isolierte Datenbank, Zeilen stimmen. |
+
+Der Zustand steht in der WebApp unter **System → Backup & Recovery**
+(Berechtigung `backup.view`). Die Seite zeigt nur an – gesichert und
+wiederhergestellt wird über die CLI auf dem Server. Der WebApp-Container hat
+absichtlich keinen Docker-Socket und keinen Zugang zum Backup-Verzeichnis; er
+liest ausschliesslich `/var/lib/swisshub/backup-status` (nur Manifeste, nur
+lesbar).
+
+Wiederherstellen:
 
 ```bash
-sudo rsync -a /var/backups/swisshub/uploads/ /var/lib/swisshub/uploads/
-sudo chown -R 1001:1001 /var/lib/swisshub/uploads   # der Benutzer des Containers
+BIN=/opt/swisshub/deploy/backup/bin
+sudo $BIN/swisshub-recovery plan                  # was ein Restore täte
+sudo $BIN/swisshub-recovery test                  # Probe, ohne die Produktion zu berühren
+sudo $BIN/swisshub-recovery wiederherstellen <kennung> \
+  --ziel produktion --bestaetigen <kennung>       # legt vorher eine Sicherheitssicherung an
 ```
+
+#### Zwei Dinge, die keine Sicherung mitbringt
+
+**Die Geheimnisse.** `MASTER_ENCRYPTION_KEY`, `AUTH_SECRET`, Discord-Tokens und
+Zahlungsschlüssel liegen absichtlich in keiner Sicherung – neben dem
+Datenbankexport wären sie der Schlüssel zum Schloss am selben Bund. Sie brauchen
+eine Offline-Kopie an zwei Orten, die nicht dieser Server sind. Die Anleitung
+dazu steht in [deploy/backup/README.md](../deploy/backup/README.md), Abschnitt
+«Schlüssel und Geheimnisse». Das Manifest trägt einen Fingerabdruck des
+Hauptschlüssels: er sagt, ob die Offline-Kopie die richtige ist, und gibt den
+Wert nicht her.
+
+**Schutz vor dem Verlust des Servers.** Lokale Sicherungen liegen auf derselben
+Maschine. Brennt sie, sind Anwendung und Sicherungen weg. Die Schnittstelle für
+einen externen Speicher ist vorbereitet
+(`SWISSHUB_BACKUP_EXTERN_BEFEHL`), eingerichtet ist keiner – und das Dashboard
+sagt das so.
+
+#### Umstellen vom früheren Cron-Eintrag
+
+`deploy/backup.sh` ist eine Weiterleitung auf das neue Skript. Wer es per Cron
+aufruft, entfernt den Eintrag:
+
+```bash
+sudo crontab -l | grep -v swisshub-backup | sudo crontab -
+```
+
+Die alten Sicherungen (`swisshub_<datum>.sql.gz` und `uploads/` direkt im
+Backup-Verzeichnis) bleiben unangetastet: die neue Aufbewahrung sieht
+ausschliesslich in `sicherungen/` nach.
 
 #### Warum die Dateien dazugehören
 
@@ -542,8 +594,13 @@ Wiederherstellung niemand mehr sehen.
 - [ ] `DEV_MOCK_DISCORD=false`, `TRUST_PROXY=true`
 - [ ] Bot-Rolle über Jail-Rolle, Admin-Rollen als _geschützt_ markiert
 - [ ] Jail-Rolle und Log-Channel konfiguriert, Testjail erfolgreich
-- [ ] Backup-Cron eingerichtet und einmal manuell getestet
-- [ ] Der Backup-Lauf hat **beides** erzeugt: den Dump und `<BACKUP_DIR>/uploads`
+- [ ] `swisshub-backup.timer` aktiv und einmal von Hand gelaufen
+- [ ] `swisshub-recovery liste` zeigt eine Sicherung mit Integrität «bestanden»
+- [ ] `swisshub-recovery test` einmal durchgelaufen – Restore-Test «bestanden»
+- [ ] `MASTER_ENCRYPTION_KEY` und die übrigen Geheimnisse offline gesichert,
+      Fingerabdruck notiert und mit dem Manifest verglichen
+- [ ] Entschieden, ob ein externer Speicher eingerichtet wird – lokale
+      Sicherungen überleben den Verlust des Servers nicht
 - [ ] Firewall aktiv, PostgreSQL nicht öffentlich erreichbar
 - [ ] `curl -s https://system.swisshub.gg/api/health` meldet `"status":"ok"`
 

@@ -11,6 +11,7 @@
     "./level": "./src/level/index.ts",
     "./level/karte": "./src/level/card.ts",
     "./appeals": "./src/appeals/index.ts",
+    "./backup/manifest": "./src/backup/manifest.ts",
     "./clips": "./src/clips/index.ts",
     "./clips/provider": "./src/clips/provider.ts",
     "./clips/woche": "./src/clips/woche.ts",

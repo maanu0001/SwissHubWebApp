@@ -1,0 +1,35 @@
+# SwissHub - Restore-Test in einer Wegwerf-Umgebung.
+#
+# Der Test, der die Frage beantwortet, die eine Pruefsumme nicht beantwortet:
+# nimmt PostgreSQL diesen Export an, und kommen die Daten an?
+#
+# Er startet die Anwendung nicht. Kein Bot, kein Discord-Token, kein
+# Hintergrundjob - nur PostgreSQL in einem Container ohne Netz.
+
+[Unit]
+Description=SwissHub Restore-Test (isolierte Wegwerf-Datenbank)
+Documentation=file:///opt/swisshub/deploy/backup/README.md
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+User=root
+WorkingDirectory=/opt/swisshub
+ExecStart=/opt/swisshub/deploy/backup/bin/swisshub-restore-test
+Nice=15
+IOSchedulingClass=idle
+TimeoutStartSec=1h
+
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=read-only
+ProtectKernelTunables=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+ReadWritePaths=/var/backups/swisshub /var/lib/swisshub
+
+[Install]
+WantedBy=multi-user.target

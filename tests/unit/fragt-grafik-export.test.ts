@@ -181,24 +181,30 @@ describe('Grafikexport: die Faelle, die niemand von Hand testet', () => {
     expect(mitUmlaut.byteLength).not.toBe(ohneUmlaut.byteLength);
   });
 
-  it('bricht an einem Emoji nicht ab - zeichnet es aber auch nicht', async () => {
+  it('bricht an einem Emoji nicht ab', async () => {
     /*
-     * Die ehrliche Fassung dieser Zusage.
+     * Die Zusage, die ueberall gilt - und die einzige, die hier gelten darf.
      *
-     * Gemessen: ein PNG mit «Minecraft 🎮🔥» ist byte-identisch mit einem ohne
-     * die Emojis. Satori hat in diesem Container keine Emoji-Schrift, also
-     * entsteht keine Glyphe - und auch kein Ersatzkaestchen.
+     * ## Warum hier nicht steht, ob das Emoji zu sehen ist
      *
-     * Der Export scheitert deshalb **nicht**, und genau das ist hier die
-     * Zusage: ein Mitglied, das ein Emoji in eine Antwort schreibt, bringt die
-     * Grafik nicht zu Fall. Dass das Emoji unsichtbar bleibt, ist eine bekannte
-     * Einschraenkung - eine Emoji-Schrift mitzuliefern waere ein
-     * Mehrfaches der Bildgroesse im Docker-Bild.
+     * Weil das von der Umgebung abhaengt, und ich habe genau daran einen
+     * Deployment-Lauf verloren.
      *
-     * Wuerde jemand eine Emoji-Schrift ergaenzen, faellt dieser Test auf: dann
-     * sind die beiden PNG verschieden, und die Einschraenkung gilt nicht mehr.
+     * Gemessen in meinem Container: ein PNG mit «Minecraft 🎮🔥» war
+     * **byte-identisch** mit einem ohne - keine Emoji-Schrift, also keine
+     * Glyphe. Aus dieser Messung habe ich eine harte Zusicherung gemacht
+     * (`expect(mit).toBe(ohne)`).
+     *
+     * Auf dem GitHub-Runner ist dasselbe PNG 2625 Bytes **groesser**: dort gibt
+     * es eine Emoji-Schrift, und das Emoji wird gezeichnet. Der Test fiel um,
+     * und mit ihm der Lauf 79.
+     *
+     * Beides ist richtig - fuer die jeweilige Maschine. Eine Zusage darf
+     * deshalb nur das behaupten, was von den installierten Schriften
+     * unabhaengig ist: **der Export scheitert nicht**. Ein Mitglied, das ein
+     * Emoji in eine Antwort schreibt, bringt die Grafik nicht zu Fall - ob das
+     * Emoji erscheint, entscheidet das Abbild, in dem gerendert wird.
      */
-    const ohne = await rendere('verteilung', 'quadrat', NORMAL);
     const mit = await rendere('verteilung', 'quadrat', {
       ...NORMAL,
       zeilen: NORMAL.zeilen.map((zeile, index) =>
@@ -207,7 +213,7 @@ describe('Grafikexport: die Faelle, die niemand von Hand testet', () => {
       gewinner: { label: `${NORMAL.gewinner!.label} 🎮🔥`, prozent: 42, stimmen: 42 },
     });
     expect(mit.byteLength).toBeGreaterThan(1000);
-    expect(mit.byteLength).toBe(ohne.byteLength);
+    expect(pngMasse(mit)).toEqual(SOCIAL_MASSE.quadrat);
   });
 
   it('vertraegt Emojis in jeder Vorlage, ohne zu scheitern', async () => {

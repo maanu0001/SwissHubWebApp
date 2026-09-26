@@ -16,10 +16,15 @@ import { describe, expect, it } from 'vitest';
  * und die Typpruefung des Monorepos **vorher** aus, jede in einem eigenen
  * Prozess.
  *
- * Die Typpruefung der **WebApp** passt auch so nicht mehr: sie braucht
+ * Die Typpruefung der **WebApp** passte auch so nicht mehr: sie braucht
  * zwischen 1536 und 1700 MB, und daran ist ein zweites Deployment
- * gescheitert. Sie laeuft deshalb in der Pipeline, wo genug Speicher ist -
- * auf demselben Commit, und der Deploy haengt daran.
+ * gescheitert. Sie zog in die Pipeline.
+ *
+ * Mit «SwissHub fragt» ist die des **Monorepos** hinterhergezogen: sie
+ * scheiterte an derselben Grenze im Bauschritt des Bots (Laeufe 77 und 78),
+ * waehrend der Validierungsjob derselben Commits gruen war. Im Abbild laeuft
+ * jetzt nur noch Lint; beide Typpruefungen laufen in der Pipeline, auf
+ * demselben Commit, und der Deploy haengt mit `needs: validate` daran.
  *
  * ## Warum das ein Test ist
  *
@@ -55,39 +60,46 @@ describe('Pruefungen im Docker-Abbild', () => {
     expect(nextConfig).not.toMatch(unbedingt);
   });
 
-  it('prueft im Abbild ausdruecklich, bevor es die Pruefung im Build abschaltet', () => {
+  it('lintet im Abbild, bevor es die Pruefung im Build abschaltet', () => {
     const lintZeile = dockerfile.indexOf('RUN npm run lint');
-    const tscWurzel = dockerfile.indexOf('RUN npx tsc -p tsconfig.json --noEmit');
     const variable = dockerfile.indexOf('ENV SWISSHUB_SPLIT_BUILD_CHECKS=1');
     const build = dockerfile.indexOf('RUN npm run build --workspace @swisshub/web');
 
-    for (const [name, stelle] of Object.entries({ lintZeile, tscWurzel, variable, build })) {
+    for (const [name, stelle] of Object.entries({ lintZeile, variable, build })) {
       expect(stelle, `${name} fehlt im Dockerfile`).toBeGreaterThan(-1);
     }
 
     // Reihenfolge: erst pruefen, dann abschalten, dann bauen.
     expect(lintZeile).toBeLessThan(variable);
-    expect(tscWurzel).toBeLessThan(variable);
     expect(variable).toBeLessThan(build);
   });
 
-  it('laesst die Typpruefung der WebApp aus dem Abbild heraus', () => {
+  it('laesst beide Typpruefungen aus dem Abbild heraus', () => {
     /*
-     * Sie braucht zwischen 1536 und 1700 MB - gemessen an dem Deployment,
-     * an dem sie gescheitert ist. Auf dem Server mit 2 GB, neben laufendem
-     * Postgres, Web und Bot, passt sie nicht mehr unter die Grenze; und die
-     * Grenze anzuheben verschoebe das Problem nur bis zum naechsten Modul.
+     * In zwei Schritten dorthin gekommen, und beide waren dasselbe Scheitern.
      *
-     * Wer sie hier wieder einbaut, soll auf diese Zeilen stossen und wissen,
-     * warum sie nicht da ist.
+     * Die WebApp zuerst: sie braucht zwischen 1536 und 1700 MB und passte nicht
+     * mehr unter die Grenze. Der Kommentar von damals sagte den Rest voraus -
+     * «beim naechsten Modul stuenden wir wieder hier».
+     *
+     * Der naechste war «SwissHub fragt». Mit ihm scheiterte auch
+     * `tsc -p tsconfig.json --noEmit` an «Ineffective mark-compacts near heap
+     * limit» - im Bauschritt des Bots, Deploy-Laeufe 77 und 78. Der
+     * Validierungsjob derselben Commits war gruen.
+     *
+     * Wer eine der beiden hier wieder einbaut, soll auf diese Zeilen stossen
+     * und wissen, warum sie nicht da sind: nicht aus Nachlaessigkeit, sondern
+     * weil ein Build, der auslagert, nicht scheitert - er steht.
      */
     expect(dockerfile).not.toContain('RUN npx tsc -p apps/web/tsconfig.json --noEmit');
+    expect(dockerfile).not.toContain('RUN npx tsc -p tsconfig.json --noEmit');
   });
 
-  it('prueft die Typen der WebApp dafuer in der Pipeline - vor dem Deploy', () => {
+  it('prueft beide Projekte dafuer in der Pipeline - vor dem Deploy', () => {
     /*
      * Die Abmachung besteht jetzt aus drei Dateien. Faellt eine weg, ist die
-     * Typpruefung der WebApp still verschwunden:
+     * Typpruefung still verschwunden - und zwar die des ganzen Projekts, denn
+     * im Abbild steht seit Lauf 78 keine mehr:
      *
      *   - das Skript muss beide Projekte pruefen,
      *   - der Validierungsjob muss es aufrufen,

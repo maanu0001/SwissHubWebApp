@@ -80,9 +80,42 @@ ENV NODE_OPTIONS=--max-old-space-size=1536
 # Heap. Ein Lint- oder Typfehler bricht das Abbild weiterhin ab; er tut es
 # eine Stufe frueher und mit einer deutlicheren Meldung.
 RUN npm run lint
-RUN npx tsc -p tsconfig.json --noEmit
 
-# Die Typpruefung der WebApp laeuft **nicht** hier, sondern in der Pipeline.
+# Die Typpruefung laeuft **nicht** hier, sondern in der Pipeline - beide.
+#
+# ## Wie es dazu kam
+#
+# In zwei Schritten, und beide waren dasselbe Scheitern.
+#
+# Zuerst die WebApp: sie braucht zwischen 1536 und 1700 MB Heap, passte damit
+# nicht unter die Grenze oben und zog aus. Der Kommentar von damals sagte den
+# Rest voraus - «das Programm waechst mit jedem Modul, beim naechsten stuenden
+# wir wieder hier».
+#
+# Der naechste war «SwissHub fragt». Mit ihm scheiterte
+# `npx tsc -p tsconfig.json --noEmit` an derselben Stelle: «Ineffective
+# mark-compacts near heap limit», nach 50 Sekunden, im Bauschritt des Bots
+# (Deploy-Laeufe 77 und 78). Der Validierungsjob derselben Commits war gruen -
+# dort gibt es genug Speicher.
+#
+# ## Warum nicht die Grenze anheben
+#
+# Weil der Server 2 GB hat und waehrend des Baus Postgres, Web und Bot
+# weiterlaufen. Ueber der Grenze scheitert der Build nicht, er **steht**: das
+# System beginnt auszulagern, und ein Deployment ist so schon einmal ins
+# 30-Minuten-Zeitlimit gelaufen. Eine klare Meldung nach zwei Minuten ist
+# besser. Und beim naechsten Modul stuenden wir wieder hier.
+#
+# ## Was die Pruefung jetzt traegt
+#
+# `.github/workflows/deploy.yml`, Job «Validate»: `npm run typecheck` fuehrt
+# beide Aufrufe aus - Monorepo und WebApp -, auf demselben Commit, auf einer
+# Maschine mit genug Speicher. Der Deploy-Job haengt mit `needs: validate`
+# daran: ohne gruene Typpruefung entsteht kein Abbild.
+#
+# Damit ist die Pruefung nicht schwaecher geworden, sondern nur woanders. Was
+# sie schwaecher machen wuerde, ist das Weglassen an beiden Stellen - und genau
+# dagegen steht `tests/unit/build-pruefungen.test.ts`.
 #
 # Sie braucht zwischen 1536 und 1700 MB Heap - gemessen, nicht geschaetzt -
 # und passt damit nicht mehr unter die Grenze oben. Die Grenze anzuheben
